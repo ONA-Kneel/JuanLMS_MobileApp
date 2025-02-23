@@ -5,6 +5,7 @@ export default function App() {
   return (
     <View style={styles.container}>
       <Text>JuanLMS: Study,Perform,Execute</Text>
+      <Text>JuanLMS: Study,Perform,Execute</Text>
       <StatusBar style="auto" />
     </View>
   );
