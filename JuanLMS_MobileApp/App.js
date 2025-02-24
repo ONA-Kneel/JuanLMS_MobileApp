@@ -9,6 +9,7 @@ import SplashScreen from './components/SplashScreen';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import Login from './components/Login';
+import StudentDashboard from './components/Students/StudentDashboard';
 
 
 const Screens = createNativeStackNavigator();
@@ -18,9 +19,10 @@ const Screens = createNativeStackNavigator();
 export default function App() {
   return (
     <NavigationContainer>
-      <Screens.Navigator initialRouteName='Login'>
+      <Screens.Navigator initialRouteName='SDash'>
         <Screens.Screen name='SplashScreen' component={SplashScreen}/>
         <Screens.Screen name='Login' component={Login}/>
+        <Screens.Screen name='SDash' component={StudentDashboard}/>
         
       </Screens.Navigator>
     </NavigationContainer>
