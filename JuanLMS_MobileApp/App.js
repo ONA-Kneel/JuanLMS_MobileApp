@@ -10,7 +10,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import Login from './components/Login';
 import StudentDashboard from './components/Students/StudentDashboard';
-
+import StudentModule from './components/Students/StudentModule';
 
 const Screens = createNativeStackNavigator();
 
@@ -19,11 +19,11 @@ const Screens = createNativeStackNavigator();
 export default function App() {
   return (
     <NavigationContainer>
-      <Screens.Navigator initialRouteName='SDash'>
+      <Screens.Navigator initialRouteName='Login'>
         <Screens.Screen name='SplashScreen' component={SplashScreen}/>
         <Screens.Screen name='Login' component={Login}/>
         <Screens.Screen name='SDash' component={StudentDashboard}/>
-        
+        <Screens.Screen name='SModule' component={StudentModule}/>
       </Screens.Navigator>
     </NavigationContainer>
   );

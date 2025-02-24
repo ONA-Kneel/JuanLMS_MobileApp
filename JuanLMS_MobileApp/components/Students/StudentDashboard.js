@@ -4,7 +4,9 @@ import { CheckBox, Image, ImageBackground, ProgressBar, ScrollView, TextInput } 
 import { useState } from 'react';
 import StudentDashStyle from '../styles/Stud/StudentDashStyle';
 
+
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { useNavigation } from '@react-navigation/native';
 
 
 export default function StudentDashboard() {
@@ -14,7 +16,12 @@ export default function StudentDashboard() {
         { name: 'Physical Education', progress: 0 },
         { name: 'Ethics', progress: 1 },
       ];
-    
+      const changeScreen = useNavigation();
+
+      const modules =()=>{
+        changeScreen.navigate("SModule")
+      }
+
       return (
         <View style={StudentDashStyle.container}>
             <View>
@@ -31,7 +38,9 @@ export default function StudentDashboard() {
                 </View>
                 <Text style={StudentDashStyle.progressText}>{course.progress === 1 ? '100% Completed' : '0% Resume'}</Text>
                 <ProgressBar progress={course.progress} color={course.progress === 1 ? 'black' : 'white'} style={StudentDashStyle.progressBar} />
-                <TouchableOpacity style={StudentDashStyle.arrowButton}>
+                <TouchableOpacity 
+                  onPress={modules}
+                  style={StudentDashStyle.arrowButton}>
                   <Icon name="arrow-right" size={24} color="white" />
                 </TouchableOpacity>
               </View>

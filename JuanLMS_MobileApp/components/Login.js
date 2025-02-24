@@ -5,12 +5,19 @@ import { useState } from 'react';
 import LoginStyle from './styles/LoginStyle';
 
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { useNavigation } from '@react-navigation/native';
 
 
 
 export default function Login() {
     const [showPassword, setShowPassword] = useState(false);
     const [rememberMe, setRememberMe] = useState(false);
+    const changeScreen = useNavigation();
+
+    const btnLogin =()=>{
+      changeScreen.navigate("SDash")
+    }
+
 
   return (
     <View>
@@ -51,7 +58,9 @@ export default function Login() {
           </TouchableOpacity>
         </View>
 
-        <TouchableOpacity style={LoginStyle.loginButton}>
+        <TouchableOpacity
+          onPress={btnLogin}
+           style={LoginStyle.loginButton}>
           <Text style={LoginStyle.loginButtonText}>Login</Text>
         </TouchableOpacity>
 
