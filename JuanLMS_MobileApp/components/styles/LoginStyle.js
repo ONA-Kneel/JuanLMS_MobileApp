@@ -40,7 +40,7 @@ const LoginStyle = StyleSheet.create({
       loginTitle: {
         fontSize: 22,
         fontWeight: 'bold',
-        marginBottom: 15,
+        marginBottom: 50,
       },
       label: {
         alignSelf: 'flex-start',
@@ -52,7 +52,7 @@ const LoginStyle = StyleSheet.create({
         width: '100%',
         padding: 10,
         borderBottomWidth: 1,
-        marginBottom: 10,
+        marginBottom: 30,
       },
       passwordContainer: {
         flexDirection: 'row',

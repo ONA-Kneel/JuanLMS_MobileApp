@@ -11,7 +11,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 export default function Login() {
     const [showPassword, setShowPassword] = useState(false);
     const [rememberMe, setRememberMe] = useState(false);
-    
+
   return (
     <View>
         <ImageBackground source={require('../assets/JuanLMS - bg.png')} style={LoginStyle.background} resizeMode="cover">
@@ -21,19 +21,19 @@ export default function Login() {
         <View style={LoginStyle.loginContainer}>
             <Text style={LoginStyle.loginTitle}>Login</Text>
 
-            <Text style={LoginStyle.label}>Email</Text>
+            
             <TextInput
             style={LoginStyle.input}
             
             
-            placeholder="Enter your email"
+            placeholder="Email"
             />
 
-            <Text style={LoginStyle.label}>Password</Text>
+
             <View style={LoginStyle.passwordContainer}>
             <TextInput
                 style={LoginStyle.input}
-                placeholder="Enter your password"
+                placeholder="Password"
             />
             <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
             <Icon name={showPassword ? 'eye-off' : 'eye'} size={20} />
