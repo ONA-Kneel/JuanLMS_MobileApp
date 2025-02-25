@@ -16,30 +16,29 @@ import StudentGrades from './components/Students/StudentGrades';
 import StudentActs from './components/Students/StudentActs';
 import StudentProgress from './components/Students/StudentProgress';
 
-
-//Screen Change/Bottom Navigation Bar
-const Screens = createNativeStackNavigator();
+//Bottom Navigation Bar
 const Tabs = createBottomTabNavigator();
-
-const StudentNav = () => {
+const StudentDash = () => {
   return(
     <Tabs.Navigator>
-      <Tabs.Screen name='SDash' component={StudentDashboard} 
-      options={{tabBarIcon: () => (<Image source={require('./assets/icons/6.svg')} style={{ width: 30, height: 30 , shadowColor:'black'}}/>),}} />
+      <Tabs.Screen name='Dashboard' component={StudentDashboard} //Student Dashboard is now merged with Bottom Navigation
+      options={{ tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/6.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
     </Tabs.Navigator>
   )
 }
 
+//Specific Screen Change
+const Screens = createNativeStackNavigator();
 export default function App() {
   return (
     <NavigationContainer>
       <Screens.Navigator initialRouteName='Login'>
         <Screens.Screen name='SplashScreen' component={SplashScreen}/>
         <Screens.Screen name='Login' component={Login}/>
+        <Screens.Screen name='SDash' component={StudentDash}/>
         <Screens.Screen name='SModule' component={StudentModule}/>
         <Screens.Screen name='SGrade' component={StudentGrades}/>
         <Screens.Screen name='SActs' component={StudentActs}/>
-        <Screens.Screen name='SNav' component={StudentNav}/>
         <Screens.Screen name='SProg' component={StudentProgress}/>
       </Screens.Navigator>
     </NavigationContainer>

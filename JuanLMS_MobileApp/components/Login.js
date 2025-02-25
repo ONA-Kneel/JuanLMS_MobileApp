@@ -13,9 +13,8 @@ export default function Login() {
     const changeScreen = useNavigation();
 
     const btnLogin =()=>{
-      changeScreen.navigate("SNav")
+      changeScreen.navigate("SDash")
     }
-
 
   return (
     <View>
@@ -65,8 +64,6 @@ export default function Login() {
         </View>
         </ImageBackground>
 
-        
-        
     </View>
   );
 }

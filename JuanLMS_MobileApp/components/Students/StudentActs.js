@@ -65,12 +65,6 @@ function Completed() {
 }
 
 
-
-
-
-
-
-
 function Tabs() {
   return (
     <Tab.Navigator
