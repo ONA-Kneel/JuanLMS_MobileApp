@@ -23,6 +23,16 @@ export default function StudentDashboard() {
     changeScreen.navigate("SGrade")
   }
 
+  const activities = () =>
+  {
+    changeScreen.navigate("SActs")
+  }
+
+  const progress = () =>
+  {
+    changeScreen.navigate("SProg")
+  }
+
   return (
     <View style={StudentDashStyle.container}>
       <View style={StudentDashStyle.header}>
@@ -33,11 +43,11 @@ export default function StudentDashboard() {
           <Icon name="star" size={40} color="#f3f3f3" style={{ backgroundColor: "#00418b", padding: 10, borderRadius: 50 }} />
           <Text style={{ fontWeight: "bold", margin: 5 }}>My Grades</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={StudentDashStyle.iconWrapper}>
+        <TouchableOpacity style={StudentDashStyle.iconWrapper} onPress={activities}>
           <Icon name="book" size={40} color="#f3f3f3" style={{ backgroundColor: "#00418b", padding: 10, borderRadius: 50 }} />
           <Text style={{ fontWeight: "bold", margin: 5 }}>Activities</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={StudentDashStyle.iconWrapper}>
+        <TouchableOpacity style={StudentDashStyle.iconWrapper} onPress={progress}>
           <Icon name="chart-bar" size={40} color="#f3f3f3" style={{ backgroundColor: "#00418b", padding: 10, borderRadius: 50 }} />
           <Text style={{ fontWeight: "bold", margin: 5 }}>My Progressions</Text>
         </TouchableOpacity>

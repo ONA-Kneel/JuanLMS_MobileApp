@@ -14,6 +14,7 @@ import StudentDashboard from './components/Students/StudentDashboard';
 import StudentModule from './components/Students/StudentModule';
 import StudentGrades from './components/Students/StudentGrades';
 import StudentActs from './components/Students/StudentActs';
+import StudentProgress from './components/Students/StudentProgress';
 
 
 //Screen Change/Bottom Navigation Bar
@@ -39,7 +40,7 @@ export default function App() {
         <Screens.Screen name='SGrade' component={StudentGrades}/>
         <Screens.Screen name='SActs' component={StudentActs}/>
         <Screens.Screen name='SNav' component={StudentNav}/>
-        {/* <Screens.Screen name='SProgress' component={StudentProgress}/> */}
+        <Screens.Screen name='SProg' component={StudentProgress}/>
       </Screens.Navigator>
     </NavigationContainer>
   );
