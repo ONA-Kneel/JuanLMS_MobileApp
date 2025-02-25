@@ -15,6 +15,8 @@ import StudentModule from './components/Students/StudentModule';
 import StudentGrades from './components/Students/StudentGrades';
 import StudentActs from './components/Students/StudentActs';
 import StudentProgress from './components/Students/StudentProgress';
+import StudentChats from './components/Students/StudentsChats';
+import Chat from './components/Chat';
 
 //Bottom Navigation Bar
 const Tabs = createBottomTabNavigator();
@@ -32,7 +34,7 @@ const Screens = createNativeStackNavigator();
 export default function App() {
   return (
     <NavigationContainer>
-      <Screens.Navigator initialRouteName='Login'>
+      <Screens.Navigator initialRouteName='SChats'>
         <Screens.Screen name='SplashScreen' component={SplashScreen}/>
         <Screens.Screen name='Login' component={Login}/>
         <Screens.Screen name='SDash' component={StudentDash}/>
@@ -40,6 +42,10 @@ export default function App() {
         <Screens.Screen name='SGrade' component={StudentGrades}/>
         <Screens.Screen name='SActs' component={StudentActs}/>
         <Screens.Screen name='SProg' component={StudentProgress}/>
+        <Screens.Screen name='SChats' component={StudentChats}/>
+        <Screens.Screen name='Chats' component={Chat}/>
+
+
       </Screens.Navigator>
     </NavigationContainer>
   );
