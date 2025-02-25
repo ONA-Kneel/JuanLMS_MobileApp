@@ -70,7 +70,7 @@ export default function StudentModule(){
                     {/* Next Button */}
                     <TouchableOpacity
                         style={{
-                            backgroundColor: currentLesson < totalLessons - 1 ? '#87ceeb' : 'gray',
+                            backgroundColor: currentLesson < totalLessons - 1 ? '#0047AB' : 'gray',
                             width: 80,
                             height: 40,
                             borderRadius: 10,
