@@ -1,10 +1,7 @@
-import { StatusBar } from 'expo-status-bar';
-import { LoginStyleheet, Text, TouchableOpacity, View } from 'react-native';
-import { CheckBox, Image, ImageBackground, ProgressBar, ScrollView, TextInput } from 'react-native-web';
+import { Text, TouchableOpacity, View } from 'react-native';
+import { Image, ProgressBar, ScrollView } from 'react-native-web';
 import { useState } from 'react';
 import StudentDashStyle from '../styles/Stud/StudentDashStyle';
-
-
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
 

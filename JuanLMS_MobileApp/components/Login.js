@@ -3,10 +3,8 @@ import { LoginStyleheet, Text, TouchableOpacity, View } from 'react-native';
 import { CheckBox, Image, ImageBackground, TextInput } from 'react-native-web';
 import { useState } from 'react';
 import LoginStyle from './styles/LoginStyle';
-
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
-
 
 
 export default function Login() {
@@ -15,7 +13,7 @@ export default function Login() {
     const changeScreen = useNavigation();
 
     const btnLogin =()=>{
-      changeScreen.navigate("SDash")
+      changeScreen.navigate("SNav")
     }
 
 
