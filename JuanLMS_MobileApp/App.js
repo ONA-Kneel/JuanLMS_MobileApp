@@ -11,6 +11,9 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import Login from './components/Login';
 import StudentDashboard from './components/Students/StudentDashboard';
 import StudentModule from './components/Students/StudentModule';
+import StudentGrades from './components/Students/StudentGrades';
+import StudentActs from './components/Students/StudentActs';
+
 
 const Screens = createNativeStackNavigator();
 
@@ -24,6 +27,9 @@ export default function App() {
         <Screens.Screen name='Login' component={Login}/>
         <Screens.Screen name='SDash' component={StudentDashboard}/>
         <Screens.Screen name='SModule' component={StudentModule}/>
+        <Screens.Screen name='SGrade' component={StudentGrades}/>
+        <Screens.Screen name='SActs' component={StudentActs}/>
+        {/* <Screens.Screen name='SProgress' component={StudentProgress}/> */}
       </Screens.Navigator>
     </NavigationContainer>
   );

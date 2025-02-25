@@ -1,31 +1,22 @@
 import { StyleSheet } from 'react-native';
 
-const StudentDashStyle = StyleSheet.create({
+const StudentActsStyle = StyleSheet.create({
     container: {
         flex: 1,
         padding: 20,
         backgroundColor: '#f3f3f3',
       },
-      title: {
-        fontSize: 20,
-        fontWeight: 'bold',
-        marginBottom: 10,
-      },
-      logo: {
-        width: 100,
-        height:50,
-        marginBottom:20,
-        resizeMode: 'contain',
-      },
-      iconsContainer: {
-        
+      header: {
         flexDirection: 'row',
-        justifyContent: 'space-around',
-        marginBottom: 20,
-      },
-      iconWrapper: {
         alignItems: 'center',
-        
+        padding: 15,
+        borderBottomWidth: 1,
+        borderBottomColor: '#ccc',
+      },
+      title: {
+        flex: 1,
+        fontSize: 18,
+        fontWeight: 'bold',
       },
       card: {
         backgroundColor: '#00418b',
@@ -67,4 +58,4 @@ const StudentDashStyle = StyleSheet.create({
 
 });
 
-export default StudentDashStyle;
+export default StudentActsStyle;
