@@ -20,8 +20,11 @@ import StudentChats from './components/Students/StudentsChats';
 import Chat from './components/Chat';
 import StudentsProfile from './components/Students/StudentsProfile';
 import StudentCalendar from './components/Students/StudentsCalendar';
+
 //Faculty
 import FacultyDashboard from './components/Faculty/FacultyDashboard';
+import CreateClasses from './components/Faculty/CreateClasses';
+import FacultyStudentProgress from './components/Faculty/FacultyStudentProgress';
 
 
 //Bottom Navigation Bar
@@ -68,6 +71,8 @@ export default function App() {
         <Screens.Screen name='Chats' component={Chat}/>
         <Screens.Screen name='SCalendar' component={StudentCalendar}/>
         <Screens.Screen name='FDash' component={FacultyDash}/>
+        <Screens.Screen name ='CClass' component={CreateClasses}/>
+        <Screens.Screen name ='FSProg' component={FacultyStudentProgress}/>
       </Screens.Navigator>
     </NavigationContainer>
   );
