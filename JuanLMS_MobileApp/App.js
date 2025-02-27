@@ -25,6 +25,7 @@ import StudentCalendar from './components/Students/StudentsCalendar';
 import FacultyDashboard from './components/Faculty/FacultyDashboard';
 import CreateClasses from './components/Faculty/CreateClasses';
 import FacultyStudentProgress from './components/Faculty/FacultyStudentProgress';
+import FacultyModule from './components/Faculty/FacultyModule';
 
 
 //Bottom Navigation Bar
@@ -60,7 +61,7 @@ const Screens = createNativeStackNavigator();
 export default function App() {
   return (
     <NavigationContainer>
-      <Screens.Navigator initialRouteName='Login'>
+      <Screens.Navigator initialRouteName='FMod'>
         <Screens.Screen name='SplashScreen' component={SplashScreen}/>
         <Screens.Screen name='Login' component={Login}/>
         <Screens.Screen name='SDash' component={StudentDash}/>
@@ -73,6 +74,8 @@ export default function App() {
         <Screens.Screen name='FDash' component={FacultyDash}/>
         <Screens.Screen name ='CClass' component={CreateClasses}/>
         <Screens.Screen name ='FSProg' component={FacultyStudentProgress}/>
+        <Screens.Screen name ='FMod' component={FacultyModule}/>
+
       </Screens.Navigator>
     </NavigationContainer>
   );
