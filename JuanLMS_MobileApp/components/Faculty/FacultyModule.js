@@ -3,8 +3,8 @@ import { useState } from 'react';
 import { Image, ImageBackground, ProgressBar, ScrollView } from 'react-native-web';
 import { StatusBar } from 'expo-status-bar';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import StudentModuleStyle from '../styles/Stud/StudentModuleStyle';
 import { useNavigation } from '@react-navigation/native';
+import FacultyModuleStyle from '../styles/faculty/FacultyModuleStyle';
 
 
 export default function FacultyModule(){
@@ -22,25 +22,25 @@ export default function FacultyModule(){
     const changeScreen = useNavigation();
     
     const back =()=>{
-          changeScreen.navigate("SDash")
+          changeScreen.navigate("FDash")
         }
     
-    const handleNext = () => {
-        if (currentLesson < totalLessons - 1) {
-            setCurrentLesson(currentLesson + 1);
-           }
-        };
+    const cModule =()=>{
+        changeScreen.navigate('CMod')
+    }
 
-    const progressPercentage = ((currentLesson + 1) / totalLessons) * 100;
-    
+    const cAct =()=>{
+        changeScreen.navigate('CAct')
+    }
+            
     return(
         <View>
-            <View style={StudentModuleStyle.header}>
+            <View style={FacultyModuleStyle.header}>
             <TouchableOpacity onPress={back}><Icon name="arrow-left" size={24} color="black"  /></TouchableOpacity>
             
             <View>
-            <Text style={StudentModuleStyle.title}>Introduction to Computing</Text>
-            <Text style={StudentModuleStyle.code}>CCINCOML</Text>
+            <Text style={FacultyModuleStyle.title}>Introduction to Computing</Text>
+            <Text style={FacultyModuleStyle.code}>CCINCOML</Text>
             </View>
             
             <Icon name="menu" size={24} color="black" style={{marginLeft:"auto"}} />
@@ -51,27 +51,42 @@ export default function FacultyModule(){
                     <Text style={{ fontWeight: 'bold', fontSize: 18 }}>{lessons[currentLesson].title}</Text>
                     <Text style={{ marginTop: 10 }}>{lessons[currentLesson].content}</Text>
                     <Image source={{ uri: 'https://www.google.com/url?sa=i&url=https%3A%2F%2Fwww.redgreencode.com%2Fjava-lessons-from-uhunt-chapter-1%2F&psig=AOvVaw13oSNlNSrG6r1_eJYvjAPc&ust=1740514133769000&source=images&cd=vfe&opi=89978449&ved=0CBQQjRxqFwoTCNig0saO3YsDFQAAAAAdAAAAABAa' }} 
-                    style={StudentModuleStyle.lessonImage} />
+                    style={FacultyModuleStyle.lessonImage} />
                     <TouchableOpacity>
-                    <Text style={StudentModuleStyle.link}>ppt lesson.ppt</Text>
+                    <Text style={FacultyModuleStyle.link}>ppt lesson.ppt</Text>
                     </TouchableOpacity>
                 </View>
             </ScrollView>
             <View style={{margin:20, flexDirection: 'row', alignItems: 'center'}}>
-
                     {/* Create Module Button */}
                     <TouchableOpacity
                         style={{
-                            width: 150,
+                            width: 200,
                             height: 40,
                             borderRadius: 10,
                             justifyContent: 'center',
                             alignItems: 'center',
                             backgroundColor:'lightgray',
                         }}
-                        onPress={handleNext}
+                        onPress={cModule}
                     >
                         <Text style={{ color: 'Black', fontWeight: 'bold', margin: 5, textAlign:'center' }}>Create New Module</Text>
+                    </TouchableOpacity>
+
+                    {/* Create Activity Button */}
+                    <TouchableOpacity
+                        style={{
+                            width: 200,
+                            height: 40,
+                            borderRadius: 10,
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                            backgroundColor:'lightgray',
+                            margin: 10
+                        }}
+                        onPress={cAct}
+                    >
+                        <Text style={{ color: 'Black', fontWeight: 'bold', margin: 5, textAlign:'center' }}>Create New Activity</Text>
                     </TouchableOpacity>
                 </View>
         </View>

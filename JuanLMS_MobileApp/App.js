@@ -26,6 +26,8 @@ import FacultyDashboard from './components/Faculty/FacultyDashboard';
 import CreateClasses from './components/Faculty/CreateClasses';
 import FacultyStudentProgress from './components/Faculty/FacultyStudentProgress';
 import FacultyModule from './components/Faculty/FacultyModule';
+import CreateModule from './components/Faculty/CreateModule';
+import CreateActivity from './components/Faculty/CreateActivity';
 
 
 //Bottom Navigation Bar
@@ -71,10 +73,14 @@ export default function App() {
         <Screens.Screen name='SProg' component={StudentProgress}/>
         <Screens.Screen name='Chats' component={Chat}/>
         <Screens.Screen name='SCalendar' component={StudentCalendar}/>
+        {/*Faculties */}
         <Screens.Screen name='FDash' component={FacultyDash}/>
         <Screens.Screen name ='CClass' component={CreateClasses}/>
         <Screens.Screen name ='FSProg' component={FacultyStudentProgress}/>
         <Screens.Screen name ='FMod' component={FacultyModule}/>
+        <Screens.Screen name ='CMod' component={CreateModule}/>
+        <Screens.Screen name ='CAct' component={CreateActivity}/>
+
 
       </Screens.Navigator>
     </NavigationContainer>

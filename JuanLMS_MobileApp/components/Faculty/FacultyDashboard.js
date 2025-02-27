@@ -14,9 +14,9 @@ export default function FacultyDashboard() {
   ];
   const changeScreen = useNavigation();
 
-//   const modules = () => {
-//     changeScreen.navigate("SModule")
-//   }
+  const modules = () => {
+    changeScreen.navigate("FMod")
+  }
 
 //   const grades = () => {
 //     changeScreen.navigate("SGrade")
@@ -70,6 +70,7 @@ export default function FacultyDashboard() {
             <Text style={FacultyDashStyle.progressText}>{course.students} Students</Text>
             {/* <ProgressBar progress={course.progress} color={course.progress === 1 ? '#04061f' : 'white'} style={FacultyDashStyle.progressBar} /> */}
             <TouchableOpacity
+              onPress={modules}
               style={FacultyDashStyle.arrowButton}>
               <Icon name="arrow-right" size={24} color="white" />
             </TouchableOpacity>
