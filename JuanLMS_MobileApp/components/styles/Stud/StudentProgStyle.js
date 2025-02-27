@@ -17,10 +17,9 @@ export default StyleSheet.create({
         marginLeft: 10,
     },
     card: {
-        backgroundColor: "#003366",
+        backgroundColor: "#00418b",
         borderRadius: 12,
         padding: 20,
-        marginBottom: 40,
         position: "relative",
     },
     cardTitle: {
@@ -58,7 +57,7 @@ export default StyleSheet.create({
     },
     chartContainer: {
         width: "50%",
-        backgroundColor: "#003366",
+        backgroundColor: "#00418b",
         borderRadius: 12,
         padding: 10,
         alignItems: "center",
@@ -77,18 +76,20 @@ export default StyleSheet.create({
         fontSize: 16,
         fontWeight: "bold",
         marginBottom: 5,
-        color: "black"
+        marginLeft: 35,
+        color: "black",
     },
     errorBox: {
-        backgroundColor: "#FFCCCC",
+        backgroundColor: "#F5F5F5",
         padding: 8,
         borderRadius: 8,
         color: "black",
         fontSize: 12,
+        height: 200
     },
     insight: {
         color: "white",
-        fontSize: 9,
+        fontSize: 10,
         textAlign: "right",
         position: "absolute",
         right: 15,
@@ -96,11 +97,20 @@ export default StyleSheet.create({
     },
     feedback: {
         color: "white",
-        fontSize: 12,
+        fontSize: 11,
         textAlign: "center",
         marginTop: 5,
         position: "absolute",
         right: 15,
         top: 30
+    },
+    feedback2: {
+        color: "white",
+        fontSize: 11,
+        textAlign: "center",
+        marginTop: 5,
+        position: "absolute",
+        right: 15,
+        top: 40
     },
 });
