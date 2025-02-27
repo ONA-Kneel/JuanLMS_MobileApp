@@ -10,6 +10,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Login from './components/Login';
+//Students
 import StudentDashboard from './components/Students/StudentDashboard';
 import StudentModule from './components/Students/StudentModule';
 import StudentGrades from './components/Students/StudentGrades';
@@ -19,19 +20,34 @@ import StudentChats from './components/Students/StudentsChats';
 import Chat from './components/Chat';
 import StudentsProfile from './components/Students/StudentsProfile';
 import StudentCalendar from './components/Students/StudentsCalendar';
+//Faculty
+import FacultyDashboard from './components/Faculty/FacultyDashboard';
 
 
 //Bottom Navigation Bar
 const Tabs = createBottomTabNavigator();
+//Student Dashboard
 const StudentDash = () => {
   return(
     <Tabs.Navigator>
       <Tabs.Screen name='Dashboard' component={StudentDashboard} //Student Dashboard is now merged with Bottom Navigation
       options={{ tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/6.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
-      <Tabs.Screen name='Calendar' component={StudentCalendar} //Chats tab
+      <Tabs.Screen name='Calendar' component={StudentCalendar} //Calendar View for Students
       options={{ tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/9.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
-      <Tabs.Screen name='SChat' component={StudentChats} //Chats tab
+      <Tabs.Screen name='SChat' component={StudentChats} //Chats tab for Current Student Account
       options={{ tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/8.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
+      <Tabs.Screen name='SProf' component={StudentsProfile} //Profile tab for Current Student Account
+      options={{ tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/7.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
+    </Tabs.Navigator>
+  )
+}
+
+//Faculty Dashboard
+const FacultyDash = () => {
+  return(
+    <Tabs.Navigator>
+      <Tabs.Screen name='FDashboard' component={FacultyDashboard} //Student Dashboard is now merged with Bottom Navigation
+      options={{ tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/6.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
     </Tabs.Navigator>
   )
 }
@@ -49,11 +65,10 @@ export default function App() {
         <Screens.Screen name='SGrade' component={StudentGrades}/>
         <Screens.Screen name='SActs' component={StudentActs}/>
         <Screens.Screen name='SProg' component={StudentProgress}/>
-        <Screens.Screen name='SProf' component={StudentsProfile}/>
         <Screens.Screen name='Chats' component={Chat}/>
         <Screens.Screen name='SCalendar' component={StudentCalendar}/>
+        <Screens.Screen name='FDash' component={FacultyDash}/>
       </Screens.Navigator>
     </NavigationContainer>
   );
 }
-

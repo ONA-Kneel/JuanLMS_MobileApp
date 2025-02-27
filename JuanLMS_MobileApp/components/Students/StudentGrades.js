@@ -11,9 +11,6 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
 import StudentGradesStyle from '../styles/Stud/StudentGradesStyle';
 
-
-
-
 export default class StudentGrades extends Component {
 
     constructor(props) {

@@ -1,5 +1,5 @@
 import { StatusBar } from 'expo-status-bar';
-import { LoginStyleheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, LoginStyleheet, Text, TouchableOpacity, View } from 'react-native';
 import { CheckBox, Image, ImageBackground, TextInput } from 'react-native-web';
 import { useState } from 'react';
 import LoginStyle from './styles/LoginStyle';
@@ -7,13 +7,33 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
 
 
+
 export default function Login() {
     const [showPassword, setShowPassword] = useState(false);
     const [rememberMe, setRememberMe] = useState(false);
+    const [email,setEmail] = useState('');
     const changeScreen = useNavigation();
 
     const btnLogin =()=>{
-      changeScreen.navigate("SDash")
+      //For Login of Students, Faculty and Admin
+      if (email.trim() === '') {
+        alert("Please enter your email."); 
+        setEmail('');
+        return;
+      } 
+      else if (email.toLowerCase().includes("@students.sjddef.edu.ph")) {
+        alert("Welcome, Student!")
+        changeScreen.navigate("SDash")
+      }
+      else if(email.toLowerCase().includes("@sjddef.educ.ph")){
+        alert("Welcome, Faculty!")
+        changeScreen.navigate("FDash")
+      }
+      else{
+        setEmail('');
+        alert("Please enter a valid School Email!");
+        return;
+      }
     }
 
   return (
@@ -28,9 +48,9 @@ export default function Login() {
             
             <TextInput
             style={LoginStyle.input}
-            
-            
             placeholder="Email"
+            value={email}
+            onChangeText={setEmail}
             />
 
 
