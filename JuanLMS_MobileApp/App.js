@@ -47,15 +47,15 @@ const Tabs = createBottomTabNavigator();
 //Student Dashboard
 const StudentDash = () => {
   return(
-    <Tabs.Navigator>
+    <Tabs.Navigator screenOptions={{ tabBarShowLabel: false }} >
       <Tabs.Screen name='Dashboard' component={StudentDashboard} //Student Dashboard is now merged with Bottom Navigation
-      options={{ headerShown: false ,tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/6.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
+      options={{ tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/6.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
       <Tabs.Screen name='Calendar' component={StudentCalendar} //Calendar View for Students
-      options={{ headerShown: false ,tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/9.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
+      options={{ tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/9.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
       <Tabs.Screen name='SChat' component={StudentChats} //Chats tab for Current Student Account
-      options={{ headerShown: false ,tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/8.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
+      options={{ tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/8.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
       <Tabs.Screen name='SProf' component={StudentsProfile} //Profile tab for Current Student Account
-      options={{ headerShown: false ,tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/7.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
+      options={{ tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/7.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
     </Tabs.Navigator>
   )
 }
@@ -63,15 +63,15 @@ const StudentDash = () => {
 //Faculty Dashboard
 const FacultyDash = () => {
   return(
-    <Tabs.Navigator>
+    <Tabs.Navigator screenOptions={{ tabBarShowLabel: false }}>
       <Tabs.Screen name='FDashboard' component={FacultyDashboard} //Student Dashboard is now merged with Bottom Navigation
-      options={{ headerShown: false ,tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/6.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
+      options={{ tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/6.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
       <Tabs.Screen name='FCalendar' component={FacultyCalendar} //Calendar of Events for Faculty
-      options={{ headerShown: false ,tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/9.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
+      options={{ tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/9.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
       <Tabs.Screen name='FChat' component={FacultyChats} //Chats tab
-      options={{ headerShown: false ,tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/8.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
+      options={{ tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/8.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
       <Tabs.Screen name='FProfile' component={FacultyProfile} //Profile Tab
-      options={{ headerShown: false ,tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/7.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
+      options={{ tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/7.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
     </Tabs.Navigator>
   )
 }
@@ -79,15 +79,15 @@ const FacultyDash = () => {
 //Admin Dashboard
 const AdminDash = () => {
   return(
-    <Tabs.Navigator>
+    <Tabs.Navigator screenOptions={{ tabBarShowLabel: false }}>
       <Tabs.Screen name='AdminDashB' component={AdminDashboard}  //Student Dashboard is now merged with Bottom Navigation
-      options={{ headerShown: false ,tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/6.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
+      options={{ tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/6.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
       <Tabs.Screen name='ACalendar' component={AdminCalendar} //Calendar of Events
-      options={{ headerShown: false ,tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/9.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
+      options={{ tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/9.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
       <Tabs.Screen name='AChat' component={AdminChats} //Chats tab
-      options={{ headerShown: false ,tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/8.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
+      options={{ tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/8.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
       <Tabs.Screen name='AProfile' component={AdminProfile} //Profile Tab
-      options={{ headerShown: false ,tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/7.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
+      options={{ tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/7.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
     </Tabs.Navigator>
   )
 }
