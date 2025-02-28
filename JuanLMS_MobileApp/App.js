@@ -37,7 +37,7 @@ import AdminCalendar from './components/Admin/AdminCalendar';
 import AdminChats from './components/Admin/AdminChats';
 import AdminProfile from './components/Admin/AdminProfile';
 import GenSched from './components/Admin/GenSched';
-
+import AdminProgress from './components/Admin/AdminProgress';
 
 //Bottom Navigation Bar
 const Tabs = createBottomTabNavigator();
@@ -94,8 +94,9 @@ const Screens = createNativeStackNavigator();
 export default function App() {
   return (
     <NavigationContainer>
-      <Screens.Navigator initialRouteName='GSched'>
+      <Screens.Navigator initialRouteName='Login'>
         <Screens.Screen name='SplashScreen' component={SplashScreen}/>
+        <Screens.Screen name='Chats' component={Chat}/>
         <Screens.Screen name='Login' component={Login}/>
         {/* Students */}
         <Screens.Screen name='SDash' component={StudentDash}/>
@@ -103,7 +104,6 @@ export default function App() {
         <Screens.Screen name='SGrade' component={StudentGrades}/>
         <Screens.Screen name='SActs' component={StudentActs}/>
         <Screens.Screen name='SProg' component={StudentProgress}/>
-        <Screens.Screen name='Chats' component={Chat}/>
         <Screens.Screen name='SCalendar' component={StudentCalendar}/>
         {/*Faculties */}
         <Screens.Screen name='FDash' component={FacultyDash}/>
@@ -114,11 +114,8 @@ export default function App() {
         <Screens.Screen name ='CAct' component={CreateActivity}/>
         {/* Admininstrators */}
         <Screens.Screen name='ADash' component={AdminDash}/>
-        <Screens.Screen name='AChats' component={AdminChats}/>
         <Screens.Screen name='GSched' component={GenSched}/>
-
-
-
+        <Screens.Screen name='AProg' component={AdminProgress}/>
       </Screens.Navigator>
     </NavigationContainer>
   );

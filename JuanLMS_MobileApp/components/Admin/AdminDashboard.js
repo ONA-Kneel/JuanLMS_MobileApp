@@ -9,7 +9,14 @@ export default function AdminDashboard() {
   
   const changeScreen = useNavigation();
   
-  
+  const Schedules = () => {
+    changeScreen.navigate("GSched")
+  }
+
+  const Progressive = () => {
+    changeScreen.navigate("AProg")
+  }
+
   return (
     <View>
       <View style={AdminDashStyle.header}>
@@ -25,7 +32,7 @@ export default function AdminDashboard() {
             <Text style={[AdminDashStyle.titles, { marginLeft: 10 }]}>Class Schedule</Text>
           </View>
           <TouchableOpacity 
-            onPress={admin_Calendar}
+            onPress={Schedules}
             style={AdminDashStyle.arrowButton}>
             <Icon name="arrow-right" size={24} color="white"/>
           </TouchableOpacity>
@@ -37,7 +44,9 @@ export default function AdminDashboard() {
             <Icon name="chart-line" size={24} color="white"/>  
             <Text style={[AdminDashStyle.titles, { marginLeft: 10 }]}>Course Progression</Text>
           </View>
-          <TouchableOpacity style={AdminDashStyle.arrowButton}>
+          <TouchableOpacity 
+            onPress={Progressive}
+            style={AdminDashStyle.arrowButton}>
             <Icon name="arrow-right" size={24} color="white"/>
           </TouchableOpacity>
         </View>
