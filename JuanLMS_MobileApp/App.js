@@ -36,6 +36,8 @@ import AdminDashboard from './components/Admin/AdminDashboard';
 import AdminCalendar from './components/Admin/AdminCalendar';
 import AdminChats from './components/Admin/AdminChats';
 import AdminProfile from './components/Admin/AdminProfile';
+import GenSched from './components/Admin/GenSched';
+
 
 //Bottom Navigation Bar
 const Tabs = createBottomTabNavigator();
@@ -92,7 +94,7 @@ const Screens = createNativeStackNavigator();
 export default function App() {
   return (
     <NavigationContainer>
-      <Screens.Navigator initialRouteName='Login'>
+      <Screens.Navigator initialRouteName='GSched'>
         <Screens.Screen name='SplashScreen' component={SplashScreen}/>
         <Screens.Screen name='Login' component={Login}/>
         {/* Students */}
@@ -112,6 +114,10 @@ export default function App() {
         <Screens.Screen name ='CAct' component={CreateActivity}/>
         {/* Admininstrators */}
         <Screens.Screen name='ADash' component={AdminDash}/>
+        <Screens.Screen name='AChats' component={AdminChats}/>
+        <Screens.Screen name='GSched' component={GenSched}/>
+
+
 
       </Screens.Navigator>
     </NavigationContainer>

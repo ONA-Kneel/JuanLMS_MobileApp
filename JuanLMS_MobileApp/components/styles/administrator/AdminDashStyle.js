@@ -31,14 +31,15 @@ const AdminDashStyle = StyleSheet.create({
         backgroundColor: '#00418b',
         padding: 20,
         borderRadius: 20,
-        marginBottom: 10,
+        margin: 10,
         position: 'relative',
       },
       cardHeader: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
+        alignItems: 'center',  // Align icon and text properly
+        gap: 10,               // Reduce spacing between icon and title
       },
-      courseTitle: {
+      titles: {
         color: 'white',
         fontSize: 16,
         fontWeight: 'bold',
