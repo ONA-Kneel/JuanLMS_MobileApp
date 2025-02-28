@@ -15,7 +15,7 @@ export default function AdminProgress() {
                 <TouchableOpacity onPress={() => navigation.goBack()}>
                     <Ionicons name="arrow-back" size={24} color="black" />
                 </TouchableOpacity>
-                <Text style={StudentProgStyle.title}>My Progress</Text>
+                <Text style={StudentProgStyle.title}>Course Progress</Text>
             </View>
 
             <View style={StudentProgStyle.card}>

@@ -38,6 +38,9 @@ import AdminChats from './components/Admin/AdminChats';
 import AdminProfile from './components/Admin/AdminProfile';
 import GenSched from './components/Admin/GenSched';
 import AdminProgress from './components/Admin/AdminProgress';
+import AdminFaculty from './components/Admin/AdminFaculty';
+
+
 
 //Bottom Navigation Bar
 const Tabs = createBottomTabNavigator();
@@ -116,6 +119,9 @@ export default function App() {
         <Screens.Screen name='ADash' component={AdminDash}/>
         <Screens.Screen name='GSched' component={GenSched}/>
         <Screens.Screen name='AProg' component={AdminProgress}/>
+        <Screens.Screen name='AFaculty' component={AdminFaculty}/>
+
+      
       </Screens.Navigator>
     </NavigationContainer>
   );

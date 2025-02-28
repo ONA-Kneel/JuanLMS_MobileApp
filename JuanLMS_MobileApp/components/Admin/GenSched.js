@@ -1,10 +1,30 @@
 import { TouchableOpacity, View, Text, Dimensions } from "react-native";
+import FacultyModuleStyle from "../styles/faculty/FacultyModuleStyle";
+import { useNavigation } from "@react-navigation/native";
+import Icon from "react-native-vector-icons/MaterialCommunityIcons";
+
 
 export default function GenSched() {
+
+    const back =()=>{
+        changeScreen.navigate("ADash")
+      }
+    
+      const changeScreen = useNavigation();
+
     return (
         <View style={{ flex: 1, justifyContent: "space-between" }}>
-            <View style={{ backgroundColor: "lightpink", margin: 10, height: 400 }}>
-                <Text>Content here</Text>
+            {/* Header */}
+            <View style={FacultyModuleStyle.header}>
+                <TouchableOpacity onPress={back}>
+                <Icon name="arrow-left" size={24} color="black" />
+                </TouchableOpacity>
+                <View>
+                <Text style={FacultyModuleStyle.title}>Create Schedule</Text>
+                </View>
+                <Icon name="menu" size={24} color="black" style={{ marginLeft: "auto" }} />
+            </View>
+            <View style={{ backgroundColor: "lightgray", margin: 10, height: 400 }}>
             </View>
             
             {/* Department & Section Buttons */}

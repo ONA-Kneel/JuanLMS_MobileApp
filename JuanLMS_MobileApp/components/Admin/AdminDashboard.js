@@ -17,6 +17,10 @@ export default function AdminDashboard() {
     changeScreen.navigate("AProg")
   }
 
+  const AdminFact = ()=>{
+    changeScreen.navigate("AFaculty")
+  }
+
   return (
     <View>
       <View style={AdminDashStyle.header}>
@@ -57,7 +61,9 @@ export default function AdminDashboard() {
             <Icon name="human-male-board" size={24} color="white"/>
             <Text style={[AdminDashStyle.titles, { marginLeft: 10 }]}>Faculty</Text>
           </View>
-          <TouchableOpacity style={AdminDashStyle.arrowButton}>
+          <TouchableOpacity 
+            onPress={AdminFact}
+            style={AdminDashStyle.arrowButton}>
             <Icon name="arrow-right" size={24} color="white"/>
           </TouchableOpacity>
         </View>
