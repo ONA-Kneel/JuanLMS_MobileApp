@@ -49,13 +49,13 @@ const StudentDash = () => {
   return(
     <Tabs.Navigator>
       <Tabs.Screen name='Dashboard' component={StudentDashboard} //Student Dashboard is now merged with Bottom Navigation
-      options={{ tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/6.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
+      options={{ headerShown: false ,tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/6.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
       <Tabs.Screen name='Calendar' component={StudentCalendar} //Calendar View for Students
-      options={{ tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/9.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
+      options={{ headerShown: false ,tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/9.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
       <Tabs.Screen name='SChat' component={StudentChats} //Chats tab for Current Student Account
-      options={{ tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/8.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
+      options={{ headerShown: false ,tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/8.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
       <Tabs.Screen name='SProf' component={StudentsProfile} //Profile tab for Current Student Account
-      options={{ tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/7.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
+      options={{ headerShown: false ,tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/7.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
     </Tabs.Navigator>
   )
 }
@@ -65,13 +65,13 @@ const FacultyDash = () => {
   return(
     <Tabs.Navigator>
       <Tabs.Screen name='FDashboard' component={FacultyDashboard} //Student Dashboard is now merged with Bottom Navigation
-      options={{ tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/6.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
+      options={{ headerShown: false ,tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/6.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
       <Tabs.Screen name='FCalendar' component={FacultyCalendar} //Calendar of Events for Faculty
-      options={{ tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/9.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
+      options={{ headerShown: false ,tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/9.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
       <Tabs.Screen name='FChat' component={FacultyChats} //Chats tab
-      options={{ tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/8.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
+      options={{ headerShown: false ,tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/8.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
       <Tabs.Screen name='FProfile' component={FacultyProfile} //Profile Tab
-      options={{ tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/7.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
+      options={{ headerShown: false ,tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/7.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
     </Tabs.Navigator>
   )
 }
@@ -80,14 +80,14 @@ const FacultyDash = () => {
 const AdminDash = () => {
   return(
     <Tabs.Navigator>
-      <Tabs.Screen name='AdminDashB' component={AdminDashboard} //Student Dashboard is now merged with Bottom Navigation
-      options={{ tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/6.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
+      <Tabs.Screen name='AdminDashB' component={AdminDashboard}  //Student Dashboard is now merged with Bottom Navigation
+      options={{ headerShown: false ,tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/6.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
       <Tabs.Screen name='ACalendar' component={AdminCalendar} //Calendar of Events
-      options={{ tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/9.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
+      options={{ headerShown: false ,tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/9.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
       <Tabs.Screen name='AChat' component={AdminChats} //Chats tab
-      options={{ tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/8.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
+      options={{ headerShown: false ,tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/8.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
       <Tabs.Screen name='AProfile' component={AdminProfile} //Profile Tab
-      options={{ tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/7.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
+      options={{ headerShown: false ,tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/7.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
     </Tabs.Navigator>
   )
 }
@@ -98,30 +98,28 @@ export default function App() {
   return (
     <NavigationContainer>
       <Screens.Navigator initialRouteName='Login'>
-        <Screens.Screen name='SplashScreen' component={SplashScreen}/>
-        <Screens.Screen name='Chats' component={Chat}/>
-        <Screens.Screen name='Login' component={Login}/>
+        <Screens.Screen name='SplashScreen' component={SplashScreen} options={{ headerShown: false }}/>
+        <Screens.Screen name='Chats' component={Chat} options={{ headerShown: false }}/>
+        <Screens.Screen name='Login' component={Login} options={{ headerShown: false }}/>
         {/* Students */}
-        <Screens.Screen name='SDash' component={StudentDash}/>
-        <Screens.Screen name='SModule' component={StudentModule}/>
-        <Screens.Screen name='SGrade' component={StudentGrades}/>
-        <Screens.Screen name='SActs' component={StudentActs}/>
-        <Screens.Screen name='SProg' component={StudentProgress}/>
-        <Screens.Screen name='SCalendar' component={StudentCalendar}/>
+        <Screens.Screen name='SDash' component={StudentDash} options={{ headerShown: false }}/>
+        <Screens.Screen name='SModule' component={StudentModule} options={{ headerShown: false }}/>
+        <Screens.Screen name='SGrade' component={StudentGrades} options={{ headerShown: false }}/>
+        <Screens.Screen name='SActs' component={StudentActs} options={{ headerShown: false }}/>
+        <Screens.Screen name='SProg' component={StudentProgress} options={{ headerShown: false }}/>
+        <Screens.Screen name='SCalendar' component={StudentCalendar} options={{ headerShown: false }}/>
         {/*Faculties */}
-        <Screens.Screen name='FDash' component={FacultyDash}/>
-        <Screens.Screen name ='CClass' component={CreateClasses}/>
-        <Screens.Screen name ='FSProg' component={FacultyStudentProgress}/>
-        <Screens.Screen name ='FMod' component={FacultyModule}/>
-        <Screens.Screen name ='CMod' component={CreateModule}/>
-        <Screens.Screen name ='CAct' component={CreateActivity}/>
+        <Screens.Screen name='FDash' component={FacultyDash} options={{ headerShown: false }}/>
+        <Screens.Screen name ='CClass' component={CreateClasses} options={{ headerShown: false }}/>
+        <Screens.Screen name ='FSProg' component={FacultyStudentProgress} options={{ headerShown: false }}/>
+        <Screens.Screen name ='FMod' component={FacultyModule} options={{ headerShown: false }}/>
+        <Screens.Screen name ='CMod' component={CreateModule} options={{ headerShown: false }}/>
+        <Screens.Screen name ='CAct' component={CreateActivity} options={{ headerShown: false }}/>
         {/* Admininstrators */}
-        <Screens.Screen name='ADash' component={AdminDash}/>
-        <Screens.Screen name='GSched' component={GenSched}/>
-        <Screens.Screen name='AProg' component={AdminProgress}/>
-        <Screens.Screen name='AFaculty' component={AdminFaculty}/>
-
-      
+        <Screens.Screen name='ADash' component={AdminDash} options={{ headerShown: false }}/>
+        <Screens.Screen name='GSched' component={GenSched} options={{ headerShown: false }}/>
+        <Screens.Screen name='AProg' component={AdminProgress} options={{ headerShown: false }}/>
+        <Screens.Screen name='AFaculty' component={AdminFaculty} options={{ headerShown: false }}/>
       </Screens.Navigator>
     </NavigationContainer>
   );
