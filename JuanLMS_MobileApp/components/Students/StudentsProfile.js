@@ -31,7 +31,7 @@ export default function StudentsProfile() {
           <Text style={StudentsProfileStyle.contactTitle}>Contact</Text>
           <View style={StudentsProfileStyle.contactRow}>
             <MaterialIcons name="email" size={16} color="#555" />
-            <Text style={StudentsProfileStyle.contactText}>doej@students.sanjuandedios.edu.ph</Text>
+            <Text style={StudentsProfileStyle.contactText}>doej@students.sjddef.edu.ph</Text>
           </View>
         </View>
       </View>

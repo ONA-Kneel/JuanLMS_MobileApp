@@ -28,7 +28,14 @@ import FacultyStudentProgress from './components/Faculty/FacultyStudentProgress'
 import FacultyModule from './components/Faculty/FacultyModule';
 import CreateModule from './components/Faculty/CreateModule';
 import CreateActivity from './components/Faculty/CreateActivity';
-
+import FacultyCalendar from './components/Faculty/FacultyCalendar';
+import FacultyChats from './components/Faculty/FacultyChats';
+import FacultyProfile from './components/Faculty/FacultyProfile';
+//Admin
+import AdminDashboard from './components/Admin/AdminDashboard';
+import AdminCalendar from './components/Admin/AdminCalendar';
+import AdminChats from './components/Admin/AdminChats';
+import AdminProfile from './components/Admin/AdminProfile';
 
 //Bottom Navigation Bar
 const Tabs = createBottomTabNavigator();
@@ -54,6 +61,28 @@ const FacultyDash = () => {
     <Tabs.Navigator>
       <Tabs.Screen name='FDashboard' component={FacultyDashboard} //Student Dashboard is now merged with Bottom Navigation
       options={{ tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/6.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
+      <Tabs.Screen name='FCalendar' component={FacultyCalendar} //Calendar of Events for Faculty
+      options={{ tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/9.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
+      <Tabs.Screen name='FChat' component={FacultyChats} //Chats tab
+      options={{ tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/8.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
+      <Tabs.Screen name='FProfile' component={FacultyProfile} //Profile Tab
+      options={{ tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/7.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
+    </Tabs.Navigator>
+  )
+}
+
+//Admin Dashboard
+const AdminDash = () => {
+  return(
+    <Tabs.Navigator>
+      <Tabs.Screen name='AdminDashB' component={AdminDashboard} //Student Dashboard is now merged with Bottom Navigation
+      options={{ tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/6.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
+      <Tabs.Screen name='ACalendar' component={AdminCalendar} //Calendar of Events
+      options={{ tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/9.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
+      <Tabs.Screen name='AChat' component={AdminChats} //Chats tab
+      options={{ tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/8.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
+      <Tabs.Screen name='AProfile' component={AdminProfile} //Profile Tab
+      options={{ tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/7.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
     </Tabs.Navigator>
   )
 }
@@ -63,9 +92,10 @@ const Screens = createNativeStackNavigator();
 export default function App() {
   return (
     <NavigationContainer>
-      <Screens.Navigator initialRouteName='FMod'>
+      <Screens.Navigator initialRouteName='Login'>
         <Screens.Screen name='SplashScreen' component={SplashScreen}/>
         <Screens.Screen name='Login' component={Login}/>
+        {/* Students */}
         <Screens.Screen name='SDash' component={StudentDash}/>
         <Screens.Screen name='SModule' component={StudentModule}/>
         <Screens.Screen name='SGrade' component={StudentGrades}/>
@@ -80,7 +110,8 @@ export default function App() {
         <Screens.Screen name ='FMod' component={FacultyModule}/>
         <Screens.Screen name ='CMod' component={CreateModule}/>
         <Screens.Screen name ='CAct' component={CreateActivity}/>
-
+        {/* Admininstrators */}
+        <Screens.Screen name='ADash' component={AdminDash}/>
 
       </Screens.Navigator>
     </NavigationContainer>

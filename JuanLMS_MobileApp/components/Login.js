@@ -25,9 +25,13 @@ export default function Login() {
         alert("Welcome, Student!")
         changeScreen.navigate("SDash")
       }
-      else if(email.toLowerCase().includes("@sjddef.educ.ph")){
+      else if(email.toLowerCase().includes("@sjddef.edu.ph")){
         alert("Welcome, Faculty!")
         changeScreen.navigate("FDash")
+      }
+      else if(email.toLowerCase().includes("@admin_sjddef.edu.ph")){
+        alert("Welcome, Admin!")
+        changeScreen.navigate("ADash")
       }
       else{
         setEmail('');

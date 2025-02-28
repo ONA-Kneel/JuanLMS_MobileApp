@@ -10,6 +10,10 @@ export default function CreateActivity() {
   const [quizTitle, setQuizTitle] = useState("");
   const [questions, setQuestions] = useState([]);
 
+  const back =()=>{
+    changeScreen.navigate("FMod")
+  }
+
   const changeScreen = useNavigation();
 
   const addQuestion = () => {
@@ -52,7 +56,7 @@ export default function CreateActivity() {
     <View style={{ flex: 1, padding: 20 }}>
       {/* Header */}
       <View style={FacultyModuleStyle.header}>
-        <TouchableOpacity onPress={() => console.log("Go back")}>
+        <TouchableOpacity onPress={back}>
           <Icon name="arrow-left" size={24} color="black" />
         </TouchableOpacity>
         <View>
