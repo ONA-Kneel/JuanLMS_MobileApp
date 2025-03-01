@@ -2,12 +2,24 @@ import { TouchableOpacity } from "react-native";
 import { Text } from "react-native";
 import { TextInput, View } from "react-native";
 import { ScrollView } from "react-native-web";
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { useNavigation } from '@react-navigation/native';
 
 export default function Chat() {
+
+      //navigation
+      const changeScreen = useNavigation();
+      
+      const back =()=>{
+            changeScreen.goBack()
+          }
+  
     return(
         <View style={{ flex: 1 }}>
       {/* Header with Chat Name and Call Buttons */}
+      
       <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 15, backgroundColor: "lightgray" }}>
+      <TouchableOpacity onPress={back}><Icon name="arrow-left" size={24} color="black"  /></TouchableOpacity>
         <Text style={{ fontWeight: "bold", fontSize: 18 }}>Chat 1</Text>
         <View style={{ flexDirection: "row" }}>
           <TouchableOpacity style={{ marginRight: 15 }}>

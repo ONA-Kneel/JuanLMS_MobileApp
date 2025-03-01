@@ -108,6 +108,7 @@ export default function App() {
         <Screens.Screen name='SActs' component={StudentActs} options={{ headerShown: false }}/>
         <Screens.Screen name='SProg' component={StudentProgress} options={{ headerShown: false }}/>
         <Screens.Screen name='SCalendar' component={StudentCalendar} options={{ headerShown: false }}/>
+
         {/*Faculties */}
         <Screens.Screen name='FDash' component={FacultyDash} options={{ headerShown: false }}/>
         <Screens.Screen name ='CClass' component={CreateClasses} options={{ headerShown: false }}/>

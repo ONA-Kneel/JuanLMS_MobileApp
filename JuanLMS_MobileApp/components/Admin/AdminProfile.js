@@ -2,8 +2,17 @@ import { Text, TouchableOpacity, View } from 'react-native';
 import * as React from 'react'
 import { MaterialIcons } from '@expo/vector-icons';
 import AdminProfileStyle from '../styles/administrator/AdminProfileStyle';
+import { useNavigation } from '@react-navigation/native';
 
 export default function AdminProfile() {
+
+  //navigation
+  const changeScreen = useNavigation();
+
+  const logout = () => {
+    changeScreen.navigate("Login")
+  }
+
   return (
     <View style={AdminProfileStyle.container}>
       <View style={AdminProfileStyle.card}>
@@ -25,6 +34,7 @@ export default function AdminProfile() {
           </View>
         </View>
       </View>
+      <TouchableOpacity style={AdminProfileStyle.logout} onPress={logout}><Text style={AdminProfileStyle.buttonText}>Log-Out</Text></TouchableOpacity>
       </View>
 
   );

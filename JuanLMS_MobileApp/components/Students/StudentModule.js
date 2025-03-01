@@ -9,15 +9,6 @@ import { useNavigation } from '@react-navigation/native';
 
 export default function StudentModule(){
 
-    const lessons = [
-        { title: "Lesson 1: Introduction", content: "Welcome to computing!", image: "https://example.com/image1.jpg", progress: 0.10 },
-        { title: "Lesson 2: Basics", content: "Let's learn about basic concepts.", image: "https://example.com/image2.jpg", progress: 0.10 },
-        { title: "Lesson 3: Advanced Topics", content: "Time for advanced computing!", image: "https://example.com/image3.jpg", progress: 0.10 },
-    ];
-
-    const [currentLesson, setCurrentLesson] = useState(0);
-    const totalLessons = lessons.length;
-
     //navigation
     const changeScreen = useNavigation();
     
@@ -25,13 +16,6 @@ export default function StudentModule(){
           changeScreen.navigate("SDash")
         }
     
-    const handleNext = () => {
-        if (currentLesson < totalLessons - 1) {
-            setCurrentLesson(currentLesson + 1);
-           }
-        };
-
-    const progressPercentage = ((currentLesson + 1) / totalLessons) * 100;
     
     return(
         <View>

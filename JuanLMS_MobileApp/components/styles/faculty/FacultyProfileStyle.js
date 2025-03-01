@@ -64,6 +64,15 @@ const FacultyProfileStyle = StyleSheet.create({
         marginLeft: 5, 
         color: '#555' 
     },
+    logout:{
+        backgroundColor: '#00418b',
+        padding: 15,
+        width: '90%',
+        borderRadius: 50,
+        alignItems: 'center',
+        marginTop: 'auto',
+        marginBottom:20
+    }
     
 
 

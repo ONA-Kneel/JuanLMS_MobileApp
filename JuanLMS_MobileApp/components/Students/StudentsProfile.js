@@ -11,8 +11,14 @@ import StudentsProfileStyle from '../styles/Stud/StudentsProfileStyle';
 
 
 
-export default function StudentsProfile() {
 
+export default function StudentsProfile() {
+//navigation
+const changeScreen = useNavigation();
+    
+const logout =()=>{
+      changeScreen.navigate("Login")
+    }
 
   return (
     <View style={StudentsProfileStyle.container}>
@@ -35,6 +41,8 @@ export default function StudentsProfile() {
           </View>
         </View>
       </View>
+
+      <TouchableOpacity style={StudentsProfileStyle.logout} onPress={logout}><Text style={StudentsProfileStyle.buttonText}>Log-Out</Text></TouchableOpacity>
       </View>
 
   );

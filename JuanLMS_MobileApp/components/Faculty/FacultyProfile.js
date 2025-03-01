@@ -2,8 +2,19 @@ import { Text, TouchableOpacity, View } from 'react-native';
 import * as React from 'react'
 import { MaterialIcons } from '@expo/vector-icons';
 import FacultyProfileStyle from '../styles/faculty/FacultyProfileStyle';
+import { useNavigation } from '@react-navigation/native';
+
+
 
 export default function FacultyProfile() {
+
+  //navigation
+  const changeScreen = useNavigation();
+
+  const logout = () => {
+    changeScreen.navigate("Login")
+  }
+
   return (
     <View style={FacultyProfileStyle.container}>
       <View style={FacultyProfileStyle.card}>
@@ -25,7 +36,8 @@ export default function FacultyProfile() {
           </View>
         </View>
       </View>
-      </View>
+      <TouchableOpacity style={FacultyProfileStyle.logout} onPress={logout}><Text style={FacultyProfileStyle.buttonText}>Log-Out</Text></TouchableOpacity>
+    </View>
 
   );
 }
