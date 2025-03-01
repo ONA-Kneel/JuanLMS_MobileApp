@@ -80,7 +80,6 @@ export default function StudentModule(){
                         onPress={handleNext}
                         disabled={currentLesson >= totalLessons - 1}
                     >
-                        {/*whY NAMAN AYAW MAG BAGO */}
                         <Text style={{ color: 'White', fontWeight: 'bold' }}>Next</Text>
                     </TouchableOpacity>
                 </View>

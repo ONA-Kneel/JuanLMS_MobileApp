@@ -3,7 +3,6 @@ import FacultyModuleStyle from "../styles/faculty/FacultyModuleStyle";
 import { useNavigation } from "@react-navigation/native";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 
-
 export default function GenSched() {
 
     const back =()=>{

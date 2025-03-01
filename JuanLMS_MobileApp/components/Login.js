@@ -6,8 +6,6 @@ import LoginStyle from './styles/LoginStyle';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
 
-
-
 export default function Login() {
     const [showPassword, setShowPassword] = useState(false);
     const [rememberMe, setRememberMe] = useState(false);
@@ -32,6 +30,10 @@ export default function Login() {
       else if(email.toLowerCase().includes("@admin_sjddef.edu.ph")){
         alert("Welcome, Admin!")
         changeScreen.navigate("ADash")
+      }
+      else if(email.toLowerCase().includes("@parents.sjddef.edu.ph")){
+        alert("Welcome, Parent!")
+        changeScreen.navigate("PDash")
       }
       else{
         setEmail('');

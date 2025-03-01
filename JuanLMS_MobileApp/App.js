@@ -1,9 +1,7 @@
-import { StatusBar } from 'expo-status-bar';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { Image } from 'react-native';
 
 //folders
 import SplashScreen from './components/SplashScreen';
-import MyStyles from './components/styles/MyStyles';
 
 //Navigation
 import { NavigationContainer } from '@react-navigation/native';
@@ -31,6 +29,7 @@ import CreateActivity from './components/Faculty/CreateActivity';
 import FacultyCalendar from './components/Faculty/FacultyCalendar';
 import FacultyChats from './components/Faculty/FacultyChats';
 import FacultyProfile from './components/Faculty/FacultyProfile';
+
 //Admin
 import AdminDashboard from './components/Admin/AdminDashboard';
 import AdminCalendar from './components/Admin/AdminCalendar';
@@ -40,7 +39,12 @@ import GenSched from './components/Admin/GenSched';
 import AdminProgress from './components/Admin/AdminProgress';
 import AdminFaculty from './components/Admin/AdminFaculty';
 
-
+//Parent
+import ParentDashboard from './components/Parents/ParentDashboard';
+import ParentSchedule from './components/Parents/ParentSchedule';
+import ParentProgress from './components/Parents/ParentProgress';
+import ParentGrades from './components/Parents/ParentGrades';
+import ParentProfile from './components/Parents/ParentProfile';
 
 //Bottom Navigation Bar
 const Tabs = createBottomTabNavigator();
@@ -92,15 +96,28 @@ const AdminDash = () => {
   )
 }
 
+//Parent Dashboard
+const ParentDash =() =>{
+  return(
+    <Tabs.Navigator screenOptions={{ tabBarShowLabel: false }}>
+      <Tabs.Screen name='PDash' component={ParentDashboard}
+      options={{ tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/6.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
+       <Tabs.Screen name='PProfile' component={ParentProfile}
+      options={{ tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/7.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
+    </Tabs.Navigator>
+  )
+}
 //Specific Screen Change
 const Screens = createNativeStackNavigator();
 export default function App() {
   return (
     <NavigationContainer>
       <Screens.Navigator initialRouteName='Login'>
+        {/* Used Everytime */}
         <Screens.Screen name='SplashScreen' component={SplashScreen} options={{ headerShown: false }}/>
         <Screens.Screen name='Chats' component={Chat} options={{ headerShown: false }}/>
         <Screens.Screen name='Login' component={Login} options={{ headerShown: false }}/>
+        
         {/* Students */}
         <Screens.Screen name='SDash' component={StudentDash} options={{ headerShown: false }}/>
         <Screens.Screen name='SModule' component={StudentModule} options={{ headerShown: false }}/>
@@ -116,11 +133,18 @@ export default function App() {
         <Screens.Screen name ='FMod' component={FacultyModule} options={{ headerShown: false }}/>
         <Screens.Screen name ='CMod' component={CreateModule} options={{ headerShown: false }}/>
         <Screens.Screen name ='CAct' component={CreateActivity} options={{ headerShown: false }}/>
+        
         {/* Admininstrators */}
         <Screens.Screen name='ADash' component={AdminDash} options={{ headerShown: false }}/>
         <Screens.Screen name='GSched' component={GenSched} options={{ headerShown: false }}/>
         <Screens.Screen name='AProg' component={AdminProgress} options={{ headerShown: false }}/>
         <Screens.Screen name='AFaculty' component={AdminFaculty} options={{ headerShown: false }}/>
+        
+        {/* Parents */}
+        <Screens.Screen name='PDash' component={ParentDash} options={{ headerShown: false }}/>
+        <Screens.Screen name='PSched' component={ParentSchedule} options={{ headerShown: false }}/>
+        <Screens.Screen name='PProg' component={ParentProgress} options={{ headerShown: false }}/>
+        <Screens.Screen name='PGrade' component={ParentGrades} options={{ headerShown: false }}/>
       </Screens.Navigator>
     </NavigationContainer>
   );

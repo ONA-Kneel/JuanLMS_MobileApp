@@ -54,7 +54,6 @@ export default function FacultyDashboard() {
               <Text style={FacultyDashStyle.courseTitle}>{course.name}</Text>
             </View>
             <Text style={FacultyDashStyle.progressText}>{course.students} Students</Text>
-            {/* <ProgressBar progress={course.progress} color={course.progress === 1 ? '#04061f' : 'white'} style={FacultyDashStyle.progressBar} /> */}
             <TouchableOpacity
               onPress={modules}
               style={FacultyDashStyle.arrowButton}>
