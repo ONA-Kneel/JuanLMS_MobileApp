@@ -113,6 +113,10 @@ export default function App() {
   return (
     <NavigationContainer>
       <Screens.Navigator initialRouteName='Login'>
+
+        {/*Remove the automatic scheduling */}
+        {/*Assisted lang daw dapat */}
+
         {/* Used Everytime */}
         <Screens.Screen name='SplashScreen' component={SplashScreen} options={{ headerShown: false }}/>
         <Screens.Screen name='Chats' component={Chat} options={{ headerShown: false }}/>
@@ -127,6 +131,7 @@ export default function App() {
         <Screens.Screen name='SCalendar' component={StudentCalendar} options={{ headerShown: false }}/>
 
         {/*Faculties */}
+        {/*Need tangalin ang "add a lesson" na naeedit, need daw upload lang and title lang ang editable*/}
         <Screens.Screen name='FDash' component={FacultyDash} options={{ headerShown: false }}/>
         <Screens.Screen name ='CClass' component={CreateClasses} options={{ headerShown: false }}/>
         <Screens.Screen name ='FSProg' component={FacultyStudentProgress} options={{ headerShown: false }}/>
@@ -141,6 +146,7 @@ export default function App() {
         <Screens.Screen name='AFaculty' component={AdminFaculty} options={{ headerShown: false }}/>
         
         {/* Parents */}
+        {/*"My Grades" tab should be "Student's Grade" */}
         <Screens.Screen name='PDash' component={ParentDash} options={{ headerShown: false }}/>
         <Screens.Screen name='PSched' component={ParentSchedule} options={{ headerShown: false }}/>
         <Screens.Screen name='PProg' component={ParentProgress} options={{ headerShown: false }}/>
