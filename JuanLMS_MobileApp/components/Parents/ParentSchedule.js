@@ -1,4 +1,4 @@
-import { TouchableOpacity, View, Text, Dimensions, Image } from "react-native";
+import { TouchableOpacity, View, Text, Dimensions } from "react-native";
 import FacultyModuleStyle from "../styles/faculty/FacultyModuleStyle";
 import { useNavigation } from "@react-navigation/native";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
@@ -23,17 +23,8 @@ export default function ParentSchedule() {
                 </View>
                 <Icon name="menu" size={24} color="black" style={{ marginLeft: "auto" }} />
             </View>
-                <Image 
-                 source={require("../../assets/mockups/Sample Schedule.jpg")} 
-                    style={{ 
-                     width: 500, 
-                     height: 800, 
-                     padding: 5,
-                     resizeMode: "contain", 
-                     alignSelf: "center",
-                     alignContent: "center"     
-                    }}
-                />
+            <View style={{ backgroundColor: "lightgray", margin: 10, height: 400 }}>
+            </View>
         </View>
     );
 }
