@@ -30,6 +30,11 @@ import FacultyCalendar from './components/Faculty/FacultyCalendar';
 import FacultyChats from './components/Faculty/FacultyChats';
 import FacultyProfile from './components/Faculty/FacultyProfile';
 
+//Director
+import DirectorDashboard from './components/Directors/DirectorDashboard';
+import DirectorProfile from './components/Directors/DirectorProfile';
+import DirectorSupportCenter from './components/Directors/DirectorSupportCenter';
+
 //Admin
 import AdminDashboard from './components/Admin/AdminDashboard';
 import AdminCalendar from './components/Admin/AdminCalendar';
@@ -107,12 +112,23 @@ const ParentDash =() =>{
     </Tabs.Navigator>
   )
 }
+
+//Director Dashboard
+const DirectorDash = () =>{
+  return(
+    <Tabs.Navigator screenOptions={{ tabBarShowLabel: false }}>
+      <Tabs.Screen name='DDash' component={DirectorDashboard}
+      options={{ tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/6.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
+      
+    </Tabs.Navigator>
+  )
+}
 //Specific Screen Change
 const Screens = createNativeStackNavigator();
 export default function App() {
   return (
     <NavigationContainer>
-      <Screens.Navigator initialRouteName='Login'>
+      <Screens.Navigator initialRouteName='DSupCent'>
 
         {/*Remove the automatic scheduling */}
         {/*Assisted lang daw dapat */}
@@ -144,6 +160,11 @@ export default function App() {
         <Screens.Screen name='GSched' component={GenSched} options={{ headerShown: false }}/>
         <Screens.Screen name='AProg' component={AdminProgress} options={{ headerShown: false }}/>
         <Screens.Screen name='AFaculty' component={AdminFaculty} options={{ headerShown: false }}/>
+
+        {/* Directors */}
+        <Screens.Screen name='DDash' component={DirectorDash} options={{headerShown: false}}/>
+        <Screens.Screen name='DSupCent' component={DirectorSupportCenter} options={{headerShown: false}}/>
+
         
         {/* Parents */}
         {/*"My Grades" tab should be "Student's Grade" */}
