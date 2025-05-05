@@ -156,7 +156,6 @@ export default function App() {
     <NavigationContainer>
       <Screens.Navigator initialRouteName='Login'>
 
-        {/*Remove the automatic scheduling */}
         {/*Assisted lang daw dapat */}
 
         {/* Used Everytime */}
