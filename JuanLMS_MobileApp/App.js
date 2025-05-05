@@ -8,6 +8,10 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Login from './components/Login';
+import Chat from './components/Chat';
+// import SupportMain from './components/SupportMain';
+// import SupportRequest from './components/SupportRequest';
+
 //Students
 import StudentDashboard from './components/Students/StudentDashboard';
 import StudentModule from './components/Students/StudentModule';
@@ -15,9 +19,11 @@ import StudentGrades from './components/Students/StudentGrades';
 import StudentActs from './components/Students/StudentActs';
 import StudentProgress from './components/Students/StudentProgress';
 import StudentChats from './components/Students/StudentsChats';
-import Chat from './components/Chat';
 import StudentsProfile from './components/Students/StudentsProfile';
 import StudentCalendar from './components/Students/StudentsCalendar';
+import StudentSCMain from './components/Students/StudentSCMain';
+import StudentSupportCenter from './components/Students/StudentSupportCenter';
+
 
 //Faculty
 import FacultyDashboard from './components/Faculty/FacultyDashboard';
@@ -29,6 +35,8 @@ import CreateActivity from './components/Faculty/CreateActivity';
 import FacultyCalendar from './components/Faculty/FacultyCalendar';
 import FacultyChats from './components/Faculty/FacultyChats';
 import FacultyProfile from './components/Faculty/FacultyProfile';
+import FacultySCMain from './components/Faculty/FacultySCMain';
+import FacultySupportCenter from './components/Faculty/FacultySupportCenter';
 
 //Director
 import DirectorDashboard from './components/Directors/DirectorDashboard';
@@ -147,7 +155,7 @@ export default function App() {
         <Screens.Screen name='SplashScreen' component={SplashScreen} options={{ headerShown: false }}/>
         <Screens.Screen name='Chats' component={Chat} options={{ headerShown: false }}/>
         <Screens.Screen name='Login' component={Login} options={{ headerShown: false }}/>
-        
+
         {/* Students */}
         <Screens.Screen name='SDash' component={StudentDash} options={{ headerShown: false }}/>
         <Screens.Screen name='SModule' component={StudentModule} options={{ headerShown: false }}/>
@@ -155,6 +163,9 @@ export default function App() {
         <Screens.Screen name='SActs' component={StudentActs} options={{ headerShown: false }}/>
         <Screens.Screen name='SProg' component={StudentProgress} options={{ headerShown: false }}/>
         <Screens.Screen name='SCalendar' component={StudentCalendar} options={{ headerShown: false }}/>
+        <Screens.Screen name ='SMain' component={StudentSCMain} options={{ headerShown: false }}/>
+        <Screens.Screen name ='SReq' component={StudentSupportCenter} options={{ headerShown: false }}/>
+
 
         {/*Faculties */}
         {/*Need tangalin ang "add a lesson" na naeedit, need daw upload lang and title lang ang editable*/}
@@ -164,7 +175,11 @@ export default function App() {
         <Screens.Screen name ='FMod' component={FacultyModule} options={{ headerShown: false }}/>
         <Screens.Screen name ='CMod' component={CreateModule} options={{ headerShown: false }}/>
         <Screens.Screen name ='CAct' component={CreateActivity} options={{ headerShown: false }}/>
-        
+        <Screens.Screen name ='FMain' component={FacultySCMain} options={{ headerShown: false }}/>
+        <Screens.Screen name ='FReq' component={FacultySupportCenter} options={{ headerShown: false }}/>
+
+
+
         {/* Admininstrators */}
         <Screens.Screen name='ADash' component={AdminDash} options={{ headerShown: false }}/>
         <Screens.Screen name='GSched' component={GenSched} options={{ headerShown: false }}/>

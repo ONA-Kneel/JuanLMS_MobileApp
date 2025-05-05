@@ -15,6 +15,10 @@ export default function FacultyProfile() {
     changeScreen.navigate("Login")
   }
 
+  const helpCenter =() =>{
+    changeScreen.navigate("FMain")
+  }
+
   return (
     <View style={FacultyProfileStyle.container}>
       <View style={FacultyProfileStyle.card}>
@@ -26,6 +30,12 @@ export default function FacultyProfile() {
           <TouchableOpacity style={FacultyProfileStyle.button}>
             <MaterialIcons name="camera-alt" size={16} color="white" />
             <Text style={FacultyProfileStyle.buttonText}> Update Photo</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+          onPress={helpCenter}
+          style={FacultyProfileStyle.button}>
+            <MaterialIcons name="help" size={16} color="white" />
+            <Text style={FacultyProfileStyle.buttonText}>Support Center</Text>
           </TouchableOpacity>
         </View>
         <View style={FacultyProfileStyle.contactContainer}>

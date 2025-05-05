@@ -20,6 +20,11 @@ const logout =()=>{
       changeScreen.navigate("Login")
     }
 
+const helpCenter =() =>{
+      changeScreen.navigate("SMain")
+    }
+  
+
   return (
     <View style={StudentsProfileStyle.container}>
       <View style={StudentsProfileStyle.card}>
@@ -31,6 +36,12 @@ const logout =()=>{
           <TouchableOpacity style={StudentsProfileStyle.button}>
             <MaterialIcons name="camera-alt" size={16} color="white" />
             <Text style={StudentsProfileStyle.buttonText}> Update Photo</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+          onPress={helpCenter}
+          style={StudentsProfileStyle.button}>
+            <MaterialIcons name="help" size={16} color="white" />
+            <Text style={StudentsProfileStyle.buttonText}>Support Center</Text>
           </TouchableOpacity>
         </View>
         <View style={StudentsProfileStyle.contactContainer}>
