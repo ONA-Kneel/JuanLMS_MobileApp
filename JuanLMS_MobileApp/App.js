@@ -64,6 +64,11 @@ import ParentProgress from './components/Parents/ParentProgress';
 import ParentGrades from './components/Parents/ParentGrades';
 import ParentProfile from './components/Parents/ParentProfile';
 
+//chats
+import { ChatProvider } from './ChatContext';
+import { UserProvider } from './UserContext';
+
+
 //Bottom Navigation Bar
 const Tabs = createBottomTabNavigator();
 //Student Dashboard
@@ -144,7 +149,10 @@ const DirectorDash = () =>{
 //Specific Screen Change
 const Screens = createNativeStackNavigator();
 export default function App() {
+
   return (
+    <UserProvider>
+    <ChatProvider>
     <NavigationContainer>
       <Screens.Navigator initialRouteName='Login'>
 
@@ -205,5 +213,7 @@ export default function App() {
         <Screens.Screen name='PGrade' component={ParentGrades} options={{ headerShown: false }}/>
       </Screens.Navigator>
     </NavigationContainer>
+    </ChatProvider>
+    </UserProvider>
   );
 }
