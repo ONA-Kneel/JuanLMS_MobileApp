@@ -6,6 +6,14 @@ import { useNavigation } from '@react-navigation/native';
 export default function DirectorDashboard () {
   const navigation = useNavigation();
 
+  const createModule = () =>{
+    navigation.navigate('DModules');
+  }
+
+  const createQuizess = () =>{
+    navigation.navigate('DQuizzes');
+  }
+
   return (
     <View style={DirectorDashStyle.container}>
       {/* Logo and Welcome Text */}
@@ -16,14 +24,18 @@ export default function DirectorDashboard () {
 
       {/* Create Buttons */}
       <View style={DirectorDashStyle.iconsContainer}>
-        <TouchableOpacity style={DirectorDashStyle.iconWrapper}>
+        <TouchableOpacity 
+        onPress={createModule}
+        style={DirectorDashStyle.iconWrapper}>
           <View style={DirectorDashStyle.iconCircle}>
             <Icon name="plus" size={30} color="#fff" />
           </View>
-          <Text style={DirectorDashStyle.iconLabel}>Create Classes</Text>
+          <Text style={DirectorDashStyle.iconLabel}>Create Modules</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={DirectorDashStyle.iconWrapper}>
+        <TouchableOpacity 
+        onPress={createQuizess}
+        style={DirectorDashStyle.iconWrapper}>
           <View style={DirectorDashStyle.iconCircle}>
             <Icon name="plus" size={30} color="#fff" />
           </View>

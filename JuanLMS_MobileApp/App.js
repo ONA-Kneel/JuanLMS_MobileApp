@@ -34,6 +34,11 @@ import FacultyProfile from './components/Faculty/FacultyProfile';
 import DirectorDashboard from './components/Directors/DirectorDashboard';
 import DirectorProfile from './components/Directors/DirectorProfile';
 import DirectorSupportCenter from './components/Directors/DirectorSupportCenter';
+import DirectorChats from './components/Directors/DirectorChats';
+import DirectorCalendar from './components/Directors/DirectorCalendar';
+import DirectorCModule from './components/Directors/DirectorCModule';
+import DirectorCQuizzes from './components/Directors/DirectorCQuizzess';
+import DirectorSCMain from './components/Directors/DirectorSCMain';
 
 //Admin
 import AdminDashboard from './components/Admin/AdminDashboard';
@@ -119,7 +124,12 @@ const DirectorDash = () =>{
     <Tabs.Navigator screenOptions={{ tabBarShowLabel: false }}>
       <Tabs.Screen name='DDash' component={DirectorDashboard}
       options={{ tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/6.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
-      
+      <Tabs.Screen name='DCalendar' component={DirectorCalendar}
+      options={{ tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/6.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
+      <Tabs.Screen name='DChats' component={DirectorChats}
+      options={{ tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/6.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
+      <Tabs.Screen name='DProfile' component={DirectorProfile}
+      options={{ tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/6.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
     </Tabs.Navigator>
   )
 }
@@ -128,7 +138,7 @@ const Screens = createNativeStackNavigator();
 export default function App() {
   return (
     <NavigationContainer>
-      <Screens.Navigator initialRouteName='DSupCent'>
+      <Screens.Navigator initialRouteName='Login'>
 
         {/*Remove the automatic scheduling */}
         {/*Assisted lang daw dapat */}
@@ -164,8 +174,14 @@ export default function App() {
         {/* Directors */}
         <Screens.Screen name='DDash' component={DirectorDash} options={{headerShown: false}}/>
         <Screens.Screen name='DSupCent' component={DirectorSupportCenter} options={{headerShown: false}}/>
+        <Screens.Screen name='DProfile' component={DirectorProfile} options={{headerShown: false}}/>
+        <Screens.Screen name='DChats' component={DirectorChats} options={{headerShown: false}}/>
+        <Screens.Screen name='DCalendar' component={DirectorCalendar} options={{headerShown: false}}/>
+        <Screens.Screen name='DModules' component={DirectorCModule} options={{headerShown: false}}/>
+        <Screens.Screen name='DQuizzes' component={DirectorCQuizzes} options={{headerShown: false}}/>
+        <Screens.Screen name='DScMain' component={DirectorSCMain} options={{headerShown: false}}/>
 
-        
+
         {/* Parents */}
         {/*"My Grades" tab should be "Student's Grade" */}
         <Screens.Screen name='PDash' component={ParentDash} options={{ headerShown: false }}/>

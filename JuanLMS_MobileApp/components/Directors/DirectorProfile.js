@@ -13,6 +13,9 @@ export default function DirectorProfile() {
   const logout = () => {
     changeScreen.navigate("Login")
   }
+  const helpCenter =() =>{
+    changeScreen.navigate("DScMain")
+  }
 
   return (
     <View style={DirectorProfileStyle.container}>
@@ -26,12 +29,18 @@ export default function DirectorProfile() {
             <MaterialIcons name="camera-alt" size={16} color="white" />
             <Text style={DirectorProfileStyle.buttonText}> Update Photo</Text>
           </TouchableOpacity>
+          <TouchableOpacity 
+          onPress={helpCenter}
+          style={DirectorProfileStyle.button}>
+            <MaterialIcons name="help" size={16} color="white" />
+            <Text style={DirectorProfileStyle.buttonText}>Support Center</Text>
+          </TouchableOpacity>
         </View>
         <View style={DirectorProfileStyle.contactContainer}>
           <Text style={DirectorProfileStyle.contactTitle}>Contact</Text>
           <View style={DirectorProfileStyle.contactRow}>
             <MaterialIcons name="email" size={16} color="#555" />
-            <Text style={DirectorProfileStyle.contactText}>jamesjhonson@sjddef.edu.ph</Text>
+            <Text style={DirectorProfileStyle.contactText}>josef@director.sjddef.edu.ph</Text>
           </View>
         </View>
       </View>
