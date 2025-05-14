@@ -13,23 +13,49 @@ const timeToString = (time) => {
   return date.toISOString().split('T')[0];
 };
 
+const getMonthYearString = (dateString) => {
+  const date = new Date(dateString);
+  return date.toLocaleString('default', { month: 'long', year: 'numeric' });
+};
+
 export default function DirectorCalendar() {
   const [items, setItems] = useState({});
   const [showCalendar, setShowCalendar] = useState(false);
   const calendarHeight = useState(new Animated.Value(0))[0];
+  const [currentMonth, setCurrentMonth] = useState(getMonthYearString(timeToString(Date.now())));
 
   useEffect(() => {
-    const today = timeToString(Date.now());
-    const newItems = {
-      [today]: [{ name: 'Math Assignment Deadline', type: 'deadline', height: 50 }],
+    const fetchHolidays = async () => {
+      let holidays = [];
+      for (let year = 2024; year <= 2030; year++) {
+        const res = await fetch(`https://date.nager.at/api/v3/PublicHolidays/${year}/PH`);
+        const data = await res.json();
+        holidays = holidays.concat(data);
+      }
+      // Convert to Agenda format
+      const newItems = {};
+      holidays.forEach(holiday => {
+        newItems[holiday.date] = [{
+          name: holiday.localName,
+          type: 'holiday',
+          height: 50
+        }];
+      });
+      // Add today's sample event
+      const today = timeToString(Date.now());
+      if (!newItems[today]) {
+        newItems[today] = [];
+      }
+      newItems[today].push({ name: 'Math Assignment Deadline', type: 'deadline', height: 50 });
+      setItems(newItems);
     };
-    setItems(newItems);
+    fetchHolidays();
   }, []);
 
   const loadItems = (day) => {
     const strTime = timeToString(day.timestamp);
     if (!items[strTime]) {
-      return; // Only update if events already exist — no empty entries
+      return;
     }
     setTimeout(() => {
       setItems((prevItems) => ({ ...prevItems }));
@@ -37,19 +63,24 @@ export default function DirectorCalendar() {
   };
 
   const renderItem = (item) => {
-    // Conditional style based on the event type
-    const cardStyle = item.name === 'Math Assignment Deadline'
-      ? { backgroundColor: '#00418b' } // Apply the color to the Math Assignment Deadline card
-      : { backgroundColor: '#ffffff' }; // Default color for other events
-
+    let cardStyle = { backgroundColor: '#ffffff' };
+    let textColor = '#000';
+    let avatarLabel = 'E';
+    if (item.type === 'holiday') {
+      cardStyle = { backgroundColor: '#FFEB3B' };
+      textColor = '#B71C1C';
+      avatarLabel = 'H';
+    } else if (item.name === 'Math Assignment Deadline') {
+      cardStyle = { backgroundColor: '#00418b' };
+      textColor = '#fff';
+      avatarLabel = 'D';
+    }
     return (
       <Card style={[{ marginRight: 10, marginTop: 17 }, cardStyle]}>
         <Card.Content>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Text style={{ color: item.name === 'Math Assignment Deadline' ? '#fff' : '#000' }}>
-              {item.name}
-            </Text>
-            <Avatar.Text label={item.type === 'deadline' ? 'D' : 'E'} />
+            <Text style={{ color: textColor }}>{item.name}</Text>
+            <Avatar.Text label={avatarLabel} />
           </View>
         </Card.Content>
       </Card>
@@ -65,23 +96,28 @@ export default function DirectorCalendar() {
     setShowCalendar(!showCalendar);
   };
 
+  // Update currentMonth when the visible month changes in CalendarList
+  const onVisibleMonthsChange = (months) => {
+    if (months && months.length > 0) {
+      setCurrentMonth(getMonthYearString(months[0].dateString));
+    }
+  };
+
   return (
     <View style={FacultyCalendarStyle.container}>
       <Image
         source={require('../../assets/Logo3.svg')}
         style={FacultyCalendarStyle.logo}
       />
-
       {/* Header with Toggle Arrow */}
       <TouchableOpacity onPress={toggleCalendar} style={FacultyCalendarStyle.header}>
-        <Text style={FacultyCalendarStyle.headerText}>February 2025</Text>
+        <Text style={FacultyCalendarStyle.headerText}>{currentMonth}</Text>
         <Ionicons
           name={showCalendar ? 'chevron-up' : 'chevron-down'}
           size={24}
           style={FacultyCalendarStyle.arrowIcon}
         />
       </TouchableOpacity>
-
       {/* Animated Horizontal Calendar */}
       <Animated.View style={{ height: calendarHeight, overflow: 'hidden' }}>
         <CalendarList
@@ -89,9 +125,9 @@ export default function DirectorCalendar() {
           pagingEnabled
           calendarWidth={350}
           style={{ marginBottom: 10 }}
+          onVisibleMonthsChange={onVisibleMonthsChange}
         />
       </Animated.View>
-
       {/* Agenda for Deadlines and Events */}
       <Agenda
         items={items}
