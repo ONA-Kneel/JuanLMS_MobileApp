@@ -3,7 +3,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useChat } from '../../ChatContext'; // adjust path if needed
-import { useUser } from '../../UserContext'; // adjust path if needed
+import { useUser } from '../UserContext'; // adjust path if needed
 
 export default function AdminChats() {
   const navigation = useNavigation();

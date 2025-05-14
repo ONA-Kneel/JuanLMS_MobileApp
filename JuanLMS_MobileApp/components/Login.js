@@ -102,6 +102,12 @@ export default function Login() {
 
         const tokenPayload = JSON.parse(atob(data.token.split('.')[1]));
         const role = tokenPayload.role;
+        const userId = tokenPayload.id;
+
+        // Fetch user data
+        const userRes = await fetch(`http://localhost:5000/users/${userId}`);
+        const userData = await userRes.json();
+        await AsyncStorage.setItem('user', JSON.stringify(userData));
 
         switch (role) {
           case 'student': navigation.navigate('SDash'); break;

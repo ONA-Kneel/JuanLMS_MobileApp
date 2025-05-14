@@ -1,39 +1,49 @@
-import { Text, TouchableOpacity, View } from 'react-native';
-import * as React from 'react'
+import React from 'react';
+import { View, Text, TouchableOpacity, Image } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import FacultyProfileStyle from '../styles/faculty/FacultyProfileStyle';
 import { useNavigation } from '@react-navigation/native';
-
-
+import { useUser } from '../UserContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function FacultyProfile() {
-
-  //navigation
+  const { user } = useUser();
   const changeScreen = useNavigation();
 
-  const logout = () => {
-    changeScreen.navigate("Login")
-  }
+  const logout = async () => {
+    await AsyncStorage.removeItem('user');
+    changeScreen.navigate('Login');
+  };
 
-  const helpCenter =() =>{
-    changeScreen.navigate("FMain")
+  const helpCenter = () => {
+    changeScreen.navigate('FMain');
+  };
+
+  if (!user) {
+    return (
+      <View style={FacultyProfileStyle.container}>
+        <Text>Loading...</Text>
+      </View>
+    );
   }
 
   return (
     <View style={FacultyProfileStyle.container}>
       <View style={FacultyProfileStyle.card}>
         <View style={FacultyProfileStyle.profileContainer}>
-          <View style={FacultyProfileStyle.avatar} />
-          <Text style={FacultyProfileStyle.name}>James, Johnson</Text>
+          {user.profilePicture ? (
+            <Image source={{ uri: user.profilePicture }} style={FacultyProfileStyle.avatar} />
+          ) : (
+            <View style={FacultyProfileStyle.avatar} />
+          )}
+          <Text style={FacultyProfileStyle.name}>{`${user.lastname}, ${user.firstname}`}</Text>
           <Text style={FacultyProfileStyle.info}>Faculty</Text>
-          <Text style={FacultyProfileStyle.info}>College of Entrepreneurship</Text>
+          <Text style={FacultyProfileStyle.info}>{user.college || 'College'}</Text>
           <TouchableOpacity style={FacultyProfileStyle.button}>
             <MaterialIcons name="camera-alt" size={16} color="white" />
             <Text style={FacultyProfileStyle.buttonText}> Update Photo</Text>
           </TouchableOpacity>
-          <TouchableOpacity 
-          onPress={helpCenter}
-          style={FacultyProfileStyle.button}>
+          <TouchableOpacity onPress={helpCenter} style={FacultyProfileStyle.button}>
             <MaterialIcons name="help" size={16} color="white" />
             <Text style={FacultyProfileStyle.buttonText}>Support Center</Text>
           </TouchableOpacity>
@@ -42,12 +52,17 @@ export default function FacultyProfile() {
           <Text style={FacultyProfileStyle.contactTitle}>Contact</Text>
           <View style={FacultyProfileStyle.contactRow}>
             <MaterialIcons name="email" size={16} color="#555" />
-            <Text style={FacultyProfileStyle.contactText}>jamesjhonson@sjddef.edu.ph</Text>
+            <Text style={FacultyProfileStyle.contactText}>{user.email}</Text>
+          </View>
+          <View style={FacultyProfileStyle.contactRow}>
+            <MaterialIcons name="phone" size={16} color="#555" />
+            <Text style={FacultyProfileStyle.contactText}>{user.contactno}</Text>
           </View>
         </View>
       </View>
-      <TouchableOpacity style={FacultyProfileStyle.logout} onPress={logout}><Text style={FacultyProfileStyle.buttonText}>Log-Out</Text></TouchableOpacity>
+      <TouchableOpacity style={FacultyProfileStyle.logout} onPress={logout}>
+        <Text style={FacultyProfileStyle.buttonText}>Log-Out</Text>
+      </TouchableOpacity>
     </View>
-
   );
 }

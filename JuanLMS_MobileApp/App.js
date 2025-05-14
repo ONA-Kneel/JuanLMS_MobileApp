@@ -66,7 +66,7 @@ import ParentProfile from './components/Parents/ParentProfile';
 
 //chats
 import { ChatProvider } from './ChatContext';
-import { UserProvider } from './UserContext';
+import { UserProvider } from './components/UserContext';
 
 
 //Bottom Navigation Bar
