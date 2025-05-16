@@ -1,52 +1,64 @@
 // components/Students/StudentsChats.js
-import React from 'react';
-import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, TextInput } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { useChat } from '../../ChatContext'; // adjust path if needed
-import { useUser } from '../UserContext'; // adjust path if needed
+import { useUser } from '../UserContext';
+import axios from 'axios';
+
+const SOCKET_URL = 'http://localhost:5000';
 
 export default function AdminChats() {
   const navigation = useNavigation();
-  const { chats, setCurrentChatId, addChat } = useChat();
-  const { user } = useUser(); // user.role = "Student"
+  const { user } = useUser();
+  const [users, setUsers] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
 
-  // Show only chats where this user is a participant
-  const userChats = chats.filter(chat =>
-    chat.participants.includes(user.role) // Filtering chats based on the current user's role
-  );
+  useEffect(() => {
+    if (!user || !user._id) return;
+    axios.get(`${SOCKET_URL}/users`)
+      .then(res => {
+        setUsers(res.data.filter(u => u._id !== user._id));
+      })
+      .catch(() => setUsers([]));
+  }, [user && user._id]);
 
-  const handleChatPress = (chatId) => {
-    setCurrentChatId(chatId);
-    navigation.navigate('Chats'); // Navigate to a chat detail page (adjust screen name accordingly)
+  const handleSelectUser = (user) => {
+    navigation.navigate('Chat', { selectedUser: user });
   };
 
-  return (
-    <View style={{ flex: 1, padding: 20 }}>
-      {/* Header with + New Chat */}
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 }}>
-        <Text style={{ fontWeight: 'bold', fontSize: 22 }}>Chats</Text>
-        <TouchableOpacity
-          onPress={addChat}
-          style={{ backgroundColor: 'blue', padding: 10, borderRadius: 10 }}>
-          <Text style={{ color: 'white', fontWeight: 'bold' }}>+ New Chat</Text>
-        </TouchableOpacity>
+  if (!user || !user._id) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <Text>Loading user...</Text>
       </View>
+    );
+  }
 
-      {/* Chat List */}
-      <ScrollView>
-        {userChats.map(chat => {
-          const lastMsg = chat.messages[chat.messages.length - 1];
-          return (
+  const filteredUsers = users.filter(u =>
+    `${u.firstname} ${u.lastname}`.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  return (
+    <View style={{ flex: 1, padding: 10 }}>
+      <TextInput
+        placeholder="Search users..."
+        value={searchTerm}
+        onChangeText={setSearchTerm}
+        style={{ marginBottom: 10, borderWidth: 1, borderColor: '#ccc', borderRadius: 5, padding: 8 }}
+      />
+      <View style={{ flex: 1 }}>
+        <Text style={{ fontWeight: 'bold', fontSize: 22 }}>Users</Text>
+        <ScrollView>
+          {(Array.isArray(filteredUsers) ? filteredUsers : []).map(u => (
             <TouchableOpacity
-              key={chat.id}
-              onPress={() => handleChatPress(chat.id)}
+              key={u._id}
+              onPress={() => handleSelectUser(u)}
               style={{ backgroundColor: 'lightgray', padding: 15, borderRadius: 10, marginBottom: 10 }}>
-              <Text style={{ fontWeight: 'bold', fontSize: 16 }}>{chat.name}</Text>
-              <Text>{lastMsg ? `${lastMsg.sender}: ${lastMsg.text}` : 'No messages yet'}</Text>
+              <Text style={{ fontWeight: 'bold', fontSize: 16 }}>{u.firstname} {u.lastname}</Text>
             </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
+          ))}
+        </ScrollView>
+      </View>
     </View>
   );
 }

@@ -6,6 +6,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { CheckBox } from 'react-native-web';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Toast from 'react-native-root-toast';
+import { useUser } from './UserContext';
 
 export default function Login() {
   //mema commit na lang para lang may kulay ako today
@@ -17,6 +18,7 @@ export default function Login() {
   const [isCooldown, setIsCooldown] = useState(false);
   const [cooldownTimer, setCooldownTimer] = useState(0);
   const navigation = useNavigation();
+  const { setUser } = useUser();
 
   useEffect(() => {
     const loadLockoutState = async () => {
@@ -108,6 +110,7 @@ export default function Login() {
         const userRes = await fetch(`http://localhost:5000/users/${userId}`);
         const userData = await userRes.json();
         await AsyncStorage.setItem('user', JSON.stringify(userData));
+        setUser(userData);
 
         switch (role) {
           case 'student': navigation.navigate('SDash'); break;
