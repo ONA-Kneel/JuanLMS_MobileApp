@@ -56,7 +56,10 @@ export default function Chat() {
     setInput('');
   };
 
-  const safeMessages = Array.isArray(messages) ? messages : [];
+  // Sort messages by timestamp (oldest first, newest last)
+  const safeMessages = Array.isArray(messages)
+    ? [...messages].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
+    : [];
   console.log('Rendering chat UI', { user, selectedUser, messages });
   // if (!user || !user._id || !selectedUser) {
   //   return (
