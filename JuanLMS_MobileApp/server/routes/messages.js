@@ -22,4 +22,9 @@ router.get('/:userId/:chatWithId', async (req, res) => {
   res.json(messages);
 });
 
+router.get('/', async (req, res) => {
+  const messages = await Message.find({});
+  res.json(messages);
+});
+
 export default router;

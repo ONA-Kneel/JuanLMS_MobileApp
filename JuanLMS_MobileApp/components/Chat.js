@@ -11,13 +11,14 @@ export default function Chat() {
   const navigation = useNavigation();
   const route = useRoute();
   const { selectedUser } = route.params;
-  const user = useUser();
+  const { user, setUser } = useUser();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const socketRef = useRef(null);
   const scrollViewRef = useRef();
 
   console.log('selectedUser from route:', selectedUser);
+  console.log('Fetching messages for:', user._id, selectedUser._id);
 
   useEffect(() => {
     if (!selectedUser || !user || !user._id) return;
@@ -77,22 +78,74 @@ export default function Chat() {
         </Text>
       </View>
       {/* Messages */}
-      <ScrollView ref={scrollViewRef} onContentSizeChange={() => scrollViewRef.current.scrollToEnd({ animated: true })} style={{ flex: 1 }}>
-        {safeMessages.map((msg, idx) => (
-          <View key={idx} style={{ marginVertical: 2 }}>
-            <Text style={{ fontWeight: 'bold' }}>{msg.senderId === user._id ? 'You' : selectedUser.firstname}</Text>
-            <Text>{msg.message}</Text>
-          </View>
-        ))}
+      <ScrollView
+        ref={scrollViewRef}
+        onContentSizeChange={() => scrollViewRef.current.scrollToEnd({ animated: true })}
+        style={{ flex: 1, marginBottom: 10 }}
+      >
+        {safeMessages.map((msg, idx) => {
+          const isMe = msg.senderId === user._id;
+          return (
+            <View
+              key={idx}
+              style={{
+                flexDirection: 'row',
+                justifyContent: isMe ? 'flex-end' : 'flex-start',
+                marginVertical: 4,
+              }}
+            >
+              <View
+                style={{
+                  backgroundColor: isMe ? '#0078fe' : '#e5e5ea',
+                  borderRadius: 16,
+                  padding: 10,
+                  maxWidth: '75%',
+                  alignSelf: isMe ? 'flex-end' : 'flex-start',
+                }}
+              >
+                <Text style={{ color: isMe ? 'white' : 'black', fontWeight: 'bold', marginBottom: 2 }}>
+                  {isMe ? 'You' : selectedUser.firstname}
+                </Text>
+                <Text style={{ color: isMe ? 'white' : 'black' }}>{msg.message}</Text>
+                <Text style={{ color: isMe ? '#d1eaff' : '#888', fontSize: 10, alignSelf: 'flex-end', marginTop: 4 }}>
+                  {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString() : ''}
+                </Text>
+              </View>
+            </View>
+          );
+        })}
       </ScrollView>
       {/* Input */}
-      <View style={{ flexDirection: 'row', marginTop: 10 }}>
+      <View style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 8,
+        borderTopWidth: 1,
+        borderColor: '#eee',
+        backgroundColor: '#fff'
+      }}>
         <TextInput
           value={input}
           onChangeText={setInput}
-          style={{ flex: 1, borderWidth: 1, borderColor: '#ccc', borderRadius: 5, padding: 5 }}
+          placeholder="Type a message..."
+          style={{
+            flex: 1,
+            borderWidth: 1,
+            borderColor: '#ccc',
+            borderRadius: 20,
+            paddingHorizontal: 15,
+            paddingVertical: 8,
+            marginRight: 8,
+            backgroundColor: '#f9f9f9'
+          }}
         />
-        <Button title="Send" onPress={handleSend} />
+        <TouchableOpacity onPress={handleSend} style={{
+          backgroundColor: '#0078fe',
+          borderRadius: 20,
+          padding: 10,
+        }}>
+          <Text style={{ color: 'white', fontWeight: 'bold' }}>Send</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );

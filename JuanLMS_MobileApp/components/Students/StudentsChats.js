@@ -75,7 +75,7 @@ export default function StudentsChats() {
   };
 
   if (!user || !user._id) {
-    return (
+  return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
         <Text>Loading user...</Text>
       </View>
@@ -99,7 +99,7 @@ export default function StudentsChats() {
       {/* User List */}
       <View style={{ flex: 1 }}>
         <Text style={{ fontWeight: 'bold', fontSize: 22 }}>Users</Text>
-        <ScrollView>
+      <ScrollView>
           {(Array.isArray(filteredUsers) ? filteredUsers : []).map(u => (
             <TouchableOpacity
               key={u._id}
@@ -108,7 +108,7 @@ export default function StudentsChats() {
               <Text style={{ fontWeight: 'bold', fontSize: 16 }}>{u.firstname} {u.lastname}</Text>
             </TouchableOpacity>
           ))}
-        </ScrollView>
+      </ScrollView>
       </View>
     </View>
   );
