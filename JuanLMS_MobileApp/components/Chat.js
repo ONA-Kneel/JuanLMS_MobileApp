@@ -1,77 +1,98 @@
-import React, { useState, useEffect } from "react";
-import { View, Text, TextInput, TouchableOpacity, ScrollView } from "react-native";
-import { useNavigation } from "@react-navigation/native";
-import Icon from "react-native-vector-icons/MaterialCommunityIcons";
-import { useChat } from "../ChatContext"; // ✅
-import { useUser } from '../UserContext'; // ✅
+import React, { useEffect, useState, useRef } from "react";
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Button } from "react-native";
+import { useNavigation, useRoute } from "@react-navigation/native";
+import { useUser } from './UserContext';
+import io from 'socket.io-client';
+import axios from 'axios';
+
+const SOCKET_URL = 'http://localhost:5000';
 
 export default function Chat() {
-  const { chats, currentChatId, sendMessage, addChat } = useChat();
-  const { user } = useUser();
   const navigation = useNavigation();
-  const [inputText, setInputText] = useState("");
+  const route = useRoute();
+  const { selectedUser } = route.params;
+  const user = useUser();
+  const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState('');
+  const socketRef = useRef(null);
+  const scrollViewRef = useRef();
 
-  // Check if currentChatId exists and is valid
-  const currentChat = chats.find((c) => c.id === currentChatId);
+  console.log('selectedUser from route:', selectedUser);
 
-  // If no chat is selected, return early or show a message
-  if (!currentChat) {
-    return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <Text>No chat selected</Text>
-      </View>
-    );
-  }
+  useEffect(() => {
+    if (!selectedUser || !user || !user._id) return;
+    axios.get(`${SOCKET_URL}/api/messages/${user._id}/${selectedUser._id}`)
+      .then(res => setMessages(res.data))
+      .catch((err) => {
+        console.log('Error fetching messages:', err);
+        setMessages([]);
+      });
+    if (!socketRef.current) {
+      socketRef.current = io(SOCKET_URL);
+    }
+    socketRef.current.emit('joinChat', [user._id, selectedUser._id].sort().join('-'));
+    socketRef.current.on('receiveMessage', (msg) => {
+      setMessages(prev => [...prev, msg]);
+    });
+    return () => {
+      if (socketRef.current) {
+        socketRef.current.off('receiveMessage');
+      }
+    };
+  }, [selectedUser, user && user._id]);
 
   const handleSend = () => {
-    if (inputText.trim()) {
-      sendMessage(inputText.trim(), user.role); // ✅ Sender is current user role
-      setInputText("");
-    }
+    if (!input.trim() || !selectedUser) return;
+    const msg = {
+      chatId: [user._id, selectedUser._id].sort().join('-'),
+      senderId: user._id,
+      receiverId: selectedUser._id,
+      message: input,
+      timestamp: new Date(),
+    };
+    socketRef.current.emit('sendMessage', msg);
+    setMessages(prev => [...prev, msg]);
+    setInput('');
   };
 
-  return (
-    <View style={{ flex: 1 }}>
-      {/* Header */}
-      <View style={{ flexDirection: "row", justifyContent: "space-between", padding: 15, backgroundColor: "lightgray" }}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Icon name="arrow-left" size={24} color="black" />
-        </TouchableOpacity>
-        <Text style={{ fontWeight: "bold", fontSize: 18 }}>{currentChat?.name}</Text>
-        <TouchableOpacity onPress={addChat}>
-          <Icon name="plus" size={24} color="black" />
-        </TouchableOpacity>
-      </View>
+  const safeMessages = Array.isArray(messages) ? messages : [];
+  console.log('Rendering chat UI', { user, selectedUser, messages });
+  // if (!user || !user._id || !selectedUser) {
+  //   return (
+  //     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+  //       <Text>Loading chat...</Text>
+  //     </View>
+  //   );
+  // }
 
+  return (
+    <View style={{ flex: 1, padding: 10 }}>
+      {/* Header */}
+      <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 10 }}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Text style={{ fontSize: 18, color: "blue" }}>{"< Back"}</Text>
+        </TouchableOpacity>
+        <Text style={{ fontWeight: "bold", fontSize: 18, marginLeft: 10 }}>
+          Chat with {selectedUser.firstname} {selectedUser.lastname}
+        </Text>
+      </View>
       {/* Messages */}
-      <ScrollView style={{ flex: 1, padding: 10 }}>
-        {currentChat?.messages.map((msg, idx) => (
-          <View key={idx} style={{
-            alignSelf: "flex-end",
-            backgroundColor: "lightblue",
-            padding: 10,
-            borderRadius: 10,
-            marginBottom: 10,
-            maxWidth: "70%"
-          }}>
-            <Text style={{ fontWeight: 'bold' }}>{msg.sender}</Text>
-            <Text>{msg.text}</Text>
-            <Text style={{ fontSize: 10 }}>{msg.timestamp}</Text>
+      <ScrollView ref={scrollViewRef} onContentSizeChange={() => scrollViewRef.current.scrollToEnd({ animated: true })} style={{ flex: 1 }}>
+        {safeMessages.map((msg, idx) => (
+          <View key={idx} style={{ marginVertical: 2 }}>
+            <Text style={{ fontWeight: 'bold' }}>{msg.senderId === user._id ? 'You' : selectedUser.firstname}</Text>
+            <Text>{msg.message}</Text>
           </View>
         ))}
       </ScrollView>
-
       {/* Input */}
-      <View style={{ flexDirection: "row", padding: 10, backgroundColor: "lightgray" }}>
+      <View style={{ flexDirection: 'row', marginTop: 10 }}>
         <TextInput
-          value={inputText}
-          onChangeText={setInputText}
-          placeholder="Type a message..."
-          style={{ flex: 1, backgroundColor: "white", padding: 10, borderRadius: 10 }}
+          value={input}
+          onChangeText={setInput}
+          style={{ flex: 1, borderWidth: 1, borderColor: '#ccc', borderRadius: 5, padding: 5 }}
         />
-        <TouchableOpacity onPress={handleSend} style={{ marginLeft: 10, backgroundColor: "blue", padding: 10, borderRadius: 10 }}>
-          <Text style={{ color: "white", fontWeight: "bold" }}>Send</Text>
-        </TouchableOpacity>
+        <Button title="Send" onPress={handleSend} />
       </View>
     </View>
   );

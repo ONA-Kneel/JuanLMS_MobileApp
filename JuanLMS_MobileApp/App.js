@@ -160,7 +160,7 @@ export default function App() {
 
         {/* Used Everytime */}
         <Screens.Screen name='SplashScreen' component={SplashScreen} options={{ headerShown: false }}/>
-        <Screens.Screen name='Chats' component={Chat} options={{ headerShown: false }}/>
+        <Screens.Screen name='Chat' component={Chat} options={{ headerShown: false }}/>
         <Screens.Screen name='Login' component={Login} options={{ headerShown: false }}/>
 
         {/* Students */}

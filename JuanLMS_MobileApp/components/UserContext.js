@@ -13,6 +13,8 @@ export function UserProvider({ children }) {
     });
   }, []);
 
+  console.log('UserProvider rendered');
+
   return (
     <UserContext.Provider value={{ user, setUser }}>
       {children}
