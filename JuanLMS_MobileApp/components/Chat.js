@@ -17,7 +17,8 @@ export default function Chat() {
   const socketRef = useRef(null);
   const scrollViewRef = useRef();
 
-  console.log('selectedUser from route:', selectedUser);
+  console.log('Current user:', user);
+  console.log('Selected user:', selectedUser);
   console.log('Fetching messages for:', user._id, selectedUser._id);
 
   useEffect(() => {

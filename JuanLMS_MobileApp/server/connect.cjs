@@ -13,8 +13,10 @@ const client = new MongoClient(process.env.ATLAS_URI, {
 let database
 
 module.exports = {
-    connectToServer: () => {
-        database = client.db("JuanLMS")
+    connectToServer: async () => {
+        await client.connect();
+        database = client.db("JuanLMS");
+        console.log("Native MongoDB connected!");
     },
     getDb: () => {
         return database

@@ -72,31 +72,40 @@ userRoutes.delete("/users/:id", async (req, res) => {
 // ------------------ JWT LOGIN ROUTE ------------------
 
 userRoutes.post('/login', async (req, res) => {
-    const db = database.getDb();
-    const email = req.body.email.toLowerCase();
-    const { password } = req.body;
+    try {
+        const db = database.getDb();
+        const email = req.body.email?.toLowerCase();
+        const { password } = req.body;
 
-    const user = await db.collection("Users").findOne({ email, password });
+        if (!email || !password) {
+            return res.status(400).json({ success: false, message: "Email and password are required" });
+        }
 
-    if (user) {
-        const firstName = toProperCase(user.firstname);
-        const middleInitial = user.middlename ? toProperCase(user.middlename.charAt(0)) + '.' : '';
-        const lastName = toProperCase(user.lastname);
-        const fullName = [firstName, middleInitial, lastName].filter(Boolean).join(' ');
-        const role = getRoleFromEmail(email);
+        const user = await db.collection("Users").findOne({ email, password });
 
-        // ✅ JWT Token Payload
-        const token = jwt.sign({
-            id: user._id,
-            name: fullName,
-            email: user.email,
-            phone: user.contactno,
-            role: role,
-        }, JWT_SECRET, { expiresIn: '1d' });
+        if (user) {
+            const firstName = toProperCase(user.firstname);
+            const middleInitial = user.middlename ? toProperCase(user.middlename.charAt(0)) + '.' : '';
+            const lastName = toProperCase(user.lastname);
+            const fullName = [firstName, middleInitial, lastName].filter(Boolean).join(' ');
+            const role = getRoleFromEmail(email);
 
-        res.json({ token }); // ✅ frontend will decode this
-    } else {
-        res.status(401).json({ success: false, message: "Invalid email or password" });
+            // ✅ JWT Token Payload
+            const token = jwt.sign({
+                id: user._id,
+                name: fullName,
+                email: user.email,
+                phone: user.contactno,
+                role: role,
+            }, JWT_SECRET, { expiresIn: '1d' });
+
+            res.json({ token }); // ✅ frontend will decode this
+        } else {
+            res.status(401).json({ success: false, message: "Invalid email or password" });
+        }
+    } catch (err) {
+        console.error('Login error:', err);
+        res.status(500).json({ success: false, message: "Internal server error", error: err.message });
     }
 });
 
