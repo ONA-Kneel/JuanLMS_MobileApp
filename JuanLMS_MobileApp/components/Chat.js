@@ -42,7 +42,7 @@ export default function Chat() {
     };
   }, [selectedUser, user && user._id]);
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!input.trim() || !selectedUser) return;
     const msg = {
       chatId: [user._id, selectedUser._id].sort().join('-'),
@@ -51,7 +51,24 @@ export default function Chat() {
       message: input,
       timestamp: new Date(),
     };
+
+    // 1. Emit to socket for real-time
     socketRef.current.emit('sendMessage', msg);
+
+    // 2. Save to database
+    try {
+      await axios.post(`${SOCKET_URL}/api/messages`, {
+        senderId: user._id,
+        receiverId: selectedUser._id,
+        message: input,
+        timestamp: msg.timestamp,
+      });
+    } catch (err) {
+      console.log('Error saving message:', err);
+      // Optionally show an error to the user
+    }
+
+    // 3. Add to local state for instant UI feedback
     setMessages(prev => [...prev, msg]);
     setInput('');
   };
