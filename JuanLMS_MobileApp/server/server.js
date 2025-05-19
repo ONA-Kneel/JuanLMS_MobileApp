@@ -9,6 +9,7 @@ import users from "./routes/userRoutes.js";
 import messagesRouter from './routes/messages.js';
 import http from 'http';
 import { Server } from 'socket.io';
+import { MongoClient } from 'mongodb';
 
 const app = express();
 const PORT = 5000;
@@ -17,6 +18,17 @@ app.use(cors());
 app.use(express.json());
 app.use(users);
 app.use('/api/messages', messagesRouter);
+
+// Events API endpoint
+app.get('/api/events', async (req, res) => {
+  try {
+    const db = mongoose.connection.db;
+    const events = await db.collection('Events').find().toArray();
+    res.json(events);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 const server = http.createServer(app);
 const io = new Server(server, {
