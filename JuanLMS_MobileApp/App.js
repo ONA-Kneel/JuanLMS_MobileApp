@@ -1,4 +1,7 @@
 import { Image } from 'react-native';
+import React from 'react';
+import { useFonts } from 'expo-font';
+import { View, ActivityIndicator } from 'react-native';
 
 //folders
 import SplashScreen from './components/SplashScreen';
@@ -149,6 +152,22 @@ const DirectorDash = () =>{
 //Specific Screen Change
 const Screens = createNativeStackNavigator();
 export default function App() {
+  const [fontsLoaded] = useFonts({
+    'Poppins-Regular': require('./assets/fonts/Poppins-Regular.ttf'),
+    'Poppins-Bold': require('./assets/fonts/Poppins-Bold.ttf'),
+    'Poppins-Medium': require('./assets/fonts/Poppins-Medium.ttf'),
+    'Poppins-SemiBold': require('./assets/fonts/Poppins-SemiBold.ttf'),
+    'Poppins-Light': require('./assets/fonts/Poppins-Light.ttf'),
+    'Poppins-Thin': require('./assets/fonts/Poppins-Thin.ttf'),
+  });
+
+  if (!fontsLoaded) {
+    return (
+      <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
 
   return (
     <UserProvider>

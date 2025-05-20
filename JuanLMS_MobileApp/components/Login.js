@@ -43,7 +43,7 @@ export default function Login() {
     let backgroundColor = '#333';
     if (type === 'error') backgroundColor = '#D9534F';      // red
     if (type === 'success') backgroundColor = '#0275D8';     // blue
-  
+
     Toast.show(message, {
       duration: 5000, // 5 seconds
       position: Toast.positions.BOTTOM,
@@ -148,14 +148,16 @@ export default function Login() {
         style={LoginStyle.background}
         resizeMode="cover"
       >
-        <Image source={require('../assets/Logo4.svg')} style={LoginStyle.logo} />
-        <Text style={LoginStyle.text1}>
-          Where faith and reason are expressed in Charity
-        </Text>
+        <View style={LoginStyle.logoContainer}>
+          <Image source={require('../assets/Logo4.svg')} style={LoginStyle.logo} />
+          <Text style={LoginStyle.text1}>Where faith and reason are expressed</Text>
+          <Text style={LoginStyle.text1}>in Charity</Text>
+        </View>
 
         <View style={LoginStyle.loginContainer}>
           <Text style={LoginStyle.loginTitle}>Login</Text>
 
+          <Text style={LoginStyle.label}>Email</Text>
           <TextInput
             style={LoginStyle.input}
             placeholder="Email"
@@ -163,30 +165,50 @@ export default function Login() {
             onChangeText={setEmail}
             autoCapitalize="none"
             keyboardType="email-address"
+            placeholderTextColor="#999"
           />
 
+          <Text style={LoginStyle.label}>Password</Text>
           <View style={LoginStyle.passwordContainer}>
             <TextInput
-              style={LoginStyle.input}
+              style={LoginStyle.passwordInput}
               placeholder="Password"
               value={password}
               secureTextEntry={!showPassword}
               onChangeText={setPassword}
+              placeholderTextColor="#999"
             />
-            <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-              <Icon name={showPassword ? 'eye-off' : 'eye'} size={20} />
+            <TouchableOpacity
+              onPress={() => setShowPassword(!showPassword)}
+              style={LoginStyle.eyeIcon}
+              activeOpacity={0.7}
+            >
+              <Icon
+                name={showPassword ? 'eye-off' : 'eye'}
+                size={24}
+                color="#888"
+              />
             </TouchableOpacity>
           </View>
 
           <View style={LoginStyle.rememberContainer}>
-            <CheckBox
-              value={rememberMe}
-              onValueChange={setRememberMe}
-            />
-            <Text style={LoginStyle.rememberText}>Remember Me</Text>
-            <TouchableOpacity>
+            <TouchableOpacity
+              style={{ flexDirection: 'row', alignItems: 'center' }}
+              onPress={() => setRememberMe(!rememberMe)}
+              activeOpacity={0.7}
+            >
+              <CheckBox
+                value={rememberMe}
+                onValueChange={setRememberMe}
+              />
+              <Text style={LoginStyle.rememberText}>Remember Me</Text>
+
+              <TouchableOpacity style={{ marginLeft: 'auto' }}>
               <Text style={LoginStyle.forgotPassword}>Forgot Password?</Text>
             </TouchableOpacity>
+            
+            </TouchableOpacity>
+            
           </View>
 
           <TouchableOpacity
