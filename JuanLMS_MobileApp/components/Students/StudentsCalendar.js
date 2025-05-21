@@ -50,6 +50,7 @@ export default function StudentCalendar() {
     startOfWeek.setDate(today.getDate() - currentDay);
     return timeToString(startOfWeek);
   });
+  const [showMonthCalendar, setShowMonthCalendar] = useState(false);
 
   useEffect(() => {
     const fetchAll = async () => {
@@ -92,7 +93,7 @@ export default function StudentCalendar() {
   }, []);
 
   const renderEventCard = (item, index) => (
-    <View key={index} style={StudentCalendarStyle.eventCard}>
+    <View key={index} style={[StudentCalendarStyle.eventCard, { backgroundColor: item.color || '#2196f3' }]}>
       <View style={{ flex: 1 }}>
         <Text style={StudentCalendarStyle.eventTitle}>{item.name}</Text>
         {item.time && <Text style={StudentCalendarStyle.eventTime}>{item.time}</Text>}
@@ -151,100 +152,85 @@ export default function StudentCalendar() {
             <Image source={require('../../assets/profile-icon (2).png')} style={{ width: 36, height: 36, borderRadius: 18 }} />
           </TouchableOpacity>
         </View>
-        {/* Toggle for Month/Week */}
-        <View style={{ flexDirection: 'row', marginTop: 16 }}>
-          <TouchableOpacity
-            style={{
-              backgroundColor: viewMode === 'Month' ? '#00418b' : '#f0f0f0',
-              paddingVertical: 6,
-              paddingHorizontal: 18,
-              borderRadius: 8,
-              marginRight: 8,
-            }}
-            onPress={() => setViewMode('Month')}
-          >
-            <Text style={{ color: viewMode === 'Month' ? '#fff' : '#222', fontFamily: 'Poppins-Bold' }}>Month</Text>
+      </View>
+
+      {/* Always show week row */}
+      <View style={[StudentCalendarStyle.calendarCard, { padding: 8, marginTop: 5, marginBottom: 10 }]}>
+        {/* Collapsible Month Calendar Toggle */}
+        <TouchableOpacity
+          style={{ flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', marginTop: 10, marginBottom: 5, marginHorizontal: 10 }}
+          onPress={() => setShowMonthCalendar(!showMonthCalendar)}
+        >
+          <Text style={{ fontFamily: 'Poppins-Bold', color: '#00418B', fontSize: 16, marginLeft: 4 }}>
+            {getMonthYearString(selectedDate)}
+          </Text>
+          <Ionicons name={showMonthCalendar ? 'chevron-up' : 'chevron-down'} size={20} color="#00418B" />
+        </TouchableOpacity>
+        {/* Collapsible Month Calendar */}
+        {showMonthCalendar && (
+          <View style={[StudentCalendarStyle.calendarCard, {marginBottom:5}]}>
+            <Calendar
+              current={selectedDate}
+              onDayPress={day => setSelectedDate(day.dateString)}
+              markedDates={{
+                [selectedDate]: { selected: true, selectedColor: '#00418B' }
+              }}
+              theme={{
+                backgroundColor: '#fff',
+                calendarBackground: '#fff',
+                textSectionTitleColor: '#222',
+                selectedDayBackgroundColor: '#00418B',
+                selectedDayTextColor: '#fff',
+                todayTextColor: '#00418B',
+                dayTextColor: '#222',
+                textDisabledColor: '#ccc',
+                monthTextColor: '#00418B',
+                arrowColor: '#00418B',
+                textDayFontFamily: 'Poppins-Regular',
+                textMonthFontFamily: 'Poppins-Bold',
+                textDayHeaderFontFamily: 'Poppins-Medium',
+              }}
+            />
+          </View>
+        )}
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop:5 }}>
+          <TouchableOpacity onPress={goToPrevWeek} style={{ padding: 8 }}>
+            <Ionicons name="chevron-back" size={24} color="#00418B" />
           </TouchableOpacity>
-          <TouchableOpacity
-            style={{
-              backgroundColor: viewMode === 'Week' ? '#00418b' : '#f0f0f0',
-              paddingVertical: 6,
-              paddingHorizontal: 18,
-              borderRadius: 8,
-            }}
-            onPress={() => setViewMode('Week')}
-          >
-            <Text style={{ color: viewMode === 'Week' ? '#fff' : '#222', fontFamily: 'Poppins-Bold' }}>Week</Text>
+          {weekDates.map(date => (
+            <TouchableOpacity
+              key={date}
+              onPress={() => setSelectedDate(date)}
+              style={{
+                flex: 1,
+                alignItems: 'center',
+                paddingVertical: 8,
+                backgroundColor: selectedDate === date ? '#00418B' : '#f0f0f0',
+                borderRadius: 10,
+                marginHorizontal: 2,
+              }}
+            >
+              <Text style={{
+                color: selectedDate === date ? '#fff' : '#888',
+                fontFamily: selectedDate === date ? 'Poppins-Bold' : 'Poppins-Regular',
+                fontSize: 13,
+              }}>
+                {new Date(date).toLocaleDateString('en-US', { weekday: 'short' })}
+              </Text>
+              <Text style={{
+                color: selectedDate === date ? '#fff' : '#222',
+                fontFamily: selectedDate === date ? 'Poppins-Bold' : 'Poppins-Regular',
+                fontSize: 16,
+              }}>
+                {new Date(date).getDate()}
+              </Text>
+            </TouchableOpacity>
+          ))}
+          <TouchableOpacity onPress={goToNextWeek} style={{ padding: 8 }}>
+            <Ionicons name="chevron-forward" size={24} color="#00418B" />
           </TouchableOpacity>
         </View>
       </View>
-      {/* Calendar view */}
-      {viewMode === 'Month' ? (
-        <View style={StudentCalendarStyle.calendarCard}>
-          <Calendar
-            current={selectedDate}
-            onDayPress={day => setSelectedDate(day.dateString)}
-            markedDates={{
-              [selectedDate]: { selected: true, selectedColor: '#00418B' }
-            }}
-            theme={{
-              backgroundColor: '#fff',
-              calendarBackground: '#fff',
-              textSectionTitleColor: '#222',
-              selectedDayBackgroundColor: '#00418B',
-              selectedDayTextColor: '#fff',
-              todayTextColor: '#00418B',
-              dayTextColor: '#222',
-              textDisabledColor: '#ccc',
-              monthTextColor: '#00418B',
-              arrowColor: '#00418B',
-              textDayFontFamily: 'Poppins-Regular',
-              textMonthFontFamily: 'Poppins-Bold',
-              textDayHeaderFontFamily: 'Poppins-Medium',
-            }}
-          />
-        </View>
-      ) : (
-        <View style={[StudentCalendarStyle.calendarCard, { padding: 8, marginTop: 5, marginBottom: 10 }]}> 
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <TouchableOpacity onPress={goToPrevWeek} style={{ padding: 8 }}>
-              <Ionicons name="chevron-back" size={24} color="#00418B" />
-            </TouchableOpacity>
-            {weekDates.map(date => (
-              <TouchableOpacity
-                key={date}
-                onPress={() => setSelectedDate(date)}
-                style={{
-                  flex: 1,
-                  alignItems: 'center',
-                  paddingVertical: 8,
-                  backgroundColor: selectedDate === date ? '#00418B' : '#f0f0f0',
-                  borderRadius: 10,
-                  marginHorizontal: 2,
-                }}
-              >
-                <Text style={{
-                  color: selectedDate === date ? '#fff' : '#888',
-                  fontFamily: selectedDate === date ? 'Poppins-Bold' : 'Poppins-Regular',
-                  fontSize: 13,
-                }}>
-                  {new Date(date).toLocaleDateString('en-US', { weekday: 'short' })}
-                </Text>
-                <Text style={{
-                  color: selectedDate === date ? '#fff' : '#222',
-                  fontFamily: selectedDate === date ? 'Poppins-Bold' : 'Poppins-Regular',
-                  fontSize: 16,
-                }}>
-                  {new Date(date).getDate()}
-                </Text>
-              </TouchableOpacity>
-            ))}
-            <TouchableOpacity onPress={goToNextWeek} style={{ padding: 8 }}>
-              <Ionicons name="chevron-forward" size={24} color="#00418B" />
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
       {/* Upcoming events */}
       <Text style={StudentCalendarStyle.upcomingTitle}>Upcoming events</Text>
       <View style={StudentCalendarStyle.eventsList}>
