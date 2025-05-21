@@ -5,6 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import StudentModuleStyle from '../styles/Stud/StudentModuleStyle';
 import { useNavigation } from '@react-navigation/native';
+import { useFonts } from 'expo-font';
 
 
 export default function StudentModule(){
@@ -21,68 +22,65 @@ export default function StudentModule(){
     //navigation
     const changeScreen = useNavigation();
     
-    const back =()=>{
-          changeScreen.navigate("SDash")
-        }
+    const back = () => {
+      changeScreen.goBack();
+    }
     
-    const handleNext = () => {
-        if (currentLesson < totalLessons - 1) {
-            setCurrentLesson(currentLesson + 1);
-           }
-        };
-
-    const progressPercentage = ((currentLesson + 1) / totalLessons) * 100;
     
-    return(
-        <View>
-            <View style={StudentModuleStyle.header}>
-            <TouchableOpacity onPress={back}><Icon name="arrow-left" size={24} color="black"  /></TouchableOpacity>
-            
-            <View>
-            <Text style={StudentModuleStyle.title}>Introduction to Computing</Text>
-            <Text style={StudentModuleStyle.code}>CCINCOML</Text>
-            </View>
-            
-            <Icon name="menu" size={24} color="black" style={{marginLeft:"auto"}} />
+    const [activeTab, setActiveTab] = useState('Home Page');
+    let [fontsLoaded] = useFonts({
+        'Poppins-Regular': require('../../assets/fonts/Poppins-Regular.ttf'),
+        'Poppins-Bold': require('../../assets/fonts/Poppins-Bold.ttf'),
+    });
+    if (!fontsLoaded) return null;
 
-            </View>
-            <ScrollView>
-                <View style={{backgroundColor:'lightgray', margin:20, minHeight:500, height:"auto", padding:20}}>
-                    <Text style={{ fontWeight: 'bold', fontSize: 18 }}>{lessons[currentLesson].title}</Text>
-                    <Text style={{ marginTop: 10 }}>{lessons[currentLesson].content}</Text>
-                    <Image source={{ uri: 'https://www.google.com/url?sa=i&url=https%3A%2F%2Fwww.redgreencode.com%2Fjava-lessons-from-uhunt-chapter-1%2F&psig=AOvVaw13oSNlNSrG6r1_eJYvjAPc&ust=1740514133769000&source=images&cd=vfe&opi=89978449&ved=0CBQQjRxqFwoTCNig0saO3YsDFQAAAAAdAAAAABAa' }} 
-                    style={StudentModuleStyle.lessonImage} />
-                    <TouchableOpacity>
-                    <Text style={StudentModuleStyle.link}>ppt lesson.ppt</Text>
-                    </TouchableOpacity>
+    return (
+        <View style={{ flex: 1, backgroundColor: '#f5f5f5', paddingHorizontal: 10 }}>
+            {/* Header */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 20, paddingHorizontal: 16 }}>
+                <TouchableOpacity onPress={back} style={{position: 'absolute', top: 40, left: 20, zIndex: 10 }}><Icon name="arrow-left" size={24} color="black" /></TouchableOpacity>
+                <View style={{ flex: 1, alignItems: 'center', marginLeft: -24 }}>
+                    <Text style={{ fontFamily: 'Poppins-Bold', fontSize: 22, color: '#222' }}>Class Title</Text>
+                    <Text style={{ fontFamily: 'Poppins-Regular', fontSize: 13, color: '#888' }}>Class Code/Section</Text>
                 </View>
-            </ScrollView>
-            <View style={{margin:20, flexDirection: 'row', alignItems: 'center'}}>
-                <View style={{ flex: 1 }}>
-                        <Text style={{ textAlign: 'left' }}>Page {currentLesson + 1} / {totalLessons} ({Math.round(progressPercentage)}%)</Text>
-                        <ProgressBar 
-                            progress={(currentLesson + 1) / totalLessons} 
-                            color="blue" 
-                            style={{ height: 10, borderRadius: 5, marginRight: 10,  width:"75%"}}
-                        />
-                    </View>
-
-                    {/* Next Button */}
+            </View>
+            {/* Tabs */}
+            <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: 18, gap: 8, marginLeft:10, marginRight:10 }}>
+                {['Home Page', 'Classwork', 'Class Materials'].map(tab => (
                     <TouchableOpacity
+                        key={tab}
+                        onPress={() => setActiveTab(tab)}
                         style={{
-                            backgroundColor: currentLesson < totalLessons - 1 ? '#0047AB' : 'gray',
-                            width: 80,
-                            height: 40,
+                            backgroundColor: activeTab === tab ? '#00418b' : '#e3eefd',
+                            paddingVertical: 7,
+                            paddingHorizontal: 10,
                             borderRadius: 10,
-                            justifyContent: 'center',
-                            alignItems: 'center'
                         }}
-                        onPress={handleNext}
-                        disabled={currentLesson >= totalLessons - 1}
                     >
-                        <Text style={{ color: 'White', fontWeight: 'bold' }}>Next</Text>
+                        <Text style={{ color: activeTab === tab ? '#fff' : '#00418b', fontFamily: 'Poppins-Bold', fontSize: 14 }}>{tab}</Text>
                     </TouchableOpacity>
-                </View>
+                ))}
+            </View>
+            {/* Main Card */}
+            <View style={{ flex: 1, alignItems: 'center', marginTop: 12, marginBottom: 0 }}>
+                <ScrollView style={{ backgroundColor: '#fff', borderRadius: 18, borderWidth: 1, borderColor: '#00418b', width: '92%', flex: 1, padding: 18, marginBottom: 20, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8, elevation: 2 }}>
+                    {/* Home Page Title Row */}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+                        <Text style={{ fontFamily: 'Poppins-Bold', fontSize: 18, color: '#222', flex: 1 }}>Home Page</Text>
+                        <Icon name="video" size={22} color="#222" style={{ marginHorizontal: 6 }} />
+                        <Icon name="phone" size={22} color="#222" />
+                    </View>
+                    {/* Announcement Card */}
+                    <View style={{ backgroundColor: '#e3eefd', borderRadius: 8, borderWidth: 1, borderColor: '#00418b', padding: 10, marginBottom: 8 }}>
+                        <Text style={{ fontFamily: 'Poppins-Bold', color: '#00418b', fontSize: 15 }}>Announcement!</Text>
+                        <Text style={{ fontFamily: 'Poppins-Regular', color: '#222', fontSize: 13 }}>Ang Ganda ko!</Text>
+                    </View>
+                    {/* Lesson content (if needed) */}
+                    {/* ... You can add lesson content here for other tabs ... */}
+                </ScrollView>
+            </View>
+            {/* Blue curved background at bottom */}
+            <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 90, backgroundColor: '#00418b', borderTopLeftRadius: 60, borderTopRightRadius: 60, zIndex: -1 }} />
         </View>
     )
 }

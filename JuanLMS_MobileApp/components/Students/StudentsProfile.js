@@ -22,6 +22,10 @@ export default function StudentsProfile() {
     changeScreen.goBack();
   };
 
+  const goToSupportCenter = () => {
+    changeScreen.navigate('SReq');
+  };
+
   return (
     <View style={StudentsProfileStyle.container}>
       {/* Back Button */}
@@ -64,10 +68,11 @@ export default function StudentsProfile() {
             <Feather name="bell" size={20} color="#00418b" />
             <Text style={StudentsProfileStyle.actionText}>Notify</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={StudentsProfileStyle.actionBtn}>
+          <TouchableOpacity style={StudentsProfileStyle.actionBtn} onPress={goToSupportCenter}>
             <Feather name="help-circle" size={20} color="#00418b" />
-            <Text style={StudentsProfileStyle.actionText}>Help</Text>
+            <Text style={StudentsProfileStyle.actionText}>Support Center</Text>
           </TouchableOpacity>
+          
         </View>
       </View>
       {/* Settings List */}
