@@ -5,8 +5,49 @@ const StudentCalendarStyle = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#f5f5f5',  // Light background color for the main screen
-        paddingHorizontal: 15,
-        paddingTop: 20,
+        paddingHorizontal: 0,
+        fontFamily: 'Poppins-Regular',
+    },
+    blueHeaderBackground: {
+        backgroundColor: '#00418b',
+        height: 90,
+        borderBottomLeftRadius: 24,
+        borderBottomRightRadius: 24,
+    },
+    whiteHeaderCard: {
+        backgroundColor: '#fff',
+        borderRadius: 16,
+        marginHorizontal: 16,
+        marginTop: -40,
+        padding: 20,
+        elevation: 4,
+        shadowColor: '#000',
+        shadowOpacity: 0.08,
+        shadowRadius: 8,
+        zIndex: 2,
+        marginBottom: 3
+    },
+    headerTitle: {
+        fontSize: 22,
+        color: '#222',
+        fontFamily: 'Poppins-Bold',
+    },
+    headerSubtitle: {
+        color: '#888',
+        fontSize: 14,
+        fontFamily: 'Poppins-Regular',
+    },
+    dashboardTitle: {
+        fontSize: 26,
+        fontWeight: 'bold',
+        color: '#fff',
+        fontFamily: 'Poppins-Bold',
+        marginBottom: 2,
+    },
+    dashboardSubtitle: {
+        fontSize: 15,
+        color: '#e0e0e0',
+        fontFamily: 'Poppins-Regular',
     },
     logo: {
         width: 100,
@@ -14,56 +55,111 @@ const StudentCalendarStyle = StyleSheet.create({
         marginBottom: 20,
         resizeMode: 'contain',
     },
-    header: {
+    blueHeader: {
+        backgroundColor: '#00418b',
+        paddingTop: 48,
+        paddingBottom: 24,
+        paddingHorizontal: 24,
         flexDirection: 'row',
-        justifyContent: 'flex-start',  // Ensures the text and icon are aligned horizontally
         alignItems: 'center',
-        paddingHorizontal: 10,
-        backgroundColor: '#ffffff',  // White background for header
-        paddingVertical: 10,
-        borderRadius: 10,
-        marginBottom: 10,  // Space between the header and calendar
-        // Removed shadow from header
+        justifyContent: 'space-between',
+        borderBottomLeftRadius: 24,
+        borderBottomRightRadius: 24,
     },
-    headerText: {
-        fontSize: 18,
-        fontWeight: '600',  // Bold text for the month name
-        color: '#333',  // Dark color for text
-        marginRight: 10,  // Space between the text and the icon
+    headerIcons: {
+        flexDirection: 'row',
+        alignItems: 'center',
     },
-    arrowIcon: {
-        fontSize: 24,
-        color: '#333',  // Dark color for the chevron icon
-    },
-    calendar: {
-        marginBottom: 10,
-        backgroundColor: '#ffffff',  // White background for the calendar
-        borderRadius: 10,
-        overflow: 'hidden',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 5,
-        elevation: 3,  // Shadow for calendar
-    },
-    card: {
-        marginRight: 10,
-        marginTop: 17,
-        backgroundColor: '#ffffff',  // Default card color
-        borderRadius: 10,
-        padding: 10,
-        elevation: 3,  // Shadow for card
-    },
-    cardContent: {
+    toggleRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
+        marginTop: -18,
+        marginBottom: 10,
+        marginHorizontal: 18,
+        backgroundColor: '#fff',
+        borderRadius: 16,
+        padding: 6,
+        elevation: 2,
     },
-    avatarText: {
-        backgroundColor: '#ff5733',  // Color for the avatar background (deadline color)
-        color: '#fff',  // White text for the avatar
-        padding: 5,
-        borderRadius: 15,
+    toggleBtn: {
+        flex: 1,
+        paddingVertical: 8,
+        borderRadius: 12,
+        alignItems: 'center',
+        marginHorizontal: 2,
+        backgroundColor: 'transparent',
+    },
+    toggleBtnActive: {
+        backgroundColor: '#00418b',
+    },
+    toggleBtnText: {
+        color: '#00418b',
+        fontFamily: 'Poppins-Medium',
+        fontSize: 14,
+    },
+    toggleBtnTextActive: {
+        color: '#fff',
+        fontFamily: 'Poppins-Bold',
+    },
+    calendarCard: {
+        backgroundColor: '#fff',
+        borderRadius: 20,
+        marginHorizontal: 18,
+        marginBottom: 5,
+        padding: 10,
+        elevation: 3,
+        shadowColor: '#000',
+        shadowOpacity: 0.08,
+        shadowRadius: 8,
+    },
+    upcomingTitle: {
+        fontSize: 18,
+        fontFamily: 'Poppins-Bold',
+        color: '#222',
+        marginLeft: 24,
+        marginBottom: 8,
+        marginTop: 10,
+    },
+    eventsList: {
+        marginHorizontal: 18,
+        marginBottom: 18,
+    },
+    eventCard: {
+        backgroundColor: '#fff',
+        borderRadius: 16,
+        padding: 16,
+        marginBottom: 12,
+        flexDirection: 'row',
+        alignItems: 'center',
+        elevation: 2,
+        shadowColor: '#000',
+        shadowOpacity: 0.06,
+        shadowRadius: 6,
+    },
+    eventTitle: {
+        color: '#00418b',
+        fontFamily: 'Poppins-Bold',
+        fontSize: 16,
+        marginBottom: 2,
+    },
+    eventTime: {
+        color: '#888',
+        fontFamily: 'Poppins-Regular',
+        fontSize: 13,
+    },
+    eventStatus: {
+        color: '#00418b',
+        fontFamily: 'Poppins-Medium',
+        fontSize: 13,
+        marginLeft: 10,
+    },
+    noEventsText: {
+        textAlign: 'center',
+        color: '#888',
+        fontFamily: 'Poppins-Regular',
+        marginTop: 30,
+        fontSize: 15,
     },
 });
 

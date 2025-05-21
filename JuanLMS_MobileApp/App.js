@@ -26,7 +26,7 @@ import StudentsProfile from './components/Students/StudentsProfile';
 import StudentCalendar from './components/Students/StudentsCalendar';
 import StudentSCMain from './components/Students/StudentSCMain';
 import StudentSupportCenter from './components/Students/StudentSupportCenter';
-
+import CustomBottomNav from './components/CustomBottomNav';
 
 //Faculty
 import FacultyDashboard from './components/Faculty/FacultyDashboard';
@@ -74,20 +74,20 @@ import { UserProvider } from './components/UserContext';
 
 //Bottom Navigation Bar
 const Tabs = createBottomTabNavigator();
-//Student Dashboard
-const StudentDash = () => {
-  return(
-    <Tabs.Navigator screenOptions={{ tabBarShowLabel: false }} >
-      <Tabs.Screen name='Dashboard' component={StudentDashboard} //Student Dashboard is now merged with Bottom Navigation
-      options={{ tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/6.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
-      <Tabs.Screen name='Calendar' component={StudentCalendar} //Calendar View for Students
-      options={{ tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/9.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
-      <Tabs.Screen name='SChat' component={StudentChats} //Chats tab for Current Student Account
-      options={{ tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/8.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
-      <Tabs.Screen name='SProf' component={StudentsProfile} //Profile tab for Current Student Account
-      options={{ tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/7.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
+
+function StudentTabs() {
+  return (
+    <Tabs.Navigator
+      tabBar={props => <CustomBottomNav {...props} />}
+      screenOptions={{ headerShown: false }}
+    >
+      <Tabs.Screen name="SDash" component={StudentDashboard} />
+      <Tabs.Screen name="SActs" component={StudentActs} />
+      <Tabs.Screen name="SCalendar" component={StudentCalendar} />
+      <Tabs.Screen name="SGrade" component={StudentGrades} />
+      <Tabs.Screen name="SChat" component={StudentChats} />
     </Tabs.Navigator>
-  )
+  );
 }
 
 //Faculty Dashboard
@@ -183,7 +183,7 @@ export default function App() {
         <Screens.Screen name='Login' component={Login} options={{ headerShown: false }}/>
 
         {/* Students */}
-        <Screens.Screen name='SDash' component={StudentDash} options={{ headerShown: false }}/>
+        <Screens.Screen name='SDash' component={StudentTabs} options={{ headerShown: false }}/>
         <Screens.Screen name='SModule' component={StudentModule} options={{ headerShown: false }}/>
         <Screens.Screen name='SGrade' component={StudentGrades} options={{ headerShown: false }}/>
         <Screens.Screen name='SActs' component={StudentActs} options={{ headerShown: false }}/>
@@ -191,6 +191,7 @@ export default function App() {
         <Screens.Screen name='SCalendar' component={StudentCalendar} options={{ headerShown: false }}/>
         <Screens.Screen name ='SMain' component={StudentSCMain} options={{ headerShown: false }}/>
         <Screens.Screen name ='SReq' component={StudentSupportCenter} options={{ headerShown: false }}/>
+        <Screens.Screen name ='SProfile' component={StudentsProfile} options={{ headerShown: false }}/>
 
 
         {/*Faculties */}

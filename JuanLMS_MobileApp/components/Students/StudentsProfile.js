@@ -1,23 +1,13 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, Image } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { MaterialIcons } from '@expo/vector-icons';
+import { View, Text, TouchableOpacity, Image, ScrollView } from 'react-native';
+import { MaterialIcons, Feather } from '@expo/vector-icons';
 import StudentsProfileStyle from '../styles/Stud/StudentsProfileStyle';
 import { useUser } from '../UserContext';
+import { useNavigation } from '@react-navigation/native';
 
 export default function StudentsProfile() {
   const { user } = useUser();
   const changeScreen = useNavigation();
-
-  const logout = async () => {
-    await AsyncStorage.removeItem('user');
-    changeScreen.navigate('Login');
-  };
-
-  const helpCenter = () => {
-    changeScreen.navigate('SMain');
-  };
 
   if (!user) {
     return (
@@ -27,42 +17,81 @@ export default function StudentsProfile() {
     );
   }
 
+  // Back button handler
+  const goBack = () => {
+    changeScreen.goBack();
+  };
+
   return (
     <View style={StudentsProfileStyle.container}>
+      {/* Back Button */}
+      <TouchableOpacity style={{ position: 'absolute', top: 40, left: 20, zIndex: 10 }} onPress={goBack}>
+        <MaterialIcons name="arrow-back" size={28} color="#fff" />
+      </TouchableOpacity>
+      {/* Top curved background */}
+      <View style={StudentsProfileStyle.topBackground} />
+      {/* Profile Image */}
+      <View style={StudentsProfileStyle.avatarWrapper}>
+        <Image
+          source={user.profilePicture ? { uri: user.profilePicture } : require('../../assets/profile-icon (2).png')}
+          style={StudentsProfileStyle.avatar}
+        />
+      </View>
+      {/* Card */}
       <View style={StudentsProfileStyle.card}>
-        <View style={StudentsProfileStyle.profileContainer}>
-          {/* Profile Picture */}
-          {user.profilePicture ? (
-            <Image source={{ uri: user.profilePicture }} style={StudentsProfileStyle.avatar} />
-          ) : (
-            <View style={StudentsProfileStyle.avatar} />
-          )}
-          <Text style={StudentsProfileStyle.name}>{`${user.lastname}, ${user.firstname}`}</Text>
-          <Text style={StudentsProfileStyle.info}>Student</Text>
-          <Text style={StudentsProfileStyle.info}>{user.college || 'College'}</Text>
-          <TouchableOpacity style={StudentsProfileStyle.button}>
-            <MaterialIcons name="camera-alt" size={16} color="white" />
-            <Text style={StudentsProfileStyle.buttonText}> Update Photo</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={helpCenter} style={StudentsProfileStyle.button}>
-            <MaterialIcons name="help" size={16} color="white" />
-            <Text style={StudentsProfileStyle.buttonText}>Support Center</Text>
-          </TouchableOpacity>
+        <Text style={StudentsProfileStyle.name}>{user.firstname} {user.lastname} <Text style={StudentsProfileStyle.emoji}>🎓</Text></Text>
+        <Text style={StudentsProfileStyle.email}>{user.email}</Text>
+        <View style={StudentsProfileStyle.row}>
+          <View style={StudentsProfileStyle.infoBox}>
+            <Text style={StudentsProfileStyle.infoLabel}>College</Text>
+            <Text style={StudentsProfileStyle.infoValue}>{user.college || 'N/A'}</Text>
+          </View>
+          <View style={StudentsProfileStyle.infoBox}>
+            <Text style={StudentsProfileStyle.infoLabel}>Role</Text>
+            <Text style={StudentsProfileStyle.infoValue}>Student</Text>
+          </View>
         </View>
-        <View style={StudentsProfileStyle.contactContainer}>
-          <Text style={StudentsProfileStyle.contactTitle}>Contact</Text>
-          <View style={StudentsProfileStyle.contactRow}>
-            <MaterialIcons name="email" size={16} color="#555" />
-            <Text style={StudentsProfileStyle.contactText}>{user.email}</Text>
-          </View>
-          <View style={StudentsProfileStyle.contactRow}>
-            <MaterialIcons name="phone" size={16} color="#555" />
-            <Text style={StudentsProfileStyle.contactText}>{user.contactno}</Text>
-          </View>
+        <View style={StudentsProfileStyle.actionRow}>
+          <TouchableOpacity style={StudentsProfileStyle.actionBtn}>
+            <Feather name="edit" size={20} color="#00418b" />
+            <Text style={StudentsProfileStyle.actionText}>Edit</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={StudentsProfileStyle.actionBtn}>
+            <Feather name="lock" size={20} color="#00418b" />
+            <Text style={StudentsProfileStyle.actionText}>Password</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={StudentsProfileStyle.actionBtn}>
+            <Feather name="bell" size={20} color="#00418b" />
+            <Text style={StudentsProfileStyle.actionText}>Notify</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={StudentsProfileStyle.actionBtn}>
+            <Feather name="help-circle" size={20} color="#00418b" />
+            <Text style={StudentsProfileStyle.actionText}>Help</Text>
+          </TouchableOpacity>
         </View>
       </View>
-      <TouchableOpacity style={StudentsProfileStyle.logout} onPress={logout}>
-        <Text style={StudentsProfileStyle.buttonText}>Log-Out</Text>
+      {/* Settings List */}
+      <ScrollView style={StudentsProfileStyle.settingsList}>
+        <TouchableOpacity style={StudentsProfileStyle.settingsItem}>
+          <Text style={StudentsProfileStyle.settingsText}>Profile Settings</Text>
+          <Feather name="chevron-right" size={20} color="#888" />
+        </TouchableOpacity>
+        <TouchableOpacity style={StudentsProfileStyle.settingsItem}>
+          <Text style={StudentsProfileStyle.settingsText}>Change Password</Text>
+          <Feather name="chevron-right" size={20} color="#888" />
+        </TouchableOpacity>
+        <TouchableOpacity style={StudentsProfileStyle.settingsItem}>
+          <Text style={StudentsProfileStyle.settingsText}>Notification</Text>
+          <Feather name="chevron-right" size={20} color="#888" />
+        </TouchableOpacity>
+        <TouchableOpacity style={StudentsProfileStyle.settingsItem}>
+          <Text style={StudentsProfileStyle.settingsText}>Transaction History</Text>
+          <Feather name="chevron-right" size={20} color="#888" />
+        </TouchableOpacity>
+      </ScrollView>
+      {/* Logout Button */}
+      <TouchableOpacity style={StudentsProfileStyle.logout} onPress={() => changeScreen.navigate('Login')}>
+        <Text style={StudentsProfileStyle.logoutText} >Log Out</Text>
       </TouchableOpacity>
     </View>
   );

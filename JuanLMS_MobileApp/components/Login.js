@@ -149,7 +149,7 @@ export default function Login() {
         resizeMode="cover"
       >
         <View style={LoginStyle.logoContainer}>
-          <Image source={require('../assets/Logo4.svg')} style={LoginStyle.logo} />
+          <Image source={require('../assets/LOGO.svg')} style={LoginStyle.logo} />
           <Text style={LoginStyle.text1}>Where faith and reason are expressed</Text>
           <Text style={LoginStyle.text1}>in Charity</Text>
         </View>

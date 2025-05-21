@@ -1,10 +1,12 @@
 // components/Students/StudentsChats.js
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, Button } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, TextInput } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../UserContext';
 import io from 'socket.io-client';
 import axios from 'axios';
+import { Image } from 'react-native-web';
+import StudentChatStyle from '../styles/Stud/StudentChatsStyle';
 
 const SOCKET_URL = 'http://localhost:5000';
 
@@ -75,7 +77,7 @@ export default function StudentsChats() {
   };
 
   if (!user || !user._id) {
-  return (
+    return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
         <Text>Loading user...</Text>
       </View>
@@ -88,27 +90,41 @@ export default function StudentsChats() {
   );
 
   return (
-    <View style={{ flex: 1, padding: 10 }}>
+    <View style={{ flex: 1, backgroundColor: '#f3f3f3' }}>
+      {/* Blue background */}
+      <View style={StudentChatStyle.blueHeaderBackground} />
+      {/* White card header */}
+      <View style={StudentChatStyle.whiteHeaderCard}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <View>
+            <Text style={StudentChatStyle.headerTitle}>Chats</Text>
+            <Text style={StudentChatStyle.headerSubtitle}>Messages</Text>
+          </View>
+          <TouchableOpacity onPress={() => navigation.navigate('SProfile')}>
+            <Image source={require('../../assets/profile-icon (2).png')} style={{ width: 36, height: 36, borderRadius: 18 }} />
+          </TouchableOpacity>
+        </View>
+      </View>
       {/* Search Bar */}
       <TextInput
         placeholder="Search users..."
         value={searchTerm}
         onChangeText={setSearchTerm}
-        style={{ marginBottom: 10, borderWidth: 1, borderColor: '#ccc', borderRadius: 5, padding: 8 }}
+        style={{ margin: 16, borderWidth: 1, borderColor: '#ccc', borderRadius: 5, padding: 8 }}
       />
       {/* User List */}
-      <View style={{ flex: 1 }}>
-        <Text style={{ fontWeight: 'bold', fontSize: 22 }}>Users</Text>
-      <ScrollView>
+      <View style={{ flex: 1, marginHorizontal: 16 }}>
+        <Text style={{ fontWeight: 'bold', fontSize: 22, marginBottom: 10 }}>Users</Text>
+        <ScrollView>
           {(Array.isArray(filteredUsers) ? filteredUsers : []).map(u => (
             <TouchableOpacity
               key={u._id}
-              onPress={() => handleSelectUser(u)}
+              onPress={() => navigation.navigate('Chat', { selectedUser: u })}
               style={{ backgroundColor: 'lightgray', padding: 15, borderRadius: 10, marginBottom: 10 }}>
               <Text style={{ fontWeight: 'bold', fontSize: 16 }}>{u.firstname} {u.lastname}</Text>
             </TouchableOpacity>
           ))}
-      </ScrollView>
+        </ScrollView>
       </View>
     </View>
   );
