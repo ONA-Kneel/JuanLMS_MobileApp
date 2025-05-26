@@ -8,22 +8,22 @@ export default function DirectorSCMain() {
 
   return (
     <View style={DirectorSCMainStyle.container}>
+      {/* Blue curved header background */}
+      <View style={{ position: 'absolute', left: 0, right: 0, top: 0, height: 120, backgroundColor: '#00418b', borderBottomLeftRadius: 40, borderBottomRightRadius: 40, zIndex: 0 }} />
       {/* Header with Logo and Return Button */}
       <View style={DirectorSCMainStyle.header}>
         <TouchableOpacity
           style={DirectorSCMainStyle.backButton}
-          onPress={() => navigation.navigate('DProfile')}
+          onPress={() => navigation.goBack()}
         >
           <Text style={DirectorSCMainStyle.backArrow}>{'<'}</Text>
         </TouchableOpacity>
-
         <Image
           source={require('../../assets/Logo3.svg')}
           style={DirectorSCMainStyle.logo}
         />
       </View>
-
-      {/* Card with plus button */}
+      {/* White card with plus button */}
       <View style={DirectorSCMainStyle.card}>
         <TouchableOpacity
           style={DirectorSCMainStyle.crossButton}
@@ -31,7 +31,6 @@ export default function DirectorSCMain() {
         >
           <Text style={DirectorSCMainStyle.crossText}>+</Text>
         </TouchableOpacity>
-
         <View style={DirectorSCMainStyle.iconContainer}>
           <Image
             //source={require('../../assets/support-icon.png')}
@@ -39,10 +38,8 @@ export default function DirectorSCMain() {
           />
         </View>
       </View>
-
       {/* Active Requests/Problems List */}
       <Text style={DirectorSCMainStyle.sectionTitle}>Active Request/Problem</Text>
-
       <TouchableOpacity style={DirectorSCMainStyle.problemBox}>
         <View style={DirectorSCMainStyle.messageRow}>
           <Image
@@ -53,7 +50,6 @@ export default function DirectorSCMain() {
         </View>
         <Text style={DirectorSCMainStyle.checkMark}>✔✔</Text>
       </TouchableOpacity>
-
       <TouchableOpacity style={DirectorSCMainStyle.requestBox}>
         <View style={DirectorSCMainStyle.messageRow}>
           <Image

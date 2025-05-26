@@ -105,7 +105,7 @@ export default function Chat() {
         style={{ flex: 1, marginBottom: 10 }}
       >
         {safeMessages.map((msg, idx) => {
-          const isMe = msg.senderId === user._id;
+          const isMe = String(msg.senderId) === String(user._id);
           return (
             <View
               key={idx}

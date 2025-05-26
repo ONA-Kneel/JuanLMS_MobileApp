@@ -76,7 +76,7 @@ export default function StudentsProfile() {
         </View>
       </View>
       {/* Settings List */}
-      <ScrollView style={StudentsProfileStyle.settingsList}>
+      {/* <ScrollView style={StudentsProfileStyle.settingsList}>
         <TouchableOpacity style={StudentsProfileStyle.settingsItem}>
           <Text style={StudentsProfileStyle.settingsText}>Profile Settings</Text>
           <Feather name="chevron-right" size={20} color="#888" />
@@ -93,7 +93,7 @@ export default function StudentsProfile() {
           <Text style={StudentsProfileStyle.settingsText}>Transaction History</Text>
           <Feather name="chevron-right" size={20} color="#888" />
         </TouchableOpacity>
-      </ScrollView>
+      </ScrollView> */}
       {/* Logout Button */}
       <TouchableOpacity style={StudentsProfileStyle.logout} onPress={() => changeScreen.navigate('Login')}>
         <Text style={StudentsProfileStyle.logoutText} >Log Out</Text>

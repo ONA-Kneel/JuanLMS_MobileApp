@@ -5,48 +5,61 @@ import { useNavigation } from "@react-navigation/native";
 import { TouchableOpacity } from "react-native";
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
-
 export default function CreateClasses() {
-
     const changeScreen = useNavigation();
-
     const back =()=>{
         changeScreen.navigate("FDash")
-      }
+    }
 
     return(
         <View style={CreateClassesStyle.container}>
-            <View>
+            {/* Blue curved header background */}
+            <View style={CreateClassesStyle.blueHeaderBackground} />
+            {/* White card */}
+            <View style={CreateClassesStyle.whiteCard}>
+                {/* Header row */}
                 <View style={CreateClassesStyle.header}>
-                    <TouchableOpacity onPress={back}><Icon name="arrow-left" size={24} color="black"  /></TouchableOpacity>
-                    <Text>Create Classes</Text>
+                    <TouchableOpacity onPress={back} style={CreateClassesStyle.backBtn}>
+                        <Icon name="arrow-left" size={24} color="#00418b" />
+                    </TouchableOpacity>
+                    <Text style={CreateClassesStyle.headerTitle}>Create Class</Text>
                 </View>
-                <View style={CreateClassesStyle.textinputborders}>
+                {/* Form fields */}
+                <View style={CreateClassesStyle.inputGroup}>
+                    <Text style={CreateClassesStyle.label}>Class Name</Text>
                     <TextInput
-                    style={CreateClassesStyle.title}
-                    placeholder="Class Name"/>
+                        style={CreateClassesStyle.input}
+                        placeholder="Enter class name"
+                        placeholderTextColor="#888"
+                    />
                 </View>
-                <View style={CreateClassesStyle.textinputborders}>
+                <View style={CreateClassesStyle.inputGroup}>
+                    <Text style={CreateClassesStyle.label}>Class Code</Text>
                     <TextInput
-                    style={CreateClassesStyle.code}
-                    placeholder="Class Code"/>
+                        style={CreateClassesStyle.input}
+                        placeholder="Enter class code"
+                        placeholderTextColor="#888"
+                    />
                 </View>
-            </View>
-
-            <View style={CreateClassesStyle.members}>
-                <Text style={CreateClassesStyle.title2}>Members</Text>
-                <View style={CreateClassesStyle.textinputborders}>
+                <View style={CreateClassesStyle.inputGroup}>
+                    <Text style={CreateClassesStyle.label}>Members</Text>
                     <TextInput
-                    placeholder="Enter Name"/>
+                        style={CreateClassesStyle.input}
+                        placeholder="Enter member name"
+                        placeholderTextColor="#888"
+                    />
                 </View>
-            </View>
-
-            <View style={CreateClassesStyle.desc}> 
-                <Text>Description</Text>
-                <View style={CreateClassesStyle.descbox}>
+                <View style={CreateClassesStyle.inputGroup}>
+                    <Text style={CreateClassesStyle.label}>Description</Text>
                     <TextInput
-                    placeholder="Enter Description"/>
+                        style={CreateClassesStyle.textarea}
+                        placeholder="Enter description"
+                        placeholderTextColor="#888"
+                        multiline
+                        numberOfLines={4}
+                    />
                 </View>
+                {/* You can add a submit button here if needed */}
             </View>
         </View>
     )

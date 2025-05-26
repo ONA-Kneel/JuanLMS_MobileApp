@@ -1,60 +1,82 @@
 import { StyleSheet } from 'react-native';
 
 const CreateClassesStyle = StyleSheet.create({
-    container: {
-        flex: 1,
-        padding: 20,
-        backgroundColor: '#f3f3f3',
-      },
-      title:{
-        fontSize: 20,
-        fontWeight: 'bold',
-        marginBottom: 10,
-        borderbottom:2,
-        padding: 5,
-      },
-      code: {
-        fontSize: 15,
-        marginBottom: 10,
-        padding: 5,
-      },
-      members:{
-        flex: 1,
-        padding: 5,
-        
-      },
-      title2:{
-        fontSize: 15,
-        fontWeight: 'bold',
-        marginBottom: 10,
-        borderbottom:2,
-        padding: 5,
-      },
-      desc:{
-        flex: 2,
-        padding: 5,
-        backgroundColor: '#f3f3f3',
-      },
-      descbox:{
-        padding: 5,
-        backgroundColor: 'white',
-        borderColor:'black',
-        borderWidth:2,
-        borderRadius:10,
-        height:100,
-      },
-      textinputborders:{
-        backgroundColor: 'white',
-        borderColor:'black',
-        borderWidth:2,
-        borderRadius:10,
-      },
-      header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        padding: 15,
-        borderBottomWidth: 1,
-        borderBottomColor: '#ccc',
-      },
-})
+  container: {
+    flex: 1,
+    backgroundColor: '#f3f3f3',
+    position: 'relative',
+  },
+  blueHeaderBackground: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 160,
+    backgroundColor: '#00418b',
+    borderBottomLeftRadius: 40,
+    borderBottomRightRadius: 40,
+    zIndex: 0,
+  },
+  whiteCard: {
+    marginTop: 60,
+    marginHorizontal: 18,
+    backgroundColor: '#fff',
+    borderRadius: 24,
+    padding: 22,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
+    zIndex: 1,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 18,
+  },
+  backBtn: {
+    marginRight: 10,
+    padding: 4,
+  },
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#00418b',
+    fontFamily: 'Poppins-Bold',
+  },
+  inputGroup: {
+    marginBottom: 18,
+  },
+  label: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#00418b',
+    marginBottom: 6,
+    fontFamily: 'Poppins-Bold',
+  },
+  input: {
+    backgroundColor: '#f7f9fc',
+    borderColor: '#00418b',
+    borderWidth: 1.5,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    fontSize: 15,
+    color: '#222',
+    fontFamily: 'Poppins-Regular',
+  },
+  textarea: {
+    backgroundColor: '#f7f9fc',
+    borderColor: '#00418b',
+    borderWidth: 1.5,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    fontSize: 15,
+    color: '#222',
+    fontFamily: 'Poppins-Regular',
+    minHeight: 80,
+    textAlignVertical: 'top',
+  },
+});
 export default CreateClassesStyle;

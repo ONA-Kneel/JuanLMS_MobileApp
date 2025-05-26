@@ -41,6 +41,7 @@ import FacultyProfile from './components/Faculty/FacultyProfile';
 import FacultySCMain from './components/Faculty/FacultySCMain';
 import FacultySupportCenter from './components/Faculty/FacultySupportCenter';
 
+
 //Director
 import DirectorDashboard from './components/Directors/DirectorDashboard';
 import DirectorProfile from './components/Directors/DirectorProfile';
@@ -90,65 +91,88 @@ function StudentTabs() {
   );
 }
 
-//Faculty Dashboard
-const FacultyDash = () => {
-  return(
-    <Tabs.Navigator screenOptions={{ tabBarShowLabel: false }}>
-      <Tabs.Screen name='FDashboard' component={FacultyDashboard} //Student Dashboard is now merged with Bottom Navigation
-      options={{ tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/6.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
-      <Tabs.Screen name='FCalendar' component={FacultyCalendar} //Calendar of Events for Faculty
-      options={{ tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/9.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
-      <Tabs.Screen name='FChat' component={FacultyChats} //Chats tab
-      options={{ tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/8.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
-      <Tabs.Screen name='FProfile' component={FacultyProfile} //Profile Tab
-      options={{ tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/7.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
+const facultyNavItems = [
+  { label: 'Dashboard', icon: 'view-dashboard', route: 'FDashboard' },
+  { label: 'Calendar', icon: 'calendar', route: 'FCalendar' },
+  { label: 'Chats', icon: 'chat', route: 'FChat' },
+  // { label: 'Profile', icon: 'account', route: 'FProfile' },
+];
+
+function FacultyTabs() {
+  return (
+    <Tabs.Navigator
+      tabBar={props => <CustomBottomNav {...props} navItems={facultyNavItems} />}
+      screenOptions={{ headerShown: false }}
+    >
+      <Tabs.Screen name="FDashboard" component={FacultyDashboard} />
+      <Tabs.Screen name="FCalendar" component={FacultyCalendar} />
+      <Tabs.Screen name="FChat" component={FacultyChats} />
+      {/* <Tabs.Screen name="FProfile" component={FacultyProfile} /> */}
     </Tabs.Navigator>
-  )
+  );
 }
 
-//Admin Dashboard
-const AdminDash = () => {
-  return(
-    <Tabs.Navigator screenOptions={{ tabBarShowLabel: false }}>
-      <Tabs.Screen name='AdminDashB' component={AdminDashboard}  //Student Dashboard is now merged with Bottom Navigation
-      options={{ tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/6.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
-      <Tabs.Screen name='ACalendar' component={AdminCalendar} //Calendar of Events
-      options={{ tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/9.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
-      <Tabs.Screen name='AChat' component={AdminChats} //Chats tab
-      options={{ tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/8.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
-      <Tabs.Screen name='AProfile' component={AdminProfile} //Profile Tab
-      options={{ tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/7.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
+const adminNavItems = [
+  { label: 'Dashboard', icon: 'view-dashboard', route: 'AdminDashB' },
+  { label: 'Calendar', icon: 'calendar', route: 'ACalendar' },
+  { label: 'Chats', icon: 'chat', route: 'AChat' },
+  // { label: 'Profile', icon: 'account', route: 'AProfile' },
+];
+
+const directorNavItems = [
+  { label: 'Dashboard', icon: 'view-dashboard', route: 'DDash' },
+  { label: 'Calendar', icon: 'calendar', route: 'DCalendar' },
+  { label: 'Chats', icon: 'chat', route: 'DChats' },
+  // { label: 'Profile', icon: 'account', route: 'DProfile' },
+];
+
+const parentNavItems = [
+  { label: 'Dashboard', icon: 'view-dashboard', route: 'PDash' },
+  { label: 'Grades', icon: 'star', route: 'PGrades' },
+  // { label: 'Profile', icon: 'account', route: 'PProfile' },
+];
+
+function AdminDash() {
+  return (
+    <Tabs.Navigator
+      tabBar={props => <CustomBottomNav {...props} navItems={adminNavItems} />}
+      screenOptions={{ headerShown: false }}
+    >
+      <Tabs.Screen name='AdminDashB' component={AdminDashboard} />
+      <Tabs.Screen name='ACalendar' component={AdminCalendar} />
+      <Tabs.Screen name='AChat' component={AdminChats} />
+      {/* <Tabs.Screen name='AProfile' component={AdminProfile} /> */}
     </Tabs.Navigator>
-  )
+  );
 }
 
-//Parent Dashboard
-const ParentDash =() =>{
-  return(
-    <Tabs.Navigator screenOptions={{ tabBarShowLabel: false }}>
-      <Tabs.Screen name='PDash' component={ParentDashboard}
-      options={{ tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/6.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
-       <Tabs.Screen name='PProfile' component={ParentProfile}
-      options={{ tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/7.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
+function DirectorDash() {
+  return (
+    <Tabs.Navigator
+      tabBar={props => <CustomBottomNav {...props} navItems={directorNavItems} />}
+      screenOptions={{ headerShown: false }}
+    >
+      <Tabs.Screen name='DDash' component={DirectorDashboard} />
+      <Tabs.Screen name='DCalendar' component={DirectorCalendar} />
+      <Tabs.Screen name='DChats' component={DirectorChats} />
+      <Tabs.Screen name='DProfile' component={DirectorProfile} />
     </Tabs.Navigator>
-  )
+  );
 }
 
-//Director Dashboard
-const DirectorDash = () =>{
-  return(
-    <Tabs.Navigator screenOptions={{ tabBarShowLabel: false }}>
-      <Tabs.Screen name='DDash' component={DirectorDashboard}
-      options={{ tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/6.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
-      <Tabs.Screen name='DCalendar' component={DirectorCalendar}
-      options={{ tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/6.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
-      <Tabs.Screen name='DChats' component={DirectorChats}
-      options={{ tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/6.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
-      <Tabs.Screen name='DProfile' component={DirectorProfile}
-      options={{ tabBarIcon: ({ focused }) => (<Image source={require('./assets/icons/6.svg')} style={{ width: 30, height: 30, overlayColor: focused ? 'blue': 'gray' }} />), }}/>
+function ParentDash() {
+  return (
+    <Tabs.Navigator
+      tabBar={props => <CustomBottomNav {...props} navItems={parentNavItems} />}
+      screenOptions={{ headerShown: false }}
+    >
+      <Tabs.Screen name='PDash' component={ParentDashboard} />
+      <Tabs.Screen name='PGrades' component={ParentGrades} />
+      {/* <Tabs.Screen name='PProfile' component={ParentProfile} /> */}
     </Tabs.Navigator>
-  )
+  );
 }
+
 //Specific Screen Change
 const Screens = createNativeStackNavigator();
 export default function App() {
@@ -196,7 +220,7 @@ export default function App() {
 
         {/*Faculties */}
         {/*Need tangalin ang "add a lesson" na naeedit, need daw upload lang and title lang ang editable*/}
-        <Screens.Screen name='FDash' component={FacultyDash} options={{ headerShown: false }}/>
+        <Screens.Screen name='FDash' component={FacultyTabs} options={{ headerShown: false }}/>
         <Screens.Screen name ='CClass' component={CreateClasses} options={{ headerShown: false }}/>
         <Screens.Screen name ='FSProg' component={FacultyStudentProgress} options={{ headerShown: false }}/>
         <Screens.Screen name ='FMod' component={FacultyModule} options={{ headerShown: false }}/>
@@ -204,6 +228,7 @@ export default function App() {
         <Screens.Screen name ='CAct' component={CreateActivity} options={{ headerShown: false }}/>
         <Screens.Screen name ='FMain' component={FacultySCMain} options={{ headerShown: false }}/>
         <Screens.Screen name ='FReq' component={FacultySupportCenter} options={{ headerShown: false }}/>
+        <Screens.Screen name ='FProfile' component={FacultyProfile} options={{ headerShown: false }}/>
 
 
 
@@ -212,6 +237,7 @@ export default function App() {
         <Screens.Screen name='GSched' component={GenSched} options={{ headerShown: false }}/>
         <Screens.Screen name='AProg' component={AdminProgress} options={{ headerShown: false }}/>
         <Screens.Screen name='AFaculty' component={AdminFaculty} options={{ headerShown: false }}/>
+        <Screens.Screen name='AProfile' component={AdminProfile} options={{ headerShown: false }}/>
 
         {/* Directors */}
         <Screens.Screen name='DDash' component={DirectorDash} options={{headerShown: false}}/>
@@ -230,6 +256,7 @@ export default function App() {
         <Screens.Screen name='PSched' component={ParentSchedule} options={{ headerShown: false }}/>
         <Screens.Screen name='PProg' component={ParentProgress} options={{ headerShown: false }}/>
         <Screens.Screen name='PGrade' component={ParentGrades} options={{ headerShown: false }}/>
+        <Screens.Screen name='PProfile' component={ParentProfile} options={{ headerShown: false }}/>
       </Screens.Navigator>
     </NavigationContainer>
     </ChatProvider>

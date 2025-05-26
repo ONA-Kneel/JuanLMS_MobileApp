@@ -8,11 +8,11 @@ export default function FacultySupportCenter() {
 
   return (
     <View style={FacultySupportStyle.container}>
-      
+      {/* Blue curved header background */}
+      <View style={{ position: 'absolute', left: 0, right: 0, top: 0, height: 120, backgroundColor: '#00418b', borderBottomLeftRadius: 40, borderBottomRightRadius: 40, zIndex: 0 }} />
       <View style={FacultySupportStyle.header}>
         <Image source={require('../../assets/Logo3.svg')} style={FacultySupportStyle.logo} />
       </View>
-
       <View style={FacultySupportStyle.card}>
         <TouchableOpacity
           style={FacultySupportStyle.backButton}
@@ -20,14 +20,12 @@ export default function FacultySupportCenter() {
         >
           <Text style={FacultySupportStyle.backArrow}>{'<'}</Text>
         </TouchableOpacity>
-
         <View style={FacultySupportStyle.iconContainer}>
           {/* <Image
             source={require('../../assets/headset-icon.png')}
             style={FacultySupportStyle.icon}
           /> */}
         </View>
-
         <TextInput style={FacultySupportStyle.input} placeholder="Name" placeholderTextColor="#ccc" />
         <TextInput style={FacultySupportStyle.input} placeholder="Problem Title" placeholderTextColor="#ccc" />
         <TextInput
@@ -36,7 +34,6 @@ export default function FacultySupportCenter() {
           placeholderTextColor="#ccc"
           multiline={true}
         />
-
         <View style={FacultySupportStyle.buttonContainer}>
           <TouchableOpacity style={FacultySupportStyle.problemButton}>
             <Text style={FacultySupportStyle.problemButtonText}>Send as Problem</Text>

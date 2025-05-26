@@ -1,6 +1,6 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, Image } from 'react-native';
-import { MaterialIcons } from '@expo/vector-icons';
+import { View, Text, TouchableOpacity, Image, ScrollView } from 'react-native';
+import { MaterialIcons, Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import DirectorProfileStyle from '../styles/directors/DirectorProfileStyle.js';
 import { useUser } from '../UserContext';
@@ -8,14 +8,14 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function DirectorProfile() {
   const { user } = useUser();
-  const changeScreen = useNavigation();
+  const navigation = useNavigation();
 
   const logout = async () => {
     await AsyncStorage.removeItem('user');
-    changeScreen.navigate('Login');
+    navigation.navigate('Login');
   };
-  const helpCenter = () => {
-    changeScreen.navigate('DScMain');
+  const goToSupportCenter = () => {
+    navigation.navigate('DScMain');
   };
 
   if (!user) {
@@ -25,42 +25,78 @@ export default function DirectorProfile() {
       </View>
     );
   }
+  const goBack = () => navigation.goBack();
 
   return (
     <View style={DirectorProfileStyle.container}>
+      {/* Back Button */}
+      <TouchableOpacity style={{ position: 'absolute', top: 40, left: 20, zIndex: 10 }} onPress={goBack}>
+        <MaterialIcons name="arrow-back" size={28} color="#fff" />
+      </TouchableOpacity>
+      {/* Top curved background */}
+      <View style={DirectorProfileStyle.topBackground} />
+      {/* Profile Image */}
+      <View style={DirectorProfileStyle.avatarWrapper}>
+        <Image
+          source={user.profilePicture ? { uri: user.profilePicture } : require('../../assets/profile-icon (2).png')}
+          style={DirectorProfileStyle.avatar}
+        />
+      </View>
+      {/* Card */}
       <View style={DirectorProfileStyle.card}>
-        <View style={DirectorProfileStyle.profileContainer}>
-          {user.profilePicture ? (
-            <Image source={{ uri: user.profilePicture }} style={DirectorProfileStyle.avatar} />
-          ) : (
-            <View style={DirectorProfileStyle.avatar} />
-          )}
-          <Text style={DirectorProfileStyle.name}>{`${user.lastname}, ${user.firstname}`}</Text>
-          <Text style={DirectorProfileStyle.info}>Director</Text>
-          <Text style={DirectorProfileStyle.info}>{user.college || 'College'}</Text>
-          <TouchableOpacity style={DirectorProfileStyle.button}>
-            <MaterialIcons name="camera-alt" size={16} color="white" />
-            <Text style={DirectorProfileStyle.buttonText}> Update Photo</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={helpCenter} style={DirectorProfileStyle.button}>
-            <MaterialIcons name="help" size={16} color="white" />
-            <Text style={DirectorProfileStyle.buttonText}>Support Center</Text>
-          </TouchableOpacity>
+        <Text style={DirectorProfileStyle.name}>{user.firstname} {user.lastname} <Text style={DirectorProfileStyle.emoji}>🎓</Text></Text>
+        <Text style={DirectorProfileStyle.email}>{user.email}</Text>
+        <View style={DirectorProfileStyle.row}>
+          <View style={DirectorProfileStyle.infoBox}>
+            <Text style={DirectorProfileStyle.infoLabel}>College</Text>
+            <Text style={DirectorProfileStyle.infoValue}>{user.college || 'N/A'}</Text>
+          </View>
+          <View style={DirectorProfileStyle.infoBox}>
+            <Text style={DirectorProfileStyle.infoLabel}>Role</Text>
+            <Text style={DirectorProfileStyle.infoValue}>Director</Text>
+          </View>
         </View>
-        <View style={DirectorProfileStyle.contactContainer}>
-          <Text style={DirectorProfileStyle.contactTitle}>Contact</Text>
-          <View style={DirectorProfileStyle.contactRow}>
-            <MaterialIcons name="email" size={16} color="#555" />
-            <Text style={DirectorProfileStyle.contactText}>{user.email}</Text>
-          </View>
-          <View style={DirectorProfileStyle.contactRow}>
-            <MaterialIcons name="phone" size={16} color="#555" />
-            <Text style={DirectorProfileStyle.contactText}>{user.contactno}</Text>
-          </View>
+        <View style={DirectorProfileStyle.actionRow}>
+          <TouchableOpacity style={DirectorProfileStyle.actionBtn}>
+            <Feather name="edit" size={20} color="#00418b" />
+            <Text style={DirectorProfileStyle.actionText}>Edit</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={DirectorProfileStyle.actionBtn}>
+            <Feather name="lock" size={20} color="#00418b" />
+            <Text style={DirectorProfileStyle.actionText}>Password</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={DirectorProfileStyle.actionBtn}>
+            <Feather name="bell" size={20} color="#00418b" />
+            <Text style={DirectorProfileStyle.actionText}>Notify</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={DirectorProfileStyle.actionBtn} onPress={goToSupportCenter}>
+            <Feather name="help-circle" size={20} color="#00418b" />
+            <Text style={DirectorProfileStyle.actionText}>Support Center</Text>
+          </TouchableOpacity>
         </View>
       </View>
+      {/* Settings List (optional) */}
+      {/* <ScrollView style={DirectorProfileStyle.settingsList}>
+        <TouchableOpacity style={DirectorProfileStyle.settingsItem}>
+          <Text style={DirectorProfileStyle.settingsText}>Profile Settings</Text>
+          <Feather name="chevron-right" size={20} color="#888" />
+        </TouchableOpacity>
+        <TouchableOpacity style={DirectorProfileStyle.settingsItem}>
+          <Text style={DirectorProfileStyle.settingsText}>Change Password</Text>
+          <Feather name="chevron-right" size={20} color="#888" />
+        </TouchableOpacity>
+        <TouchableOpacity style={DirectorProfileStyle.settingsItem}>
+          <Text style={DirectorProfileStyle.settingsText}>Notification</Text>
+          <Feather name="chevron-right" size={20} color="#888" />
+        </TouchableOpacity>
+        <TouchableOpacity style={DirectorProfileStyle.settingsItem}>
+          <Text style={DirectorProfileStyle.settingsText}>Transaction History</Text>
+          <Feather name="chevron-right" size={20} color="#888" />
+        </TouchableOpacity>
+      </ScrollView> */}
+      {/* Logout Button */}
       <TouchableOpacity style={DirectorProfileStyle.logout} onPress={logout}>
-        <Text style={DirectorProfileStyle.buttonText}>Log-Out</Text>
+        <Text style={DirectorProfileStyle.logoutText}>Log Out</Text>
       </TouchableOpacity>
     </View>
   );

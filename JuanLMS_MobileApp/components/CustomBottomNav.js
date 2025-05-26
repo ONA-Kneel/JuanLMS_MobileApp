@@ -2,7 +2,7 @@ import React from 'react';
 import { View, TouchableOpacity, Text } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
-const navItems = [
+const defaultNavItems = [
   { label: 'Dashboard', icon: 'view-dashboard', route: 'SDash' },
   { label: 'Activities', icon: 'file-document', route: 'SActs' },
   { label: 'Calendar', icon: 'calendar', route: 'SCalendar' },
@@ -10,7 +10,7 @@ const navItems = [
   { label: 'Chats', icon: 'chat', route: 'SChat' },
 ];
 
-export default function CustomBottomNav({ state, descriptors, navigation }) {
+export default function CustomBottomNav({ state, descriptors, navigation, navItems = defaultNavItems }) {
   return (
     <View style={{
       flexDirection: 'row',
