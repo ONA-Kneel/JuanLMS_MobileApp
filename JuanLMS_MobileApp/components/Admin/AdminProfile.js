@@ -6,6 +6,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../UserContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+
 export default function AdminProfile() {
   const { user } = useUser();
   const navigation = useNavigation();
@@ -24,6 +25,10 @@ export default function AdminProfile() {
   }
 
   const goBack = () => navigation.goBack();
+
+  const goToSupportCenter = () => {
+    navigation.navigate('SupportCenter');
+  };
 
   return (
     <View style={AdminProfileStyle.container}>
@@ -67,9 +72,9 @@ export default function AdminProfile() {
             <Feather name="bell" size={20} color="#00418b" />
             <Text style={AdminProfileStyle.actionText}>Notify</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={StudentsProfileStyle.actionBtn} onPress={goToSupportCenter}>
+          <TouchableOpacity style={AdminProfileStyle.actionBtn} onPress={goToSupportCenter}>
             <Feather name="help-circle" size={20} color="#00418b" />
-            <Text style={StudentsProfileStyle.actionText}>Support Center</Text>
+            <Text style={AdminProfileStyle.actionText}>Support Center</Text>
           </TouchableOpacity>
         </View>
       </View>

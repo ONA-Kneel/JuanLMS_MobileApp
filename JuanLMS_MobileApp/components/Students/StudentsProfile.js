@@ -1,30 +1,54 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, Image, ScrollView } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, Image, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { MaterialIcons, Feather } from '@expo/vector-icons';
 import StudentsProfileStyle from '../styles/Stud/StudentsProfileStyle';
-import { useUser } from '../UserContext';
 import { useNavigation } from '@react-navigation/native';
+import { useUser } from '../UserContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function StudentsProfile() {
-  const { user } = useUser();
-  const changeScreen = useNavigation();
+  const { user, loading } = useUser();
+  const navigation = useNavigation();
+  const [isEditModalVisible, setIsEditModalVisible] = useState(false);
 
-  if (!user) {
+  const logout = async () => {
+    try {
+      await AsyncStorage.removeItem('user');
+      navigation.navigate('Login');
+    } catch (error) {
+      console.error('Logout error:', error);
+      Alert.alert('Error', 'Failed to logout. Please try again.');
+    }
+  };
+
+  const goToSupportCenter = () => {
+    navigation.navigate('SupportCenter');
+  };
+
+  if (loading) {
     return (
-      <View style={StudentsProfileStyle.container}>
-        <Text>Loading...</Text>
+      <View style={[StudentsProfileStyle.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color="#00418b" />
+        <Text style={{ marginTop: 10, fontSize: 16, color: '#666' }}>Loading profile...</Text>
       </View>
     );
   }
 
-  // Back button handler
-  const goBack = () => {
-    changeScreen.goBack();
-  };
+  if (!user) {
+    return (
+      <View style={[StudentsProfileStyle.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <Text style={{ fontSize: 16, color: '#666' }}>No user data found. Please login again.</Text>
+        <TouchableOpacity 
+          style={[StudentsProfileStyle.logout, { marginTop: 20 }]} 
+          onPress={() => navigation.navigate('Login')}
+        >
+          <Text style={StudentsProfileStyle.logoutText}>Go to Login</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
-  const goToSupportCenter = () => {
-    changeScreen.navigate('SReq');
-  };
+  const goBack = () => navigation.goBack();
 
   return (
     <View style={StudentsProfileStyle.container}>
@@ -39,11 +63,15 @@ export default function StudentsProfile() {
         <Image
           source={user.profilePicture ? { uri: user.profilePicture } : require('../../assets/profile-icon (2).png')}
           style={StudentsProfileStyle.avatar}
+          onError={(e) => {
+            console.log('Image loading error:', e.nativeEvent.error);
+            Alert.alert('Error', 'Failed to load profile picture');
+          }}
         />
       </View>
       {/* Card */}
       <View style={StudentsProfileStyle.card}>
-        <Text style={StudentsProfileStyle.name}>{user.firstname} {user.lastname} <Text style={StudentsProfileStyle.emoji}>🎓</Text></Text>
+        <Text style={StudentsProfileStyle.name}>{user.firstname} {user.lastname} <Text style={StudentsProfileStyle.emoji}>👨‍🎓</Text></Text>
         <Text style={StudentsProfileStyle.email}>{user.email}</Text>
         <View style={StudentsProfileStyle.row}>
           <View style={StudentsProfileStyle.infoBox}>
@@ -56,7 +84,10 @@ export default function StudentsProfile() {
           </View>
         </View>
         <View style={StudentsProfileStyle.actionRow}>
-          <TouchableOpacity style={StudentsProfileStyle.actionBtn}>
+          <TouchableOpacity 
+            style={StudentsProfileStyle.actionBtn}
+            onPress={() => setIsEditModalVisible(true)}
+          >
             <Feather name="edit" size={20} color="#00418b" />
             <Text style={StudentsProfileStyle.actionText}>Edit</Text>
           </TouchableOpacity>
@@ -72,31 +103,11 @@ export default function StudentsProfile() {
             <Feather name="help-circle" size={20} color="#00418b" />
             <Text style={StudentsProfileStyle.actionText}>Support Center</Text>
           </TouchableOpacity>
-          
         </View>
       </View>
-      {/* Settings List */}
-      {/* <ScrollView style={StudentsProfileStyle.settingsList}>
-        <TouchableOpacity style={StudentsProfileStyle.settingsItem}>
-          <Text style={StudentsProfileStyle.settingsText}>Profile Settings</Text>
-          <Feather name="chevron-right" size={20} color="#888" />
-        </TouchableOpacity>
-        <TouchableOpacity style={StudentsProfileStyle.settingsItem}>
-          <Text style={StudentsProfileStyle.settingsText}>Change Password</Text>
-          <Feather name="chevron-right" size={20} color="#888" />
-        </TouchableOpacity>
-        <TouchableOpacity style={StudentsProfileStyle.settingsItem}>
-          <Text style={StudentsProfileStyle.settingsText}>Notification</Text>
-          <Feather name="chevron-right" size={20} color="#888" />
-        </TouchableOpacity>
-        <TouchableOpacity style={StudentsProfileStyle.settingsItem}>
-          <Text style={StudentsProfileStyle.settingsText}>Transaction History</Text>
-          <Feather name="chevron-right" size={20} color="#888" />
-        </TouchableOpacity>
-      </ScrollView> */}
       {/* Logout Button */}
-      <TouchableOpacity style={StudentsProfileStyle.logout} onPress={() => changeScreen.navigate('Login')}>
-        <Text style={StudentsProfileStyle.logoutText} >Log Out</Text>
+      <TouchableOpacity style={StudentsProfileStyle.logout} onPress={logout}>
+        <Text style={StudentsProfileStyle.logoutText}>Log Out</Text>
       </TouchableOpacity>
     </View>
   );
