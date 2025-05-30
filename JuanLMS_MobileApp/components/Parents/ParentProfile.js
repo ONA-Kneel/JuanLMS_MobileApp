@@ -5,12 +5,23 @@ import { useNavigation } from '@react-navigation/native';
 import ParentProfileStyle from '../styles/parent/ParentProfileStyle';
 import { useUser } from '../UserContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { addAuditLog } from '../Admin/auditTrailUtils';
 
 export default function ParentProfile() {
   const { user } = useUser();
   const navigation = useNavigation();
 
   const logout = async () => {
+    if (user) {
+      await addAuditLog({
+        userId: user._id,
+        userName: user.firstname + ' ' + user.lastname,
+        userRole: user.role || 'parent',
+        action: 'Logout',
+        details: `User ${user.email} logged out.`,
+        timestamp: new Date().toISOString(),
+      });
+    }
     await AsyncStorage.removeItem('user');
     navigation.navigate('Login');
   };

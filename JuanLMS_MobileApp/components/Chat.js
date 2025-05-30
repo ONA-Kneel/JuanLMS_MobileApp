@@ -13,7 +13,7 @@ const ALLOWED_ROLES = ['students', 'director', 'admin', 'faculty'];
 export default function Chat() {
   const navigation = useNavigation();
   const route = useRoute();
-  const { selectedUser } = route.params;
+  const { selectedUser, setRecentChats } = route.params;
   const { user, setUser } = useUser();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
@@ -40,12 +40,32 @@ export default function Chat() {
     console.log('Selected user:', selectedUser);
     console.log('Fetching messages for:', user._id, selectedUser._id);
 
+    // Fetch messages
     axios.get(`${SOCKET_URL}/api/messages/${user._id}/${selectedUser._id}`)
       .then(res => setMessages(res.data))
       .catch((err) => {
         console.log('Error fetching messages:', err);
         setMessages([]);
       });
+
+    // Mark messages as read
+    axios.put(`${SOCKET_URL}/api/messages/read/${user._id}/${selectedUser._id}`)
+      .then(() => {
+        if (setRecentChats) {
+          setRecentChats(prev => {
+            const updated = prev.map(chat =>
+              chat.partnerId === selectedUser._id
+                ? { ...chat, unreadCount: 0 }
+                : chat
+            );
+            // Sort by most recent lastMessage
+            return updated.sort((a, b) =>
+              new Date(b.lastMessage.timestamp) - new Date(a.lastMessage.timestamp)
+            );
+          });
+        }
+      })
+      .catch(err => console.log('Error marking messages as read:', err));
 
     if (!socketRef.current) {
       socketRef.current = io(SOCKET_URL);
@@ -99,6 +119,28 @@ export default function Chat() {
     // 3. Add to local state for instant UI feedback
     setMessages(prev => [...prev, msg]);
     setInput('');
+
+    // Update unread count in recentChats and move to top
+    if (setRecentChats) {
+      setRecentChats(prev => {
+        let found = false;
+        const updated = prev.map(chat => {
+          if (chat.partnerId === selectedUser._id) {
+            found = true;
+            return { ...chat, unreadCount: 0, lastMessage: msg };
+          }
+          return chat;
+        });
+        // If not found, add new chat entry
+        if (!found) {
+          updated.push({ partnerId: selectedUser._id, lastMessage: msg, unreadCount: 0 });
+        }
+        // Sort by most recent lastMessage
+        return updated.sort((a, b) =>
+          new Date(b.lastMessage.timestamp) - new Date(a.lastMessage.timestamp)
+        );
+      });
+    }
   };
 
   // Sort messages by timestamp (oldest first, newest last)

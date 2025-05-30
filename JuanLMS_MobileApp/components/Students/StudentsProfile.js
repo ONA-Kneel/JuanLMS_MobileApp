@@ -5,6 +5,7 @@ import StudentsProfileStyle from '../styles/Stud/StudentsProfileStyle';
 import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../UserContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { addAuditLog } from '../Admin/auditTrailUtils';
 
 export default function StudentsProfile() {
   const { user, loading } = useUser();
@@ -13,6 +14,16 @@ export default function StudentsProfile() {
 
   const logout = async () => {
     try {
+      if (user) {
+        await addAuditLog({
+          userId: user._id,
+          userName: user.firstname + ' ' + user.lastname,
+          userRole: user.role || 'student',
+          action: 'Logout',
+          details: `User ${user.email} logged out.`,
+          timestamp: new Date().toISOString(),
+        });
+      }
       await AsyncStorage.removeItem('user');
       navigation.navigate('Login');
     } catch (error) {

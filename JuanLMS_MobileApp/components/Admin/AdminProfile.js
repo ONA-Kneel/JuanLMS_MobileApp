@@ -5,6 +5,7 @@ import AdminProfileStyle from '../styles/administrator/AdminProfileStyle';
 import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../UserContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { addAuditLog } from './auditTrailUtils';
 
 
 export default function AdminProfile() {
@@ -12,6 +13,16 @@ export default function AdminProfile() {
   const navigation = useNavigation();
 
   const logout = async () => {
+    if (user) {
+      await addAuditLog({
+        userId: user._id,
+        userName: user.firstname + ' ' + user.lastname,
+        userRole: user.role || 'admin',
+        action: 'Logout',
+        details: `User ${user.email} logged out.`,
+        timestamp: new Date().toISOString(),
+      });
+    }
     await AsyncStorage.removeItem('user');
     navigation.navigate('Login');
   };
@@ -28,7 +39,7 @@ export default function AdminProfile() {
 
   const goToSupportCenter = () => {
     navigation.navigate('SupportCenter');
-  };
+  }; 
 
   return (
     <View style={AdminProfileStyle.container}>

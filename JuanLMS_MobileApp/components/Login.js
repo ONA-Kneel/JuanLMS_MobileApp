@@ -7,6 +7,7 @@ import { CheckBox } from 'react-native-web';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Toast from 'react-native-root-toast';
 import { useUser } from './UserContext';
+import { addAuditLog } from './Admin/auditTrailUtils';
 
 export default function Login() {
   //mema commit na lang para lang may kulay ako today
@@ -111,6 +112,16 @@ export default function Login() {
         const userData = await userRes.json();
         await AsyncStorage.setItem('user', JSON.stringify(userData));
         setUser(userData);
+
+        // Add audit log for login
+        await addAuditLog({
+          userId: userData._id,
+          userName: userData.firstname + ' ' + userData.lastname,
+          userRole: role,
+          action: 'Login',
+          details: `User ${userData.email} logged in.`,
+          timestamp: new Date().toISOString(),
+        });
 
         switch (role) {
           case 'student': navigation.navigate('SDash'); break;
