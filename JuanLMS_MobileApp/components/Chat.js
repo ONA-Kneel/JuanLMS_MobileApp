@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Image } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Image, Alert } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useUser } from './UserContext';
 import io from 'socket.io-client';
@@ -7,6 +7,8 @@ import axios from 'axios';
 import AdminChatStyle from './styles/administrator/AdminChatStyle';
 
 const SOCKET_URL = 'http://localhost:5000';
+
+const ALLOWED_ROLES = ['students', 'director', 'admin', 'faculty'];
 
 export default function Chat() {
   const navigation = useNavigation();
@@ -18,18 +20,33 @@ export default function Chat() {
   const socketRef = useRef(null);
   const scrollViewRef = useRef();
 
-  console.log('Current user:', user);
-  console.log('Selected user:', selectedUser);
-  console.log('Fetching messages for:', user._id, selectedUser._id);
-
   useEffect(() => {
-    if (!selectedUser || !user || !user._id) return;
+    // Validate if both users have allowed roles
+    if (!selectedUser || !user) {
+      navigation.goBack();
+      return;
+    }
+
+    if (!ALLOWED_ROLES.includes(user.role.toLowerCase()) || !ALLOWED_ROLES.includes(selectedUser.role.toLowerCase())) {
+      Alert.alert(
+        "Access Denied",
+        "You cannot chat with this user due to role restrictions.",
+        [{ text: "OK", onPress: () => navigation.goBack() }]
+      );
+      return;
+    }
+
+    console.log('Current user:', user);
+    console.log('Selected user:', selectedUser);
+    console.log('Fetching messages for:', user._id, selectedUser._id);
+
     axios.get(`${SOCKET_URL}/api/messages/${user._id}/${selectedUser._id}`)
       .then(res => setMessages(res.data))
       .catch((err) => {
         console.log('Error fetching messages:', err);
         setMessages([]);
       });
+
     if (!socketRef.current) {
       socketRef.current = io(SOCKET_URL);
     }
@@ -37,15 +54,23 @@ export default function Chat() {
     socketRef.current.on('receiveMessage', (msg) => {
       setMessages(prev => [...prev, msg]);
     });
+
     return () => {
       if (socketRef.current) {
         socketRef.current.off('receiveMessage');
       }
     };
-  }, [selectedUser, user && user._id]);
+  }, [selectedUser, user]);
 
   const handleSend = async () => {
     if (!input.trim() || !selectedUser) return;
+    
+    // Validate roles before sending
+    if (!ALLOWED_ROLES.includes(user.role.toLowerCase()) || !ALLOWED_ROLES.includes(selectedUser.role.toLowerCase())) {
+      Alert.alert("Error", "You cannot send messages to this user due to role restrictions.");
+      return;
+    }
+
     const msg = {
       chatId: [user._id, selectedUser._id].sort().join('-'),
       senderId: user._id,
@@ -67,7 +92,8 @@ export default function Chat() {
       });
     } catch (err) {
       console.log('Error saving message:', err);
-      // Optionally show an error to the user
+      Alert.alert("Error", "Failed to send message. Please try again.");
+      return;
     }
 
     // 3. Add to local state for instant UI feedback
@@ -79,14 +105,14 @@ export default function Chat() {
   const safeMessages = Array.isArray(messages)
     ? [...messages].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
     : [];
-  console.log('Rendering chat UI', { user, selectedUser, messages });
-  // if (!user || !user._id || !selectedUser) {
-  //   return (
-  //     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-  //       <Text>Loading chat...</Text>
-  //     </View>
-  //   );
-  // }
+
+  if (!user || !user._id || !selectedUser) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <Text>Loading chat...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={{ flex: 1, backgroundColor: '#f3f3f3' }}>
@@ -102,7 +128,7 @@ export default function Chat() {
           />
           <View>
             <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 18 }}>{selectedUser.firstname} {selectedUser.lastname}</Text>
-            <Text style={{ color: '#e0e0e0', fontSize: 12 }}>Online</Text>
+            <Text style={{ color: '#e0e0e0', fontSize: 12 }}>{selectedUser.role}</Text>
           </View>
         </View>
       </View>

@@ -8,6 +8,7 @@ import { Image } from 'react-native-web';
 import DirectorChatStyle from '../styles/directors/DirectorChatStyle';
 
 const SOCKET_URL = 'http://localhost:5000';
+const ALLOWED_ROLES = ['students', 'director', 'admin', 'faculty'];
 
 export default function DirectorChats() {
   const navigation = useNavigation();
@@ -19,7 +20,12 @@ export default function DirectorChats() {
     if (!user || !user._id) return;
     axios.get(`${SOCKET_URL}/users`)
       .then(res => {
-        setUsers(res.data.filter(u => u._id !== user._id));
+        // Filter out users with restricted roles and current user
+        const filteredUsers = res.data.filter(u => 
+          u._id !== user._id && 
+          ALLOWED_ROLES.includes(u.role.toLowerCase())
+        );
+        setUsers(filteredUsers);
       })
       .catch(() => setUsers([]));
   }, [user && user._id]);
@@ -67,8 +73,27 @@ export default function DirectorChats() {
             <TouchableOpacity
               key={u._id}
               onPress={() => navigation.navigate('Chat', { selectedUser: u })}
-              style={{ backgroundColor: 'lightgray', padding: 15, borderRadius: 10, marginBottom: 10 }}>
-              <Text style={{ fontWeight: 'bold', fontSize: 16 }}>{u.firstname} {u.lastname}</Text>
+              style={{ 
+                backgroundColor: 'white', 
+                padding: 15, 
+                borderRadius: 10, 
+                marginBottom: 10,
+                flexDirection: 'row',
+                alignItems: 'center',
+                elevation: 2,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 1 },
+                shadowOpacity: 0.2,
+                shadowRadius: 2,
+              }}>
+              <Image 
+                source={u.profilePicture ? { uri: u.profilePicture } : require('../../assets/profile-icon (2).png')} 
+                style={{ width: 40, height: 40, borderRadius: 20, marginRight: 12 }} 
+              />
+              <View>
+                <Text style={{ fontWeight: 'bold', fontSize: 16 }}>{u.firstname} {u.lastname}</Text>
+                <Text style={{ color: '#666', fontSize: 12 }}>{u.role}</Text>
+              </View>
             </TouchableOpacity>
           ))}
         </ScrollView>
