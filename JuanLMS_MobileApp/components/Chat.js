@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useRef } from "react";
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Button } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Image } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useUser } from './UserContext';
 import io from 'socket.io-client';
 import axios from 'axios';
+import AdminChatStyle from './styles/administrator/AdminChatStyle';
 
 const SOCKET_URL = 'http://localhost:5000';
 
@@ -88,21 +89,28 @@ export default function Chat() {
   // }
 
   return (
-    <View style={{ flex: 1, padding: 10 }}>
-      {/* Header */}
-      <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 10 }}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={{ fontSize: 18, color: "blue" }}>{"< Back"}</Text>
-        </TouchableOpacity>
-        <Text style={{ fontWeight: "bold", fontSize: 18, marginLeft: 10 }}>
-          Chat with {selectedUser.firstname} {selectedUser.lastname}
-        </Text>
+    <View style={{ flex: 1, backgroundColor: '#f3f3f3' }}>
+      {/* Blue Header */}
+      <View style={AdminChatStyle.blueHeaderBackground}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 40, paddingHorizontal: 16 }}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginRight: 12 }}>
+            <Text style={{ fontSize: 22, color: '#fff' }}>{'<'}</Text>
+          </TouchableOpacity>
+          <Image
+            source={selectedUser.profilePicture ? { uri: selectedUser.profilePicture } : require('../assets/profile-icon (2).png')}
+            style={{ width: 40, height: 40, borderRadius: 20, marginRight: 12, borderWidth: 2, borderColor: '#fff' }}
+          />
+          <View>
+            <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 18 }}>{selectedUser.firstname} {selectedUser.lastname}</Text>
+            <Text style={{ color: '#e0e0e0', fontSize: 12 }}>Online</Text>
+          </View>
+        </View>
       </View>
       {/* Messages */}
       <ScrollView
         ref={scrollViewRef}
         onContentSizeChange={() => scrollViewRef.current.scrollToEnd({ animated: true })}
-        style={{ flex: 1, marginBottom: 10 }}
+        style={{ flex: 1, paddingHorizontal: 10, marginTop: 10 }}
       >
         {safeMessages.map((msg, idx) => {
           const isMe = String(msg.senderId) === String(user._id);
@@ -115,19 +123,30 @@ export default function Chat() {
                 marginVertical: 4,
               }}
             >
+              {!isMe && (
+                <Image
+                  source={selectedUser.profilePicture ? { uri: selectedUser.profilePicture } : require('../assets/profile-icon (2).png')}
+                  style={{ width: 28, height: 28, borderRadius: 14, marginRight: 6, alignSelf: 'flex-end' }}
+                />
+              )}
               <View
                 style={{
-                  backgroundColor: isMe ? '#0078fe' : '#e5e5ea',
-                  borderRadius: 16,
-                  padding: 10,
+                  backgroundColor: isMe ? '#00418b' : '#e5e5ea',
+                  borderRadius: 18,
+                  padding: 12,
                   maxWidth: '75%',
                   alignSelf: isMe ? 'flex-end' : 'flex-start',
+                  shadowColor: '#000',
+                  shadowOpacity: 0.04,
+                  shadowRadius: 4,
+                  marginLeft: isMe ? 40 : 0,
+                  marginRight: isMe ? 0 : 4,
                 }}
               >
-                <Text style={{ color: isMe ? 'white' : 'black', fontWeight: 'bold', marginBottom: 2 }}>
+                <Text style={{ color: isMe ? '#fff' : '#222', fontWeight: '500', marginBottom: 2 }}>
                   {isMe ? 'You' : selectedUser.firstname}
                 </Text>
-                <Text style={{ color: isMe ? 'white' : 'black' }}>{msg.message}</Text>
+                <Text style={{ color: isMe ? '#fff' : '#222' }}>{msg.message}</Text>
                 <Text style={{ color: isMe ? '#d1eaff' : '#888', fontSize: 10, alignSelf: 'flex-end', marginTop: 4 }}>
                   {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString() : ''}
                 </Text>
@@ -140,32 +159,35 @@ export default function Chat() {
       <View style={{
         flexDirection: 'row',
         alignItems: 'center',
-        padding: 8,
+        padding: 10,
         borderTopWidth: 1,
         borderColor: '#eee',
-        backgroundColor: '#fff'
+        backgroundColor: '#fff',
+        borderBottomLeftRadius: 24,
+        borderBottomRightRadius: 24,
       }}>
         <TextInput
           value={input}
           onChangeText={setInput}
-          placeholder="Type a message..."
+          placeholder="Type your message..."
           style={{
             flex: 1,
             borderWidth: 1,
             borderColor: '#ccc',
             borderRadius: 20,
             paddingHorizontal: 15,
-            paddingVertical: 8,
+            paddingVertical: 10,
             marginRight: 8,
-            backgroundColor: '#f9f9f9'
+            backgroundColor: '#f9f9f9',
+            fontSize: 15,
           }}
         />
         <TouchableOpacity onPress={handleSend} style={{
-          backgroundColor: '#0078fe',
+          backgroundColor: '#00418b',
           borderRadius: 20,
-          padding: 10,
+          padding: 12,
         }}>
-          <Text style={{ color: 'white', fontWeight: 'bold' }}>Send</Text>
+          <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>➤</Text>
         </TouchableOpacity>
       </View>
     </View>
