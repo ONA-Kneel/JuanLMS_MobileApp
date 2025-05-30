@@ -16,6 +16,8 @@ export default function AdminChats() {
   const [recentChats, setRecentChats] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [users, setUsers] = useState({});
+  const [allUsers, setAllUsers] = useState([]);
+  const [showSearchResults, setShowSearchResults] = useState(false);
 
   useEffect(() => {
     if (!user || !user._id) return;
@@ -24,14 +26,21 @@ export default function AdminChats() {
     axios.get(`${SOCKET_URL}/users`)
       .then(res => {
         const userMap = {};
-        res.data.forEach(u => {
-          if (u._id !== user._id && ALLOWED_ROLES.includes(u.role.toLowerCase())) {
-            userMap[u._id] = u;
-          }
+        const filteredUsers = res.data.filter(u => 
+          u._id !== user._id && 
+          ALLOWED_ROLES.includes(u.role.toLowerCase())
+        );
+        
+        filteredUsers.forEach(u => {
+          userMap[u._id] = u;
         });
         setUsers(userMap);
+        setAllUsers(filteredUsers);
       })
-      .catch(() => setUsers({}));
+      .catch(() => {
+        setUsers({});
+        setAllUsers([]);
+      });
 
     // Fetch recent chats
     axios.get(`${SOCKET_URL}/api/messages/recent/${user._id}`)
@@ -54,6 +63,20 @@ export default function AdminChats() {
     return `${partner.firstname} ${partner.lastname}`.toLowerCase().includes(searchTerm.toLowerCase());
   });
 
+  // Filter users for new chat search
+  const filteredUsers = allUsers.filter(u => 
+    `${u.firstname} ${u.lastname}`.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const handleSearchFocus = () => {
+    setShowSearchResults(true);
+  };
+
+  const handleSearchBlur = () => {
+    // Delay hiding search results to allow for touch events
+    setTimeout(() => setShowSearchResults(false), 200);
+  };
+
   return (
     <View style={{ flex: 1, backgroundColor: '#f3f3f3' }}>
       {/* Blue background */}
@@ -75,13 +98,69 @@ export default function AdminChats() {
         placeholder="Search users..."
         value={searchTerm}
         onChangeText={setSearchTerm}
+        onFocus={handleSearchFocus}
+        onBlur={handleSearchBlur}
         style={{ margin: 16, borderWidth: 1, borderColor: '#ccc', borderRadius: 5, padding: 8 }}
       />
+      
+      {/* Search Results */}
+      {showSearchResults && searchTerm && (
+        <View style={{ 
+          position: 'absolute', 
+          top: 180, 
+          left: 16, 
+          right: 16, 
+          backgroundColor: 'white',
+          borderRadius: 10,
+          elevation: 5,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.25,
+          shadowRadius: 3.84,
+          zIndex: 1000,
+          maxHeight: 300
+        }}>
+          <ScrollView>
+            {filteredUsers.length > 0 ? (
+              filteredUsers.map(u => (
+                <TouchableOpacity
+                  key={u._id}
+                  onPress={() => {
+                    navigation.navigate('Chat', { selectedUser: u, setRecentChats });
+                    setSearchTerm('');
+                    setShowSearchResults(false);
+                  }}
+                  style={{ 
+                    padding: 15, 
+                    borderBottomWidth: 1, 
+                    borderBottomColor: '#eee',
+                    flexDirection: 'row',
+                    alignItems: 'center'
+                  }}>
+                  <Image 
+                    source={u.profilePicture ? { uri: u.profilePicture } : require('../../assets/profile-icon (2).png')} 
+                    style={{ width: 40, height: 40, borderRadius: 20, marginRight: 12 }} 
+                  />
+                  <View>
+                    <Text style={{ fontWeight: 'bold', fontSize: 16 }}>{u.firstname} {u.lastname}</Text>
+                    <Text style={{ color: '#666', fontSize: 12 }}>{u.role}</Text>
+                  </View>
+                </TouchableOpacity>
+              ))
+            ) : (
+              <View style={{ padding: 20, alignItems: 'center' }}>
+                <Text style={{ color: '#666', fontSize: 16 }}>No users found</Text>
+              </View>
+            )}
+          </ScrollView>
+        </View>
+      )}
+
       {/* Chat List */}
       <View style={{ padding: 16 }}>
         <Text style={{ fontWeight: 'bold', fontSize: 22, marginBottom: 10 }}>Recent Chats</Text>
         <ScrollView>
-          {filteredChats.map(chat => {
+          {recentChats.map(chat => {
             const partner = users[chat.partnerId];
             if (!partner) return null;
             
