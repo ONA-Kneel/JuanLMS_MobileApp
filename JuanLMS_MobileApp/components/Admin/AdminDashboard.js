@@ -22,6 +22,7 @@ export default function AdminDashboard() {
     return () => clearInterval(timer);
   }, []);
 
+  // Audit Logs preview
   useEffect(() => {
     const fetchRecentLogs = async () => {
       const storedLogs = await AsyncStorage.getItem('auditLogs');
@@ -37,6 +38,7 @@ export default function AdminDashboard() {
     fetchRecentLogs();
   }, []);
 
+  // 
   const formatDateTime = (date) => {
     return date.toLocaleString('en-US', {
       weekday: 'long',

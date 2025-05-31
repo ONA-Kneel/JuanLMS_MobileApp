@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Text, TouchableOpacity, View, ScrollView } from 'react-native';
 import { Image } from 'react-native-web';
 import StudentDashStyle from '../styles/Stud/StudentDashStyle';
@@ -6,6 +6,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
 import CustomBottomNav from '../CustomBottomNav';
 import StudentDashboardStyle from '../styles/Stud/StudentDashStyle';
+import { useUser } from '../UserContext';
 
 export default function StudentDashboard() {
   const classes = [
@@ -15,6 +16,29 @@ export default function StudentDashboard() {
     { name: 'Ethics', progress: 1.0 },
   ];
   const changeScreen = useNavigation();
+  const { user } = useUser();
+  const [currentDateTime, setCurrentDateTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentDateTime(new Date());
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  const formatDateTime = (date) => {
+    return date.toLocaleString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true
+    });
+  };
 
   const modules = () => {
     changeScreen.navigate("SModule")
@@ -30,8 +54,8 @@ export default function StudentDashboard() {
       <View style={StudentDashboardStyle.whiteHeaderCard}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <View>
-            <Text style={StudentDashboardStyle.headerTitle}>Hello, <Text style={{ fontWeight: 'bold', fontFamily: 'Poppins-Bold' }}>User!</Text></Text>
-            <Text style={StudentDashboardStyle.headerSubtitle}>Date and Time</Text>
+            <Text style={StudentDashboardStyle.headerTitle}>Hello, <Text style={{ fontWeight: 'bold', fontFamily: 'Poppins-Bold' }}>{user?.firstname || 'Student'}!</Text></Text>
+            <Text style={StudentDashboardStyle.headerSubtitle}>{formatDateTime(currentDateTime)}</Text>
           </View>
           <TouchableOpacity onPress={() => changeScreen.navigate('SProfile')}>
             <Image source={require('../../assets/profile-icon (2).png')} style={{ width: 36, height: 36, borderRadius: 18 }} />

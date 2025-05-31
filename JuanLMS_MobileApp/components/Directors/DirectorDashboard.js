@@ -2,9 +2,34 @@ import { View, Text, TouchableOpacity, Image, ScrollView } from 'react-native';
 import DirectorDashStyle from "../styles/directors/DirectorDashStyle.js";
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
+import { useUser } from '../UserContext';
+import { useState, useEffect } from 'react';
 
 export default function DirectorDashboard () {
   const navigation = useNavigation();
+  const { user } = useUser();
+  const [currentDateTime, setCurrentDateTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentDateTime(new Date());
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  const formatDateTime = (date) => {
+    return date.toLocaleString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true
+    });
+  };
 
   const createModule = () =>{
     navigation.navigate('DModules');
@@ -22,8 +47,8 @@ export default function DirectorDashboard () {
       <View style={{ backgroundColor: '#fff', borderRadius: 18, marginTop: 20, marginBottom: 10, padding: 18, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8, elevation: 2, zIndex: 1 }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <View>
-            <Text style={{ fontFamily: 'Poppins-Bold', fontSize: 20, color: '#00418b' }}>Hello, <Text style={{ fontWeight: 'bold' }}>Dean!</Text></Text>
-            <Text style={{ fontFamily: 'Poppins-Regular', color: '#888', fontSize: 13 }}>Date and Time</Text>
+            <Text style={{ fontFamily: 'Poppins-Bold', fontSize: 20, color: '#00418b' }}>Hello, <Text style={{ fontWeight: 'bold' }}>{user?.firstname || 'Director'}!</Text></Text>
+            <Text style={{ fontFamily: 'Poppins-Regular', color: '#888', fontSize: 13 }}>{formatDateTime(currentDateTime)}</Text>
           </View>
           <TouchableOpacity onPress={() => navigation.navigate('DProfile')}>
             <Image source={require('../../assets/profile-icon (2).png')} style={{ width: 36, height: 36, borderRadius: 18 }} />

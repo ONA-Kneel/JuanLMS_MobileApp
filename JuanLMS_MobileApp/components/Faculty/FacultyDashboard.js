@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Text, TouchableOpacity, View, ScrollView, Image } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
 import FacultyDashStyle from '../styles/faculty/FacultyDashStyle';
+import { useUser } from '../UserContext';
 
 export default function FacultyDashboard() {
   const classes = [
@@ -10,6 +11,29 @@ export default function FacultyDashboard() {
     { name: 'Fundamentals of Programming', students: 30 },
   ];
   const navigation = useNavigation();
+  const { user } = useUser();
+  const [currentDateTime, setCurrentDateTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentDateTime(new Date());
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  const formatDateTime = (date) => {
+    return date.toLocaleString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true
+    });
+  };
 
   const modules = () => {
     navigation.navigate('FMod');
@@ -32,8 +56,8 @@ export default function FacultyDashboard() {
       <View style={FacultyDashStyle.whiteHeaderCard}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <View>
-            <Text style={FacultyDashStyle.headerTitle}>Hello, <Text style={{ fontWeight: 'bold', fontFamily: 'Poppins-Bold' }}>Faculty!</Text></Text>
-            <Text style={FacultyDashStyle.headerSubtitle}>Date and Time</Text>
+            <Text style={FacultyDashStyle.headerTitle}>Hello, <Text style={{ fontWeight: 'bold', fontFamily: 'Poppins-Bold' }}>{user?.firstname || 'Faculty'}!</Text></Text>
+            <Text style={FacultyDashStyle.headerSubtitle}>{formatDateTime(currentDateTime)}</Text>
           </View>
           <TouchableOpacity onPress={goToProfile}>
             <Image source={require('../../assets/profile-icon (2).png')} style={{ width: 36, height: 36, borderRadius: 18 }} />
