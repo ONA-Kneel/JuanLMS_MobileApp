@@ -3,6 +3,7 @@ import { Text, TouchableOpacity, View } from 'react-native';
 import { CheckBox, Image, ImageBackground, ProgressBar, ScrollView, TextInput } from 'react-native-web';
 import * as React from 'react'
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
+import { useState, useEffect } from 'react';
 
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
@@ -75,6 +76,28 @@ function Tabs() {
 export default function StudentActs() {
   //navigation
   const changeScreen = useNavigation();
+  const [currentDateTime, setCurrentDateTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentDateTime(new Date());
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  const formatDateTime = (date) => {
+    return date.toLocaleString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true
+    });
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: '#f3f3f3' }}>
@@ -85,7 +108,7 @@ export default function StudentActs() {
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <View>
             <Text style={StudentActsStyle.headerTitle}>Activities</Text>
-            <Text style={StudentActsStyle.headerSubtitle}>Date and Time</Text>
+            <Text style={StudentActsStyle.headerSubtitle}>{formatDateTime(currentDateTime)}</Text>
           </View>
           <TouchableOpacity onPress={() => changeScreen.navigate('SProfile')}>
             <Image source={require('../../assets/profile-icon (2).png')} style={{ width: 36, height: 36, borderRadius: 18 }} />

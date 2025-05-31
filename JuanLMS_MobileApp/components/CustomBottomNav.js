@@ -37,7 +37,7 @@ export default function CustomBottomNav({ state, descriptors, navigation, navIte
               color={isFocused ? '#00418b' : '#222'}
             />
             <Text style={{
-              fontSize: 12,
+              fontSize: 10,
               color: isFocused ? '#00418b' : '#222',
               fontFamily: 'Poppins-Regular',
               marginTop: 2,

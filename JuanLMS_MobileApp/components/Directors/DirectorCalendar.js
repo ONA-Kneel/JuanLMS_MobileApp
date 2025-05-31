@@ -51,6 +51,28 @@ export default function DirectorCalendar() {
     return timeToString(startOfWeek);
   });
   const [showMonthCalendar, setShowMonthCalendar] = useState(false);
+  const [currentDateTime, setCurrentDateTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentDateTime(new Date());
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  const formatDateTime = (date) => {
+    return date.toLocaleString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true
+    });
+  };
 
   useEffect(() => {
     const fetchAll = async () => {
@@ -147,7 +169,7 @@ export default function DirectorCalendar() {
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <View>
             <Text style={FacultyCalendarStyle.headerTitle}>Calendar</Text>
-            <Text style={FacultyCalendarStyle.headerSubtitle}>Date and Time</Text>
+            <Text style={FacultyCalendarStyle.headerSubtitle}>{formatDateTime(currentDateTime)}</Text>
           </View>
           <TouchableOpacity onPress={() => changeScreen.navigate('DProfile')}>
             <Image source={require('../../assets/profile-icon (2).png')} style={{ width: 36, height: 36, borderRadius: 18 }} />

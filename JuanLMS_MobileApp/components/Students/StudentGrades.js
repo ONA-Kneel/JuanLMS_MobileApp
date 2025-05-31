@@ -2,26 +2,44 @@
 import React, { Component } from 'react';
 import { View, ScrollView, Text, TouchableOpacity } from 'react-native';
 import { Table, TableWrapper, Row } from 'react-native-table-component';
-
-
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Image, ImageBackground, ProgressBar } from 'react-native-web';
 import { StatusBar } from 'expo-status-bar';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
 import StudentGradesStyle from '../styles/Stud/StudentGradesStyle';
 
-
 export default class StudentGrades extends Component {
-    
-
     constructor(props) {
-
         super(props);
         this.state = {
             tableHead: ['Subject Code', 'Subject Description', 'Prelims', 'Midterm', 'Final', 'Final Grade', 'Remarks'],
-            widthArr: [100, 300, 60, 60, 60, 80, 150]
+            widthArr: [100, 300, 60, 60, 60, 80, 150],
+            currentDateTime: new Date()
         }
+    }
+
+    componentDidMount() {
+        this.timer = setInterval(() => {
+            this.setState({ currentDateTime: new Date() });
+        }, 1000);
+    }
+
+    componentWillUnmount() {
+        clearInterval(this.timer);
+    }
+
+    formatDateTime = (date) => {
+        return date.toLocaleString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: true
+        });
     }
 
     // profile function
@@ -41,7 +59,7 @@ export default class StudentGrades extends Component {
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                         <View>
                             <Text style={StudentGradesStyle.headerTitle}>Grades</Text>
-                            <Text style={StudentGradesStyle.headerSubtitle}>Date and Time</Text>
+                            <Text style={StudentGradesStyle.headerSubtitle}>{this.formatDateTime(state.currentDateTime)}</Text>
                         </View>
                         <TouchableOpacity onPress={this.profile}>
                             <Image source={require('../../assets/profile-icon (2).png')} style={{ width: 36, height: 36, borderRadius: 18 }} />

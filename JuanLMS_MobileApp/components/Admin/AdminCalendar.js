@@ -43,6 +43,7 @@ export default function AdminCalendar() {
   const [selectedDate, setSelectedDate] = useState(timeToString(Date.now()));
   const [currentMonth, setCurrentMonth] = useState(getMonthYearString(timeToString(Date.now())));
   const [viewMode, setViewMode] = useState('Month');
+  const [currentDateTime, setCurrentDateTime] = useState(new Date());
   const [weekStartDate, setWeekStartDate] = useState(() => {
     const today = new Date();
     const currentDay = today.getDay();
@@ -92,6 +93,27 @@ export default function AdminCalendar() {
     };
     fetchAll();
   }, []);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentDateTime(new Date());
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  const formatDateTime = (date) => {
+    return date.toLocaleString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true
+    });
+  };
 
   const renderEventCard = (item, index) => (
     <View key={index} style={[AdminCalendarStyle.eventCard, { backgroundColor: item.color || '#2196f3' }]}> 
@@ -147,7 +169,7 @@ export default function AdminCalendar() {
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <View>
             <Text style={AdminCalendarStyle.headerTitle}>Calendar</Text>
-            <Text style={AdminCalendarStyle.headerSubtitle}>Date and Time</Text>
+            <Text style={AdminCalendarStyle.headerSubtitle}>{formatDateTime(currentDateTime)}</Text>
           </View>
           <TouchableOpacity onPress={() => changeScreen.navigate('AProfile')}>
             <Image source={require('../../assets/profile-icon (2).png')} style={{ width: 36, height: 36, borderRadius: 18 }} />

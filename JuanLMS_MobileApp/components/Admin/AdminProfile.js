@@ -37,10 +37,6 @@ export default function AdminProfile() {
 
   const goBack = () => navigation.goBack();
 
-  const goToSupportCenter = () => {
-    navigation.navigate('SupportCenter');
-  }; 
-
   return (
     <View style={AdminProfileStyle.container}>
       {/* Back Button */}
@@ -82,10 +78,6 @@ export default function AdminProfile() {
           <TouchableOpacity style={AdminProfileStyle.actionBtn}>
             <Feather name="bell" size={20} color="#00418b" />
             <Text style={AdminProfileStyle.actionText}>Notify</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={AdminProfileStyle.actionBtn} onPress={goToSupportCenter}>
-            <Feather name="help-circle" size={20} color="#00418b" />
-            <Text style={AdminProfileStyle.actionText}>Support Center</Text>
           </TouchableOpacity>
         </View>
       </View>
