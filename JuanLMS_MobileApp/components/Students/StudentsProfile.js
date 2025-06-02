@@ -33,7 +33,7 @@ export default function StudentsProfile() {
   };
 
   const goToSupportCenter = () => {
-    navigation.navigate('SupportCenter');
+    navigation.navigate('SReq');
   };
 
   if (loading) {
