@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, TouchableOpacity, TextInput, ScrollView, Modal, Animated, Easing, Platform, Dimensions } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, ScrollView, Modal, Animated, Easing, Platform, Dimensions, FlatList } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import StudentSupportStyle from '../styles/Stud/StudentSupportStyle';
 import { useNavigation } from '@react-navigation/native';
@@ -21,6 +21,11 @@ function generateTicketNumber() {
 
 const QA_HEIGHT = 90; // Height of each Q&A item in the scroll view
 
+const TABS = [
+  { key: 'opened', label: 'Opened Tickets' },
+  { key: 'closed', label: 'Closed Tickets' },
+];
+
 export default function StudentSupportCenter() {
   const navigation = useNavigation();
   const [ticket, setTicket] = useState('');
@@ -35,6 +40,11 @@ export default function StudentSupportCenter() {
   const resumeTimeout = useRef();
   const [activeTicketInput, setActiveTicketInput] = useState('');
   const [ticketLookupModal, setTicketLookupModal] = useState({ visible: false, found: false, ticket: null });
+  const [subject, setSubject] = useState('');
+  const [activeTab, setActiveTab] = useState('opened');
+  const [tickets, setTickets] = useState([]);
+  const [selectedTicket, setSelectedTicket] = useState(null);
+  const [searching, setSearching] = useState(false);
 
   const handleSendTicket = () => {
     const newTicketNumber = generateTicketNumber();
@@ -98,19 +108,31 @@ export default function StudentSupportCenter() {
     ? { onMouseEnter: handlePause, onMouseLeave: handleResume }
     : { onPressIn: handlePause, onPressOut: handleResume };
 
-  function handleCheckTicket() {
-    // Mock ticket data for demo
-    const mockTickets = [
-      { number: 'SJDD1234567890', status: 'Active', content: 'Your ticket is being processed.' },
-      { number: 'SJDD0987654321', status: 'Closed', content: 'Your ticket has been resolved.' },
-    ];
-    const found = mockTickets.find(t => t.number === activeTicketInput.trim());
-    if (found) {
-      setTicketLookupModal({ visible: true, found: true, ticket: found });
+  const handleCheckTicket = async () => {
+    setSearching(true);
+    const ticketNumber = activeTicketInput.trim();
+    if (!ticketNumber) return;
+    const res = await fetch(`http://localhost:5000/api/tickets/number/${ticketNumber}`);
+    if (res.ok) {
+      const ticket = await res.json();
+      setTicketLookupModal({ visible: true, found: true, ticket });
     } else {
       setTicketLookupModal({ visible: true, found: false });
     }
-  }
+    setSearching(false);
+  };
+
+  useEffect(() => {
+    fetchTickets();
+  }, [activeTab]);
+
+  const fetchTickets = async () => {
+    // Replace with your userId logic
+    const userId = 'USER_ID';
+    const res = await fetch(`http://localhost:5000/api/tickets/user/${userId}`);
+    const data = await res.json();
+    setTickets(data.filter(t => t.status === activeTab));
+  };
 
   return (
     <ScrollView contentContainerStyle={{ flexGrow: 1 }} style={{ backgroundColor: '#f2f2f2' }}>
@@ -127,6 +149,13 @@ export default function StudentSupportCenter() {
         <Text style={StudentSupportStyle.ticketSubtitle}>Submit a Ticket</Text>
         <TextInput
           style={StudentSupportStyle.ticketInput}
+          placeholder="Subject"
+          placeholderTextColor="#666"
+          value={subject}
+          onChangeText={setSubject}
+        />
+        <TextInput
+          style={StudentSupportStyle.ticketInput}
           placeholder="Type your concern here"
           placeholderTextColor="#666"
           value={ticket}
@@ -140,7 +169,22 @@ export default function StudentSupportCenter() {
         >
           <MaterialIcons name="attach-file" size={24} color="#1976d2" />
         </TouchableOpacity>
-        <TouchableOpacity style={StudentSupportStyle.sendBtn} onPress={handleSendTicket}>
+        <TouchableOpacity style={StudentSupportStyle.sendBtn} onPress={async () => {
+          if (!subject.trim() || !ticket.trim()) return;
+          // Replace with your userId logic
+          const userId = 'USER_ID';
+          const res = await fetch('http://localhost:5000/api/tickets', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId, subject, description: ticket })
+          });
+          const data = await res.json();
+          setSubject('');
+          setTicket('');
+          setTicketNumber(data.number || data._id || '');
+          setModalVisible(true);
+          fetchTickets();
+        }}>
           <MaterialIcons name="send" size={24} color="#00418b" />
         </TouchableOpacity>
       </View>
@@ -320,6 +364,31 @@ export default function StudentSupportCenter() {
           </View>
         )}
       </View>
+      {/* Ticket List */}
+      <Text style={StudentSupportStyle.commonTitle}>Tickets</Text>
+      <FlatList
+        data={tickets}
+        keyExtractor={item => item._id}
+        renderItem={({ item }) => (
+          <TouchableOpacity onPress={() => setSelectedTicket(item)}>
+            <View style={{ backgroundColor: '#fff', margin: 8, borderRadius: 10, padding: 12 }}>
+              <Text style={{ fontWeight: 'bold' }}>Ticket No.: {item.number || item._id}</Text>
+              <Text style={{ fontWeight: 'bold' }}>{item.subject}</Text>
+              <Text>{item.description}</Text>
+              <Text style={{ color: '#888', fontSize: 12 }}>Status: {item.status}</Text>
+            </View>
+          </TouchableOpacity>
+        )}
+      />
+      {/* Selected Ticket Details */}
+      {selectedTicket && (
+        <View style={{ backgroundColor: '#fff', borderRadius: 10, padding: 16, margin: 8 }}>
+          <Text style={{ fontWeight: 'bold', fontSize: 16 }}>Ticket No.: {selectedTicket.number || selectedTicket._id}</Text>
+          <Text style={{ fontWeight: 'bold', fontSize: 16 }}>{selectedTicket.subject}</Text>
+          <Text style={{ marginBottom: 8 }}>{selectedTicket.description}</Text>
+          {/* ...rest of the details... */}
+        </View>
+      )}
     </ScrollView>
   );
 }

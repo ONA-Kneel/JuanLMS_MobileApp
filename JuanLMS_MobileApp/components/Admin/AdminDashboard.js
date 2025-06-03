@@ -83,7 +83,7 @@ export default function AdminDashboard() {
         <View style={{ marginTop: 30, marginBottom: 20 }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
             <Text style={{ fontSize: 18, fontWeight: 'bold', fontFamily: 'Poppins-Bold', color: '#00418b' }}>Recent Activity</Text>
-            <TouchableOpacity onPress={() => changeScreen.navigate('AAudit')}>
+            <TouchableOpacity onPress={() => changeScreen.navigate('AAuditTrail')}>
               <Text style={{ color: '#00418b', fontFamily: 'Poppins-Regular' }}>View All</Text>
             </TouchableOpacity>
           </View>

@@ -93,19 +93,21 @@ export default function AdminAuditTrail() {
         renderItem={({ item: day }) => (
           <View style={styles.daySection}>
             <Text style={styles.dayHeader}>{moment(day).format('MMMM D, YYYY')}</Text>
-            {grouped[day].map(log => (
-              <View key={log._id || log.id} style={styles.card}>
-                <View style={styles.cardRow}>
-                  <Icon name="account" size={24} color="#00418b" style={{ marginRight: 8 }} />
-                  <Text style={styles.userName}>{log.userName} <Text style={styles.role}>({log.userRole})</Text></Text>
+            {[...grouped[day]]
+              .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+              .map((log, idx) => (
+                <View key={log._id || log.id || idx} style={styles.card}>
+                  <View style={styles.cardRow}>
+                    <Icon name="account" size={24} color="#00418b" style={{ marginRight: 8 }} />
+                    <Text style={styles.userName}>{log.userName} <Text style={styles.role}>({log.userRole})</Text></Text>
+                  </View>
+                  <View style={styles.cardRow}>
+                    <Icon name="flash" size={20} color="#888" style={{ marginRight: 4 }} />
+                    <Text style={styles.action}>{log.action}</Text>
+                    <Text style={styles.time}>{moment(log.timestamp).format('hh:mm A')}</Text>
+                  </View>
                 </View>
-                <View style={styles.cardRow}>
-                  <Icon name="flash" size={20} color="#888" style={{ marginRight: 4 }} />
-                  <Text style={styles.action}>{log.action}</Text>
-                  <Text style={styles.time}>{moment(log.timestamp).format('hh:mm A')}</Text>
-                </View>
-              </View>
-            ))}
+              ))}
           </View>
         )}
         ListEmptyComponent={<Text style={{ textAlign: 'center', marginTop: 40, color: '#888' }}>No logs found.</Text>}

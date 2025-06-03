@@ -1,39 +1,39 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, TextInput } from 'react-native';
 import { MaterialIcons, Feather } from '@expo/vector-icons';
+import io from 'socket.io-client';
 
 const TABS = [
-  { label: 'All Tickets', key: 'all' },
-  { label: 'Opened Tickets', key: 'opened' },
-  { label: 'Closed Tickets', key: 'closed' },
-];
-
-const MOCK_TICKETS = [
-  {
-    number: 'TCKT-001',
-    sender: 'John Doe',
-    subject: 'Login Issue',
-    description: 'Cannot login to the system.',
-    status: 'opened',
-    user: 'John Doe',
-  },
-  {
-    number: 'TCKT-002',
-    sender: 'Jane Smith',
-    subject: 'Bug Report',
-    description: 'Found a bug in the calendar.',
-    status: 'closed',
-    user: 'Jane Smith',
-  },
+  { key: 'new', label: 'New Tickets' },
+  { key: 'opened', label: 'Opened Tickets' },
+  { key: 'closed', label: 'Closed Tickets' },
 ];
 
 export default function AdminSupportCenter() {
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
-  const [activeTab, setActiveTab] = useState('all');
+  const [activeTab, setActiveTab] = useState('new');
   const [search, setSearch] = useState('');
   const [dropdownOpen, setDropdownOpen] = useState(false);
-  const [selectedTicket, setSelectedTicket] = useState(MOCK_TICKETS[0]);
+  const [selectedTicket, setSelectedTicket] = useState(null);
   const [reply, setReply] = useState('');
+  const [tickets, setTickets] = useState([]);
+  const [socket, setSocket] = useState(null);
+
+  useEffect(() => {
+    const s = io('http://localhost:5000');
+    setSocket(s);
+    s.on('new_ticket', (ticket) => fetchTickets());
+    s.on('ticket_reply', (ticket) => fetchTickets());
+    s.on('ticket_status', (ticket) => fetchTickets());
+    fetchTickets();
+    return () => s.disconnect();
+  }, [activeTab]);
+
+  const fetchTickets = async () => {
+    const res = await fetch(`http://localhost:5000/api/tickets?status=${activeTab}`);
+    const data = await res.json();
+    setTickets(data);
+  };
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -41,6 +41,15 @@ export default function AdminSupportCenter() {
     }, 1000);
     return () => clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    if (tickets.length > 0 && !selectedTicket) {
+      setSelectedTicket(tickets[0]);
+    }
+    if (tickets.length === 0) {
+      setSelectedTicket(null);
+    }
+  }, [tickets]);
 
   const formatDateTime = (date) => {
     return date.toLocaleString('en-US', {
@@ -54,14 +63,6 @@ export default function AdminSupportCenter() {
       hour12: true,
     });
   };
-
-  // Filter tickets by tab and search
-  const filteredTickets = MOCK_TICKETS.filter(t =>
-    (activeTab === 'all' || t.status === activeTab) &&
-    (t.number.toLowerCase().includes(search.toLowerCase()) ||
-      t.sender.toLowerCase().includes(search.toLowerCase()) ||
-      t.subject.toLowerCase().includes(search.toLowerCase()))
-  );
 
   return (
     <View style={{ flex: 1, backgroundColor: '#f6f7fb' }}>
@@ -156,101 +157,139 @@ export default function AdminSupportCenter() {
         </View>
 
         {/* Ticket Dropdown */}
-        <View style={{ marginHorizontal: 16, marginBottom: 16 }}>
-          <TouchableOpacity
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              backgroundColor: '#fff',
-              borderRadius: 14,
-              padding: 18,
-              shadowColor: '#000',
-              shadowOpacity: 0.08,
-              shadowRadius: 8,
-              shadowOffset: { width: 0, height: 2 },
-              elevation: 3,
-            }}
-            onPress={() => setDropdownOpen(!dropdownOpen)}
-            activeOpacity={0.8}
-          >
-            <View>
-              <Text style={{ color: '#1a237e', fontWeight: 'bold', fontSize: 17 }}>Ticket No.</Text>
-              <Text style={{ color: '#888', fontSize: 14 }}>{selectedTicket.sender}</Text>
-            </View>
-            <MaterialIcons name={dropdownOpen ? 'keyboard-arrow-up' : 'keyboard-arrow-down'} size={28} color="#00418b" />
-          </TouchableOpacity>
-          {dropdownOpen && (
-            <View style={{
-              backgroundColor: '#fff',
-              borderRadius: 14,
-              marginTop: 2,
-              shadowColor: '#000',
-              shadowOpacity: 0.10,
-              shadowRadius: 8,
-              elevation: 4,
-            }}>
-              {filteredTickets.map((ticket, idx) => (
-                <TouchableOpacity
-                  key={ticket.number}
-                  style={{ padding: 16, borderBottomWidth: idx !== filteredTickets.length - 1 ? 1 : 0, borderBottomColor: '#eee' }}
-                  onPress={() => { setSelectedTicket(ticket); setDropdownOpen(false); }}
-                >
-                  <Text style={{ color: '#1a237e', fontWeight: 'bold', fontSize: 16 }}>{ticket.number}</Text>
-                  <Text style={{ color: '#888', fontSize: 14 }}>{ticket.sender}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
-        </View>
+        {tickets.length > 0 ? (
+          <View style={{ marginHorizontal: 16, marginBottom: 16 }}>
+            <TouchableOpacity
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                backgroundColor: '#fff',
+                borderRadius: 14,
+                padding: 18,
+                shadowColor: '#000',
+                shadowOpacity: 0.08,
+                shadowRadius: 8,
+                shadowOffset: { width: 0, height: 2 },
+                elevation: 3,
+              }}
+              onPress={() => setDropdownOpen(!dropdownOpen)}
+              activeOpacity={0.8}
+            >
+              <View>
+                <Text style={{ color: '#1a237e', fontWeight: 'bold', fontSize: 17 }}>Ticket No.: {selectedTicket?.number || selectedTicket?._id}</Text>
+                <Text style={{ color: '#888', fontSize: 14 }}>{selectedTicket?.userId}</Text>
+              </View>
+              <MaterialIcons name={dropdownOpen ? 'keyboard-arrow-up' : 'keyboard-arrow-down'} size={28} color="#00418b" />
+            </TouchableOpacity>
+            {dropdownOpen && (
+              <View style={{
+                backgroundColor: '#fff',
+                borderRadius: 14,
+                marginTop: 2,
+                shadowColor: '#000',
+                shadowOpacity: 0.10,
+                shadowRadius: 8,
+                elevation: 4,
+              }}>
+                {tickets.map((ticket, idx) => (
+                  <TouchableOpacity
+                    key={ticket._id}
+                    style={{ padding: 16, borderBottomWidth: idx !== tickets.length - 1 ? 1 : 0, borderBottomColor: '#eee' }}
+                    onPress={() => { setSelectedTicket(ticket); setDropdownOpen(false); }}
+                  >
+                    <Text style={{ color: '#1a237e', fontWeight: 'bold', fontSize: 16 }}>{ticket.number || ticket._id}</Text>
+                    <Text style={{ color: '#888', fontSize: 14 }}>{ticket.userId}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </View>
+        ) : (
+          <Text style={{ textAlign: 'center', color: '#888', marginVertical: 24 }}>No tickets found for this tab.</Text>
+        )}
 
         {/* Ticket Details Card */}
-        <View style={{
-          backgroundColor: '#fff',
-          borderRadius: 16,
-          marginHorizontal: 16,
-          padding: 20,
-          shadowColor: '#000',
-          shadowOpacity: 0.10,
-          shadowRadius: 10,
-          shadowOffset: { width: 0, height: 3 },
-          elevation: 4,
-          marginBottom: 18,
-        }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <Text style={{ color: '#1a237e', fontWeight: 'bold', fontSize: 17 }}>Ticket</Text>
-            <Text style={{ color: '#222', fontWeight: 'bold', fontSize: 13 }}>User that sent the ticket</Text>
-          </View>
-          <Text style={{ color: '#222', fontWeight: 'bold', fontSize: 16, marginBottom: 2 }}>{selectedTicket.subject}</Text>
-          <Text style={{ color: '#888', fontSize: 14, marginBottom: 14 }}>{selectedTicket.description}</Text>
-          {/* Reply input */}
+        {selectedTicket && (
           <View style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            borderWidth: 1.5,
-            borderColor: '#00418b',
-            borderRadius: 22,
-            paddingHorizontal: 12,
-            marginTop: 10,
             backgroundColor: '#fff',
+            borderRadius: 16,
+            marginHorizontal: 16,
+            padding: 20,
             shadowColor: '#000',
-            shadowOpacity: 0.06,
-            shadowRadius: 4,
-            shadowOffset: { width: 0, height: 1 },
-            elevation: 1,
+            shadowOpacity: 0.10,
+            shadowRadius: 10,
+            shadowOffset: { width: 0, height: 3 },
+            elevation: 4,
+            marginBottom: 18,
           }}>
-            <TextInput
-              style={{ flex: 1, height: 38, fontSize: 15, color: '#222', backgroundColor: 'transparent' }}
-              placeholder="Reply"
-              placeholderTextColor="#888"
-              value={reply}
-              onChangeText={setReply}
-            />
-            <TouchableOpacity onPress={() => setReply('')}>
-              <Feather name="send" size={22} color="#00418b" />
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <Text style={{ color: '#1a237e', fontWeight: 'bold', fontSize: 17 }}>Ticket No.: {selectedTicket?.number || selectedTicket?._id}</Text>
+              <Text style={{ color: '#222', fontWeight: 'bold', fontSize: 13 }}>User: {selectedTicket?.userId}</Text>
+            </View>
+            <Text style={{ color: '#222', fontWeight: 'bold', fontSize: 16, marginBottom: 2 }}>{selectedTicket?.subject}</Text>
+            <Text style={{ color: '#888', fontSize: 14, marginBottom: 14 }}>{selectedTicket?.description}</Text>
+            {/* Status Buttons */}
+            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginBottom: 10 }}>
+              <TouchableOpacity
+                style={{ backgroundColor: '#00418b', borderRadius: 8, padding: 10, marginRight: 8 }}
+                onPress={async () => {
+                  await fetch(`http://localhost:5000/api/tickets/${selectedTicket._id}/close`, { method: 'POST' });
+                  setSelectedTicket(null);
+                  fetchTickets();
+                }}
+              >
+                <Text style={{ color: '#fff', fontWeight: 'bold' }}>Problem Solved</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={{ backgroundColor: '#fff', borderRadius: 8, padding: 10, borderWidth: 2, borderColor: '#00418b' }}
+                onPress={async () => {
+                  await fetch(`http://localhost:5000/api/tickets/${selectedTicket._id}/open`, { method: 'POST' });
+                  setSelectedTicket(null);
+                  fetchTickets();
+                }}
+              >
+                <Text style={{ color: '#00418b', fontWeight: 'bold' }}>In Progress</Text>
+              </TouchableOpacity>
+            </View>
+            {/* Reply input */}
+            <View style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              borderWidth: 1.5,
+              borderColor: '#00418b',
+              borderRadius: 22,
+              paddingHorizontal: 12,
+              marginTop: 10,
+              backgroundColor: '#fff',
+              shadowColor: '#000',
+              shadowOpacity: 0.06,
+              shadowRadius: 4,
+              shadowOffset: { width: 0, height: 1 },
+              elevation: 1,
+            }}>
+              <TextInput
+                style={{ flex: 1, height: 38, fontSize: 15, color: '#222', backgroundColor: 'transparent' }}
+                placeholder="Reply"
+                placeholderTextColor="#888"
+                value={reply}
+                onChangeText={setReply}
+              />
+              <TouchableOpacity onPress={async () => {
+                if (!reply.trim()) return;
+                await fetch(`http://localhost:5000/api/tickets/${selectedTicket._id}/reply`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ sender: 'admin', senderId: 'ADMIN_ID', message: reply })
+                });
+                setReply('');
+                fetchTickets();
+              }}>
+                <Feather name="send" size={22} color="#00418b" />
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
+        )}
       </ScrollView>
     </View>
   );

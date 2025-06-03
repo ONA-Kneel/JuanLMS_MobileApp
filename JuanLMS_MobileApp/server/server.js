@@ -10,6 +10,7 @@ import messagesRouter from './routes/messages.js';
 import http from 'http';
 import { Server } from 'socket.io';
 import { MongoClient } from 'mongodb';
+import ticketsRouter from "./routes/tickets.js";
 
 const app = express();
 const PORT = 5000;
@@ -18,6 +19,7 @@ app.use(cors());
 app.use(express.json());
 app.use(users);
 app.use('/api/messages', messagesRouter);
+app.use('/api/tickets', ticketsRouter);
 
 // Events API endpoint
 app.get('/api/events', async (req, res) => {
