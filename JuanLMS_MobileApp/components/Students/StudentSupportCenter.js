@@ -364,31 +364,6 @@ export default function StudentSupportCenter() {
           </View>
         )}
       </View>
-      {/* Ticket List */}
-      <Text style={StudentSupportStyle.commonTitle}>Tickets</Text>
-      <FlatList
-        data={tickets}
-        keyExtractor={item => item._id}
-        renderItem={({ item }) => (
-          <TouchableOpacity onPress={() => setSelectedTicket(item)}>
-            <View style={{ backgroundColor: '#fff', margin: 8, borderRadius: 10, padding: 12 }}>
-              <Text style={{ fontWeight: 'bold' }}>Ticket No.: {item.number || item._id}</Text>
-              <Text style={{ fontWeight: 'bold' }}>{item.subject}</Text>
-              <Text>{item.description}</Text>
-              <Text style={{ color: '#888', fontSize: 12 }}>Status: {item.status}</Text>
-            </View>
-          </TouchableOpacity>
-        )}
-      />
-      {/* Selected Ticket Details */}
-      {selectedTicket && (
-        <View style={{ backgroundColor: '#fff', borderRadius: 10, padding: 16, margin: 8 }}>
-          <Text style={{ fontWeight: 'bold', fontSize: 16 }}>Ticket No.: {selectedTicket.number || selectedTicket._id}</Text>
-          <Text style={{ fontWeight: 'bold', fontSize: 16 }}>{selectedTicket.subject}</Text>
-          <Text style={{ marginBottom: 8 }}>{selectedTicket.description}</Text>
-          {/* ...rest of the details... */}
-        </View>
-      )}
     </ScrollView>
   );
 }

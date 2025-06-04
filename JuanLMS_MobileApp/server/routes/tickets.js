@@ -74,7 +74,11 @@ ticketsRouter.post('/:ticketId/reply', async (req, res) => {
 ticketsRouter.get('/', async (req, res) => {
   const db = database.getDb();
   const { status } = req.query;
-  const query = status ? { status } : {};
+  const VALID_STATUSES = ['new', 'opened', 'closed'];
+  let query = {};
+  if (status && VALID_STATUSES.includes(status)) {
+    query.status = status;
+  }
   const tickets = await db.collection('Tickets').find(query).toArray();
   res.json(tickets);
 });

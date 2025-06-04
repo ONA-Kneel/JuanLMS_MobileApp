@@ -27,7 +27,7 @@ export default function FacultyProfile() {
   };
 
   const goToSupportCenter = () => {
-    navigation.navigate('FMain');
+    navigation.navigate('FReq');
   };
 
   if (!user) {

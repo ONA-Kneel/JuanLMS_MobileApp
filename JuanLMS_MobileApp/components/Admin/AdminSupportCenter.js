@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, TextInput } from 'react-native';
 import { MaterialIcons, Feather } from '@expo/vector-icons';
 import io from 'socket.io-client';
+import { useNavigation } from '@react-navigation/native';
 
 const TABS = [
   { key: 'new', label: 'New Tickets' },
@@ -18,6 +19,7 @@ export default function AdminSupportCenter() {
   const [reply, setReply] = useState('');
   const [tickets, setTickets] = useState([]);
   const [socket, setSocket] = useState(null);
+  const navigation = useNavigation();
 
   useEffect(() => {
     const s = io('http://localhost:5000');
@@ -90,10 +92,14 @@ export default function AdminSupportCenter() {
               <Text style={{ fontFamily: 'Poppins-Bold', fontSize: 22, color: '#222' }}>Support Center</Text>
               <Text style={{ fontFamily: 'Poppins-Regular', color: '#888', fontSize: 13, marginTop: 2 }}>{formatDateTime(currentDateTime)}</Text>
             </View>
-            {/* Gray circle for profile icon */}
-            <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: '#e3eefd', alignItems: 'center', justifyContent: 'center' }}>
+            {/* Touchable profile icon */}
+            <TouchableOpacity
+              style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: '#e3eefd', alignItems: 'center', justifyContent: 'center' }}
+              onPress={() => navigation.navigate('AProfile')}
+              activeOpacity={0.7}
+            >
               <MaterialIcons name="person" size={26} color="#b0b0b0" />
-            </View>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -156,7 +162,7 @@ export default function AdminSupportCenter() {
           />
         </View>
 
-        {/* Ticket Dropdown */}
+        {/* Ticket Dropdown (make dropdown scrollable) */}
         {tickets.length > 0 ? (
           <View style={{ marginHorizontal: 16, marginBottom: 16 }}>
             <TouchableOpacity
@@ -178,7 +184,7 @@ export default function AdminSupportCenter() {
             >
               <View>
                 <Text style={{ color: '#1a237e', fontWeight: 'bold', fontSize: 17 }}>Ticket No.: {selectedTicket?.number || selectedTicket?._id}</Text>
-                <Text style={{ color: '#888', fontSize: 14 }}>{selectedTicket?.userId}</Text>
+                <Text style={{ color: '#00418b', fontWeight: 'bold', fontSize: 16 }}>{selectedTicket?.subject}</Text>
               </View>
               <MaterialIcons name={dropdownOpen ? 'keyboard-arrow-up' : 'keyboard-arrow-down'} size={28} color="#00418b" />
             </TouchableOpacity>
@@ -191,17 +197,20 @@ export default function AdminSupportCenter() {
                 shadowOpacity: 0.10,
                 shadowRadius: 8,
                 elevation: 4,
+                maxHeight: 250,
               }}>
-                {tickets.map((ticket, idx) => (
-                  <TouchableOpacity
-                    key={ticket._id}
-                    style={{ padding: 16, borderBottomWidth: idx !== tickets.length - 1 ? 1 : 0, borderBottomColor: '#eee' }}
-                    onPress={() => { setSelectedTicket(ticket); setDropdownOpen(false); }}
-                  >
-                    <Text style={{ color: '#1a237e', fontWeight: 'bold', fontSize: 16 }}>{ticket.number || ticket._id}</Text>
-                    <Text style={{ color: '#888', fontSize: 14 }}>{ticket.userId}</Text>
-                  </TouchableOpacity>
-                ))}
+                <ScrollView style={{ maxHeight: 250 }}>
+                  {tickets.map((ticket, idx) => (
+                    <TouchableOpacity
+                      key={ticket._id}
+                      style={{ padding: 16, borderBottomWidth: idx !== tickets.length - 1 ? 1 : 0, borderBottomColor: '#eee' }}
+                      onPress={() => { setSelectedTicket(ticket); setDropdownOpen(false); }}
+                    >
+                      <Text style={{ color: '#1a237e', fontWeight: 'bold', fontSize: 16 }}>Ticket No.: {ticket.number || ticket._id}</Text>
+                      <Text style={{ color: '#00418b', fontWeight: 'bold', fontSize: 15 }}>{ticket.subject}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
               </View>
             )}
           </View>
@@ -210,7 +219,7 @@ export default function AdminSupportCenter() {
         )}
 
         {/* Ticket Details Card */}
-        {selectedTicket && (
+        {selectedTicket && dropdownOpen === false && (
           <View style={{
             backgroundColor: '#fff',
             borderRadius: 16,
@@ -225,33 +234,70 @@ export default function AdminSupportCenter() {
           }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
               <Text style={{ color: '#1a237e', fontWeight: 'bold', fontSize: 17 }}>Ticket No.: {selectedTicket?.number || selectedTicket?._id}</Text>
-              <Text style={{ color: '#222', fontWeight: 'bold', fontSize: 13 }}>User: {selectedTicket?.userId}</Text>
             </View>
-            <Text style={{ color: '#222', fontWeight: 'bold', fontSize: 16, marginBottom: 2 }}>{selectedTicket?.subject}</Text>
+            <Text style={{ color: '#00418b', fontWeight: 'bold', fontSize: 16, marginBottom: 2 }}>{selectedTicket?.subject}</Text>
             <Text style={{ color: '#888', fontSize: 14, marginBottom: 14 }}>{selectedTicket?.description}</Text>
             {/* Status Buttons */}
             <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginBottom: 10 }}>
-              <TouchableOpacity
-                style={{ backgroundColor: '#00418b', borderRadius: 8, padding: 10, marginRight: 8 }}
-                onPress={async () => {
-                  await fetch(`http://localhost:5000/api/tickets/${selectedTicket._id}/close`, { method: 'POST' });
-                  setSelectedTicket(null);
-                  fetchTickets();
-                }}
-              >
-                <Text style={{ color: '#fff', fontWeight: 'bold' }}>Problem Solved</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={{ backgroundColor: '#fff', borderRadius: 8, padding: 10, borderWidth: 2, borderColor: '#00418b' }}
-                onPress={async () => {
-                  await fetch(`http://localhost:5000/api/tickets/${selectedTicket._id}/open`, { method: 'POST' });
-                  setSelectedTicket(null);
-                  fetchTickets();
-                }}
-              >
-                <Text style={{ color: '#00418b', fontWeight: 'bold' }}>In Progress</Text>
-              </TouchableOpacity>
+              {activeTab === 'opened' && (
+                <>
+                  <TouchableOpacity
+                    style={{ backgroundColor: '#00418b', borderRadius: 8, padding: 10, marginRight: 8 }}
+                    onPress={async () => {
+                      await fetch(`http://localhost:5000/api/tickets/${selectedTicket._id}/close`, { method: 'POST' });
+                      setSelectedTicket(null);
+                      fetchTickets();
+                    }}
+                  >
+                    <Text style={{ color: '#fff', fontWeight: 'bold' }}>Problem Solved</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={{ backgroundColor: '#fff', borderRadius: 8, padding: 10, borderWidth: 2, borderColor: '#00418b' }}
+                    onPress={async () => {
+                      await fetch(`http://localhost:5000/api/tickets/${selectedTicket._id}/open`, { method: 'POST' });
+                      setSelectedTicket(null);
+                      fetchTickets();
+                    }}
+                  >
+                    <Text style={{ color: '#00418b', fontWeight: 'bold' }}>In Progress</Text>
+                  </TouchableOpacity>
+                </>
+              )}
+              {/* In closed tab, show only In Progress and Delete */}
+              {activeTab === 'closed' && (
+                <>
+                  <TouchableOpacity
+                    style={{ backgroundColor: '#fff', borderRadius: 8, padding: 10, borderWidth: 2, borderColor: '#00418b' }}
+                    onPress={async () => {
+                      await fetch(`http://localhost:5000/api/tickets/${selectedTicket._id}/open`, { method: 'POST' });
+                      setSelectedTicket(null);
+                      fetchTickets();
+                    }}
+                  >
+                    <Text style={{ color: '#00418b', fontWeight: 'bold' }}>In Progress</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={{ backgroundColor: '#d32f2f', borderRadius: 8, padding: 10, marginLeft: 8 }}
+                    onPress={async () => {
+                      const confirmed = window.confirm('Are you sure you want to delete this ticket?');
+                      if (confirmed) {
+                        await fetch(`http://localhost:5000/api/tickets/${selectedTicket._id}`, { method: 'DELETE' });
+                        setSelectedTicket(null);
+                        fetchTickets();
+                      }
+                    }}
+                  >
+                    <Text style={{ color: '#fff', fontWeight: 'bold' }}>Delete</Text>
+                  </TouchableOpacity>
+                </>
+              )}
             </View>
+            {/* 30-day retention message for closed tickets */}
+            {activeTab === 'closed' && (
+              <Text style={{ color: '#d32f2f', fontSize: 13, marginBottom: 8 }}>
+                This ticket will be permanently deleted after 30 days in closed status.
+              </Text>
+            )}
             {/* Reply input */}
             <View style={{
               flexDirection: 'row',

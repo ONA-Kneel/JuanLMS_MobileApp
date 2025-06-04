@@ -26,7 +26,7 @@ export default function DirectorProfile() {
     navigation.navigate('Login');
   };
   const goToSupportCenter = () => {
-    navigation.navigate('DScMain');
+    navigation.navigate('DSupCent');
   };
 
   if (!user) {

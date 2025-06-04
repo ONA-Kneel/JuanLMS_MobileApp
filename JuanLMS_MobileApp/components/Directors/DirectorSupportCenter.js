@@ -1,29 +1,35 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, TouchableOpacity, TextInput, ScrollView, Modal, Animated, Easing, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, TextInput, ScrollView, Modal, Animated, Easing, Platform, Dimensions, FlatList } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import DirectorSupportStyle from '../styles/directors/DirectorSupportStyle';
 import StudentSupportStyle from '../styles/Stud/StudentSupportStyle';
 import { useNavigation } from '@react-navigation/native';
+import { useUser } from '../UserContext';
 
 const commonQuestions = [
   { question: 'How do I reset my password?', answer: 'Go to settings and select "Reset Password".' },
   { question: 'How do I contact support?', answer: 'You can submit a ticket here or email support@juanlms.com.' },
-  { question: 'Where can I find my grades?', answer: 'Grades are available in the Grades section of your dashboard.' },
+  { question: 'How do I manage faculty?', answer: 'Go to the Faculty Management section in your dashboard.' },
   { question: 'How do I update my profile?', answer: 'Go to your profile and tap the edit button.' },
-  { question: 'How do I join a class?', answer: 'Ask your instructor for a class code and enter it in the Join Class section.' },
-  { question: "Why can't I see my modules?", answer: 'Modules are visible only after your instructor publishes them.' },
-  { question: 'How do I submit assignments?', answer: 'Go to the Activities tab, select the assignment, and upload your file.' },
+  { question: 'How do I create a new department?', answer: 'Go to the Departments section and click "Create New Department".' },
+  { question: "Why can't I see faculty members?", answer: 'Faculty members are visible only after they are added to your department.' },
+  { question: 'How do I manage departments?', answer: 'Go to the Departments tab and use the management interface.' },
 ];
 
 function generateTicketNumber() {
   const randomNum = Math.floor(1000000000 + Math.random() * 9000000000); // 10 digits
-  return `SJDD${randomNum}`;
+  return `DJDD${randomNum}`;
 }
 
-const QA_HEIGHT = 90;
+const QA_HEIGHT = 90; // Height of each Q&A item in the scroll view
+
+const TABS = [
+  { key: 'opened', label: 'Opened Tickets' },
+  { key: 'closed', label: 'Closed Tickets' },
+];
 
 export default function DirectorSupportCenter() {
   const navigation = useNavigation();
+  const { user } = useUser();
   const [ticket, setTicket] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
@@ -31,11 +37,16 @@ export default function DirectorSupportCenter() {
   const scrollY = useRef(new Animated.Value(0)).current;
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
-  const [overlayIndex, setOverlayIndex] = useState(null);
+  const [overlayIndex, setOverlayIndex] = useState(null); // For overlay Q&A
   const timerRef = useRef();
   const resumeTimeout = useRef();
   const [activeTicketInput, setActiveTicketInput] = useState('');
   const [ticketLookupModal, setTicketLookupModal] = useState({ visible: false, found: false, ticket: null });
+  const [subject, setSubject] = useState('');
+  const [activeTab, setActiveTab] = useState('opened');
+  const [tickets, setTickets] = useState([]);
+  const [selectedTicket, setSelectedTicket] = useState(null);
+  const [searching, setSearching] = useState(false);
 
   const handleSendTicket = () => {
     const newTicketNumber = generateTicketNumber();
@@ -44,8 +55,34 @@ export default function DirectorSupportCenter() {
     setTicket('');
   };
 
+  const handleCheckTicket = async () => {
+    setSearching(true);
+    const ticketNumber = activeTicketInput.trim();
+    if (!ticketNumber) return;
+    const res = await fetch(`http://localhost:5000/api/tickets/number/${ticketNumber}`);
+    if (res.ok) {
+      const ticket = await res.json();
+      setTicketLookupModal({ visible: true, found: true, ticket });
+    } else {
+      setTicketLookupModal({ visible: true, found: false });
+    }
+    setSearching(false);
+  };
+
   useEffect(() => {
-    if (overlayIndex !== null) return;
+    fetchTickets();
+  }, [activeTab]);
+
+  const fetchTickets = async () => {
+    const userId = user?._id;
+    const res = await fetch(`http://localhost:5000/api/tickets/user/${userId}`);
+    const data = await res.json();
+    setTickets(data.filter(t => t.status === activeTab));
+  };
+
+  // Auto-scroll animation
+  useEffect(() => {
+    if (overlayIndex !== null) return; // Pause if overlay is open
     let isMounted = true;
     function scrollToNext() {
       if (!isMounted || isPaused) return;
@@ -88,22 +125,10 @@ export default function DirectorSupportCenter() {
 
   const handlePause = () => setIsPaused(true);
   const handleResume = () => { if (overlayIndex === null) setIsPaused(false); };
+
   const answerBoxProps = Platform.OS === 'web'
     ? { onMouseEnter: handlePause, onMouseLeave: handleResume }
     : { onPressIn: handlePause, onPressOut: handleResume };
-
-  function handleCheckTicket() {
-    const mockTickets = [
-      { number: 'SJDD1234567890', status: 'Active', content: 'Your ticket is being processed.' },
-      { number: 'SJDD0987654321', status: 'Closed', content: 'Your ticket has been resolved.' },
-    ];
-    const found = mockTickets.find(t => t.number === activeTicketInput.trim());
-    if (found) {
-      setTicketLookupModal({ visible: true, found: true, ticket: found });
-    } else {
-      setTicketLookupModal({ visible: true, found: false });
-    }
-  }
 
   return (
     <ScrollView contentContainerStyle={{ flexGrow: 1 }} style={{ backgroundColor: '#f2f2f2' }}>
@@ -120,6 +145,13 @@ export default function DirectorSupportCenter() {
         <Text style={StudentSupportStyle.ticketSubtitle}>Submit a Ticket</Text>
         <TextInput
           style={StudentSupportStyle.ticketInput}
+          placeholder="Subject"
+          placeholderTextColor="#666"
+          value={subject}
+          onChangeText={setSubject}
+        />
+        <TextInput
+          style={StudentSupportStyle.ticketInput}
           placeholder="Type your concern here"
           placeholderTextColor="#666"
           value={ticket}
@@ -133,10 +165,25 @@ export default function DirectorSupportCenter() {
         >
           <MaterialIcons name="attach-file" size={24} color="#1976d2" />
         </TouchableOpacity>
-        <TouchableOpacity style={StudentSupportStyle.sendBtn} onPress={handleSendTicket}>
+        <TouchableOpacity style={StudentSupportStyle.sendBtn} onPress={async () => {
+          if (!subject.trim() || !ticket.trim()) return;
+          const userId = user?._id;
+          const res = await fetch('http://localhost:5000/api/tickets', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId, subject, description: ticket })
+          });
+          const data = await res.json();
+          setSubject('');
+          setTicket('');
+          setTicketNumber(data.number || data._id || '');
+          setModalVisible(true);
+          fetchTickets();
+        }}>
           <MaterialIcons name="send" size={24} color="#00418b" />
         </TouchableOpacity>
       </View>
+
       {/* Active Ticket Lookup Section */}
       <View style={[StudentSupportStyle.ticketCard, { marginTop: 10, marginBottom: 18 }]}> 
         <Text style={{ fontWeight: 'bold', color: '#222', fontSize: 16, textAlign: 'center', marginBottom: 2 }}>
@@ -157,7 +204,7 @@ export default function DirectorSupportCenter() {
               marginRight: 8,
               fontSize: 15,
             }}
-            placeholder="SJDDxxxxxxxxxx"
+            placeholder="DJDDxxxxxxxxxx"
             placeholderTextColor="#aaa"
             value={activeTicketInput}
             onChangeText={setActiveTicketInput}
@@ -171,6 +218,7 @@ export default function DirectorSupportCenter() {
           </TouchableOpacity>
         </View>
       </View>
+
       {/* Modal for ticket lookup result */}
       <Modal
         visible={ticketLookupModal.visible}
@@ -201,6 +249,8 @@ export default function DirectorSupportCenter() {
           </View>
         </View>
       </Modal>
+
+      {/* Modal for ticket submission */}
       <Modal
         visible={modalVisible}
         transparent
@@ -219,6 +269,7 @@ export default function DirectorSupportCenter() {
           </View>
         </View>
       </Modal>
+
       {/* Common Questions */}
       <Text style={StudentSupportStyle.commonTitle}>Common Questions</Text>
       {/* Auto-scroll Q&A animation box at the top */}
@@ -234,8 +285,8 @@ export default function DirectorSupportCenter() {
       </View>
       {/* Dropdown and static Q&A below the animation box */}
       <View style={{ marginHorizontal: 16, marginBottom: 30 }}>
-        <TouchableOpacity
-          style={{
+          <TouchableOpacity
+            style={{
             flexDirection: 'row',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -262,10 +313,10 @@ export default function DirectorSupportCenter() {
             top: 48,
             left: 0,
             right: 0,
-            backgroundColor: '#fff',
-            borderRadius: 10,
-            borderWidth: 1,
-            borderColor: '#1976d2',
+              backgroundColor: '#fff',
+              borderRadius: 10,
+              borderWidth: 1,
+              borderColor: '#1976d2',
             zIndex: 10,
             shadowColor: '#000',
             shadowOpacity: 0.08,
@@ -281,10 +332,11 @@ export default function DirectorSupportCenter() {
                 onPress={() => { setOverlayIndex(idx); setShowDropdown(false); }}
               >
                 <Text style={{ color: '#222', fontSize: 15 }}>{q.question}</Text>
-              </TouchableOpacity>
-            ))}
+          </TouchableOpacity>
+        ))}
           </View>
         )}
+        {/* Show answer card below dropdown if a question is selected */}
         {overlayIndex !== null && (
           <View style={{
             marginTop: 8,
@@ -309,6 +361,29 @@ export default function DirectorSupportCenter() {
           </View>
         )}
       </View>
+
+      {/* Ticket List */}
+      {tickets && tickets.length > 0 && (
+        <View style={{ marginHorizontal: 16, marginBottom: 16 }}>
+          {tickets.map((ticket, idx) => (
+            <TouchableOpacity
+              key={ticket._id || idx}
+              style={{
+                backgroundColor: '#fff',
+                borderRadius: 10,
+                padding: 16,
+                marginBottom: 8,
+                borderWidth: 1,
+                borderColor: '#1976d2',
+              }}
+              onPress={() => {/* handle ticket select if needed */}}
+            >
+              <Text style={{ fontWeight: 'bold', color: '#00418b', fontSize: 16 }}>{ticket.subject}</Text>
+              <Text style={{ color: '#888', fontSize: 14 }}>{ticket.description}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
     </ScrollView>
   );
 }

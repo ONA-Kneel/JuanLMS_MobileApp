@@ -1,13 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, TextInput } from 'react-native';
+import { View, Text, FlatList, StyleSheet } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import moment from 'moment';
-import { Picker } from '@react-native-picker/picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useIsFocused } from '@react-navigation/native';
-
-const roles = ['all', 'admin', 'student', 'faculty', 'parent', 'director'];
-const actions = ['all', 'Login', 'Logout', 'Update', 'Create Account', 'Archive Account'];
+import { Picker } from '@react-native-picker/picker';
 
 function groupLogsByDay(logs) {
   return logs.reduce((acc, log) => {
@@ -18,10 +15,19 @@ function groupLogsByDay(logs) {
   }, {});
 }
 
+function getUniqueUsersByRole(logs) {
+  const usersByRole = {};
+  logs.forEach(log => {
+    if (!usersByRole[log.userRole]) usersByRole[log.userRole] = [];
+    if (!usersByRole[log.userRole].some(u => u.userId === log.userId)) {
+      usersByRole[log.userRole].push({ userId: log.userId, userName: log.userName });
+    }
+  });
+  return usersByRole;
+}
+
 export default function AdminAuditTrail() {
-  const [userFilter, setUserFilter] = useState('');
-  const [roleFilter, setRoleFilter] = useState('all');
-  const [actionFilter, setActionFilter] = useState('all');
+  const [selectedUser, setSelectedUser] = useState('all');
   const [logs, setLogs] = useState([]);
   const isFocused = useIsFocused();
 
@@ -33,12 +39,24 @@ export default function AdminAuditTrail() {
     if (isFocused) fetchLogs();
   }, [isFocused]);
 
-  // Filtering logic
+  // Prepare user dropdown options
+  const usersByRole = getUniqueUsersByRole(logs);
+  const pickerItems = [
+    <Picker.Item key="all" label="All Users" value="all" />,
+    ...Object.entries(usersByRole).flatMap(([role, users]) =>
+      users.map(user => (
+        <Picker.Item
+          key={`${user.userId}-${role}`}
+          label={`${user.userName} (${role})`}
+          value={`${user.userId}-${role}`}
+        />
+      ))
+    )
+  ];
+
+  // Filtering logic (by selected user and role)
   const filteredLogs = logs.filter(log => {
-    const userMatch = userFilter === '' || log.userName.toLowerCase().includes(userFilter.toLowerCase());
-    const roleMatch = roleFilter === 'all' || log.userRole === roleFilter;
-    const actionMatch = actionFilter === 'all' || log.action === actionFilter;
-    return userMatch && roleMatch && actionMatch;
+    return selectedUser === 'all' || `${log.userId}-${log.userRole}` === selectedUser;
   });
 
   const grouped = groupLogsByDay(filteredLogs);
@@ -51,40 +69,16 @@ export default function AdminAuditTrail() {
         <Text style={styles.headerTitle}>Audit Trail</Text>
         <Icon name="history" size={28} color="#00418b" />
       </View>
-      {/* Filters */}
+      {/* User Dropdown Filter */}
       <View style={styles.filters}>
-        <TextInput
-          style={styles.input}
-          placeholder="Search by user name..."
-          value={userFilter}
-          onChangeText={setUserFilter}
-        />
-        <View style={styles.pickerRow}>
-          <View style={styles.pickerContainer}>
-            <Picker
-              selectedValue={roleFilter}
-              onValueChange={setRoleFilter}
-              style={styles.picker}
-              dropdownIconColor="#00418b"
-            >
-              {roles.map(role => (
-                <Picker.Item key={role} label={role.charAt(0).toUpperCase() + role.slice(1)} value={role} />
-              ))}
-            </Picker>
-          </View>
-          <View style={styles.pickerContainer}>
-            <Picker
-              selectedValue={actionFilter}
-              onValueChange={setActionFilter}
-              style={styles.picker}
-              dropdownIconColor="#00418b"
-            >
-              {actions.map(action => (
-                <Picker.Item key={action} label={action} value={action} />
-              ))}
-            </Picker>
-          </View>
-        </View>
+        <Picker
+          selectedValue={selectedUser}
+          onValueChange={setSelectedUser}
+          style={styles.picker}
+          dropdownIconColor="#00418b"
+        >
+          {pickerItems}
+        </Picker>
       </View>
       {/* Audit Trail List */}
       <FlatList
@@ -122,10 +116,7 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
   headerTitle: { fontSize: 22, fontWeight: 'bold', color: '#00418b', fontFamily: 'Poppins-Bold' },
   filters: { marginBottom: 10 },
-  input: { backgroundColor: '#fff', borderRadius: 8, padding: 8, marginBottom: 8, borderWidth: 1, borderColor: '#e0e0e0' },
-  pickerRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
-  pickerContainer: { flex: 1, backgroundColor: '#fff', borderRadius: 8, borderWidth: 1, borderColor: '#e0e0e0', marginRight: 8 },
-  picker: { height: 40, color: '#00418b' },
+  picker: { backgroundColor: '#fff', borderRadius: 8, height: 40, color: '#00418b', borderWidth: 1, borderColor: '#e0e0e0', marginBottom: 8 },
   daySection: { marginBottom: 18 },
   dayHeader: { fontSize: 16, fontWeight: 'bold', color: '#00418b', marginBottom: 6, fontFamily: 'Poppins-SemiBold' },
   card: { backgroundColor: '#fff', borderRadius: 12, padding: 12, marginBottom: 8, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, elevation: 1 },

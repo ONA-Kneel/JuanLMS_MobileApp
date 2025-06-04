@@ -109,6 +109,7 @@ function FacultyTabs() {
       <Tabs.Screen name="FDashboard" component={FacultyDashboard} />
       <Tabs.Screen name="FCalendar" component={FacultyCalendar} />
       <Tabs.Screen name="FChat" component={FacultyChats} />
+      {/* <Tabs.Screen name="FSupportCenter" component={FacultySupportCenter} /> */}
       {/* <Tabs.Screen name="FProfile" component={FacultyProfile} /> */}
     </Tabs.Navigator>
   );
@@ -161,6 +162,7 @@ function DirectorDash() {
       <Tabs.Screen name='DDash' component={DirectorDashboard} />
       <Tabs.Screen name='DCalendar' component={DirectorCalendar} />
       <Tabs.Screen name='DChats' component={DirectorChats} />
+      {/* <Tabs.Screen name='DSupportCenter' component={DirectorSupportCenter} /> */}
       <Tabs.Screen name='DProfile' component={DirectorProfile} />
     </Tabs.Navigator>
   );
