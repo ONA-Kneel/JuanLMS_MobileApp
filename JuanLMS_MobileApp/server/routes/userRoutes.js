@@ -2,6 +2,8 @@ import e from "express";
 import database from "../connect.cjs";
 import { ObjectId } from "mongodb";
 import jwt from "jsonwebtoken";
+import crypto from 'crypto';
+import bcrypt from 'bcrypt';
 
 const userRoutes = e.Router();
 const JWT_SECRET = process.env.JWT_SECRET || "your_secret_key_here"; // 👈 use env variable in production
@@ -11,7 +13,7 @@ const JWT_SECRET = process.env.JWT_SECRET || "your_secret_key_here"; // 👈 use
 // Retrieve ALL
 userRoutes.get("/users", async (req, res) => {
     const db = database.getDb();
-    const data = await db.collection("Users").find({}).toArray();
+    const data = await db.collection("users").find({}).toArray();
     if (data.length > 0) {
         res.json(data);
     } else {
@@ -22,7 +24,7 @@ userRoutes.get("/users", async (req, res) => {
 // Retrieve ONE
 userRoutes.get("/users/:id", async (req, res) => {
     const db = database.getDb();
-    const data = await db.collection("Users").findOne({ _id: new ObjectId(req.params.id) });
+    const data = await db.collection("users").findOne({ _id: new ObjectId(req.params.id) });
     if (data) {
         res.json(data);
     } else {
@@ -41,7 +43,7 @@ userRoutes.post("/users", async (req, res) => {
         contactno: req.body.contactno,
         password: req.body.password, // 🔐 optionally hash this
     };
-    const result = await db.collection("Users").insertOne(mongoObject);
+    const result = await db.collection("users").insertOne(mongoObject);
     res.json(result);
 });
 
@@ -58,14 +60,14 @@ userRoutes.post("/users/:id", async (req, res) => {
             password: req.body.password,
         },
     };
-    const result = await db.collection("Users").updateOne({ _id: new ObjectId(req.params.id) }, updateObject);
+    const result = await db.collection("users").updateOne({ _id: new ObjectId(req.params.id) }, updateObject);
     res.json(result);
 });
 
 // Delete ONE
 userRoutes.delete("/users/:id", async (req, res) => {
     const db = database.getDb();
-    const result = await db.collection("Users").deleteOne({ _id: new ObjectId(req.params.id) });
+    const result = await db.collection("users").deleteOne({ _id: new ObjectId(req.params.id) });
     res.json(result);
 });
 
@@ -81,27 +83,37 @@ userRoutes.post('/login', async (req, res) => {
             return res.status(400).json({ success: false, message: "Email and password are required" });
         }
 
-        const user = await db.collection("Users").findOne({ email, password });
+        // Add detailed logging for debugging
+        const emailHash = crypto.createHash('sha256').update(email).digest('hex');
+        console.log('Login attempt:', email, emailHash);
 
+        const user = await db.collection("users").findOne({ emailHash });
+        console.log('User found:', user ? user.emailHash : 'none');
         if (user) {
-            const firstName = toProperCase(user.firstname);
-            const middleInitial = user.middlename ? toProperCase(user.middlename.charAt(0)) + '.' : '';
-            const lastName = toProperCase(user.lastname);
-            const fullName = [firstName, middleInitial, lastName].filter(Boolean).join(' ');
-            const role = getRoleFromEmail(email);
+            const isMatch = await bcrypt.compare(password, user.password);
+            console.log('Password match:', isMatch);
+            if (isMatch) {
+                const firstName = toProperCase(user.firstname);
+                const middleInitial = user.middlename ? toProperCase(user.middlename.charAt(0)) + '.' : '';
+                const lastName = toProperCase(user.lastname);
+                const fullName = [firstName, middleInitial, lastName].filter(Boolean).join(' ');
+                const role = getRoleFromEmail(email);
 
-            // ✅ JWT Token Payload
-            const token = jwt.sign({
-                id: user._id,
-                name: fullName,
-                email: user.email,
-                phone: user.contactno,
-                role: role,
-            }, JWT_SECRET, { expiresIn: '1d' });
+                // ✅ JWT Token Payload
+                const token = jwt.sign({
+                    id: user._id,
+                    name: fullName,
+                    email: user.email,
+                    phone: user.contactno,
+                    role: role,
+                }, JWT_SECRET, { expiresIn: '1d' });
 
-            res.json({ token }); // ✅ frontend will decode this
+                return res.json({ token }); // ✅ frontend will decode this
+            } else {
+                return res.status(401).json({ success: false, message: "Invalid email or password" });
+            }
         } else {
-            res.status(401).json({ success: false, message: "Invalid email or password" });
+            return res.status(401).json({ success: false, message: "Invalid email or password" });
         }
     } catch (err) {
         console.error('Login error:', err);

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Text, TouchableOpacity, View, Image, TextInput, ImageBackground } from 'react-native';
+import { Text, TouchableOpacity, View, Image, TextInput, ImageBackground, Platform } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import LoginStyle from './styles/LoginStyle';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -8,6 +8,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Toast from 'react-native-root-toast';
 import { useUser } from './UserContext';
 import { addAuditLog } from './Admin/auditTrailUtils';
+
+// Set this to your computer's local IP address for real device testing, e.g. '192.168.1.100'
+const BACKEND_IP = '';
 
 export default function Login() {
   //mema commit na lang para lang may kulay ako today
@@ -76,6 +79,24 @@ export default function Login() {
     }, 1000);
   };
 
+  const getBackendUrl = () => {
+    if (Platform.OS === 'web') {
+      return 'http://localhost:5000/login';
+    } else if (Platform.OS === 'ios') {
+      // iOS simulator can use localhost
+      return 'http://localhost:5000/login';
+    } else if (Platform.OS === 'android') {
+      // Android emulator uses 10.0.2.2
+      return 'http://10.0.2.2:5000/login';
+    }
+    // For real devices, use BACKEND_IP if set
+    if (BACKEND_IP) {
+      return `http://${BACKEND_IP}:5000/login`;
+    }
+    // Default fallback
+    return 'http://localhost:5000/login';
+  };
+
   const btnLogin = async () => {
     if (isCooldown) {
       showToast(`Please wait ${cooldownTimer} seconds before trying again.`, 'error');
@@ -88,15 +109,33 @@ export default function Login() {
     }
 
     try {
-      const response = await fetch('http://localhost:5000/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ email, password })
+      console.log('Attempting login with:', { 
+        email: email.trim().toLowerCase(),
+        // Don't log actual password in production
+        hasPassword: !!password 
       });
 
+      const loginUrl = getBackendUrl();
+      console.log('Using backend URL:', loginUrl);
+
+      const response = await fetch(loginUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({ 
+          email: email.trim().toLowerCase(), 
+          password: password.trim() 
+        })
+      });
+
+      console.log('Response status:', response.status);
       const data = await response.json();
+      console.log('Response data:', {
+        success: !!data.token,
+        message: data.message
+      });
 
       if (response.ok) {
         setFailedAttempts(0);
@@ -104,13 +143,25 @@ export default function Login() {
         showToast('Login successful!', 'success');
 
         const tokenPayload = JSON.parse(atob(data.token.split('.')[1]));
+        console.log('Token payload:', {
+          role: tokenPayload.role,
+          userId: tokenPayload.id
+        });
+
         const role = tokenPayload.role;
         const userId = tokenPayload.id;
 
         // Fetch user data
-        const userRes = await fetch(`http://localhost:5000/users/${userId}`);
+        console.log('Fetching user data for ID:', userId);
+        const userRes = await fetch(`${loginUrl.replace('/login', '')}/users/${userId}`);
         const userData = await userRes.json();
-        await AsyncStorage.setItem('user', JSON.stringify(userData));
+        console.log('User data fetched:', {
+          id: userData._id,
+          role: userData.role,
+          email: userData.email
+        });
+
+        await AsyncStorage.setItem('users', JSON.stringify(userData));
         setUser(userData);
 
         // Add audit log for login
@@ -124,20 +175,39 @@ export default function Login() {
         });
 
         switch (role) {
-          case 'student': navigation.navigate('SDash'); break;
-          case 'faculty': navigation.navigate('FDash'); break;
-          case 'admin': navigation.navigate('ADash'); break;
-          case 'parent': navigation.navigate('PDash'); break;
-          case 'director': navigation.navigate('DDash'); break;
-          default: showToast('Unknown role!', 'error'); break;
+          case 'student': 
+            console.log('Navigating to Student Dashboard');
+            navigation.navigate('SDash'); 
+            break;
+          case 'faculty': 
+            console.log('Navigating to Faculty Dashboard');
+            navigation.navigate('FDash'); 
+            break;
+          case 'admin': 
+            console.log('Navigating to Admin Dashboard');
+            navigation.navigate('ADash'); 
+            break;
+          case 'parent': 
+            console.log('Navigating to Parent Dashboard');
+            navigation.navigate('PDash'); 
+            break;
+          case 'director': 
+            console.log('Navigating to Director Dashboard');
+            navigation.navigate('DDash'); 
+            break;
+          default: 
+            console.error('Unknown role:', role);
+            showToast('Unknown role!', 'error'); 
+            break;
         }
       } else {
+        console.error('Login failed:', data.message);
         const newAttempts = failedAttempts + 1;
         setFailedAttempts(newAttempts);
         await AsyncStorage.setItem('failedAttempts', newAttempts.toString());
 
         if (newAttempts >= 3) {
-          const cooldownSeconds = 120;
+          const cooldownSeconds = 30;
           const cooldownEndTime = Date.now() + cooldownSeconds * 1000;
           await AsyncStorage.setItem('cooldownEndTime', cooldownEndTime.toString());
           startCooldown(cooldownSeconds);
@@ -147,8 +217,8 @@ export default function Login() {
         }
       }
     } catch (error) {
-      console.error(error);
-      showToast('An error occurred while logging in.', 'error');
+      console.error('Login error:', error);
+      showToast('An error occurred while logging in. Please check your connection.', 'error');
     }
   };
 
