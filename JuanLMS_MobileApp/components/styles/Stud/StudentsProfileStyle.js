@@ -135,6 +135,26 @@ const StudentsProfileStyle = StyleSheet.create({
         fontFamily: 'Poppins_600SemiBold',
         fontSize: 16,
     },
+    modalContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: 'rgba(0,0,0,0.4)',
+        padding: 16,
+    },
+    modalContent: {
+        width: '95%',
+        maxWidth: 400,
+        backgroundColor: '#fff',
+        borderRadius: 20,
+        padding: 20,
+        alignItems: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 4,
+        elevation: 5,
+    },
 });
 
 export default StudentsProfileStyle;

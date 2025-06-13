@@ -1,16 +1,24 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, Image, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, Image, ScrollView, Alert, ActivityIndicator, Modal, TextInput } from 'react-native';
 import { MaterialIcons, Feather } from '@expo/vector-icons';
 import StudentsProfileStyle from '../styles/Stud/StudentsProfileStyle';
 import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../UserContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { addAuditLog } from '../Admin/auditTrailUtils';
+import profileService from '../../services/profileService';
+
+// Helper to capitalize first letter of each word
+function capitalizeWords(str) {
+  return str.replace(/\b\w/g, char => char.toUpperCase());
+}
 
 export default function StudentsProfile() {
   const { user, loading } = useUser();
   const navigation = useNavigation();
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
+  const [editedUser, setEditedUser] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   const logout = async () => {
     try {
@@ -34,6 +42,23 @@ export default function StudentsProfile() {
 
   const goToSupportCenter = () => {
     navigation.navigate('SReq');
+  };
+
+  const pickImage = () => {
+    // Implement image picking logic
+  };
+
+  const handleSaveProfile = async () => {
+    setIsLoading(true);
+    try {
+      // Implement profile saving logic
+    } catch (error) {
+      console.error('Profile saving error:', error);
+      Alert.alert('Error', 'Failed to save profile. Please try again.');
+    } finally {
+      setIsLoading(false);
+      setIsEditModalVisible(false);
+    }
   };
 
   if (loading) {
@@ -82,7 +107,10 @@ export default function StudentsProfile() {
       </View>
       {/* Card */}
       <View style={StudentsProfileStyle.card}>
-        <Text style={StudentsProfileStyle.name}>{user.firstname} {user.lastname} <Text style={StudentsProfileStyle.emoji}>👨‍🎓</Text></Text>
+        <Text style={StudentsProfileStyle.name}>
+          {capitalizeWords(`${user.firstname} ${user.lastname}`)}
+          <Text style={StudentsProfileStyle.emoji}>👨‍🎓</Text>
+        </Text>
         <Text style={StudentsProfileStyle.email}>{user.email}</Text>
         <View style={StudentsProfileStyle.row}>
           <View style={StudentsProfileStyle.infoBox}>
@@ -120,6 +148,68 @@ export default function StudentsProfile() {
       <TouchableOpacity style={StudentsProfileStyle.logout} onPress={logout}>
         <Text style={StudentsProfileStyle.logoutText}>Log Out</Text>
       </TouchableOpacity>
+      {/* Edit Profile Modal */}
+      <Modal
+        visible={isEditModalVisible}
+        animationType="slide"
+        transparent={true}
+      >
+        <View style={StudentsProfileStyle.modalContainer}>
+          <View style={StudentsProfileStyle.modalContent}>
+            <Text style={StudentsProfileStyle.modalTitle}>Edit Profile</Text>
+            <TouchableOpacity onPress={pickImage} style={StudentsProfileStyle.imagePicker}>
+              <Image
+                source={editedUser?.profilePic
+                  ? { uri: API_URL + editedUser.profilePic }
+                  : require('../../assets/profile-icon (2).png')}
+                style={StudentsProfileStyle.avatar}
+              />
+              <Text style={StudentsProfileStyle.imagePickerText}>Change Photo</Text>
+            </TouchableOpacity>
+            <TextInput
+              style={StudentsProfileStyle.input}
+              placeholder="First Name"
+              value={editedUser?.firstname}
+              onChangeText={text => setEditedUser(prev => ({ ...prev, firstname: text }))}
+              editable={!isLoading}
+            />
+            <TextInput
+              style={StudentsProfileStyle.input}
+              placeholder="Last Name"
+              value={editedUser?.lastname}
+              onChangeText={text => setEditedUser(prev => ({ ...prev, lastname: text }))}
+              editable={!isLoading}
+            />
+            <TextInput
+              style={StudentsProfileStyle.input}
+              placeholder="College"
+              value={editedUser?.college}
+              onChangeText={text => setEditedUser(prev => ({ ...prev, college: text }))}
+              editable={!isLoading}
+            />
+            <View style={StudentsProfileStyle.modalButtons}>
+              <TouchableOpacity 
+                style={[StudentsProfileStyle.modalButton, StudentsProfileStyle.cancelButton]} 
+                onPress={() => setIsEditModalVisible(false)}
+                disabled={isLoading}
+              >
+                <Text style={StudentsProfileStyle.buttonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[StudentsProfileStyle.modalButton, StudentsProfileStyle.saveButton]} 
+                onPress={handleSaveProfile}
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <ActivityIndicator size="small" color="white" />
+                ) : (
+                  <Text style={StudentsProfileStyle.buttonText}>Save</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }

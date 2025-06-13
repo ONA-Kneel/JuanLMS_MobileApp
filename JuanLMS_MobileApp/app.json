@@ -13,16 +13,38 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.juanlms.mobileapp"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.svg",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.juanlms.mobileapp",
+      "versionCode": 1,
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ]
     },
     "web": {
       "icon": "./assets/icon.svg"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "juanlms-mobileapp"
+      }
+    },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "The app accesses your photos to let you share them with your friends.",
+          "cameraPermission": "The app accesses your camera to let you take profile pictures."
+        }
+      ]
+    ]
   }
 }
