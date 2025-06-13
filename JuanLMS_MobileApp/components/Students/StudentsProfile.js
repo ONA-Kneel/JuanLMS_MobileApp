@@ -7,11 +7,15 @@ import { useUser } from '../UserContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { addAuditLog } from '../Admin/auditTrailUtils';
 import profileService from '../../services/profileService';
+import * as ImagePicker from 'expo-image-picker';
+import { updateUser } from '../UserContext';
 
 // Helper to capitalize first letter of each word
 function capitalizeWords(str) {
   return str.replace(/\b\w/g, char => char.toUpperCase());
 }
+
+const API_URL = 'http://localhost:5000'; // or your production URL
 
 export default function StudentsProfile() {
   const { user, loading } = useUser();
@@ -44,20 +48,57 @@ export default function StudentsProfile() {
     navigation.navigate('SReq');
   };
 
-  const pickImage = () => {
-    // Implement image picking logic
+  const pickImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission Required', 'Please grant permission to access your photos');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (!result.canceled) {
+      setEditedUser(prev => ({
+        ...prev,
+        newProfilePicAsset: result.assets[0], // store the asset for upload
+      }));
+    }
   };
 
   const handleSaveProfile = async () => {
     setIsLoading(true);
     try {
-      // Implement profile saving logic
+      let profilePicPath = editedUser.profilePic;
+      // If a new image was picked, upload it
+      if (editedUser.newProfilePicAsset) {
+        const data = await profileService.uploadProfilePicture(user._id, editedUser.newProfilePicAsset);
+        if (data.success && data.profilePic) {
+          profilePicPath = data.profilePic;
+        }
+      }
+      // Save other profile fields
+      await profileService.updateProfile(user._id, {
+        firstname: editedUser.firstname,
+        lastname: editedUser.lastname,
+        college: editedUser.college,
+      });
+      // Update user state in context
+      await updateUser({
+        ...user,
+        firstname: editedUser.firstname,
+        lastname: editedUser.lastname,
+        college: editedUser.college,
+        profilePic: profilePicPath,
+      });
+      setIsEditModalVisible(false);
+      Alert.alert('Success', 'Profile updated successfully');
     } catch (error) {
-      console.error('Profile saving error:', error);
-      Alert.alert('Error', 'Failed to save profile. Please try again.');
+      Alert.alert('Error', 'Failed to update profile. Please try again.');
     } finally {
       setIsLoading(false);
-      setIsEditModalVisible(false);
     }
   };
 
@@ -97,7 +138,11 @@ export default function StudentsProfile() {
       {/* Profile Image */}
       <View style={StudentsProfileStyle.avatarWrapper}>
         <Image
-          source={user.profilePicture ? { uri: user.profilePicture } : require('../../assets/profile-icon (2).png')}
+          source={editedUser?.newProfilePicAsset
+            ? { uri: editedUser.newProfilePicAsset.uri }
+            : editedUser?.profilePic
+              ? { uri: API_URL + editedUser.profilePic }
+              : require('../../assets/profile-icon (2).png')}
           style={StudentsProfileStyle.avatar}
           onError={(e) => {
             console.log('Image loading error:', e.nativeEvent.error);
@@ -159,9 +204,11 @@ export default function StudentsProfile() {
             <Text style={StudentsProfileStyle.modalTitle}>Edit Profile</Text>
             <TouchableOpacity onPress={pickImage} style={StudentsProfileStyle.imagePicker}>
               <Image
-                source={editedUser?.profilePic
-                  ? { uri: API_URL + editedUser.profilePic }
-                  : require('../../assets/profile-icon (2).png')}
+                source={editedUser?.newProfilePicAsset
+                  ? { uri: editedUser.newProfilePicAsset.uri }
+                  : editedUser?.profilePic
+                    ? { uri: API_URL + editedUser.profilePic }
+                    : require('../../assets/profile-icon (2).png')}
                 style={StudentsProfileStyle.avatar}
               />
               <Text style={StudentsProfileStyle.imagePickerText}>Change Photo</Text>

@@ -21,6 +21,9 @@ app.use(users);
 app.use('/api/messages', messagesRouter);
 app.use('/api/tickets', ticketsRouter);
 
+// Serve uploaded files
+app.use('/uploads', express.static('uploads'));
+
 // Events API endpoint
 app.get('/api/events', async (req, res) => {
   try {

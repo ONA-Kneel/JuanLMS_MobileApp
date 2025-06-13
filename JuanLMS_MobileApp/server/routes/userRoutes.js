@@ -5,6 +5,22 @@ import jwt from "jsonwebtoken";
 import crypto from 'crypto';
 import bcrypt from 'bcrypt';
 import fs from 'fs';
+import multer from 'multer';
+import path from 'path';
+
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const uploadDir = 'uploads/profile-pictures';
+    fs.mkdirSync(uploadDir, { recursive: true });
+    cb(null, uploadDir);
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+const upload = multer({ storage: storage });
 
 const userRoutes = e.Router();
 const JWT_SECRET = process.env.JWT_SECRET || "your_secret_key_here"; // 👈 use env variable in production
@@ -154,8 +170,6 @@ userRoutes.post("/users/:id/profile", async (req, res) => {
     } catch (error) {
         console.error('Profile update error:', error);
         res.status(500).json({ success: false, message: "Failed to update profile" });
-    } finally {
-        setIsLoading(false);
     }
 });
 

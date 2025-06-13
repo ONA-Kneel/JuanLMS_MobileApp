@@ -46,14 +46,14 @@ const profileService = {
     }
   },
 
-  async uploadProfilePicture(userId, imageUri) {
+  async uploadProfilePicture(userId, imageAsset) {
     try {
       const token = await AsyncStorage.getItem('token');
       const formData = new FormData();
       formData.append('profilePicture', {
-        uri: imageUri,
-        type: 'image/jpeg',
-        name: 'profile-picture.jpg',
+        uri: imageAsset.uri,
+        name: imageAsset.fileName || 'profile.jpg',
+        type: imageAsset.type || 'image/jpeg',
       });
 
       const response = await axios.post(`${API_URL}/users/${userId}/profile-picture`, formData, {
