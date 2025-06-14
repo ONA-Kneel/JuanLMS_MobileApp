@@ -124,7 +124,44 @@ userRoutes.post("/users/:id/profile-picture", upload.single('profilePicture'), a
         res.json({ 
             success: true, 
             message: "Profile picture updated successfully",
-            profilePic: profilePicUrl // send decrypted path for immediate frontend use
+            profile_picture: profilePicUrl // send decrypted path for immediate frontend use
+        });
+    } catch (error) {
+        console.error('Profile picture upload error:', error);
+        // Delete the uploaded file if there's an error
+        if (req.file) {
+            fs.unlinkSync(req.file.path);
+        }
+        res.status(500).json({ success: false, message: "Failed to upload profile picture" });
+    }
+});
+
+// PUT profile picture route for RESTful update
+userRoutes.put("/users/:id/profile-picture", upload.single('profilePicture'), async (req, res) => {
+    try {
+        console.log('req.headers:', req.headers); // Debug log
+        console.log('req.body:', req.body); // Debug log
+        console.log('req.file:', req.file); // Debug log
+        if (!req.file) {
+            return res.status(400).json({ success: false, message: "No file uploaded" });
+        }
+        const db = database.getDb();
+        const profilePicUrl = `/uploads/profile-pictures/${req.file.filename}`;
+        // Encrypt the profilePic path before saving
+        const encryptedProfilePic = encrypt(profilePicUrl, process.env.ENCRYPTION_KEY);
+        const result = await db.collection("users").updateOne(
+            { _id: new ObjectId(req.params.id) },
+            { $set: { profilePic: encryptedProfilePic } }
+        );
+        if (result.matchedCount === 0) {
+            // Delete the uploaded file if user not found
+            fs.unlinkSync(req.file.path);
+            return res.status(404).json({ success: false, message: "User not found" });
+        }
+        res.json({ 
+            success: true, 
+            message: "Profile picture updated successfully",
+            profile_picture: profilePicUrl // send decrypted path for immediate frontend use
         });
     } catch (error) {
         console.error('Profile picture upload error:', error);

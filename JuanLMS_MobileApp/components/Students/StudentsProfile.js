@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { View, Text, TouchableOpacity, Image, ScrollView, Alert, ActivityIndicator, Modal, TextInput } from 'react-native';
 import { MaterialIcons, Feather } from '@expo/vector-icons';
 import StudentsProfileStyle from '../styles/Stud/StudentsProfileStyle';
@@ -9,6 +9,8 @@ import { addAuditLog } from '../Admin/auditTrailUtils';
 import profileService from '../../services/profileService';
 import * as ImagePicker from 'expo-image-picker';
 import { updateUser } from '../UserContext';
+import * as FileSystem from 'expo-file-system';
+import { Platform } from 'react-native';
 
 // Helper to capitalize first letter of each word
 function capitalizeWords(str) {
@@ -23,6 +25,8 @@ export default function StudentsProfile() {
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [editedUser, setEditedUser] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const fileInputRef = useRef(null);
+  const [webPreviewUrl, setWebPreviewUrl] = useState(null);
 
   const logout = async () => {
     try {
@@ -59,6 +63,7 @@ export default function StudentsProfile() {
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
+      base64: false,
     });
     if (!result.canceled) {
       setEditedUser(prev => ({
@@ -68,35 +73,62 @@ export default function StudentsProfile() {
     }
   };
 
+  // Web: handle file input change
+  const handleWebFileChange = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      setEditedUser(prev => ({
+        ...prev,
+        newProfilePicAsset: file, // store the File object
+      }));
+      setWebPreviewUrl(URL.createObjectURL(file)); // Add preview URL for web
+    }
+  };
+
+  // Web: trigger file input
+  const pickImageWeb = () => {
+    fileInputRef.current?.click();
+  };
+
   const handleSaveProfile = async () => {
     setIsLoading(true);
     try {
-      let profilePicPath = editedUser.profilePic;
-      // If a new image was picked, upload it
-      if (editedUser.newProfilePicAsset) {
-        const data = await profileService.uploadProfilePicture(user._id, editedUser.newProfilePicAsset);
-        if (data.success && data.profilePic) {
-          profilePicPath = data.profilePic;
+      let profilePicPath = editedUser?.profilePic;
+      let data;
+      if (editedUser?.newProfilePicAsset) {
+        if (Platform.OS === 'web') {
+          const formData = new FormData();
+          formData.append('profilePicture', editedUser.newProfilePicAsset);
+          data = await profileService.uploadProfilePicture(user._id, formData, true);
+        } else {
+          let asset = editedUser.newProfilePicAsset;
+          let localUri = asset.uri;
+          if (!localUri.startsWith('file://') && asset.base64) {
+            const fileUri = FileSystem.cacheDirectory + (asset.fileName || 'profile.jpg');
+            await FileSystem.writeAsStringAsync(fileUri, asset.base64, { encoding: FileSystem.EncodingType.Base64 });
+            localUri = fileUri;
+          }
+          const patchedAsset = {
+            uri: localUri,
+            fileName: asset.fileName || 'profile.jpg',
+            type: asset.type || 'image/jpeg',
+          };
+          data = await profileService.uploadProfilePicture(user._id, patchedAsset);
+        }
+        if (data.success && (data.profilePic || data.profile_picture)) {
+          profilePicPath = data.profilePic || data.profile_picture;
         }
       }
-      // Save other profile fields
-      await profileService.updateProfile(user._id, {
-        firstname: editedUser.firstname,
-        lastname: editedUser.lastname,
-        college: editedUser.college,
-      });
-      // Update user state in context
+      // Always update user context/state with the new profilePic
       await updateUser({
         ...user,
-        firstname: editedUser.firstname,
-        lastname: editedUser.lastname,
-        college: editedUser.college,
         profilePic: profilePicPath,
+        profilePicture: profilePicPath,
       });
       setIsEditModalVisible(false);
-      Alert.alert('Success', 'Profile updated successfully');
+      Alert.alert('Profile Updated', 'Your profile picture has been changed successfully.');
     } catch (error) {
-      Alert.alert('Error', 'Failed to update profile. Please try again.');
+      Alert.alert('Error', 'Failed to update profile picture. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -138,16 +170,12 @@ export default function StudentsProfile() {
       {/* Profile Image */}
       <View style={StudentsProfileStyle.avatarWrapper}>
         <Image
-          source={editedUser?.newProfilePicAsset
-            ? { uri: editedUser.newProfilePicAsset.uri }
-            : editedUser?.profilePic
-              ? { uri: API_URL + editedUser.profilePic }
-              : require('../../assets/profile-icon (2).png')}
+          source={
+            user.profilePic
+              ? { uri: API_URL + user.profilePic }
+              : require('../../assets/profile-icon (2).png')
+          }
           style={StudentsProfileStyle.avatar}
-          onError={(e) => {
-            console.log('Image loading error:', e.nativeEvent.error);
-            Alert.alert('Error', 'Failed to load profile picture');
-          }}
         />
       </View>
       {/* Card */}
@@ -202,45 +230,44 @@ export default function StudentsProfile() {
         <View style={StudentsProfileStyle.modalContainer}>
           <View style={StudentsProfileStyle.modalContent}>
             <Text style={StudentsProfileStyle.modalTitle}>Edit Profile</Text>
-            <TouchableOpacity onPress={pickImage} style={StudentsProfileStyle.imagePicker}>
+            <TouchableOpacity
+              onPress={Platform.OS === 'web' ? pickImageWeb : pickImage}
+              style={StudentsProfileStyle.imagePicker}
+            >
               <Image
-                source={editedUser?.newProfilePicAsset
-                  ? { uri: editedUser.newProfilePicAsset.uri }
-                  : editedUser?.profilePic
-                    ? { uri: API_URL + editedUser.profilePic }
-                    : require('../../assets/profile-icon (2).png')}
+                source={
+                  Platform.OS === 'web'
+                    ? webPreviewUrl
+                      ? { uri: webPreviewUrl }
+                      : editedUser?.profilePic
+                        ? { uri: API_URL + editedUser.profilePic }
+                        : require('../../assets/profile-icon (2).png')
+                    : editedUser?.newProfilePicAsset
+                      ? { uri: editedUser.newProfilePicAsset.uri }
+                      : editedUser?.profilePic
+                        ? { uri: API_URL + editedUser.profilePic }
+                        : require('../../assets/profile-icon (2).png')
+                }
                 style={StudentsProfileStyle.avatar}
               />
-              <Text style={StudentsProfileStyle.imagePickerText}>Change Photo</Text>
+              <Text style={StudentsProfileStyle.imagePickerText}>change photo</Text>
             </TouchableOpacity>
-            <TextInput
-              style={StudentsProfileStyle.input}
-              placeholder="First Name"
-              value={editedUser?.firstname}
-              onChangeText={text => setEditedUser(prev => ({ ...prev, firstname: text }))}
-              editable={!isLoading}
-            />
-            <TextInput
-              style={StudentsProfileStyle.input}
-              placeholder="Last Name"
-              value={editedUser?.lastname}
-              onChangeText={text => setEditedUser(prev => ({ ...prev, lastname: text }))}
-              editable={!isLoading}
-            />
-            <TextInput
-              style={StudentsProfileStyle.input}
-              placeholder="College"
-              value={editedUser?.college}
-              onChangeText={text => setEditedUser(prev => ({ ...prev, college: text }))}
-              editable={!isLoading}
-            />
+            {Platform.OS === 'web' && (
+              <input
+                type="file"
+                accept="image/*"
+                ref={fileInputRef}
+                style={{ display: 'none' }}
+                onChange={handleWebFileChange}
+              />
+            )}
             <View style={StudentsProfileStyle.modalButtons}>
               <TouchableOpacity 
                 style={[StudentsProfileStyle.modalButton, StudentsProfileStyle.cancelButton]} 
                 onPress={() => setIsEditModalVisible(false)}
                 disabled={isLoading}
               >
-                <Text style={StudentsProfileStyle.buttonText}>Cancel</Text>
+                <Text style={StudentsProfileStyle.buttonText}>cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity 
                 style={[StudentsProfileStyle.modalButton, StudentsProfileStyle.saveButton]} 
@@ -248,9 +275,9 @@ export default function StudentsProfile() {
                 disabled={isLoading}
               >
                 {isLoading ? (
-                  <ActivityIndicator size="small" color="white" />
+                  <ActivityIndicator size="small" color="#00418b" />
                 ) : (
-                  <Text style={StudentsProfileStyle.buttonText}>Save</Text>
+                  <Text style={StudentsProfileStyle.buttonText}>save changes</Text>
                 )}
               </TouchableOpacity>
             </View>

@@ -1,16 +1,21 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, Image, ScrollView } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, Image, ScrollView, Modal, ActivityIndicator, Alert } from 'react-native';
 import { MaterialIcons, Feather } from '@expo/vector-icons';
 import AdminProfileStyle from '../styles/administrator/AdminProfileStyle';
 import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../UserContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { addAuditLog } from './auditTrailUtils';
+import profileService from '../../services/profileService';
+import { updateUser } from '../UserContext';
 
 
 export default function AdminProfile() {
   const { user } = useUser();
   const navigation = useNavigation();
+  const [isEditModalVisible, setIsEditModalVisible] = useState(false);
+  const [editedUser, setEditedUser] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   const logout = async () => {
     if (user) {
@@ -37,6 +42,34 @@ export default function AdminProfile() {
 
   const goBack = () => navigation.goBack();
 
+  const pickImage = () => {
+    // Implementation of pickImage function
+  };
+
+  const handleSaveProfile = async () => {
+    setIsLoading(true);
+    try {
+      let profilePicPath = editedUser?.profilePic;
+      if (editedUser?.newProfilePicAsset) {
+        const data = await profileService.uploadProfilePicture(user._id, editedUser.newProfilePicAsset);
+        if (data.success && data.profilePic) {
+          profilePicPath = data.profilePic;
+        }
+      }
+      await updateUser({
+        ...user,
+        profilePic: profilePicPath,
+        profilePicture: profilePicPath,
+      });
+      setIsEditModalVisible(false);
+      Alert.alert('Profile Updated', 'Your profile picture has been changed successfully.');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to update profile picture. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <View style={AdminProfileStyle.container}>
       {/* Back Button */}
@@ -48,10 +81,55 @@ export default function AdminProfile() {
       {/* Profile Image */}
       <View style={AdminProfileStyle.avatarWrapper}>
         <Image
-          source={user.profilePicture ? { uri: user.profilePicture } : require('../../assets/profile-icon (2).png')}
+          source={user.profilePic ? { uri: API_URL + user.profilePic } : require('../../assets/profile-icon (2).png')}
           style={AdminProfileStyle.avatar}
         />
+        <TouchableOpacity onPress={() => setIsEditModalVisible(true)} style={AdminProfileStyle.editAvatarBtn}>
+          <Feather name="edit" size={20} color="#00418b" />
+        </TouchableOpacity>
       </View>
+      <Modal
+        visible={isEditModalVisible}
+        animationType="slide"
+        transparent={true}
+      >
+        <View style={AdminProfileStyle.modalContainer}>
+          <View style={AdminProfileStyle.modalContent}>
+            <Text style={AdminProfileStyle.modalTitle}>Edit Profile</Text>
+            <TouchableOpacity onPress={pickImage} style={AdminProfileStyle.imagePicker}>
+              <Image
+                source={editedUser?.newProfilePicAsset
+                  ? { uri: editedUser.newProfilePicAsset.uri }
+                  : editedUser?.profilePic
+                    ? { uri: API_URL + editedUser.profilePic }
+                    : require('../../assets/profile-icon (2).png')}
+                style={AdminProfileStyle.avatar}
+              />
+              <Text style={AdminProfileStyle.imagePickerText}>change photo</Text>
+            </TouchableOpacity>
+            <View style={AdminProfileStyle.modalButtons}>
+              <TouchableOpacity 
+                style={[AdminProfileStyle.modalButton, AdminProfileStyle.cancelButton]} 
+                onPress={() => setIsEditModalVisible(false)}
+                disabled={isLoading}
+              >
+                <Text style={AdminProfileStyle.buttonText}>cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[AdminProfileStyle.modalButton, AdminProfileStyle.saveButton]} 
+                onPress={handleSaveProfile}
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <ActivityIndicator size="small" color="#00418b" />
+                ) : (
+                  <Text style={AdminProfileStyle.buttonText}>save changes</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
       {/* Card */}
       <View style={AdminProfileStyle.card}>
         <Text style={AdminProfileStyle.name}>{user.firstname} {user.lastname} <Text style={AdminProfileStyle.emoji}>🎓</Text></Text>

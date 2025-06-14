@@ -1,15 +1,20 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, Image, ScrollView } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, Image, ScrollView, Modal, ActivityIndicator, Alert } from 'react-native';
 import { MaterialIcons, Feather } from '@expo/vector-icons';
 import FacultyProfileStyle from '../styles/faculty/FacultyProfileStyle';
 import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../UserContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { addAuditLog } from '../Admin/auditTrailUtils';
+import profileService from '../../services/profileService';
+import { updateUser } from '../UserContext';
 
 export default function FacultyProfile() {
   const { user } = useUser();
   const navigation = useNavigation();
+  const [isEditModalVisible, setIsEditModalVisible] = useState(false);
+  const [editedUser, setEditedUser] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   const logout = async () => {
     if (user) {
@@ -41,6 +46,34 @@ export default function FacultyProfile() {
   // Back button handler (optional, if you want to add it)
   const goBack = () => navigation.goBack();
 
+  const pickImage = () => {
+    // Implementation of pickImage function
+  };
+
+  const handleSaveProfile = async () => {
+    setIsLoading(true);
+    try {
+      let profilePicPath = editedUser?.profilePic;
+      if (editedUser?.newProfilePicAsset) {
+        const data = await profileService.uploadProfilePicture(user._id, editedUser.newProfilePicAsset);
+        if (data.success && data.profilePic) {
+          profilePicPath = data.profilePic;
+        }
+      }
+      await updateUser({
+        ...user,
+        profilePic: profilePicPath,
+        profilePicture: profilePicPath,
+      });
+      setIsEditModalVisible(false);
+      Alert.alert('Profile Updated', 'Your profile picture has been changed successfully.');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to update profile picture. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <View style={FacultyProfileStyle.container}>
       {/* Back Button */}
@@ -52,10 +85,55 @@ export default function FacultyProfile() {
       {/* Profile Image */}
       <View style={FacultyProfileStyle.avatarWrapper}>
         <Image
-          source={user.profilePicture ? { uri: user.profilePicture } : require('../../assets/profile-icon (2).png')}
+          source={user.profilePic ? { uri: API_URL + user.profilePic } : require('../../assets/profile-icon (2).png')}
           style={FacultyProfileStyle.avatar}
         />
+        <TouchableOpacity onPress={() => setIsEditModalVisible(true)} style={FacultyProfileStyle.editAvatarBtn}>
+          <Feather name="edit" size={20} color="#00418b" />
+        </TouchableOpacity>
       </View>
+      <Modal
+        visible={isEditModalVisible}
+        animationType="slide"
+        transparent={true}
+      >
+        <View style={FacultyProfileStyle.modalContainer}>
+          <View style={FacultyProfileStyle.modalContent}>
+            <Text style={FacultyProfileStyle.modalTitle}>Edit Profile</Text>
+            <TouchableOpacity onPress={pickImage} style={FacultyProfileStyle.imagePicker}>
+              <Image
+                source={editedUser?.newProfilePicAsset
+                  ? { uri: editedUser.newProfilePicAsset.uri }
+                  : editedUser?.profilePic
+                    ? { uri: API_URL + editedUser.profilePic }
+                    : require('../../assets/profile-icon (2).png')}
+                style={FacultyProfileStyle.avatar}
+              />
+              <Text style={FacultyProfileStyle.imagePickerText}>change photo</Text>
+            </TouchableOpacity>
+            <View style={FacultyProfileStyle.modalButtons}>
+              <TouchableOpacity 
+                style={[FacultyProfileStyle.modalButton, FacultyProfileStyle.cancelButton]} 
+                onPress={() => setIsEditModalVisible(false)}
+                disabled={isLoading}
+              >
+                <Text style={FacultyProfileStyle.buttonText}>cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[FacultyProfileStyle.modalButton, FacultyProfileStyle.saveButton]} 
+                onPress={handleSaveProfile}
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <ActivityIndicator size="small" color="#00418b" />
+                ) : (
+                  <Text style={FacultyProfileStyle.buttonText}>save changes</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
       {/* Card */}
       <View style={FacultyProfileStyle.card}>
         <Text style={FacultyProfileStyle.name}>{user.firstname} {user.lastname} <Text style={FacultyProfileStyle.emoji}>🎓</Text></Text>

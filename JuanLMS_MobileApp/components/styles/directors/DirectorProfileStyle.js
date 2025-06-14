@@ -135,6 +135,61 @@ const DirectorProfileStyle = StyleSheet.create({
         fontFamily: 'Poppins_600SemiBold',
         fontSize: 16,
     },
+    modalContent: {
+        width: '95%',
+        maxWidth: 400,
+        backgroundColor: '#00418b',
+        borderRadius: 28,
+        padding: 28,
+        alignItems: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 4,
+        elevation: 5,
+    },
+    modalTitle: {
+        color: 'white',
+        fontSize: 22,
+        fontWeight: 'bold',
+        marginBottom: 18,
+    },
+    imagePicker: {
+        alignItems: 'center',
+        marginBottom: 18,
+    },
+    imagePickerText: {
+        color: 'white',
+        fontSize: 15,
+        marginTop: 8,
+        textAlign: 'center',
+    },
+    modalButtons: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        width: '100%',
+        marginTop: 18,
+    },
+    modalButton: {
+        flex: 1,
+        backgroundColor: 'white',
+        borderRadius: 30,
+        paddingVertical: 12,
+        marginHorizontal: 8,
+        alignItems: 'center',
+        elevation: 2,
+    },
+    cancelButton: {
+        backgroundColor: 'white',
+    },
+    saveButton: {
+        backgroundColor: 'white',
+    },
+    buttonText: {
+        color: '#00418b',
+        fontWeight: 'bold',
+        fontSize: 16,
+    },
 });
 
 export default DirectorProfileStyle;
