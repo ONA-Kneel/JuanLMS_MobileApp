@@ -23,4 +23,20 @@ router.post('/classes', async (req, res) => {
     }
 });
 
+// Get classes for a specific student
+router.get('/student-classes', async (req, res) => {
+    try {
+        const db = database.getDb();
+        const { studentID } = req.query;
+        if (!studentID) {
+            return res.status(400).json({ success: false, error: 'studentID is required' });
+        }
+        // Find classes where members array contains the studentID
+        const classes = await db.collection('Classes').find({ members: { $in: [studentID] } }).toArray();
+        res.json({ success: true, classes });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
 export default router; 
