@@ -9,8 +9,7 @@ import { useUser } from './UserContext';
 import { addAuditLog } from './Admin/auditTrailUtils';
 
 // Set your public backend URL here (replace with your actual deployed backend URL)
-// Example: const BACKEND_URL = 'https://your-real-backend.com/api/login';
-const BACKEND_URL = 'https://your-backend.onrender.com/login'; // <-- CHANGE THIS to your real backend URL
+const BACKEND_URL = 'https://juanlms-mobileapp.onrender.com/api/login'; // Update this to your actual backend URL
 
 export default function Login() {
   //mema commit na lang para lang may kulay ako today
@@ -115,12 +114,12 @@ export default function Login() {
 
       console.log('Response status:', response.status);
       let data;
+      const responseText = await response.text();
       try {
-        data = await response.json();
+        data = JSON.parse(responseText);
       } catch (e) {
-        const text = await response.text();
-        console.error('Non-JSON response:', text);
-        showToast('Server error: ' + text, 'error');
+        console.error('Non-JSON response:', responseText);
+        showToast('Server error: ' + responseText, 'error');
         return;
       }
       console.log('Response data:', {
