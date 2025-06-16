@@ -33,7 +33,7 @@ export default function StudentDashboard() {
       if (!user || !user.studentID) return;
       setLoading(true);
       try {
-        const response = await fetch(`http://localhost:5000/student-classes?studentID=${user.studentID}`);
+        const response = await fetch(`https://juanlms-mobileapp.onrender.com/student-classes?studentID=${user.studentID}`);
         const data = await response.json();
         if (data.success) {
           setClasses(data.classes);
@@ -63,7 +63,7 @@ export default function StudentDashboard() {
         const dd = String(today.getDate()).padStart(2, '0');
         const todayStr = `${yyyy}-${mm}-${dd}`;
         // Replace with your actual endpoint for assignments
-        const response = await fetch(`http://localhost:5000/student-assignments?studentID=${user.studentID}&date=${todayStr}`);
+        const response = await fetch(`https://juanlms-mobileapp.onrender.com/student-assignments?studentID=${user.studentID}&date=${todayStr}`);
         const data = await response.json();
         if (data.success) {
           setAssignmentsToday(data.assignments);

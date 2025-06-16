@@ -7,7 +7,7 @@ import axios from 'axios';
 import { Image } from 'react-native-web';
 import DirectorChatStyle from '../styles/directors/DirectorChatStyle';
 
-const SOCKET_URL = 'http://localhost:5000';
+const SOCKET_URL = 'https://juanlms-mobileapp.onrender.com';
 const ALLOWED_ROLES = ['students', 'director', 'admin', 'faculty'];
 
 export default function DirectorChats() {
