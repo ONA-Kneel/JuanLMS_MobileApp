@@ -2,96 +2,102 @@ import { StyleSheet, Dimensions } from 'react-native';
 
 const { width, height } = Dimensions.get('window');
 
+const CARD_WIDTH = Math.min(width * 0.96, 420);
+const CARD_RADIUS = 32;
+
 const LoginStyle = StyleSheet.create({
-
-
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#0a1a4f',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  logoContainer: {
+  topSection: {
+    width: '100%',
+    backgroundColor: '#0a1a4f',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: height * 0.08,
-    display: 'flex',
-    flexDirection: 'column',
+    paddingTop: 70,
+    paddingBottom: 24,
   },
   logo: {
-    height: height * 0.12,
-    width: width * 0.33,
+    height: height * 0.17,
+    width: width * 0.42,
     resizeMode: 'contain',
+    marginBottom: 8,
+    marginTop: 64,
   },
   text1: {
-    fontFamily: "Poppins-Light",
-    color: "white",
+    fontFamily: 'Poppins-Light',
+    color: 'white',
     fontSize: width * 0.035,
     textAlign: 'center',
+    marginTop: 2,
   },
-  background: {
-    width: '100%',
-    height: '100%',
+  card: {
+    backgroundColor: '#fff',
+    borderRadius: CARD_RADIUS,
+    width: CARD_WIDTH,
+    alignSelf: 'center',
+    paddingTop: 32,
+    paddingBottom: 16,
+    paddingHorizontal: 28,
+    marginTop: 56,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 8,
     alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  loginContainer: {
-    backgroundColor: "#f5f5f5",
-    width: "100%",
-    flex: 1,
-    paddingTop: 60,
-    padding: 40,
-    borderRadius: 80,
-    alignItems: 'center',
-    paddingBottom: "150%",
-    margin: "10%",
-    gap: 5
+    minHeight: height * 0.85,
+    marginBottom: 0,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
   },
   loginTitle: {
     fontSize: 28,
     fontWeight: 'bold',
     marginBottom: 30,
     fontFamily: 'Poppins-Bold',
-    
+    textAlign: 'center',
   },
   label: {
     alignSelf: 'flex-start',
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
     marginBottom: 6,
     color: '#222',
     fontFamily: 'Poppins-Medium',
     marginLeft: 2,
   },
-  input: {
+  inputUnderline: {
     width: '100%',
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#ccc',
+    borderBottomWidth: 2,
+    borderBottomColor: '#222',
+    backgroundColor: 'transparent',
     fontFamily: 'Poppins-Regular',
     fontSize: 16,
     color: '#222',
-    marginBottom: 18,
+    marginBottom: 24,
+    paddingVertical: 8,
+    paddingHorizontal: 0,
+    borderRadius: 0,
   },
-  passwordContainer: {
+  passwordContainerUnderline: {
     flexDirection: 'row',
     alignItems: 'center',
     width: '100%',
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#ccc',
-    marginBottom: 18,
-    paddingHorizontal: 4,
+    borderBottomWidth: 2,
+    borderBottomColor: '#222',
+    marginBottom: 24,
+    backgroundColor: 'transparent',
+    borderRadius: 0,
+    paddingHorizontal: 0,
   },
   passwordInput: {
     flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 0,
     fontFamily: 'Poppins-Regular',
     fontSize: 16,
     color: '#222',
@@ -100,29 +106,46 @@ const LoginStyle = StyleSheet.create({
     padding: 8,
     marginLeft: 4,
   },
-  rememberContainer: {
-    // alignItems: 'center',
+  rowBetween: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     width: '100%',
-    marginTop: 10,
+    marginBottom: 24,
+  },
+  rememberRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderWidth: 2,
+    borderColor: '#1976d2',
+    borderRadius: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 6,
   },
   rememberText: {
-    marginLeft: 5,
-    fontSize: 12,
-    width: '100%'
+    marginLeft: 2,
+    fontSize: 13,
+    color: '#222',
+    fontFamily: 'Poppins-Regular',
   },
   forgotPassword: {
-    // marginLeft: 100,
-    color: 'blue',
-    fontSize: 12,
-
+    color: '#1976d2',
+    fontSize: 13,
+    fontFamily: 'Poppins-Regular',
+    textAlign: 'right',
   },
   loginButton: {
     backgroundColor: '#00418b',
-    padding: 15,
+    paddingVertical: 14,
     width: '100%',
-    borderRadius: 50,
+    borderRadius: 30,
     alignItems: 'center',
-    marginTop: 40,
+    marginTop: 8,
   },
   loginButtonText: {
     color: '#fff',
@@ -130,7 +153,6 @@ const LoginStyle = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Poppins-Bold',
   },
-
 });
 
 export default LoginStyle;

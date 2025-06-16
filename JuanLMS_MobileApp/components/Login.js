@@ -3,14 +3,14 @@ import { Text, TouchableOpacity, View, Image, TextInput, ImageBackground, Platfo
 import { useNavigation } from '@react-navigation/native';
 import LoginStyle from './styles/LoginStyle';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { CheckBox } from 'react-native-web';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Toast from 'react-native-root-toast';
 import { useUser } from './UserContext';
 import { addAuditLog } from './Admin/auditTrailUtils';
 
-// Set this to your computer's local IP address for real device testing, e.g. '192.168.1.100'
-const BACKEND_IP = '';
+// Set your public backend URL here (replace with your actual deployed backend URL)
+// Example: const BACKEND_URL = 'https://your-real-backend.com/api/login';
+const BACKEND_URL = 'https://your-backend.onrender.com/login'; // <-- CHANGE THIS to your real backend URL
 
 export default function Login() {
   //mema commit na lang para lang may kulay ako today
@@ -79,24 +79,6 @@ export default function Login() {
     }, 1000);
   };
 
-  const getBackendUrl = () => {
-    if (Platform.OS === 'web') {
-      return 'http://localhost:5000/login';
-    } else if (Platform.OS === 'ios') {
-      // iOS simulator can use localhost
-      return 'http://localhost:5000/login';
-    } else if (Platform.OS === 'android') {
-      // Android emulator uses 10.0.2.2
-      return 'http://10.0.2.2:5000/login';
-    }
-    // For real devices, use BACKEND_IP if set
-    if (BACKEND_IP) {
-      return `http://${BACKEND_IP}:5000/login`;
-    }
-    // Default fallback
-    return 'http://localhost:5000/login';
-  };
-
   const btnLogin = async () => {
     if (isCooldown) {
       showToast(`Please wait ${cooldownTimer} seconds before trying again.`, 'error');
@@ -115,7 +97,8 @@ export default function Login() {
         hasPassword: !!password 
       });
 
-      const loginUrl = getBackendUrl();
+      // Use the public backend URL
+      const loginUrl = BACKEND_URL;
       console.log('Using backend URL:', loginUrl);
 
       const response = await fetch(loginUrl, {
@@ -131,7 +114,15 @@ export default function Login() {
       });
 
       console.log('Response status:', response.status);
-      const data = await response.json();
+      let data;
+      try {
+        data = await response.json();
+      } catch (e) {
+        const text = await response.text();
+        console.error('Non-JSON response:', text);
+        showToast('Server error: ' + text, 'error');
+        return;
+      }
       console.log('Response data:', {
         success: !!data.token,
         message: data.message
@@ -223,86 +214,75 @@ export default function Login() {
   };
 
   return (
-    <View>
-      <ImageBackground
-        source={require('../assets/JuanLMS - bg.png')}
-        style={LoginStyle.background}
-        resizeMode="cover"
-      >
-        <View style={LoginStyle.logoContainer}>
-          <Image source={require('../assets/LOGO.svg')} style={LoginStyle.logo} />
-          <Text style={LoginStyle.text1}>Where faith and reason are expressed</Text>
-          <Text style={LoginStyle.text1}>in Charity</Text>
-        </View>
-
-        <View style={LoginStyle.loginContainer}>
-          <Text style={LoginStyle.loginTitle}>Login</Text>
-
-          <Text style={LoginStyle.label}>Email</Text>
+    <View style={LoginStyle.container}>
+      <View style={LoginStyle.topSection}>
+        <Image source={require('../assets/JuanLMS-LogoV1.png')} style={LoginStyle.logo} />
+        <Text style={LoginStyle.text1}>Where faith and reason are expressed in Charity</Text>
+      </View>
+      <View style={LoginStyle.card}>
+        <Text style={LoginStyle.loginTitle}>Login</Text>
+        <Text style={LoginStyle.label}>Email</Text>
+        <TextInput
+          style={LoginStyle.inputUnderline}
+          placeholder="Email"
+          value={email}
+          onChangeText={setEmail}
+          autoCapitalize="none"
+          keyboardType="email-address"
+          placeholderTextColor="#999"
+        />
+        <Text style={LoginStyle.label}>Password</Text>
+        <View style={LoginStyle.passwordContainerUnderline}>
           <TextInput
-            style={LoginStyle.input}
-            placeholder="Email"
-            value={email}
-            onChangeText={setEmail}
-            autoCapitalize="none"
-            keyboardType="email-address"
+            style={LoginStyle.passwordInput}
+            placeholder="Password"
+            value={password}
+            secureTextEntry={!showPassword}
+            onChangeText={setPassword}
             placeholderTextColor="#999"
           />
-
-          <Text style={LoginStyle.label}>Password</Text>
-          <View style={LoginStyle.passwordContainer}>
-            <TextInput
-              style={LoginStyle.passwordInput}
-              placeholder="Password"
-              value={password}
-              secureTextEntry={!showPassword}
-              onChangeText={setPassword}
-              placeholderTextColor="#999"
-            />
-            <TouchableOpacity
-              onPress={() => setShowPassword(!showPassword)}
-              style={LoginStyle.eyeIcon}
-              activeOpacity={0.7}
-            >
-              <Icon
-                name={showPassword ? 'eye-off' : 'eye'}
-                size={24}
-                color="#888"
-              />
-            </TouchableOpacity>
-          </View>
-
-          <View style={LoginStyle.rememberContainer}>
-            <TouchableOpacity
-              style={{ flexDirection: 'row', alignItems: 'center' }}
-              onPress={() => setRememberMe(!rememberMe)}
-              activeOpacity={0.7}
-            >
-              <CheckBox
-                value={rememberMe}
-                onValueChange={setRememberMe}
-              />
-              <Text style={LoginStyle.rememberText}>Remember Me</Text>
-
-              <TouchableOpacity style={{ marginLeft: 'auto' }}>
-              <Text style={LoginStyle.forgotPassword}>Forgot Password?</Text>
-            </TouchableOpacity>
-            
-            </TouchableOpacity>
-            
-          </View>
-
           <TouchableOpacity
-            onPress={btnLogin}
-            style={[LoginStyle.loginButton, isCooldown && { backgroundColor: 'gray' }]}
-            disabled={isCooldown}
+            onPress={() => setShowPassword(!showPassword)}
+            style={LoginStyle.eyeIcon}
+            activeOpacity={0.7}
           >
-            <Text style={LoginStyle.loginButtonText}>
-              {isCooldown ? `Locked (${cooldownTimer}s)` : 'Login'}
-            </Text>
+            <Icon
+              name={showPassword ? 'eye-off' : 'eye'}
+              size={24}
+              color="#888"
+            />
           </TouchableOpacity>
         </View>
-      </ImageBackground>
+        <View style={LoginStyle.rowBetween}>
+          <TouchableOpacity
+            style={LoginStyle.rememberRow}
+            onPress={() => setRememberMe(!rememberMe)}
+            activeOpacity={0.7}
+          >
+            <TouchableOpacity
+              onPress={() => setRememberMe(!rememberMe)}
+              style={LoginStyle.checkbox}
+            >
+              {rememberMe ? (
+                <Icon name="check" size={18} color="#1976d2" />
+              ) : null}
+            </TouchableOpacity>
+            <Text style={LoginStyle.rememberText}>Remember Me</Text>
+          </TouchableOpacity>
+          <TouchableOpacity>
+            <Text style={LoginStyle.forgotPassword}>Forgot Password?</Text>
+          </TouchableOpacity>
+        </View>
+        <TouchableOpacity
+          onPress={btnLogin}
+          style={[LoginStyle.loginButton, isCooldown && { backgroundColor: 'gray' }]}
+          disabled={isCooldown}
+        >
+          <Text style={LoginStyle.loginButtonText}>
+            {isCooldown ? `Locked (${cooldownTimer}s)` : 'Login'}
+          </Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
