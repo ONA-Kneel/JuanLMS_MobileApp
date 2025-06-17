@@ -82,7 +82,7 @@ export default function DirectorProfile() {
       {/* Profile Image */}
       <View style={DirectorProfileStyle.avatarWrapper}>
         <Image
-          source={user.profilePic ? { uri: API_URL + user.profilePic } : require('../../assets/profile-icon.png')}
+          source={user.profilePic ? { uri: API_URL + user.profilePic } : require('../../assets/profile-icon (2).png')}
           style={DirectorProfileStyle.avatar}
           resizeMode="cover"
         />
@@ -104,7 +104,7 @@ export default function DirectorProfile() {
                   ? { uri: editedUser.newProfilePicAsset.uri }
                   : editedUser?.profilePic
                     ? { uri: API_URL + editedUser.profilePic }
-                    : require('../../assets/profile-icon.png')}
+                    : require('../../assets/profile-icon (2).png')}
                 style={DirectorProfileStyle.avatar}
                 resizeMode="cover"
               />

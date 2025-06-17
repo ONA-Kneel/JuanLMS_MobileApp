@@ -85,7 +85,7 @@ export default function FacultyProfile() {
       {/* Profile Image */}
       <View style={FacultyProfileStyle.avatarWrapper}>
         <Image
-          source={user.profilePic ? { uri: API_URL + user.profilePic } : require('../../assets/profile-icon.png')}
+          source={user.profilePic ? { uri: API_URL + user.profilePic } : require('../../assets/profile-icon (2).png')}
           style={FacultyProfileStyle.avatar}
           resizeMode="cover"
         />
@@ -107,7 +107,7 @@ export default function FacultyProfile() {
                   ? { uri: editedUser.newProfilePicAsset.uri }
                   : editedUser?.profilePic
                     ? { uri: API_URL + editedUser.profilePic }
-                    : require('../../assets/profile-icon.png')}
+                    : require('../../assets/profile-icon (2).png')}
                 style={FacultyProfileStyle.avatar}
                 resizeMode="cover"
               />

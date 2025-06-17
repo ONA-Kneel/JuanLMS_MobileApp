@@ -173,7 +173,7 @@ export default function StudentsProfile() {
           source={
             user.profilePic
               ? { uri: API_URL + user.profilePic }
-              : require('../../assets/profile-icon.png')
+              : require('../../assets/profile-icon (2).png')
           }
           style={StudentsProfileStyle.avatar}
           resizeMode="cover"
@@ -242,12 +242,12 @@ export default function StudentsProfile() {
                       ? { uri: webPreviewUrl }
                       : editedUser?.profilePic
                         ? { uri: API_URL + editedUser.profilePic }
-                        : require('../../assets/profile-icon.png')
+                        : require('../../assets/profile-icon (2).png')
                     : editedUser?.newProfilePicAsset
                       ? { uri: editedUser.newProfilePicAsset.uri }
                       : editedUser?.profilePic
                         ? { uri: API_URL + editedUser.profilePic }
-                        : require('../../assets/profile-icon.png')
+                        : require('../../assets/profile-icon (2).png')
                 }
                 style={StudentsProfileStyle.avatar}
                 resizeMode="cover"
