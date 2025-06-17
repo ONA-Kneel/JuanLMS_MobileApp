@@ -1,10 +1,9 @@
-import { Text, TouchableOpacity, View } from 'react-native';
+import { Text, TouchableOpacity, View, Image } from 'react-native';
 import * as React from 'react';
 import { useState, useEffect } from 'react';
 import { Calendar } from 'react-native-calendars';
 import { Ionicons } from '@expo/vector-icons';
 import FacultyCalendarStyle from '../styles/faculty/FacultyCalendarStyle';
-import { Image } from 'react-native-web';
 import { useNavigation } from '@react-navigation/native';
 
 const timeToString = (time) => {
@@ -76,7 +75,13 @@ export default function FacultyCalendar() {
         });
         eventsData.forEach(event => {
           if (!event.date) return;
-          const date = event.date.split('T')[0];
+          let date = '';
+          try {
+            date = event.date.split('T')[0];
+          } catch (err) {
+            console.error('Error splitting event date:', err);
+            return;
+          }
           if (!newItems[date]) newItems[date] = [];
           newItems[date].push({
             name: event.title,
@@ -172,7 +177,11 @@ export default function FacultyCalendar() {
             <Text style={FacultyCalendarStyle.headerSubtitle}>{formatDateTime(currentDateTime)}</Text>
           </View>
           <TouchableOpacity onPress={() => changeScreen.navigate('FProfile')}>
-            <Image source={require('../../assets/profile-icon (2).png')} style={{ width: 36, height: 36, borderRadius: 18 }} />
+            <Image 
+              source={require('../../assets/profile-icon (2).png')} 
+              style={{ width: 36, height: 36, borderRadius: 18 }}
+              resizeMode="cover"
+            />
           </TouchableOpacity>
         </View>
       </View>
