@@ -4,67 +4,73 @@ const StudentDashStyle = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#f3f3f3',
-        gap: 10
-      },
-      title: {
+    },
+    title: {
         fontSize: 20,
         fontWeight: 'bold',
         marginBottom: 10,
-      },
-      logo: {
+    },
+    logo: {
         width: 100,
-        height:50,
-        marginBottom:20,
+        height: 50,
+        marginBottom: 20,
         resizeMode: 'contain',
-      },
-      iconsContainer: {
-        
+    },
+    iconsContainer: {
         flexDirection: 'row',
         justifyContent: 'space-around',
         marginBottom: 20,
-      },
-      iconWrapper: {
+    },
+    iconWrapper: {
         alignItems: 'center',
-        
-      },
-      card: {
+    },
+    card: {
         backgroundColor: '#00418b',
-        padding: 20,
-        borderRadius: 20,
-        marginBottom: 10,
-        position: 'relative',
-      },
-      cardHeader: {
+        padding: 16,
+        borderRadius: 12,
+        marginBottom: 12,
         flexDirection: 'row',
+        alignItems: 'center',
         justifyContent: 'space-between',
-      },
-      courseTitle: {
+        elevation: 3,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+    },
+    cardHeader: {
+        flex: 1,
+        marginRight: 16,
+    },
+    courseTitle: {
         color: 'white',
         fontSize: 16,
         fontWeight: 'bold',
-      },
-      courseCode: {
-        color: 'white',
+        marginBottom: 4,
+    },
+    courseCode: {
+        color: 'rgba(255, 255, 255, 0.8)',
         fontSize: 12,
-      },
-      progressText: {
+    },
+    progressText: {
         color: 'white',
         marginTop: 5,
         fontSize: 12,
-      },
-      progressBar: {
+    },
+    progressBar: {
         height: 10,
         marginTop: 5,
-        backgroundColor: 'gray',
-        borderRadius:50
-      },
-      arrowButton: {
-        position: 'absolute',
-        right: 15,
-        top: '50%',
-        transform: [{ translateY: -10 }],
-      },
-      blueHeaderBackground: {
+        backgroundColor: 'rgba(255, 255, 255, 0.2)',
+        borderRadius: 50,
+    },
+    arrowButton: {
+        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+        borderRadius: 8,
+        padding: 8,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    blueHeaderBackground: {
         backgroundColor: '#00418b',
         height: 90,
         borderBottomLeftRadius: 24,
@@ -81,7 +87,7 @@ const StudentDashStyle = StyleSheet.create({
         shadowOpacity: 0.08,
         shadowRadius: 8,
         zIndex: 2,
-        marginBottom: 3,
+        marginBottom: 16,
     },
     headerTitle: {
         fontSize: 22,
@@ -92,6 +98,14 @@ const StudentDashStyle = StyleSheet.create({
         color: '#888',
         fontSize: 14,
         fontFamily: 'Poppins-Regular',
+    },
+    sectionTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        marginTop: 24,
+        marginBottom: 12,
+        color: '#222',
+        fontFamily: 'Poppins-Bold',
     },
 });
 

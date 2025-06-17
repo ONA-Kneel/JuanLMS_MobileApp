@@ -39,18 +39,25 @@ export default function StudentDashboard() {
       setError(null);
       
       try {
-        const response = await fetch(`https://juanlms-mobileapp.onrender.com/student-classes?studentID=${user.studentID}`);
+        console.log('Fetching classes for student:', user.studentID);
+        const response = await fetch(`https://juanlms-mobileapp.onrender.com/api/classes/student/${user.studentID}`);
         const data = await response.json();
+        console.log('API Response:', data);
         
-        if (data.success) {
+        if (response.ok && Array.isArray(data)) {
+          setClasses(data);
+          setCompletedClassesPercent(data.length > 0 ? Math.round((data.filter(c => c.completed).length / data.length) * 100) : 0);
+        } else if (response.ok && data.classes) {
           setClasses(data.classes);
-          setCompletedClassesPercent(data.classes.length * 10);
+          setCompletedClassesPercent(data.classes.length > 0 ? Math.round((data.classes.filter(c => c.completed).length / data.classes.length) * 100) : 0);
         } else {
+          console.error('Invalid data format received:', data);
           setClasses([]);
           setCompletedClassesPercent(0);
-          setError('Failed to fetch classes');
+          setError('Failed to fetch classes: Invalid data format');
         }
       } catch (error) {
+        console.error('Error fetching classes:', error);
         setClasses([]);
         setCompletedClassesPercent(0);
         setError('Network error occurred');
@@ -110,8 +117,8 @@ export default function StudentDashboard() {
     });
   };
 
-  const modules = () => {
-    changeScreen.navigate("SModule");
+  const modules = (course) => {
+    changeScreen.navigate("SModule", { course });
   };
 
   return (
@@ -187,17 +194,18 @@ export default function StudentDashboard() {
           </View>
         ) : (
           classes.map((course, index) => (
-            <View key={index} style={StudentDashStyle.card}>
+            <TouchableOpacity 
+              key={index} 
+              style={StudentDashStyle.card}
+              onPress={() => modules(course)}>
               <View style={StudentDashStyle.cardHeader}>
-                <Text style={[StudentDashStyle.courseTitle, { fontFamily: 'Poppins-Bold' }]}>{course.className}</Text>
-                <Text style={[StudentDashStyle.courseCode, { fontFamily: 'Poppins-Regular' }]}>{course.classCode}</Text>
+                <Text style={[StudentDashStyle.courseTitle, { fontFamily: 'Poppins-Bold' }]}>{course.name || course.className}</Text>
+                <Text style={[StudentDashStyle.courseCode, { fontFamily: 'Poppins-Regular' }]}>{course.code || course.classCode}</Text>
               </View>
-              <TouchableOpacity
-                onPress={modules}
-                style={StudentDashStyle.arrowButton}>
+              <View style={StudentDashStyle.arrowButton}>
                 <Icon name="arrow-right" size={24} color="white" />
-              </TouchableOpacity>
-            </View>
+              </View>
+            </TouchableOpacity>
           ))
         )}
 
