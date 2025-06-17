@@ -27,18 +27,27 @@ export default function StudentsChats() {
       try {
         setIsLoading(true);
         setError(null);
-        const res = await axios.get(`${SOCKET_URL}/users/new`);
-        const userMap = {};
-        const filteredUsers = res.data.filter(u => 
-          u._id !== user._id && 
-          ALLOWED_ROLES.includes(u.role.toLowerCase())
-        );
-        
-        filteredUsers.forEach(u => {
-          userMap[u._id] = u;
-        });
-        setUsers(userMap);
-        setAllUsers(filteredUsers);
+        // Fetch all users for reference
+        // NOTE: Changed endpoint from /users/new to /users due to backend 502 error
+        axios.get(`${SOCKET_URL}/users`)
+          .then(res => {
+            const userMap = {};
+            const filteredUsers = res.data.filter(u => 
+              u._id !== user._id && 
+              ALLOWED_ROLES.includes(u.role.toLowerCase())
+            );
+            filteredUsers.forEach(u => {
+              userMap[u._id] = u;
+            });
+            setUsers(userMap);
+            setAllUsers(filteredUsers);
+          })
+          .catch((err) => {
+            console.error('Error fetching users:', err);
+            setUsers({});
+            setAllUsers([]);
+            setError('Failed to load users. Please try again later.');
+          });
       } catch (err) {
         console.error('Error fetching users:', err);
         setError('Failed to load users. Please try again later.');
