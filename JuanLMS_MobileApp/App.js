@@ -97,7 +97,7 @@ const facultyNavItems = [
   { label: 'Dashboard', icon: 'view-dashboard', route: 'FDashboard' },
   { label: 'Calendar', icon: 'calendar', route: 'FCalendar' },
   { label: 'Chats', icon: 'chat', route: 'FChat' },
-  // { label: 'Profile', icon: 'account', route: 'FProfile' },
+  { label: 'Profile', icon: 'account', route: 'FProfile' },
 ];
 
 function FacultyTabs() {
@@ -109,8 +109,7 @@ function FacultyTabs() {
       <Tabs.Screen name="FDashboard" component={FacultyDashboard} />
       <Tabs.Screen name="FCalendar" component={FacultyCalendar} />
       <Tabs.Screen name="FChat" component={FacultyChats} />
-      {/* <Tabs.Screen name="FSupportCenter" component={FacultySupportCenter} /> */}
-      {/* <Tabs.Screen name="FProfile" component={FacultyProfile} /> */}
+      <Tabs.Screen name="FProfile" component={FacultyProfile} />
     </Tabs.Navigator>
   );
 }
