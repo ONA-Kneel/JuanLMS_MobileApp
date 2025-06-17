@@ -54,7 +54,7 @@ export default function ParentDashboard() {
           </View>
           <TouchableOpacity onPress={() => changeScreen.navigate('PProfile')}>
             <Image 
-              source={require('../../assets/profile-icon.png')} 
+              source={require('../../assets/profile-icon (2).png')} 
               style={{ width: 36, height: 36, borderRadius: 18 }}
               resizeMode="cover"
             />

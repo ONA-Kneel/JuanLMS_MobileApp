@@ -52,7 +52,7 @@ export default function DirectorDashboard () {
           </View>
           <TouchableOpacity onPress={() => navigation.navigate('DProfile')}>
             <Image 
-              source={require('../../assets/profile-icon.png')} 
+              source={require('../../assets/profile-icon (2).png')} 
               style={{ width: 36, height: 36, borderRadius: 18 }}
               resizeMode="cover"
             />

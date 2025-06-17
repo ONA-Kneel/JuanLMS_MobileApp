@@ -113,8 +113,8 @@ export default function StudentDashboard() {
           </View>
           <TouchableOpacity onPress={() => changeScreen.navigate('SProfile')}>
             <Image 
-              source={require('../../assets/profile-icon.png')} 
-              style={{ width: 36, height: 36, borderRadius: 18 }} 
+              source={require('../../assets/profile-icon (2).png')} 
+              style={{ width: 36, height: 36, borderRadius: 18 }}
               resizeMode="cover"
             />
           </TouchableOpacity>
