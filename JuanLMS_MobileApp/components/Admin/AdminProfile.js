@@ -8,6 +8,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { addAuditLog } from './auditTrailUtils';
 import profileService from '../../services/profileService';
 import { updateUser } from '../UserContext';
+import * as ImagePicker from 'expo-image-picker';
 
 
 export default function AdminProfile() {
@@ -42,8 +43,26 @@ export default function AdminProfile() {
 
   const goBack = () => navigation.goBack();
 
-  const pickImage = () => {
-    // Implementation of pickImage function
+  const pickImage = async () => {
+    // Ask for permission
+    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (permissionResult.granted === false) {
+      Alert.alert('Permission required', 'Permission to access camera roll is required!');
+      return;
+    }
+    // Launch image picker
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+    });
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      setEditedUser(prev => ({
+        ...prev,
+        newProfilePicAsset: result.assets[0],
+      }));
+    }
   };
 
   const handleSaveProfile = async () => {
