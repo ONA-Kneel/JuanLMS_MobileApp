@@ -31,6 +31,7 @@ export default function StudentDashboard() {
     // Fetch classes for the logged-in student
     const fetchClasses = async () => {
       if (!user || !user.studentID) {
+        console.log('No student ID available');
         setLoading(false);
         return;
       }
@@ -55,13 +56,16 @@ export default function StudentDashboard() {
         const data = await response.json();
         console.log('API Response:', data);
         
-        if (data.success && data.classes) {
+        if (data.success && Array.isArray(data.classes)) {
           console.log('Classes loaded successfully:', data.classes);
           setClasses(data.classes);
-          setCompletedClassesPercent(data.classes.length > 0 ? Math.round((data.classes.filter(c => c.completed).length / data.classes.length) * 100) : 0);
+          // Calculate completion percentage based on completed property if it exists
+          const completedCount = data.classes.filter(c => c.completed).length;
+          const totalCount = data.classes.length;
+          setCompletedClassesPercent(totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0);
           setError(null);
         } else {
-          console.error('API Error Response:', data);
+          console.error('Invalid API Response:', data);
           setClasses([]);
           setCompletedClassesPercent(0);
           setError(data.error || 'Failed to fetch classes');
@@ -185,7 +189,7 @@ export default function StudentDashboard() {
         )}
 
         {/* Your Classes Section */}
-        <Text style={{ fontSize: 16, fontWeight: 'bold', marginTop: 24, marginBottom: 8, fontFamily: 'Poppins-Bold' }}>Your Classes</Text>
+        <Text style={StudentDashboardStyle.sectionTitle}>Your Classes</Text>
         
         {loading ? (
           <View style={{ alignItems: 'center', padding: 20 }}>
@@ -209,8 +213,12 @@ export default function StudentDashboard() {
               style={StudentDashStyle.card}
               onPress={() => modules(course)}>
               <View style={StudentDashStyle.cardHeader}>
-                <Text style={[StudentDashStyle.courseTitle, { fontFamily: 'Poppins-Bold' }]}>{course.name || course.className}</Text>
-                <Text style={[StudentDashStyle.courseCode, { fontFamily: 'Poppins-Regular' }]}>{course.code || course.classCode}</Text>
+                <Text style={[StudentDashStyle.courseTitle, { fontFamily: 'Poppins-Bold' }]}>
+                  {course.className || course.name}
+                </Text>
+                <Text style={[StudentDashStyle.courseCode, { fontFamily: 'Poppins-Regular' }]}>
+                  {course.classCode || course.code}
+                </Text>
               </View>
               <View style={StudentDashStyle.arrowButton}>
                 <Icon name="arrow-right" size={24} color="white" />

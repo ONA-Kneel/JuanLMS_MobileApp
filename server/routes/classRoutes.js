@@ -28,13 +28,32 @@ router.get('/student-classes', async (req, res) => {
     try {
         const db = database.getDb();
         const { studentID } = req.query;
+        
+        console.log('Fetching classes for student:', studentID);
+        
         if (!studentID) {
             return res.status(400).json({ success: false, error: 'studentID is required' });
         }
-        // Find classes where members array contains the studentID
-        const classes = await db.collection('Classes').find({ members: { $in: [studentID] } }).toArray();
-        res.json({ success: true, classes });
+
+        // Find all classes where the student is a member
+        const classes = await db.collection('Classes')
+            .find({ 
+                "members": { $elemMatch: { $eq: studentID } }
+            })
+            .toArray();
+
+        console.log('Found classes:', classes);
+
+        res.json({ 
+            success: true, 
+            classes: classes.map(c => ({
+                ...c,
+                className: c.className || c.name,
+                classCode: c.classCode || c.code
+            }))
+        });
     } catch (err) {
+        console.error('Error fetching classes:', err);
         res.status(500).json({ success: false, error: err.message });
     }
 });
