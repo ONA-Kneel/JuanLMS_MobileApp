@@ -1,6 +1,6 @@
-import { Text, TouchableOpacity, View } from 'react-native';
+import { Text, TouchableOpacity, View, Image, ScrollView } from 'react-native';
 import { useState } from 'react';
-import { Image, ImageBackground, ProgressBar, ScrollView } from 'react-native-web';
+import { ImageBackground, ProgressBar } from 'react-native-web';
 import { StatusBar } from 'expo-status-bar';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import StudentModuleStyle from '../styles/Stud/StudentModuleStyle';

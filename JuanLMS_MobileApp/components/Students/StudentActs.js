@@ -1,6 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
-import { Text, TouchableOpacity, View } from 'react-native';
-import { CheckBox, Image, ImageBackground, ProgressBar, ScrollView, TextInput } from 'react-native-web';
+import { Text, TouchableOpacity, View, Image, ScrollView, TextInput } from 'react-native';
+import { CheckBox, ImageBackground, ProgressBar } from 'react-native-web';
 import * as React from 'react'
 import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
 import { useState, useEffect } from 'react';
@@ -111,7 +111,11 @@ export default function StudentActs() {
             <Text style={StudentActsStyle.headerSubtitle}>{formatDateTime(currentDateTime)}</Text>
           </View>
           <TouchableOpacity onPress={() => changeScreen.navigate('SProfile')}>
-            <Image source={require('../../assets/profile-icon (2).png')} style={{ width: 36, height: 36, borderRadius: 18 }} />
+            <Image 
+              source={require('../../assets/profile-icon (2).png')} 
+              style={{ width: 36, height: 36, borderRadius: 18 }}
+              resizeMode="cover"
+            />
           </TouchableOpacity>
         </View>
       </View>

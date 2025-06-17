@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, ScrollView, TouchableOpacity, Dimensions, Image } from "react-native-web";
+import { View, Text, ScrollView, TouchableOpacity, Dimensions, Image } from "react-native";
 import { ProgressBar } from "react-native-paper";
 import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";

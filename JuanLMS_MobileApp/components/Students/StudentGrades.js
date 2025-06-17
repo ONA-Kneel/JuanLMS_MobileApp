@@ -1,9 +1,9 @@
 //table
 import React, { Component } from 'react';
-import { View, ScrollView, Text, TouchableOpacity } from 'react-native';
+import { View, ScrollView, Text, TouchableOpacity, Image } from 'react-native';
 import { Table, TableWrapper, Row } from 'react-native-table-component';
 import { useState, useEffect } from 'react';
-import { Image, ImageBackground, ProgressBar } from 'react-native-web';
+import { ImageBackground, ProgressBar } from 'react-native-web';
 import { StatusBar } from 'expo-status-bar';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
@@ -62,7 +62,11 @@ export default class StudentGrades extends Component {
                             <Text style={StudentGradesStyle.headerSubtitle}>{this.formatDateTime(state.currentDateTime)}</Text>
                         </View>
                         <TouchableOpacity onPress={this.profile}>
-                            <Image source={require('../../assets/profile-icon (2).png')} style={{ width: 36, height: 36, borderRadius: 18 }} />
+                            <Image 
+                                source={require('../../assets/profile-icon (2).png')} 
+                                style={{ width: 36, height: 36, borderRadius: 18 }}
+                                resizeMode="cover"
+                            />
                         </TouchableOpacity>
                     </View>
                 </View>

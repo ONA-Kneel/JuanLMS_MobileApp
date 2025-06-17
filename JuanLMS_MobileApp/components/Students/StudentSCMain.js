@@ -21,6 +21,7 @@ export default function StudentSCMain() {
         <Image
           source={require('../../assets/Logo3.svg')}
           style={StudentSCMainStyle.logo}
+          resizeMode="contain"
         />
       </View>
 
@@ -37,6 +38,7 @@ export default function StudentSCMain() {
           <Image
             //source={require('../../assets/support-icon.png')}
             style={StudentSCMainStyle.icon}
+            resizeMode="contain"
           />
         </View>
       </View>
@@ -49,6 +51,7 @@ export default function StudentSCMain() {
           <Image
             //source={require('../../assets/mail-icon.png')}
             style={StudentSCMainStyle.mailIcon}
+            resizeMode="contain"
           />
           <Text style={StudentSCMainStyle.messageTextBold}>Problem title</Text>
         </View>
@@ -60,6 +63,7 @@ export default function StudentSCMain() {
           <Image
             //source={require('../../assets/mail-icon.png')}
             style={StudentSCMainStyle.mailIcon}
+            resizeMode="contain"
           />
           <Text style={StudentSCMainStyle.messageTextBold}>Request Title</Text>
         </View>

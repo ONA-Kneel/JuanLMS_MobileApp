@@ -1,10 +1,9 @@
 // components/Students/StudentsChats.js
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, TextInput } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, Image } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../UserContext';
 import axios from 'axios';
-import { Image } from 'react-native-web';
 import StudentChatStyle from '../styles/Stud/StudentChatsStyle';
 
 const SOCKET_URL = 'https://juanlms-mobileapp.onrender.com';
@@ -89,7 +88,11 @@ export default function StudentsChats() {
             <Text style={StudentChatStyle.headerSubtitle}>Messages</Text>
           </View>
           <TouchableOpacity onPress={() => navigation.navigate('SProfile')}>
-            <Image source={require('../../assets/profile-icon (2).png')} style={{ width: 36, height: 36, borderRadius: 18 }} />
+            <Image 
+                source={require('../../assets/profile-icon (2).png')} 
+                style={{ width: 36, height: 36, borderRadius: 18 }}
+                resizeMode="cover"
+            />
           </TouchableOpacity>
         </View>
       </View>
@@ -138,7 +141,8 @@ export default function StudentsChats() {
                 }}>
                 <Image 
                   source={u.profilePicture ? { uri: u.profilePicture } : require('../../assets/profile-icon (2).png')} 
-                  style={{ width: 40, height: 40, borderRadius: 20, marginRight: 12 }} 
+                  style={{ width: 40, height: 40, borderRadius: 20, marginRight: 12 }}
+                  resizeMode="cover"
                 />
                 <View>
                   <Text style={{ fontWeight: 'bold', fontSize: 16 }}>{u.firstname} {u.lastname}</Text>
@@ -177,7 +181,8 @@ export default function StudentsChats() {
                 }}>
                 <Image 
                   source={partner.profilePicture ? { uri: partner.profilePicture } : require('../../assets/profile-icon (2).png')} 
-                  style={{ width: 40, height: 40, borderRadius: 20, marginRight: 12 }} 
+                  style={{ width: 40, height: 40, borderRadius: 20, marginRight: 12 }}
+                  resizeMode="cover"
                 />
                 <View style={{ flex: 1 }}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
