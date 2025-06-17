@@ -1,7 +1,7 @@
 //table
 import React, { Component } from 'react';
 import { View, ScrollView, Text, TouchableOpacity, Image } from 'react-native';
-import { Table, TableWrapper, Row } from 'react-native-table-component';
+import { Table, TableWrapper, Row, Cell } from 'react-native-table-component';
 import { useState, useEffect } from 'react';
 import { ImageBackground, ProgressBar } from 'react-native-web';
 import { StatusBar } from 'expo-status-bar';
@@ -79,25 +79,48 @@ export default class StudentGrades extends Component {
                                     data={state.tableHead}
                                     widthArr={state.widthArr}
                                     style={StudentGradesStyle.header}
-                                    textStyle={StudentGradesStyle.text}
+                                    textStyle={{ textAlign: 'center', color: '#00418B', fontFamily: 'Poppins-Bold' }}
                                 />
                             </Table>
 
                             <ScrollView style={StudentGradesStyle.dataWrapper}>
                                 <Table borderStyle={{ borderWidth: 1, borderColor: '#C1C0B9' }}>
-
                                     {/* Semester Header */}
                                     <Text style={StudentGradesStyle.semesterText}>2024-2025 2nd Semester</Text>
 
                                     {/* Sample Data Rows */}
-                                    <Row data={["MATH101", "Calculus I", "85", "87", "90", "88", "Passed"]} widthArr={state.widthArr} style={StudentGradesStyle.row} textStyle={StudentGradesStyle.text} />
-                                    <Row data={["ENG101", "English Composition", "80", "83", "86", "83", "Passed"]} widthArr={state.widthArr} style={StudentGradesStyle.row} textStyle={StudentGradesStyle.text} />
+                                    <TableWrapper>
+                                        <Row
+                                            data={["MATH101", "Calculus I", "85", "87", "90", "88", "Passed"]}
+                                            widthArr={state.widthArr}
+                                            style={StudentGradesStyle.row}
+                                            textStyle={{ textAlign: 'center', color: '#222', fontFamily: 'Poppins-Regular' }}
+                                        />
+                                        <Row
+                                            data={["ENG101", "English Composition", "80", "83", "86", "83", "Passed"]}
+                                            widthArr={state.widthArr}
+                                            style={StudentGradesStyle.row}
+                                            textStyle={{ textAlign: 'center', color: '#222', fontFamily: 'Poppins-Regular' }}
+                                        />
+                                    </TableWrapper>
 
                                     {/* Next Semester */}
                                     <Text style={StudentGradesStyle.semesterText}>2024-2025 1st Semester</Text>
 
-                                    <Row data={["CS101", "Intro to Programming", "88", "89", "91", "89", "Passed"]} widthArr={state.widthArr} style={StudentGradesStyle.row} textStyle={StudentGradesStyle.text} />
-                                    <Row data={["HIST101", "World History", "78", "81", "85", "81", "Passed"]} widthArr={state.widthArr} style={StudentGradesStyle.row} textStyle={StudentGradesStyle.text} />
+                                    <TableWrapper>
+                                        <Row
+                                            data={["CS101", "Intro to Programming", "88", "89", "91", "89", "Passed"]}
+                                            widthArr={state.widthArr}
+                                            style={StudentGradesStyle.row}
+                                            textStyle={{ textAlign: 'center', color: '#222', fontFamily: 'Poppins-Regular' }}
+                                        />
+                                        <Row
+                                            data={["HIST101", "World History", "78", "81", "85", "81", "Passed"]}
+                                            widthArr={state.widthArr}
+                                            style={StudentGradesStyle.row}
+                                            textStyle={{ textAlign: 'center', color: '#222', fontFamily: 'Poppins-Regular' }}
+                                        />
+                                    </TableWrapper>
                                 </Table>
                             </ScrollView>
                         </View>

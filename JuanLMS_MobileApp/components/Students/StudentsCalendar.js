@@ -78,36 +78,76 @@ export default function StudentCalendar() {
       try {
         let holidays = [];
         for (let year = 2024; year <= 2030; year++) {
-          const res = await fetch(`https://date.nager.at/api/v3/PublicHolidays/${year}/PH`);
-          const data = await res.json();
-          holidays = holidays.concat(data);
+          try {
+            const res = await fetch(`https://date.nager.at/api/v3/PublicHolidays/${year}/PH`);
+            if (!res.ok) throw new Error(`Failed to fetch holidays for ${year}`);
+            const data = await res.json();
+            holidays = holidays.concat(data);
+          } catch (err) {
+            console.error(`Error fetching holidays for ${year}:`, err);
+            continue; // Continue with next year even if one fails
+          }
         }
-        const resEvents = await fetch('https://juanlms-mobileapp.onrender.com/api/events');
-        const eventsData = await resEvents.json();
-        const newItems = {};
-        holidays.forEach(holiday => {
-          if (!newItems[holiday.date]) newItems[holiday.date] = [];
-          newItems[holiday.date].push({
-            name: holiday.localName,
-            type: 'holiday',
-            color: '#FFEB3B',
-            height: 50
+
+        try {
+          const resEvents = await fetch('https://juanlms-mobileapp.onrender.com/api/events');
+          if (!resEvents.ok) throw new Error('Failed to fetch events');
+          const eventsData = await resEvents.json();
+          
+          const newItems = {};
+          
+          // Process holidays
+          holidays.forEach(holiday => {
+            if (!holiday.date) return; // Skip if no date
+            if (!newItems[holiday.date]) newItems[holiday.date] = [];
+            newItems[holiday.date].push({
+              name: holiday.localName,
+              type: 'holiday',
+              color: '#FFEB3B',
+              height: 50
+            });
           });
-        });
-        eventsData.forEach(event => {
-          const date = event.date.split('T')[0];
-          if (!newItems[date]) newItems[date] = [];
-          newItems[date].push({
-            name: event.title,
-            type: 'event',
-            color: event.color || '#2196f3',
-            time: event.time || '',
-            height: 50
+
+          // Process events
+          eventsData.forEach(event => {
+            if (!event.date) return; // Skip if no date
+            try {
+              const date = event.date.split('T')[0];
+              if (!date) return; // Skip if date split failed
+              if (!newItems[date]) newItems[date] = [];
+              newItems[date].push({
+                name: event.title || 'Untitled Event',
+                type: 'event',
+                color: event.color || '#2196f3',
+                time: event.time || '',
+                height: 50
+              });
+            } catch (err) {
+              console.error('Error processing event:', err);
+              return; // Skip this event
+            }
           });
-        });
-        setItems(newItems);
+
+          setItems(newItems);
+        } catch (err) {
+          console.error('Error fetching events:', err);
+          // Still process holidays even if events fail
+          const newItems = {};
+          holidays.forEach(holiday => {
+            if (!holiday.date) return;
+            if (!newItems[holiday.date]) newItems[holiday.date] = [];
+            newItems[holiday.date].push({
+              name: holiday.localName,
+              type: 'holiday',
+              color: '#FFEB3B',
+              height: 50
+            });
+          });
+          setItems(newItems);
+        }
       } catch (err) {
         console.error('Failed to fetch holidays or events:', err);
+        setItems({});
       }
     };
     fetchAll();

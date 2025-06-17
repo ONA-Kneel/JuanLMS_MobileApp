@@ -17,13 +17,17 @@ export default function StudentsChats() {
   const [users, setUsers] = useState({});
   const [allUsers, setAllUsers] = useState([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     if (!user || !user._id) return;
 
-    // Fetch all users for reference
-    axios.get(`${SOCKET_URL}/users`)
-      .then(res => {
+    const fetchUsers = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        const res = await axios.get(`${SOCKET_URL}/users/new`);
         const userMap = {};
         const filteredUsers = res.data.filter(u => 
           u._id !== user._id && 
@@ -35,22 +39,50 @@ export default function StudentsChats() {
         });
         setUsers(userMap);
         setAllUsers(filteredUsers);
-      })
-      .catch(() => {
+      } catch (err) {
+        console.error('Error fetching users:', err);
+        setError('Failed to load users. Please try again later.');
         setUsers({});
         setAllUsers([]);
-      });
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-    // Fetch recent chats
-    axios.get(`${SOCKET_URL}/api/messages/recent/${user._id}`)
-      .then(res => setRecentChats(res.data))
-      .catch(() => setRecentChats([]));
+    const fetchRecentChats = async () => {
+      try {
+        const res = await axios.get(`${SOCKET_URL}/api/messages/recent/${user._id}`);
+        setRecentChats(res.data);
+      } catch (err) {
+        console.error('Error fetching recent chats:', err);
+        setRecentChats([]);
+      }
+    };
+
+    fetchUsers();
+    fetchRecentChats();
   }, [user && user._id]);
 
   if (!user || !user._id) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
         <Text>Loading user...</Text>
+      </View>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <Text>Loading chats...</Text>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <Text style={{ color: 'red' }}>{error}</Text>
       </View>
     );
   }
