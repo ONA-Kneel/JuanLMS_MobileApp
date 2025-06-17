@@ -53,22 +53,21 @@ export default function StudentsProfile() {
   };
 
   const pickImage = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission Required', 'Please grant permission to access your photos');
+    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (permissionResult.granted === false) {
+      Alert.alert('Permission required', 'Permission to access camera roll is required!');
       return;
     }
-    const result = await ImagePicker.launchImageLibraryAsync({
+    let result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 0.8,
-      base64: false,
+      quality: 0.7,
     });
-    if (!result.canceled) {
+    if (!result.canceled && result.assets && result.assets.length > 0) {
       setEditedUser(prev => ({
         ...prev,
-        newProfilePicAsset: result.assets[0], // store the asset for upload
+        newProfilePicAsset: result.assets[0],
       }));
     }
   };
