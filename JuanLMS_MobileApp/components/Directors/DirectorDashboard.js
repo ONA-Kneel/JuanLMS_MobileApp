@@ -51,7 +51,11 @@ export default function DirectorDashboard () {
             <Text style={{ fontFamily: 'Poppins-Regular', color: '#888', fontSize: 13 }}>{formatDateTime(currentDateTime)}</Text>
           </View>
           <TouchableOpacity onPress={() => navigation.navigate('DProfile')}>
-            <Image source={require('../../assets/profile-icon (2).png')} style={{ width: 36, height: 36, borderRadius: 18 }} />
+            <Image 
+              source={require('../../assets/profile-icon.png')} 
+              style={{ width: 36, height: 36, borderRadius: 18 }}
+              resizeMode="cover"
+            />
           </TouchableOpacity>
         </View>
       </View>

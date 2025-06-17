@@ -173,9 +173,10 @@ export default function StudentsProfile() {
           source={
             user.profilePic
               ? { uri: API_URL + user.profilePic }
-              : require('../../assets/profile-icon (2).png')
+              : require('../../assets/profile-icon.png')
           }
           style={StudentsProfileStyle.avatar}
+          resizeMode="cover"
         />
       </View>
       {/* Card */}
@@ -241,14 +242,15 @@ export default function StudentsProfile() {
                       ? { uri: webPreviewUrl }
                       : editedUser?.profilePic
                         ? { uri: API_URL + editedUser.profilePic }
-                        : require('../../assets/profile-icon (2).png')
+                        : require('../../assets/profile-icon.png')
                     : editedUser?.newProfilePicAsset
                       ? { uri: editedUser.newProfilePicAsset.uri }
                       : editedUser?.profilePic
                         ? { uri: API_URL + editedUser.profilePic }
-                        : require('../../assets/profile-icon (2).png')
+                        : require('../../assets/profile-icon.png')
                 }
                 style={StudentsProfileStyle.avatar}
+                resizeMode="cover"
               />
               <Text style={StudentsProfileStyle.imagePickerText}>change photo</Text>
             </TouchableOpacity>

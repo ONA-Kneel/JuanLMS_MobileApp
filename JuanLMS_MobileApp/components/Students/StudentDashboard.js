@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Text, TouchableOpacity, View, ScrollView } from 'react-native';
-import { Image } from 'react-native-web';
+import { Text, TouchableOpacity, View, ScrollView, Image } from 'react-native';
 import StudentDashStyle from '../styles/Stud/StudentDashStyle';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
@@ -113,7 +112,11 @@ export default function StudentDashboard() {
             <Text style={StudentDashboardStyle.headerSubtitle}>{formatDateTime(currentDateTime)}</Text>
           </View>
           <TouchableOpacity onPress={() => changeScreen.navigate('SProfile')}>
-            <Image source={require('../../assets/profile-icon (2).png')} style={{ width: 36, height: 36, borderRadius: 18 }} />
+            <Image 
+              source={require('../../assets/profile-icon.png')} 
+              style={{ width: 36, height: 36, borderRadius: 18 }} 
+              resizeMode="cover"
+            />
           </TouchableOpacity>
         </View>
       </View>

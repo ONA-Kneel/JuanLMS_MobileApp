@@ -82,8 +82,9 @@ export default function DirectorProfile() {
       {/* Profile Image */}
       <View style={DirectorProfileStyle.avatarWrapper}>
         <Image
-          source={user.profilePic ? { uri: API_URL + user.profilePic } : require('../../assets/profile-icon (2).png')}
+          source={user.profilePic ? { uri: API_URL + user.profilePic } : require('../../assets/profile-icon.png')}
           style={DirectorProfileStyle.avatar}
+          resizeMode="cover"
         />
         <TouchableOpacity onPress={() => setIsEditModalVisible(true)} style={DirectorProfileStyle.editAvatarBtn}>
           <Feather name="edit" size={20} color="#00418b" />
@@ -103,8 +104,9 @@ export default function DirectorProfile() {
                   ? { uri: editedUser.newProfilePicAsset.uri }
                   : editedUser?.profilePic
                     ? { uri: API_URL + editedUser.profilePic }
-                    : require('../../assets/profile-icon (2).png')}
+                    : require('../../assets/profile-icon.png')}
                 style={DirectorProfileStyle.avatar}
+                resizeMode="cover"
               />
               <Text style={DirectorProfileStyle.imagePickerText}>change photo</Text>
             </TouchableOpacity>

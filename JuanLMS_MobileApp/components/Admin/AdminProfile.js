@@ -81,8 +81,9 @@ export default function AdminProfile() {
       {/* Profile Image */}
       <View style={AdminProfileStyle.avatarWrapper}>
         <Image
-          source={user.profilePic ? { uri: API_URL + user.profilePic } : require('../../assets/profile-icon (2).png')}
+          source={user.profilePic ? { uri: API_URL + user.profilePic } : require('../../assets/profile-icon.png')}
           style={AdminProfileStyle.avatar}
+          resizeMode="cover"
         />
         <TouchableOpacity onPress={() => setIsEditModalVisible(true)} style={AdminProfileStyle.editAvatarBtn}>
           <Feather name="edit" size={20} color="#00418b" />
@@ -102,8 +103,9 @@ export default function AdminProfile() {
                   ? { uri: editedUser.newProfilePicAsset.uri }
                   : editedUser?.profilePic
                     ? { uri: API_URL + editedUser.profilePic }
-                    : require('../../assets/profile-icon (2).png')}
+                    : require('../../assets/profile-icon.png')}
                 style={AdminProfileStyle.avatar}
+                resizeMode="cover"
               />
               <Text style={AdminProfileStyle.imagePickerText}>change photo</Text>
             </TouchableOpacity>

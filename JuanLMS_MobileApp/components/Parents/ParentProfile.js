@@ -80,8 +80,9 @@ export default function ParentProfile() {
       {/* Profile Image */}
       <View style={ParentProfileStyle.avatarWrapper}>
         <Image
-          source={user.profilePic ? { uri: API_URL + user.profilePic } : require('../../assets/profile-icon (2).png')}
+          source={user.profilePic ? { uri: API_URL + user.profilePic } : require('../../assets/profile-icon.png')}
           style={ParentProfileStyle.avatar}
+          resizeMode="cover"
         />
         <TouchableOpacity onPress={() => setIsEditModalVisible(true)} style={ParentProfileStyle.editAvatarBtn}>
           <Feather name="edit" size={20} color="#00418b" />
@@ -101,8 +102,9 @@ export default function ParentProfile() {
                   ? { uri: editedUser.newProfilePicAsset.uri }
                   : editedUser?.profilePic
                     ? { uri: API_URL + editedUser.profilePic }
-                    : require('../../assets/profile-icon (2).png')}
+                    : require('../../assets/profile-icon.png')}
                 style={ParentProfileStyle.avatar}
+                resizeMode="cover"
               />
               <Text style={ParentProfileStyle.imagePickerText}>change photo</Text>
             </TouchableOpacity>

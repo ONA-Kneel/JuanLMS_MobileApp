@@ -60,7 +60,11 @@ export default function FacultyDashboard() {
             <Text style={FacultyDashStyle.headerSubtitle}>{formatDateTime(currentDateTime)}</Text>
           </View>
           <TouchableOpacity onPress={goToProfile}>
-            <Image source={require('../../assets/profile-icon (2).png')} style={{ width: 36, height: 36, borderRadius: 18 }} />
+            <Image 
+              source={require('../../assets/profile-icon.png')} 
+              style={{ width: 36, height: 36, borderRadius: 18 }}
+              resizeMode="cover"
+            />
           </TouchableOpacity>
         </View>
       </View>

@@ -85,8 +85,9 @@ export default function FacultyProfile() {
       {/* Profile Image */}
       <View style={FacultyProfileStyle.avatarWrapper}>
         <Image
-          source={user.profilePic ? { uri: API_URL + user.profilePic } : require('../../assets/profile-icon (2).png')}
+          source={user.profilePic ? { uri: API_URL + user.profilePic } : require('../../assets/profile-icon.png')}
           style={FacultyProfileStyle.avatar}
+          resizeMode="cover"
         />
         <TouchableOpacity onPress={() => setIsEditModalVisible(true)} style={FacultyProfileStyle.editAvatarBtn}>
           <Feather name="edit" size={20} color="#00418b" />
@@ -106,8 +107,9 @@ export default function FacultyProfile() {
                   ? { uri: editedUser.newProfilePicAsset.uri }
                   : editedUser?.profilePic
                     ? { uri: API_URL + editedUser.profilePic }
-                    : require('../../assets/profile-icon (2).png')}
+                    : require('../../assets/profile-icon.png')}
                 style={FacultyProfileStyle.avatar}
+                resizeMode="cover"
               />
               <Text style={FacultyProfileStyle.imagePickerText}>change photo</Text>
             </TouchableOpacity>

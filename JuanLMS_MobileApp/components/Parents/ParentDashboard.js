@@ -1,5 +1,4 @@
-import { Text, TouchableOpacity, View } from 'react-native';
-import { Image, ScrollView } from 'react-native-web';
+import { Text, TouchableOpacity, View, ScrollView, Image } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
 import ParentDashStyle from '../styles/parent/ParentDashStyle';
@@ -54,7 +53,11 @@ export default function ParentDashboard() {
             <Text style={{ fontFamily: 'Poppins-Regular', color: '#888', fontSize: 13 }}>{formatDateTime(currentDateTime)}</Text>
           </View>
           <TouchableOpacity onPress={() => changeScreen.navigate('PProfile')}>
-            <Image source={require('../../assets/profile-icon (2).png')} style={{ width: 36, height: 36, borderRadius: 18 }} />
+            <Image 
+              source={require('../../assets/profile-icon.png')} 
+              style={{ width: 36, height: 36, borderRadius: 18 }}
+              resizeMode="cover"
+            />
           </TouchableOpacity>
         </View>
       </View>
