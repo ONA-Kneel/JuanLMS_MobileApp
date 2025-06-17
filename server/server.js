@@ -21,7 +21,7 @@ app.use(express.json());
 app.use(users);
 app.use('/api/messages', messagesRouter);
 app.use('/api/tickets', ticketsRouter);
-app.use(classRoutes); // Add class routes
+app.use('/api', classRoutes); // Add class routes with /api prefix
 
 // Events API endpoint
 app.get('/api/events', async (req, res) => {

@@ -40,27 +40,37 @@ export default function StudentDashboard() {
       
       try {
         console.log('Fetching classes for student:', user.studentID);
-        const response = await fetch(`https://juanlms-mobileapp.onrender.com/api/classes/student/${user.studentID}`);
+        const response = await fetch(`https://juanlms-mobileapp.onrender.com/api/student-classes?studentID=${user.studentID}`, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+          },
+        });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
         const data = await response.json();
         console.log('API Response:', data);
         
-        if (response.ok && Array.isArray(data)) {
-          setClasses(data);
-          setCompletedClassesPercent(data.length > 0 ? Math.round((data.filter(c => c.completed).length / data.length) * 100) : 0);
-        } else if (response.ok && data.classes) {
+        if (data.success && data.classes) {
+          console.log('Classes loaded successfully:', data.classes);
           setClasses(data.classes);
           setCompletedClassesPercent(data.classes.length > 0 ? Math.round((data.classes.filter(c => c.completed).length / data.classes.length) * 100) : 0);
+          setError(null);
         } else {
-          console.error('Invalid data format received:', data);
+          console.error('API Error Response:', data);
           setClasses([]);
           setCompletedClassesPercent(0);
-          setError('Failed to fetch classes: Invalid data format');
+          setError(data.error || 'Failed to fetch classes');
         }
       } catch (error) {
-        console.error('Error fetching classes:', error);
+        console.error('Network error fetching classes:', error);
         setClasses([]);
         setCompletedClassesPercent(0);
-        setError('Network error occurred');
+        setError('Network error occurred: ' + error.message);
       } finally {
         setLoading(false);
       }
