@@ -6,7 +6,7 @@ import { useUser } from '../UserContext';
 import axios from 'axios';
 import FacultyChatStyle from '../styles/faculty/FacultyChatStyle';
 
-const SOCKET_URL = 'https://juanlms-mobileapp.onrender.com';
+const SOCKET_URL = 'http://localhost:5000';
 const ALLOWED_ROLES = ['students', 'director', 'admin', 'faculty'];
 
 export default function FacultyChats() {

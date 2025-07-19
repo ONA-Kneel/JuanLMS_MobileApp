@@ -41,7 +41,7 @@ export default function StudentDashboard() {
       
       try {
         console.log('Fetching classes for student:', user.studentID);
-        const response = await fetch(`https://juanlms-mobileapp.onrender.com/api/student-classes?studentID=${user.studentID}`, {
+        const response = await fetch(`http://localhost:5000/api/student-classes?studentID=${user.studentID}`, {
           method: 'GET',
           headers: {
             'Accept': 'application/json',
@@ -95,7 +95,7 @@ export default function StudentDashboard() {
         const dd = String(today.getDate()).padStart(2, '0');
         const todayStr = `${yyyy}-${mm}-${dd}`;
         
-        const response = await fetch(`https://juanlms-mobileapp.onrender.com/student-assignments?studentID=${user.studentID}&date=${todayStr}`);
+        const response = await fetch(`http://localhost:5000/student-assignments?studentID=${user.studentID}&date=${todayStr}`);
         const data = await response.json();
         
         if (data.success) {

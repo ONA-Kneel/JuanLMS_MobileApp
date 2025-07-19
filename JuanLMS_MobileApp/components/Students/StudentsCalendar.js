@@ -90,7 +90,7 @@ export default function StudentCalendar() {
         }
 
         try {
-          const resEvents = await fetch('https://juanlms-mobileapp.onrender.com/api/events');
+          const resEvents = await fetch('http://localhost:5000/api/events');
           if (!resEvents.ok) throw new Error('Failed to fetch events');
           const eventsData = await resEvents.json();
           

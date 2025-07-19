@@ -61,7 +61,7 @@ export default function AdminCalendar() {
           const data = await res.json();
           holidays = holidays.concat(data);
         }
-        const resEvents = await fetch('https://juanlms-mobileapp.onrender.com/api/events');
+        const resEvents = await fetch('http://localhost:5000/api/events');
         const eventsData = await resEvents.json();
         const newItems = {};
         holidays.forEach(holiday => {

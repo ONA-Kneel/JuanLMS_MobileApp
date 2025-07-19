@@ -24,7 +24,7 @@ export default function CreateClasses() {
 
     // Fetch students on mount
     useEffect(() => {
-        axios.get('https://juanlms-mobileapp.onrender.com/users')
+        axios.get('http://localhost:5000/users')
             .then(res => {
                 // Only students
                 const filtered = res.data.filter(u => u.role && u.role.toLowerCase() === 'student');
@@ -69,7 +69,7 @@ export default function CreateClasses() {
             return;
         }
         try {
-            const res = await axios.post('https://juanlms-mobileapp.onrender.com/classes', {
+            const res = await axios.post('http://localhost:5000/classes', {
                 className,
                 classCode,
                 classDesc: description,
