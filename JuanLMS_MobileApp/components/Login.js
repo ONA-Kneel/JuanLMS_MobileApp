@@ -151,7 +151,7 @@ export default function Login() {
           email: userData.email
         });
 
-        await AsyncStorage.setItem('users', JSON.stringify(userData));
+        await AsyncStorage.setItem('user', JSON.stringify(userData));
         setUser(userData);
 
         // Add audit log for login

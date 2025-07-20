@@ -1,5 +1,6 @@
 import express from 'express';
 import database from '../connect.cjs';
+import { ObjectId } from 'mongodb';
 
 const router = express.Router();
 
@@ -40,11 +41,35 @@ router.get('/student-classes', async (req, res) => {
         }
 
         // Find all classes where the student is a member
-        const classes = await db.collection('Classes')
+        // Try multiple approaches to find the student
+        let classes = await db.collection('Classes')
             .find({ 
                 "members": { $elemMatch: { $eq: studentID } }
             })
             .toArray();
+
+        // If no classes found, try without $elemMatch (in case members is a simple array)
+        if (classes.length === 0) {
+            classes = await db.collection('Classes')
+                .find({ 
+                    "members": studentID
+                })
+                .toArray();
+        }
+
+        // If still no classes found, try with ObjectId conversion
+        if (classes.length === 0) {
+            try {
+                const objectId = new ObjectId(studentID);
+                classes = await db.collection('Classes')
+                    .find({ 
+                        "members": { $elemMatch: { $eq: objectId } }
+                    })
+                    .toArray();
+            } catch (e) {
+                console.log('Could not convert to ObjectId:', e.message);
+            }
+        }
 
         console.log('Found classes:', classes);
         console.log('Query used:', { "members": { $elemMatch: { $eq: studentID } } });
@@ -59,6 +84,40 @@ router.get('/student-classes', async (req, res) => {
         });
     } catch (err) {
         console.error('Error fetching classes:', err);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// Debug route to check all classes
+router.get('/debug/classes', async (req, res) => {
+    try {
+        const db = database.getDb();
+        const allClasses = await db.collection('Classes').find({}).toArray();
+        console.log('All classes in database:', allClasses);
+        res.json({ 
+            success: true, 
+            totalClasses: allClasses.length,
+            classes: allClasses 
+        });
+    } catch (err) {
+        console.error('Error fetching all classes:', err);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// Debug route to check a specific user
+router.get('/debug/user/:userId', async (req, res) => {
+    try {
+        const db = database.getDb();
+        const { userId } = req.params;
+        const user = await db.collection('users').findOne({ _id: new ObjectId(userId) });
+        console.log('User found:', user);
+        res.json({ 
+            success: true, 
+            user: user 
+        });
+    } catch (err) {
+        console.error('Error fetching user:', err);
         res.status(500).json({ success: false, error: err.message });
     }
 });

@@ -7,6 +7,7 @@ import express from "express";
 import cors from "cors";
 import users from "./routes/userRoutes.js";
 import messagesRouter from './routes/messages.js';
+import classRoutes from './routes/classRoutes.js';
 import http from 'http';
 import { Server } from 'socket.io';
 import { MongoClient } from 'mongodb';
@@ -20,6 +21,7 @@ app.use(express.json());
 app.use(users);
 app.use('/api/messages', messagesRouter);
 app.use('/api/tickets', ticketsRouter);
+app.use('/api', classRoutes);
 
 // Serve uploaded files
 app.use('/uploads', express.static('uploads'));

@@ -29,11 +29,17 @@ export default function StudentDashboard() {
   useEffect(() => {
     // Fetch classes for the logged-in student
     const fetchClasses = async () => {
-      if (!user || !user.studentID) return;
+      if (!user || !user._id) {
+        console.log('No user or user ID available');
+        setLoading(false);
+        return;
+      }
       setLoading(true);
       try {
-        const response = await fetch(`http://localhost:5000/student-classes?studentID=${user.studentID}`);
+        console.log('Fetching classes for user:', user._id);
+        const response = await fetch(`http://localhost:5000/api/student-classes?studentID=${user._id}`);
         const data = await response.json();
+        console.log('API Response:', data);
         if (data.success) {
           setClasses(data.classes);
           // Calculate completed classes percent (10% per class)
@@ -43,6 +49,7 @@ export default function StudentDashboard() {
           setCompletedClassesPercent(0);
         }
       } catch (error) {
+        console.error('Error fetching classes:', error);
         setClasses([]);
         setCompletedClassesPercent(0);
       }
@@ -54,7 +61,7 @@ export default function StudentDashboard() {
   useEffect(() => {
     // Fetch assignments for today and calculate completion
     const fetchAssignments = async () => {
-      if (!user || !user.studentID) return;
+      if (!user || !user._id) return;
       try {
         const today = new Date();
         const yyyy = today.getFullYear();
@@ -62,7 +69,7 @@ export default function StudentDashboard() {
         const dd = String(today.getDate()).padStart(2, '0');
         const todayStr = `${yyyy}-${mm}-${dd}`;
         // Replace with your actual endpoint for assignments
-        const response = await fetch(`http://localhost:5000/student-assignments?studentID=${user.studentID}&date=${todayStr}`);
+        const response = await fetch(`http://localhost:5000/api/student-assignments?studentID=${user._id}&date=${todayStr}`);
         const data = await response.json();
         if (data.success) {
           setAssignmentsToday(data.assignments);

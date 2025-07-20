@@ -30,8 +30,8 @@ export default function StudentDashboard() {
   useEffect(() => {
     // Fetch classes for the logged-in student
     const fetchClasses = async () => {
-      if (!user || !user.studentID) {
-        console.log('No student ID available');
+      if (!user || !user._id) {
+        console.log('No user ID available');
         setLoading(false);
         return;
       }
@@ -40,8 +40,8 @@ export default function StudentDashboard() {
       setError(null);
       
       try {
-        console.log('Fetching classes for student:', user.studentID);
-        const response = await fetch(`http://localhost:5000/api/student-classes?studentID=${user.studentID}`, {
+        console.log('Fetching classes for user:', user._id);
+        const response = await fetch(`http://localhost:5000/api/student-classes?studentID=${user._id}`, {
           method: 'GET',
           headers: {
             'Accept': 'application/json',
@@ -86,7 +86,7 @@ export default function StudentDashboard() {
   useEffect(() => {
     // Fetch assignments for today and calculate completion
     const fetchAssignments = async () => {
-      if (!user || !user.studentID) return;
+      if (!user || !user._id) return;
       
       try {
         const today = new Date();
@@ -95,7 +95,7 @@ export default function StudentDashboard() {
         const dd = String(today.getDate()).padStart(2, '0');
         const todayStr = `${yyyy}-${mm}-${dd}`;
         
-        const response = await fetch(`http://localhost:5000/student-assignments?studentID=${user.studentID}&date=${todayStr}`);
+        const response = await fetch(`http://localhost:5000/api/student-assignments?studentID=${user._id}&date=${todayStr}`);
         const data = await response.json();
         
         if (data.success) {

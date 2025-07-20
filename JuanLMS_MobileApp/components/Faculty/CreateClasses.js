@@ -69,12 +69,12 @@ export default function CreateClasses() {
             return;
         }
         try {
-            const res = await axios.post('http://localhost:5000/classes', {
+            const res = await axios.post('http://localhost:5000/api/classes', {
                 className,
                 classCode,
                 classDesc: description,
-                members: members.map(m => m.userID),
-                facultyID: user?.userID || ''
+                members: members.map(m => m._id),
+                facultyID: user?._id || ''
             });
             if (res.status === 201 && res.data.success) {
                 changeScreen.navigate('FDash');

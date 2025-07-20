@@ -127,9 +127,8 @@ export default function StudentSupportCenter() {
   }, [activeTab]);
 
   const fetchTickets = async () => {
-    // Replace with your userId logic
-    const userId = 'USER_ID';
-    const res = await fetch(`http://localhost:5000/api/tickets/user/${userId}`);
+    if (!user || !user._id) return;
+    const res = await fetch(`http://localhost:5000/api/tickets/user/${user._id}`);
     const data = await res.json();
     setTickets(data.filter(t => t.status === activeTab));
   };
@@ -170,13 +169,11 @@ export default function StudentSupportCenter() {
           <MaterialIcons name="attach-file" size={24} color="#1976d2" />
         </TouchableOpacity>
         <TouchableOpacity style={StudentSupportStyle.sendBtn} onPress={async () => {
-          if (!subject.trim() || !ticket.trim()) return;
-          // Replace with your userId logic
-          const userId = 'USER_ID';
+          if (!subject.trim() || !ticket.trim() || !user || !user._id) return;
           const res = await fetch('http://localhost:5000/api/tickets', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId, subject, description: ticket })
+            body: JSON.stringify({ userId: user._id, subject, description: ticket })
           });
           const data = await res.json();
           setSubject('');
