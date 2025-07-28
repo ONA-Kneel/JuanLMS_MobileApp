@@ -1,6 +1,6 @@
 // components/Faculty/FacultyChats.js
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, Image } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, Image, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../UserContext';
 import axios from 'axios';
@@ -13,6 +13,7 @@ export default function FacultyChats() {
   const navigation = useNavigation();
   const { user } = useUser();
   const [recentChats, setRecentChats] = useState([]);
+  const [groups, setGroups] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [users, setUsers] = useState({});
   const [allUsers, setAllUsers] = useState([]);
@@ -45,6 +46,11 @@ export default function FacultyChats() {
     axios.get(`${SOCKET_URL}/api/messages/recent/${user._id}`)
       .then(res => setRecentChats(res.data))
       .catch(() => setRecentChats([]));
+
+    // Fetch user's groups
+    axios.get(`${SOCKET_URL}/api/group-chats/user/${user._id}`)
+      .then(res => setGroups(res.data))
+      .catch(() => setGroups([]));
   }, [user && user._id]);
 
   if (!user || !user._id) {
@@ -61,6 +67,11 @@ export default function FacultyChats() {
     if (!partner) return false;
     return `${partner.firstname} ${partner.lastname}`.toLowerCase().includes(searchTerm.toLowerCase());
   });
+
+  // Filter groups by search term
+  const filteredGroups = groups.filter(group => 
+    group.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   // Filter users for new chat search
   const filteredUsers = allUsers.filter(u => 
@@ -87,13 +98,27 @@ export default function FacultyChats() {
             <Text style={FacultyChatStyle.headerTitle}>Chats</Text>
             <Text style={FacultyChatStyle.headerSubtitle}>Messages</Text>
           </View>
-          <TouchableOpacity onPress={() => navigation.navigate('FProfile')}>
-            <Image 
-              source={require('../../assets/profile-icon (2).png')} 
-              style={{ width: 36, height: 36, borderRadius: 18 }}
-              resizeMode="cover"
-            />
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <TouchableOpacity 
+              onPress={() => navigation.navigate('GroupManagement')}
+              style={{ 
+                backgroundColor: '#00418b', 
+                paddingHorizontal: 12, 
+                paddingVertical: 6, 
+                borderRadius: 15, 
+                marginRight: 10 
+              }}
+            >
+              <Text style={{ color: 'white', fontSize: 12, fontWeight: 'bold' }}>Groups</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.navigate('FProfile')}>
+              <Image 
+                source={require('../../assets/profile-icon (2).png')} 
+                style={{ width: 36, height: 36, borderRadius: 18 }}
+                resizeMode="cover"
+              />
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
       {/* Search Bar */}
@@ -124,36 +149,75 @@ export default function FacultyChats() {
           maxHeight: 300
         }}>
           <ScrollView>
-            {filteredUsers.length > 0 ? (
-              filteredUsers.map(u => (
-                <TouchableOpacity
-                  key={u._id}
-                  onPress={() => {
-                    navigation.navigate('Chat', { selectedUser: u, setRecentChats });
-                    setSearchTerm('');
-                    setShowSearchResults(false);
-                  }}
-                  style={{ 
-                    padding: 15, 
-                    borderBottomWidth: 1, 
-                    borderBottomColor: '#eee',
-                    flexDirection: 'row',
-                    alignItems: 'center'
-                  }}>
-                  <Image 
-                    source={u.profilePicture ? { uri: u.profilePicture } : require('../../assets/profile-icon (2).png')} 
-                    style={{ width: 40, height: 40, borderRadius: 20, marginRight: 12 }}
-                    resizeMode="cover"
-                  />
-                  <View>
-                    <Text style={{ fontWeight: 'bold', fontSize: 16 }}>{u.firstname} {u.lastname}</Text>
-                    <Text style={{ color: '#666', fontSize: 12 }}>{u.role}</Text>
-                  </View>
-                </TouchableOpacity>
-              ))
+            {filteredUsers.length > 0 || filteredGroups.length > 0 ? (
+              <>
+                {/* Show groups first */}
+                {filteredGroups.map(group => (
+                  <TouchableOpacity
+                    key={group._id}
+                    onPress={() => {
+                      navigation.navigate('GroupChat', { selectedGroup: group, setRecentChats });
+                      setSearchTerm('');
+                      setShowSearchResults(false);
+                    }}
+                    style={{ 
+                      padding: 15, 
+                      borderBottomWidth: 1, 
+                      borderBottomColor: '#eee',
+                      flexDirection: 'row',
+                      alignItems: 'center'
+                    }}>
+                    <View style={{ 
+                      width: 40, 
+                      height: 40, 
+                      borderRadius: 20, 
+                      backgroundColor: '#00418b', 
+                      marginRight: 12,
+                      justifyContent: 'center',
+                      alignItems: 'center'
+                    }}>
+                      <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>
+                        {group.name.charAt(0).toUpperCase()}
+                      </Text>
+                    </View>
+                    <View>
+                      <Text style={{ fontWeight: 'bold', fontSize: 16 }}>{group.name}</Text>
+                      <Text style={{ color: '#666', fontSize: 12 }}>Group • {group.participants.length} members</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+                
+                {/* Then show users */}
+                {filteredUsers.map(u => (
+                  <TouchableOpacity
+                    key={u._id}
+                    onPress={() => {
+                      navigation.navigate('Chat', { selectedUser: u, setRecentChats });
+                      setSearchTerm('');
+                      setShowSearchResults(false);
+                    }}
+                    style={{ 
+                      padding: 15, 
+                      borderBottomWidth: 1, 
+                      borderBottomColor: '#eee',
+                      flexDirection: 'row',
+                      alignItems: 'center'
+                    }}>
+                    <Image 
+                      source={u.profilePicture ? { uri: u.profilePicture } : require('../../assets/profile-icon (2).png')} 
+                      style={{ width: 40, height: 40, borderRadius: 20, marginRight: 12 }}
+                      resizeMode="cover"
+                    />
+                    <View>
+                      <Text style={{ fontWeight: 'bold', fontSize: 16 }}>{u.firstname} {u.lastname}</Text>
+                      <Text style={{ color: '#666', fontSize: 12 }}>{u.role}</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </>
             ) : (
               <View style={{ padding: 20, alignItems: 'center' }}>
-                <Text style={{ color: '#666', fontSize: 16 }}>No users found</Text>
+                <Text style={{ color: '#666', fontSize: 16 }}>No users or groups found</Text>
               </View>
             )}
           </ScrollView>
@@ -164,6 +228,7 @@ export default function FacultyChats() {
       <View style={{ padding: 16 }}>
         <Text style={{ fontWeight: 'bold', fontSize: 22, marginBottom: 10 }}>Recent Chats</Text>
         <ScrollView>
+          {/* Individual Chats */}
           {recentChats.map(chat => {
             const partner = users[chat.partnerId];
             if (!partner) return null;
@@ -212,6 +277,64 @@ export default function FacultyChats() {
               </TouchableOpacity>
             );
           })}
+
+          {/* Group Chats */}
+          {groups.length > 0 && (
+            <>
+              <Text style={{ fontWeight: 'bold', fontSize: 18, marginTop: 20, marginBottom: 10, color: '#00418b' }}>
+                Group Chats
+              </Text>
+              {groups.map(group => (
+                <TouchableOpacity
+                  key={group._id}
+                  onPress={() => navigation.navigate('GroupChat', { selectedGroup: group, setRecentChats })}
+                  style={{ 
+                    backgroundColor: 'white', 
+                    padding: 15, 
+                    borderRadius: 10, 
+                    marginBottom: 10,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    elevation: 2,
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 1 },
+                    shadowOpacity: 0.2,
+                    shadowRadius: 2,
+                  }}>
+                  <View style={{ 
+                    width: 40, 
+                    height: 40, 
+                    borderRadius: 20, 
+                    backgroundColor: '#00418b', 
+                    marginRight: 12,
+                    justifyContent: 'center',
+                    alignItems: 'center'
+                  }}>
+                    <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>
+                      {group.name.charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Text style={{ fontWeight: 'bold', fontSize: 16 }}>{group.name}</Text>
+                      <View style={{ 
+                        backgroundColor: '#e8f4fd', 
+                        borderRadius: 12, 
+                        paddingHorizontal: 8, 
+                        paddingVertical: 2 
+                      }}>
+                        <Text style={{ color: '#00418b', fontSize: 12 }}>Group</Text>
+                      </View>
+                    </View>
+                    <Text style={{ color: '#666', fontSize: 12 }}>{group.participants.length} members</Text>
+                    <Text style={{ color: '#888', fontSize: 12, marginTop: 4 }} numberOfLines={1}>
+                      Join code: {group.joinCode}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </>
+          )}
         </ScrollView>
       </View>
     </View>

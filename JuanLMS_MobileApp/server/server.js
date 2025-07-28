@@ -8,6 +8,7 @@ import cors from "cors";
 import users from "./routes/userRoutes.js";
 import messagesRouter from './routes/messages.js';
 import classRoutes from './routes/classRoutes.js';
+import groupChatsRouter from './routes/groupChats.js';
 import http from 'http';
 import { Server } from 'socket.io';
 import { MongoClient } from 'mongodb';
@@ -20,6 +21,7 @@ app.use(cors());
 app.use(express.json());
 app.use(users);
 app.use('/api/messages', messagesRouter);
+app.use('/api/group-chats', groupChatsRouter);
 app.use('/api/tickets', ticketsRouter);
 app.use('/api', classRoutes);
 
@@ -47,8 +49,26 @@ const io = new Server(server, {
 
 io.on('connection', (socket) => {
   console.log('A user connected');
+  
+  // Individual chat events
   socket.on('joinChat', (chatId) => socket.join(chatId));
   socket.on('sendMessage', (msg) => io.to(msg.chatId).emit('receiveMessage', msg));
+  
+  // Group chat events
+  socket.on('joinGroup', (data) => {
+    socket.join(`group-${data.groupId}`);
+    console.log(`User ${data.userId} joined group ${data.groupId}`);
+  });
+  
+  socket.on('leaveGroup', (data) => {
+    socket.leave(`group-${data.groupId}`);
+    console.log(`User ${data.userId} left group ${data.groupId}`);
+  });
+  
+  socket.on('sendGroupMessage', (msg) => {
+    io.to(`group-${msg.groupId}`).emit('receiveGroupMessage', msg);
+  });
+  
   socket.on('disconnect', () => console.log('A user disconnected'));
 });
 
