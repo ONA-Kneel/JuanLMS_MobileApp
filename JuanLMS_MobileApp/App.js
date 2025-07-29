@@ -19,6 +19,7 @@ import GroupManagement from './components/GroupManagement';
 
 //Students
 import StudentDashboard from './components/Students/StudentDashboard';
+import StudentClasses from './components/Students/StudentClasses';
 import StudentModule from './components/Students/StudentModule';
 import StudentGrades from './components/Students/StudentGrades';
 import StudentActs from './components/Students/StudentActs';
@@ -32,6 +33,7 @@ import CustomBottomNav from './components/CustomBottomNav';
 
 //Faculty
 import FacultyDashboard from './components/Faculty/FacultyDashboard';
+import FacultyClasses from './components/Faculty/FacultyClasses';
 import CreateClasses from './components/Faculty/CreateClasses';
 import FacultyStudentProgress from './components/Faculty/FacultyStudentProgress';
 import FacultyModule from './components/Faculty/FacultyModule';
@@ -86,7 +88,7 @@ function StudentTabs() {
       tabBar={props => <CustomBottomNav {...props} />}
       screenOptions={{ headerShown: false }}
     >
-      <Tabs.Screen name="SDash" component={StudentDashboard} />
+      <Tabs.Screen name="StudentDashboard" component={StudentDashboard} />
       <Tabs.Screen name="SActs" component={StudentActs} />
       <Tabs.Screen name="SCalendar" component={StudentCalendar} />
       <Tabs.Screen name="SGrade" component={StudentGrades} />
@@ -219,6 +221,7 @@ export default function App() {
 
         {/* Students */}
         <Screens.Screen name='SDash' component={StudentTabs} options={{ headerShown: false }}/>
+        <Screens.Screen name='SClasses' component={StudentClasses} options={{ headerShown: false }}/>
         <Screens.Screen name='SModule' component={StudentModule} options={{ headerShown: false }}/>
         <Screens.Screen name='SGrade' component={StudentGrades} options={{ headerShown: false }}/>
         <Screens.Screen name='SActs' component={StudentActs} options={{ headerShown: false }}/>
@@ -232,6 +235,7 @@ export default function App() {
         {/*Faculties */}
         {/*Need tangalin ang "add a lesson" na naeedit, need daw upload lang and title lang ang editable*/}
         <Screens.Screen name='FDash' component={FacultyTabs} options={{ headerShown: false }}/>
+        <Screens.Screen name='FClasses' component={FacultyClasses} options={{ headerShown: false }}/>
         <Screens.Screen name ='CClass' component={CreateClasses} options={{ headerShown: false }}/>
         <Screens.Screen name ='FSProg' component={FacultyStudentProgress} options={{ headerShown: false }}/>
         <Screens.Screen name ='FMod' component={FacultyModule} options={{ headerShown: false }}/>

@@ -3,7 +3,7 @@ import { View, TouchableOpacity, Text } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 const defaultNavItems = [
-  { label: 'Dashboard', icon: 'view-dashboard', route: 'SDash' },
+  { label: 'Dashboard', icon: 'view-dashboard', route: 'StudentDashboard' },
   { label: 'Activities', icon: 'file-document', route: 'SActs' },
   { label: 'Calendar', icon: 'calendar', route: 'SCalendar' },
   { label: 'Grades', icon: 'star', route: 'SGrade' },

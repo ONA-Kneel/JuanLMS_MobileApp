@@ -91,6 +91,39 @@ const FacultyDashStyle = StyleSheet.create({
         fontSize: 14,
         fontFamily: 'Poppins-Regular',
     },
+    // New header styles
+    header: {
+        backgroundColor: '#00418b',
+        paddingTop: 50,
+        paddingBottom: 20,
+        paddingHorizontal: 20,
+        borderBottomLeftRadius: 20,
+        borderBottomRightRadius: 20,
+    },
+    headerContent: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+    },
+    welcomeText: {
+        color: '#fff',
+        fontSize: 14,
+        fontFamily: 'Poppins-Regular',
+        marginBottom: 2,
+    },
+    nameText: {
+        color: '#fff',
+        fontSize: 20,
+        fontWeight: 'bold',
+        fontFamily: 'Poppins-Bold',
+        marginBottom: 4,
+    },
+    dateText: {
+        color: '#fff',
+        fontSize: 12,
+        fontFamily: 'Poppins-Regular',
+        opacity: 0.9,
+    },
 });
 
 export default FacultyDashStyle;

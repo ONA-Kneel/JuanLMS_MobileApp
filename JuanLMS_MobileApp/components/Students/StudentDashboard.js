@@ -136,12 +136,36 @@ export default function StudentDashboard() {
       >
         {/* Stats Row - now functional */}
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 }}>
-          <View style={{ flex: 1, backgroundColor: '#00418b', borderRadius: 16, alignItems: 'center', padding: 16, marginRight: 8, elevation: 2 }}>
+          <View style={{ 
+            flex: 1, 
+            backgroundColor: '#00418b', 
+            borderRadius: 16, 
+            alignItems: 'center', 
+            padding: 16, 
+            marginRight: 8, 
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.1,
+            shadowRadius: 4,
+            elevation: 2 
+          }}>
             <Icon name="book" size={32} color="#fff" style={{ marginBottom: 8 }} />
             <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 20, fontFamily: 'Poppins-Bold' }}>{completedClassesPercent}%</Text>
             <Text style={{ color: '#fff', fontSize: 12, textAlign: 'center', fontFamily: 'Poppins-Regular' }}>Completed Classes</Text>
           </View>
-          <View style={{ flex: 1, backgroundColor: '#00418b', borderRadius: 16, alignItems: 'center', padding: 16, marginLeft: 8, elevation: 2 }}>
+          <View style={{ 
+            flex: 1, 
+            backgroundColor: '#00418b', 
+            borderRadius: 16, 
+            alignItems: 'center', 
+            padding: 16, 
+            marginLeft: 8, 
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.1,
+            shadowRadius: 4,
+            elevation: 2 
+          }}>
             <Icon name="pencil" size={32} color="#fff" style={{ marginBottom: 8 }} />
             <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 20, fontFamily: 'Poppins-Bold' }}>{completedAssignmentsPercent}%</Text>
             <Text style={{ color: '#fff', fontSize: 12, textAlign: 'center', fontFamily: 'Poppins-Regular' }}>Completed Assignments</Text>
@@ -155,14 +179,26 @@ export default function StudentDashboard() {
           </View>
         )}
         {/* Your Classes */}
-        <Text style={{ fontSize: 16, fontWeight: 'bold', marginTop: 24, marginBottom: 8, fontFamily: 'Poppins-Bold' }}>Your Classes</Text>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 24, marginBottom: 8 }}>
+          <Text style={{ fontSize: 16, fontWeight: 'bold', fontFamily: 'Poppins-Bold' }}>Your Classes</Text>
+          <TouchableOpacity 
+            onPress={() => changeScreen.navigate('SClasses')}
+            style={{ 
+              backgroundColor: '#00418b', 
+              paddingHorizontal: 12, 
+              paddingVertical: 6, 
+              borderRadius: 8 
+            }}>
+            <Text style={{ color: '#fff', fontSize: 12, fontFamily: 'Poppins-Bold' }}>View All</Text>
+          </TouchableOpacity>
+        </View>
         <View>
           {loading ? (
             <Text>Loading...</Text>
           ) : classes.length === 0 ? (
             <Text>You have no classes yet.</Text>
           ) : (
-            classes.map((course, index) => (
+            classes.slice(0, 3).map((course, index) => (
               <View key={index} style={StudentDashStyle.card}>
                 <View style={StudentDashStyle.cardHeader}>
                   <Text style={[StudentDashStyle.courseTitle, { fontFamily: 'Poppins-Bold' }]}>{course.className}</Text>
@@ -176,6 +212,21 @@ export default function StudentDashboard() {
                 </TouchableOpacity>
               </View>
             ))
+          )}
+          {classes.length > 3 && (
+            <TouchableOpacity 
+              onPress={() => changeScreen.navigate('SClasses')}
+              style={{ 
+                alignItems: 'center', 
+                padding: 16, 
+                backgroundColor: '#f0f0f0', 
+                borderRadius: 12, 
+                marginTop: 8 
+              }}>
+              <Text style={{ color: '#00418b', fontFamily: 'Poppins-Bold' }}>
+                View {classes.length - 3} more classes
+              </Text>
+            </TouchableOpacity>
           )}
         </View>
         {/* Completed Classes Section (optional) */}
