@@ -8,6 +8,7 @@ import cors from "cors";
 import users from "./routes/userRoutes.js";
 import messagesRouter from './routes/messages.js';
 import classRoutes from './routes/classRoutes.js';
+import announcementRoutes from './routes/announcementRoutes.js';
 import groupChatsRouter from './routes/groupChats.js';
 import http from 'http';
 import { Server } from 'socket.io';
@@ -21,7 +22,7 @@ app.use(cors());
 app.use(express.json());
 app.use(users);
 app.use('/api/messages', messagesRouter);
-app.use('/api/group-chats', groupChatsRouter);
+app.use('/api/announcements', announcementRoutes);
 app.use('/api/tickets', ticketsRouter);
 app.use('/api', classRoutes);
 
