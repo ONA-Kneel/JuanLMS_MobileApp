@@ -20,6 +20,7 @@ export default function FacultyModule() {
     });
     const [announcements, setAnnouncements] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [classwork, setClasswork] = useState([]); // Add this state
 
     useEffect(() => {
         if (classId) {
@@ -30,6 +31,15 @@ export default function FacultyModule() {
             fetchAvailableClasses();
         }
     }, [classId]);
+
+    const fetchClasswork = async (classId) => {
+        try {
+            const res = await axios.get(`http://localhost:5000/api/assignments?classID=${classId}`);
+            setClasswork(res.data);
+        } catch (err) {
+            setClasswork([]);
+        }
+    };
 
     const fetchSpecificClass = async (targetClassId) => {
         try {
@@ -44,6 +54,7 @@ export default function FacultyModule() {
                 
                 // Fetch announcements for this specific class
                 fetchAnnouncements(classRes.data.class.classID);
+                fetchClasswork(classRes.data.class.classID); // Fetch classwork
             } else {
                 throw new Error('Class not found');
             }
@@ -69,6 +80,7 @@ export default function FacultyModule() {
                 
                 // Now fetch announcements for this class
                 fetchAnnouncements(firstClass.classID);
+                fetchClasswork(firstClass.classID); // Fetch classwork
             } else {
                 setClassInfo({
                     className: "No Classes Found",
@@ -151,7 +163,19 @@ export default function FacultyModule() {
                             <Icon name="phone" size={22} color="#222" />
                         </View>
                         {/* Classwork Content */}
-                        <Text style={{ fontFamily: 'Poppins-Regular', color: '#222', fontSize: 13, marginTop: 10 }}>No classwork assigned yet.</Text>
+                        {loading ? (
+                            <ActivityIndicator />
+                        ) : classwork.length === 0 ? (
+                            <Text style={{ fontFamily: 'Poppins-Regular', color: '#222', fontSize: 13, marginTop: 10 }}>No classwork assigned yet.</Text>
+                        ) : (
+                            classwork.map(item => (
+                                <View key={item._id} style={{ backgroundColor: item.type === 'quiz' ? '#ffe4b5' : '#e3eefd', borderRadius: 8, borderWidth: 1, borderColor: '#00418b', padding: 10, marginBottom: 8 }}>
+                                    <Text style={{ fontFamily: 'Poppins-Bold', color: '#00418b', fontSize: 15 }}>{item.type === 'quiz' ? 'Quiz: ' : 'Assignment: '}{item.title}</Text>
+                                    <Text style={{ fontFamily: 'Poppins-Regular', color: '#222', fontSize: 13 }}>{item.description || item.instructions}</Text>
+                                    {item.dueDate && <Text style={{ fontFamily: 'Poppins-Regular', color: '#888', fontSize: 11, marginTop: 4 }}>Due: {new Date(item.dueDate).toLocaleString()}</Text>}
+                                </View>
+                            ))
+                        )}
                     </>
                 );
             case 'Class Materials':
