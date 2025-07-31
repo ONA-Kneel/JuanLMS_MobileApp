@@ -214,9 +214,12 @@ export default function Login() {
 
   return (
     <View style={LoginStyle.container}>
-      <View style={LoginStyle.topSection}>
-        <Image source={require('../assets/JuanLMS-LogoV1.png')} style={LoginStyle.logo} />
-        <Text style={LoginStyle.text1}>Where faith and reason are expressed in Charity</Text>
+      <View style={LoginStyle.topSection}> {/* Responsive margin */}
+        <Image source={require('../assets/JuanLMS-LogoV1.svg')} style={LoginStyle.logo} />
+        <View style={{ alignItems: 'center', justifyContent: 'center', width: '100%' }}>
+          <Text style={LoginStyle.text1}>Where faith and reason are</Text>
+          <Text style={LoginStyle.text1}>expressed in Charity</Text>
+        </View>
       </View>
       <View style={LoginStyle.card}>
         <Text style={LoginStyle.loginTitle}>Login</Text>

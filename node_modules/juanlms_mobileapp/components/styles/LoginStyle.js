@@ -17,22 +17,23 @@ const LoginStyle = StyleSheet.create({
     backgroundColor: '#0a1a4f',
     alignItems: 'center',
     justifyContent: 'center',
+    marginTop: 100, // reduced from 100
     paddingTop: 70,
-    paddingBottom: 24,
+    paddingBottom: 0, // was 10, now 0 for closer text
   },
   logo: {
-    height: height * 0.17,
-    width: width * 0.42,
+    height: height * 0.15,
+    width: width * 0.55,
+    
     resizeMode: 'contain',
-    marginBottom: 8,
-    marginTop: 64,
+    marginBottom: 2, // reduced from 10 for closer text
   },
   text1: {
     fontFamily: 'Poppins-Light',
     color: 'white',
-    fontSize: width * 0.035,
+    fontSize: width * 0.038,
     textAlign: 'center',
-    marginTop: 2,
+    marginTop: 0, // remove extra space between lines
   },
   card: {
     backgroundColor: '#fff',
