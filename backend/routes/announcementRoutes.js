@@ -1,7 +1,7 @@
 import express from 'express';
 import Announcement from '../models/Announcement.js';
 // import { authenticateToken } from '../middleware/authMiddleware.js';
-import { createAnnouncementNotification } from '../services/notificationService.js';
+// import { createAnnouncementNotification } from '../services/notificationService.js';
 
 const router = express.Router();
 
@@ -100,7 +100,7 @@ router.post('/', /*authenticateToken,*/ async (req, res) => {
     
     // Create notifications for students in the class
     console.log(`Creating notifications for class: ${classID}`);
-    await createAnnouncementNotification(classID, announcement);
+    // await createAnnouncementNotification(classID, announcement);
     
     res.status(201).json(announcement);
   } catch (error) {
