@@ -38,7 +38,13 @@ router.get('/', /*authenticateToken,*/ async (req, res) => {
   // Fetch quizzes for this class
   let quizzes = [];
   if (classID) {
-    quizzes = await Quiz.find({ $or: [ { classID }, { classIDs: classID } ] }).sort({ createdAt: -1 });
+    quizzes = await Quiz.find({
+      $or: [
+        { classID },
+        { classIDs: classID },
+        { "assignedTo.classID": classID }
+      ]
+    }).sort({ createdAt: -1 });
   } else {
     quizzes = await Quiz.find().sort({ createdAt: -1 });
   }

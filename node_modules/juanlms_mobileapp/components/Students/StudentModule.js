@@ -38,8 +38,10 @@ export default function StudentModule(){
         try {
             const res = await axios.get(`http://localhost:5000/api/assignments?classID=${classId}`);
             setClasswork(res.data);
+            console.log('Fetched classwork (Student):', res.data); // Debug log
         } catch (err) {
             setClasswork([]);
+            console.log('Error fetching classwork (Student):', err);
         }
     };
 

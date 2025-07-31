@@ -36,8 +36,10 @@ export default function FacultyModule() {
         try {
             const res = await axios.get(`http://localhost:5000/api/assignments?classID=${classId}`);
             setClasswork(res.data);
+            console.log('Fetched classwork (Faculty):', res.data); // Debug log
         } catch (err) {
             setClasswork([]);
+            console.log('Error fetching classwork (Faculty):', err);
         }
     };
 
