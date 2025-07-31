@@ -1,4 +1,37 @@
 {
+  "name": "juanlms-mobile-app",
+  "version": "1.0.0",
+  "description": "JuanLMS Mobile Application with React Native frontend and Node.js backend",
+  "main": "index.js",
+  "scripts": {
+    "install-all": "npm install && cd frontend && npm install && cd ../backend && npm install",
+    "start": "concurrently \"npm run start:backend\" \"npm run start:frontend\"",
+    "start:frontend": "cd frontend && npm start",
+    "start:backend": "cd backend && npm start",
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:frontend": "cd frontend && npm start",
+    "dev:backend": "cd backend && npm run dev",
+    "build": "cd frontend && npm run build",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "react-native",
+    "expo",
+    "nodejs",
+    "express",
+    "mongodb",
+    "mobile-app",
+    "lms"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
   "dependencies": {
     "@react-native-community/datetimepicker": "^8.4.1",
     "axios": "^1.9.0",
