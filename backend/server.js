@@ -16,6 +16,7 @@ import http from 'http';
 import { Server } from 'socket.io';
 import { MongoClient } from 'mongodb';
 import ticketsRouter from "./routes/tickets.js";
+import lessonRoutes from './routes/lessonRoutes.js';
 
 const app = express();
 const PORT = 5000;
@@ -29,6 +30,7 @@ app.use('/api/quizzes', quizRoutes);
 app.use('/api/assignments', assignmentRoutes);
 app.use('/api/tickets', ticketsRouter);
 app.use('/api', classRoutes);
+app.use('/api/lessons', lessonRoutes);
 
 // Serve uploaded files
 app.use('/uploads', express.static('uploads'));

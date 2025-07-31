@@ -21,6 +21,8 @@ export default function FacultyModule() {
     const [announcements, setAnnouncements] = useState([]);
     const [loading, setLoading] = useState(true);
     const [classwork, setClasswork] = useState([]); // Add this state
+    const [materials, setMaterials] = useState([]);
+    const [materialsLoading, setMaterialsLoading] = useState(true);
 
     useEffect(() => {
         if (classId) {
@@ -43,6 +45,18 @@ export default function FacultyModule() {
         }
     };
 
+    const fetchMaterials = async (classId) => {
+        setMaterialsLoading(true);
+        try {
+            const res = await axios.get(`http://localhost:5000/api/lessons?classID=${classId}`);
+            setMaterials(res.data);
+        } catch (err) {
+            setMaterials([]);
+        } finally {
+            setMaterialsLoading(false);
+        }
+    };
+
     const fetchSpecificClass = async (targetClassId) => {
         try {
             // Fetch specific class by ID
@@ -57,6 +71,7 @@ export default function FacultyModule() {
                 // Fetch announcements for this specific class
                 fetchAnnouncements(classRes.data.class.classID);
                 fetchClasswork(classRes.data.class.classID); // Fetch classwork
+                fetchMaterials(classRes.data.class.classID); // Fetch materials
             } else {
                 throw new Error('Class not found');
             }
@@ -83,6 +98,7 @@ export default function FacultyModule() {
                 // Now fetch announcements for this class
                 fetchAnnouncements(firstClass.classID);
                 fetchClasswork(firstClass.classID); // Fetch classwork
+                fetchMaterials(firstClass.classID); // Fetch materials
             } else {
                 setClassInfo({
                     className: "No Classes Found",
@@ -190,7 +206,20 @@ export default function FacultyModule() {
                             <Icon name="phone" size={22} color="#222" />
                         </View>
                         {/* Class Materials Content */}
-                        <Text style={{ fontFamily: 'Poppins-Regular', color: '#222', fontSize: 13, marginTop: 10 }}>No materials uploaded yet.</Text>
+                        {materialsLoading ? (
+                            <ActivityIndicator />
+                        ) : materials.length === 0 ? (
+                            <Text style={{ fontFamily: 'Poppins-Regular', color: '#222', fontSize: 13, marginTop: 10 }}>No materials uploaded yet.</Text>
+                        ) : (
+                            materials.map(lesson => (
+                                <View key={lesson._id} style={{ backgroundColor: '#e3eefd', borderRadius: 8, borderWidth: 1, borderColor: '#00418b', padding: 10, marginBottom: 8 }}>
+                                    <Text style={{ fontFamily: 'Poppins-Bold', color: '#00418b', fontSize: 15 }}>{lesson.title}</Text>
+                                    {lesson.files && lesson.files.map(file => (
+                                        <Text key={file.fileUrl} style={{ fontFamily: 'Poppins-Regular', color: '#222', fontSize: 13 }}>{file.fileName}</Text>
+                                    ))}
+                                </View>
+                            ))
+                        )}
                     </>
                 );
             default:
