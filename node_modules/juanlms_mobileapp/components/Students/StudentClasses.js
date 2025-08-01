@@ -24,7 +24,7 @@ export default function StudentClasses() {
       
       try {
         console.log('Fetching classes for student:', user._id);
-        const response = await fetch(`http://localhost:5000/api/student-classes?studentID=${user._id}`, {
+        const response = await fetch(`https://juanlms-mobileapp.onrender.com/api/student-classes?studentID=${user._id}`, {
           method: 'GET',
           headers: {
             'Accept': 'application/json',

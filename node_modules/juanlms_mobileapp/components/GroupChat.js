@@ -16,7 +16,7 @@ import io from 'socket.io-client';
 import axios from 'axios';
 import AdminChatStyle from './styles/administrator/AdminChatStyle';
 
-const SOCKET_URL = 'http://localhost:5000';
+const SOCKET_URL = 'https://juanlms-mobileapp.onrender.com';
 
 export default function GroupChat() {
   const navigation = useNavigation();

@@ -14,7 +14,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useUser } from './UserContext';
 import axios from 'axios';
 
-const SOCKET_URL = 'http://localhost:5000';
+const SOCKET_URL = 'https://juanlms-mobileapp.onrender.com';
 const ALLOWED_ROLES = ['students', 'director', 'admin', 'faculty'];
 
 export default function GroupManagement() {

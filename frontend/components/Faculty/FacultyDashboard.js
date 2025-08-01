@@ -35,7 +35,7 @@ export default function FacultyDashboard() {
       
       try {
         console.log('Fetching classes for faculty:', user._id);
-        const response = await fetch(`http://localhost:5000/api/faculty-classes?facultyID=${user._id}`, {
+        const response = await fetch(`https://juanlms-mobileapp.onrender.com/api/faculty-classes?facultyID=${user._id}`, {
           method: 'GET',
           headers: {
             'Accept': 'application/json',
