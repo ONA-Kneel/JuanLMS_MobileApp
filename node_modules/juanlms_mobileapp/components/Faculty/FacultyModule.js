@@ -498,23 +498,45 @@ export default function FacultyModule() {
                 return (
                     <>
                         {/* Classwork Title Row */}
-                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10, justifyContent: 'space-between' }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10, justifyContent: 'space-between', position: 'relative', zIndex: 9999 }}>
                             <Text style={{ fontFamily: 'Poppins-Bold', fontSize: 18, color: '#222', flex: 1 }}>Classwork</Text>
                             {/* + Create Dropdown Button (faculty only) */}
-                            {user?.role === 'faculty' && (
-                                <TouchableOpacity
-                                    ref={createBtnRef}
-                                    onLayout={event => {
-                                        const { x, y, width, height } = event.nativeEvent.layout;
-                                        setDropdownPos({ x, y, width, height });
-                                    }}
-                                    onPress={() => setShowCreateDropdown(!showCreateDropdown)}
-                                    style={{ backgroundColor: '#183a8c', borderRadius: 6, paddingVertical: 7, paddingHorizontal: 14, alignSelf: 'flex-start' }}
-                                    activeOpacity={0.85}
-                                >
-                                    <Text style={{ color: '#fff', fontFamily: 'Poppins-Bold', fontSize: 14, textAlign: 'center' }}>+ Create ▼</Text>
-                                </TouchableOpacity>
-                            )}
+                            <View style={{ position: 'relative', alignSelf: 'flex-start' }}>
+                                {user?.role === 'faculty' && (
+                                    <TouchableOpacity
+                                        onPress={() => setShowCreateDropdown(!showCreateDropdown)}
+                                        style={{ backgroundColor: '#183a8c', borderRadius: 6, paddingVertical: 7, paddingHorizontal: 14, alignSelf: 'flex-start' }}
+                                        activeOpacity={0.85}
+                                    >
+                                        <Text style={{ color: '#fff', fontFamily: 'Poppins-Bold', fontSize: 14, textAlign: 'center' }}>+ Create ▼</Text>
+                                    </TouchableOpacity>
+                                )}
+                                {showCreateDropdown && (
+                                    <View style={{
+                                        position: 'absolute',
+                                        top: '100%',
+                                        left: 0,
+                                        backgroundColor: '#fff',
+                                        borderRadius: 8,
+                                        borderWidth: 1,
+                                        borderColor: '#183a8c',
+                                        zIndex: 9999,
+                                        minWidth: 120,
+                                        shadowColor: '#000',
+                                        shadowOpacity: 0.12,
+                                        shadowRadius: 8,
+                                        elevation: 12,
+                                        marginBottom: 8,
+                                    }}>
+                                        <TouchableOpacity onPress={handleCreateAssignment} style={{ paddingVertical: 10, paddingHorizontal: 14 }}>
+                                            <Text style={{ color: '#222', fontFamily: 'Poppins-Regular', fontSize: 14 }}>Assignment</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity onPress={handleCreateQuiz} style={{ paddingVertical: 10, paddingHorizontal: 14 }}>
+                                            <Text style={{ color: '#222', fontFamily: 'Poppins-Regular', fontSize: 14 }}>Quiz</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                )}
+                            </View>
                         </View>
                         {/* Classwork Content */}
                         {loading ? (
@@ -731,101 +753,6 @@ export default function FacultyModule() {
             </View>
             {/* Blue curved background at bottom */}
             <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 90, backgroundColor: '#00418b', borderTopLeftRadius: 60, borderTopRightRadius: 60, zIndex: -1 }} />
-            {/* Portal-like Dropdown for + Create */}
-            {showCreateDropdown && (
-                <View style={{
-                    position: 'absolute',
-                    top: dropdownPos.y + dropdownPos.height + 10, // 10px below button
-                    left: dropdownPos.x,
-                    backgroundColor: '#fff',
-                    borderRadius: 8,
-                    borderWidth: 1,
-                    borderColor: '#183a8c',
-                    zIndex: 2000,
-                    minWidth: 120,
-                    shadowColor: '#000',
-                    shadowOpacity: 0.12,
-                    shadowRadius: 8,
-                    elevation: 12,
-                }}>
-                    <TouchableOpacity onPress={handleCreateAssignment} style={{ paddingVertical: 10, paddingHorizontal: 14 }}>
-                        <Text style={{ color: '#222', fontFamily: 'Poppins-Regular', fontSize: 14 }}>Assignment</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={handleCreateQuiz} style={{ paddingVertical: 10, paddingHorizontal: 14 }}>
-                        <Text style={{ color: '#222', fontFamily: 'Poppins-Regular', fontSize: 14 }}>Quiz</Text>
-                    </TouchableOpacity>
-                </View>
-            )}
-            <Modal
-                visible={showAddModuleModal}
-                animationType="slide"
-                transparent={true}
-                onRequestClose={() => setShowAddModuleModal(false)}
-            >
-                <KeyboardAvoidingView
-                    behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-                    style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.18)' }}
-                >
-                    <View style={{ backgroundColor: '#fff', borderRadius: 12, padding: 24, width: '94%', maxWidth: 420, borderWidth: 1, borderColor: '#b6c8e6' }}>
-                        <Text style={{ fontFamily: 'Poppins-Bold', color: '#222', fontSize: 18, marginBottom: 16 }}>Add New Module</Text>
-                        <Text style={{ fontFamily: 'Poppins-Bold', color: '#222', fontSize: 15, marginBottom: 6 }}>Lesson Title</Text>
-                        <TextInput
-                            value={moduleTitle}
-                            onChangeText={setModuleTitle}
-                            style={{ backgroundColor: '#fff', borderRadius: 4, borderWidth: 1, borderColor: '#222', padding: 8, marginBottom: 16, fontFamily: 'Poppins-Regular', fontSize: 15 }}
-                            placeholder="Enter lesson title"
-                        />
-                        <Text style={{ fontFamily: 'Poppins-Bold', color: '#222', fontSize: 15, marginBottom: 6 }}>Upload Files</Text>
-                        {isWeb ? (
-                            <input
-                                type="file"
-                                multiple
-                                onChange={handleFileChange}
-                                style={{ marginBottom: 16, fontFamily: 'Poppins-Regular', fontSize: 15 }}
-                            />
-                        ) : (
-                            <>
-                                <TouchableOpacity
-                                    onPress={() => handleMobileFilePick(setModuleFiles)}
-                                    style={{ backgroundColor: '#e3eefd', borderRadius: 5, borderWidth: 1, borderColor: '#183a8c', paddingVertical: 8, paddingHorizontal: 12, marginBottom: 8 }}
-                                >
-                                    <Text style={{ color: '#183a8c', fontFamily: 'Poppins-Bold', fontSize: 14 }}>Pick Files</Text>
-                                </TouchableOpacity>
-                                {moduleFiles.length > 0 && (
-                                    <View style={{ marginBottom: 12 }}>
-                                        {moduleFiles.map((file, idx) => (
-                                            <Text key={file.uri || file.name || idx} style={{ fontSize: 13, color: '#222' }}>{file.name || file.uri}</Text>
-                                        ))}
-                                    </View>
-                                )}
-                            </>
-                        )}
-                        <Text style={{ fontFamily: 'Poppins-Bold', color: '#222', fontSize: 15, marginBottom: 6 }}>or Paste Link</Text>
-                        <TextInput
-                            value={moduleLink}
-                            onChangeText={setModuleLink}
-                            style={{ backgroundColor: '#fff', borderRadius: 4, borderWidth: 1, borderColor: '#222', padding: 8, marginBottom: 20, fontFamily: 'Poppins-Regular', fontSize: 15 }}
-                            placeholder="https://example.com/lesson.pdf"
-                        />
-                        <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
-                            <TouchableOpacity
-                                onPress={() => setShowAddModuleModal(false)}
-                                style={{ backgroundColor: '#888fa1', borderRadius: 5, paddingVertical: 10, paddingHorizontal: 18, marginRight: 10 }}
-                                disabled={savingModule}
-                            >
-                                <Text style={{ color: '#fff', fontFamily: 'Poppins-Bold', fontSize: 15 }}>Cancel</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                onPress={saveModule}
-                                style={{ backgroundColor: '#183a8c', borderRadius: 5, paddingVertical: 10, paddingHorizontal: 18, opacity: (!moduleTitle.trim() || (moduleFiles.length === 0 && !moduleLink.trim()) || savingModule) ? 0.6 : 1 }}
-                                disabled={!moduleTitle.trim() || (moduleFiles.length === 0 && !moduleLink.trim()) || savingModule}
-                            >
-                                <Text style={{ color: '#fff', fontFamily: 'Poppins-Bold', fontSize: 15 }}>Save Module</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                </KeyboardAvoidingView>
-            </Modal>
             {/* Edit Module Modal */}
             <Modal
                 visible={showEditModuleModal}
