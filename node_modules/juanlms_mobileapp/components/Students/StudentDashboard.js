@@ -132,7 +132,7 @@ export default function StudentDashboard() {
   };
 
   const modules = (course) => {
-    changeScreen.navigate("SModule", { course });
+    changeScreen.navigate("SModule", { classId: course.classID || course.classId || course._id });
   };
 
   return (
