@@ -1,4 +1,4 @@
-import { Text, TouchableOpacity, View, ScrollView, ActivityIndicator } from 'react-native';
+import { Text, TouchableOpacity, View, ScrollView, ActivityIndicator, Modal, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -28,6 +28,18 @@ export default function FacultyModule() {
     const [dropdownPos, setDropdownPos] = useState({ x: 0, y: 0, width: 0, height: 0 });
     const createBtnRef = useRef(null);
     const { user } = useUser();
+    const [showCreateAnnouncementModal, setShowCreateAnnouncementModal] = useState(false);
+    const [announcementTitle, setAnnouncementTitle] = useState('');
+    const [announcementContent, setAnnouncementContent] = useState('');
+    const [savingAnnouncement, setSavingAnnouncement] = useState(false);
+    // Edit/Delete state
+    const [showEditModal, setShowEditModal] = useState(false);
+    const [editAnnouncementId, setEditAnnouncementId] = useState(null);
+    const [editTitle, setEditTitle] = useState('');
+    const [editContent, setEditContent] = useState('');
+    const [savingEdit, setSavingEdit] = useState(false);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [deleteAnnouncementId, setDeleteAnnouncementId] = useState(null);
 
     useEffect(() => {
         if (classId) {
@@ -149,8 +161,7 @@ export default function FacultyModule() {
 
     // Placeholder handlers
     const handleCreateAnnouncement = () => {
-        // TODO: Open create announcement modal/screen
-        alert('Create New Announcement');
+        setShowCreateAnnouncementModal(true);
     };
     const handleCreateAssignment = () => {
         setShowCreateDropdown(false);
@@ -162,6 +173,69 @@ export default function FacultyModule() {
     };
     const handleAddMaterial = () => {
         alert('Add Material');
+    };
+
+    const saveAnnouncement = async () => {
+        if (!announcementTitle.trim() || !announcementContent.trim()) return;
+        setSavingAnnouncement(true);
+        try {
+            await axios.post('http://localhost:5000/api/announcements', {
+                classID,
+                title: announcementTitle,
+                content: announcementContent,
+            });
+            setShowCreateAnnouncementModal(false);
+            setAnnouncementTitle('');
+            setAnnouncementContent('');
+            // Refresh announcements
+            fetchAnnouncements(classID);
+        } catch (err) {
+            alert('Failed to save announcement');
+        } finally {
+            setSavingAnnouncement(false);
+        }
+    };
+
+    // Edit handlers
+    const openEditModal = (announcement) => {
+        setEditAnnouncementId(announcement._id);
+        setEditTitle(announcement.title);
+        setEditContent(announcement.content);
+        setShowEditModal(true);
+    };
+    const saveEdit = async () => {
+        if (!editTitle.trim() || !editContent.trim()) return;
+        setSavingEdit(true);
+        try {
+            await axios.put(`http://localhost:5000/api/announcements/${editAnnouncementId}`, {
+                title: editTitle,
+                content: editContent,
+            });
+            setShowEditModal(false);
+            setEditAnnouncementId(null);
+            setEditTitle('');
+            setEditContent('');
+            fetchAnnouncements(classID);
+        } catch (err) {
+            alert('Failed to save changes');
+        } finally {
+            setSavingEdit(false);
+        }
+    };
+    // Delete handlers
+    const openDeleteModal = (announcementId) => {
+        setDeleteAnnouncementId(announcementId);
+        setShowDeleteModal(true);
+    };
+    const confirmDelete = async () => {
+        try {
+            await axios.delete(`http://localhost:5000/api/announcements/${deleteAnnouncementId}`);
+            setShowDeleteModal(false);
+            setDeleteAnnouncementId(null);
+            fetchAnnouncements(classID);
+        } catch (err) {
+            alert('Failed to delete announcement');
+        }
     };
 
     const renderTabContent = () => {
@@ -185,7 +259,107 @@ export default function FacultyModule() {
                                 )}
                             </View>
                         </View>
-                        
+                        {/* Create Announcement Modal */}
+                        <Modal
+                            visible={showCreateAnnouncementModal}
+                            animationType="slide"
+                            transparent={true}
+                            onRequestClose={() => setShowCreateAnnouncementModal(false)}
+                        >
+                            <KeyboardAvoidingView
+                                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                                style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.18)' }}
+                            >
+                                <View style={{ backgroundColor: '#e3eefd', borderRadius: 10, padding: 20, width: '94%', maxWidth: 700, borderWidth: 1, borderColor: '#b6c8e6' }}>
+                                    <Text style={{ fontFamily: 'Poppins-Bold', color: '#222', fontSize: 15, marginBottom: 6 }}>Title</Text>
+                                    <TextInput
+                                        value={announcementTitle}
+                                        onChangeText={setAnnouncementTitle}
+                                        style={{ backgroundColor: '#fff', borderRadius: 4, borderWidth: 1, borderColor: '#222', padding: 8, marginBottom: 16, fontFamily: 'Poppins-Regular', fontSize: 15 }}
+                                        placeholder="Enter announcement title"
+                                    />
+                                    <Text style={{ fontFamily: 'Poppins-Bold', color: '#222', fontSize: 15, marginBottom: 6 }}>Content</Text>
+                                    <TextInput
+                                        value={announcementContent}
+                                        onChangeText={setAnnouncementContent}
+                                        style={{ backgroundColor: '#fff', borderRadius: 4, borderWidth: 1, borderColor: '#222', padding: 8, marginBottom: 16, fontFamily: 'Poppins-Regular', fontSize: 15, minHeight: 70, textAlignVertical: 'top' }}
+                                        placeholder="Enter announcement content"
+                                        multiline
+                                    />
+                                    <TouchableOpacity
+                                        onPress={saveAnnouncement}
+                                        style={{ backgroundColor: '#183a8c', borderRadius: 5, paddingVertical: 10, paddingHorizontal: 18, alignSelf: 'flex-start', marginTop: 4 }}
+                                        disabled={savingAnnouncement}
+                                    >
+                                        <Text style={{ color: '#fff', fontFamily: 'Poppins-Bold', fontSize: 15 }}>Save Announcement</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity onPress={() => setShowCreateAnnouncementModal(false)} style={{ position: 'absolute', top: 10, right: 14 }}>
+                                        <Text style={{ fontSize: 22, color: '#888' }}>×</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            </KeyboardAvoidingView>
+                        </Modal>
+                        {/* Edit Announcement Modal */}
+                        <Modal
+                            visible={showEditModal}
+                            animationType="slide"
+                            transparent={true}
+                            onRequestClose={() => setShowEditModal(false)}
+                        >
+                            <KeyboardAvoidingView
+                                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                                style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.18)' }}
+                            >
+                                <View style={{ backgroundColor: '#e3eefd', borderRadius: 10, padding: 20, width: '94%', maxWidth: 700, borderWidth: 1, borderColor: '#b6c8e6' }}>
+                                    <Text style={{ fontFamily: 'Poppins-Bold', color: '#222', fontSize: 15, marginBottom: 6 }}>Edit Title</Text>
+                                    <TextInput
+                                        value={editTitle}
+                                        onChangeText={setEditTitle}
+                                        style={{ backgroundColor: '#fff', borderRadius: 4, borderWidth: 1, borderColor: '#222', padding: 8, marginBottom: 16, fontFamily: 'Poppins-Regular', fontSize: 15 }}
+                                        placeholder="Enter announcement title"
+                                    />
+                                    <Text style={{ fontFamily: 'Poppins-Bold', color: '#222', fontSize: 15, marginBottom: 6 }}>Edit Content</Text>
+                                    <TextInput
+                                        value={editContent}
+                                        onChangeText={setEditContent}
+                                        style={{ backgroundColor: '#fff', borderRadius: 4, borderWidth: 1, borderColor: '#222', padding: 8, marginBottom: 16, fontFamily: 'Poppins-Regular', fontSize: 15, minHeight: 70, textAlignVertical: 'top' }}
+                                        placeholder="Enter announcement content"
+                                        multiline
+                                    />
+                                    <TouchableOpacity
+                                        onPress={saveEdit}
+                                        style={{ backgroundColor: '#183a8c', borderRadius: 5, paddingVertical: 10, paddingHorizontal: 18, alignSelf: 'flex-start', marginTop: 4, opacity: (!editTitle.trim() || !editContent.trim() || savingEdit) ? 0.6 : 1 }}
+                                        disabled={!editTitle.trim() || !editContent.trim() || savingEdit}
+                                    >
+                                        <Text style={{ color: '#fff', fontFamily: 'Poppins-Bold', fontSize: 15 }}>Save Changes</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity onPress={() => setShowEditModal(false)} style={{ position: 'absolute', top: 10, right: 14 }}>
+                                        <Text style={{ fontSize: 22, color: '#888' }}>×</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            </KeyboardAvoidingView>
+                        </Modal>
+                        {/* Delete Confirmation Modal */}
+                        <Modal
+                            visible={showDeleteModal}
+                            animationType="fade"
+                            transparent={true}
+                            onRequestClose={() => setShowDeleteModal(false)}
+                        >
+                            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.18)' }}>
+                                <View style={{ backgroundColor: '#fff', borderRadius: 10, padding: 24, width: '85%', maxWidth: 400, borderWidth: 1, borderColor: '#b6c8e6', alignItems: 'center' }}>
+                                    <Text style={{ fontFamily: 'Poppins-Bold', color: '#222', fontSize: 16, marginBottom: 12, textAlign: 'center' }}>Are you sure you want to delete this announcement?</Text>
+                                    <View style={{ flexDirection: 'row', marginTop: 10 }}>
+                                        <TouchableOpacity onPress={confirmDelete} style={{ backgroundColor: '#d32f2f', borderRadius: 5, paddingVertical: 10, paddingHorizontal: 18, marginRight: 10 }}>
+                                            <Text style={{ color: '#fff', fontFamily: 'Poppins-Bold', fontSize: 15 }}>Delete</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity onPress={() => setShowDeleteModal(false)} style={{ backgroundColor: '#bdbdbd', borderRadius: 5, paddingVertical: 10, paddingHorizontal: 18 }}>
+                                            <Text style={{ color: '#222', fontFamily: 'Poppins-Bold', fontSize: 15 }}>Cancel</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
+                            </View>
+                        </Modal>
                         {/* Announcements */}
                         {loading ? (
                             <ActivityIndicator />
@@ -208,6 +382,7 @@ export default function FacultyModule() {
                                         shadowOpacity: 0.04,
                                         shadowRadius: 4,
                                         elevation: 1,
+                                        position: 'relative',
                                       }}
                                     >
                                       <Text
@@ -231,6 +406,17 @@ export default function FacultyModule() {
                                       >
                                         {item.content}
                                       </Text>
+                                      {/* Edit/Delete buttons (faculty only) */}
+                                      {user?.role === 'faculty' && (
+                                        <View style={{ flexDirection: 'row', position: 'absolute', top: 12, right: 12 }}>
+                                            <TouchableOpacity onPress={() => openEditModal(item)} style={{ backgroundColor: '#ffd600', borderRadius: 5, paddingVertical: 4, paddingHorizontal: 10, marginRight: 8 }}>
+                                                <Text style={{ color: '#222', fontFamily: 'Poppins-Bold', fontSize: 13 }}>Edit</Text>
+                                            </TouchableOpacity>
+                                            <TouchableOpacity onPress={() => openDeleteModal(item._id)} style={{ backgroundColor: '#d32f2f', borderRadius: 5, paddingVertical: 4, paddingHorizontal: 10 }}>
+                                                <Text style={{ color: '#fff', fontFamily: 'Poppins-Bold', fontSize: 13 }}>Delete</Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                      )}
                                     </View>
                                 ))
                             )
