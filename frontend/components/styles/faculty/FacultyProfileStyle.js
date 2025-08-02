@@ -98,7 +98,7 @@ const FacultyProfileStyle = StyleSheet.create({
         paddingVertical: 10,
     },
     actionText: {
-        fontSize: 12,
+        fontSize: 14,
         color: '#00418b',
         fontFamily: 'Poppins_500Medium',
         marginTop: 2,

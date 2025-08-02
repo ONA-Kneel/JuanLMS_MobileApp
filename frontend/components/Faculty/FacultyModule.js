@@ -11,10 +11,10 @@ import * as DocumentPicker from 'expo-document-picker';
 export default function FacultyModule() {
     const route = useRoute();
     const navigation = useNavigation();
-    
+
     // Get the classId from navigation params
     const classId = route.params?.classId;
-    
+
     const [classID, setClassID] = useState(classId || null);
     const [classInfo, setClassInfo] = useState({
         className: "Loading...",
@@ -95,7 +95,7 @@ export default function FacultyModule() {
                     className: classRes.data.class.className,
                     classCode: classRes.data.class.classCode
                 });
-                
+
                 // Fetch announcements for this specific class
                 fetchAnnouncements(classRes.data.class.classID);
                 fetchClasswork(classRes.data.class.classID); // Fetch classwork
@@ -122,7 +122,7 @@ export default function FacultyModule() {
                     className: firstClass.className,
                     classCode: firstClass.classCode
                 });
-                
+
                 // Now fetch announcements for this class
                 fetchAnnouncements(firstClass.classID);
                 fetchClasswork(firstClass.classID); // Fetch classwork
@@ -447,54 +447,54 @@ export default function FacultyModule() {
                             ) : (
                                 announcements.map((item) => (
                                     <View
-                                      key={item._id}
-                                      style={{
-                                        backgroundColor: '#e3eefd',
-                                        borderRadius: 12,
-                                        borderWidth: 1,
-                                        borderColor: '#1976d2',
-                                        paddingVertical: 16,
-                                        paddingHorizontal: 18,
-                                        marginBottom: 16,
-                                        shadowColor: '#000',
-                                        shadowOpacity: 0.04,
-                                        shadowRadius: 4,
-                                        elevation: 1,
-                                        position: 'relative',
-                                      }}
+                                        key={item._id}
+                                        style={{
+                                            backgroundColor: '#e3eefd',
+                                            borderRadius: 12,
+                                            borderWidth: 1,
+                                            borderColor: '#1976d2',
+                                            paddingVertical: 16,
+                                            paddingHorizontal: 18,
+                                            marginBottom: 16,
+                                            shadowColor: '#000',
+                                            shadowOpacity: 0.04,
+                                            shadowRadius: 4,
+                                            elevation: 1,
+                                            position: 'relative',
+                                        }}
                                     >
-                                      <Text
-                                        style={{
-                                          fontFamily: 'Poppins-Bold',
-                                          color: '#00418b',
-                                          fontSize: 17,
-                                          marginBottom: 4,
-                                          letterSpacing: 0.1,
-                                        }}
-                                      >
-                                        {item.title}
-                                      </Text>
-                                      <Text
-                                        style={{
-                                          fontFamily: 'Poppins-Regular',
-                                          color: '#222',
-                                          fontSize: 15,
-                                          lineHeight: 21,
-                                        }}
-                                      >
-                                        {item.content}
-                                      </Text>
-                                      {/* Edit/Delete buttons (faculty only) */}
-                                      {user?.role === 'faculty' && (
-                                        <View style={{ flexDirection: 'row', position: 'absolute', top: 12, right: 12 }}>
-                                            <TouchableOpacity onPress={() => openEditModal(item)} style={{ backgroundColor: '#ffd600', borderRadius: 5, paddingVertical: 4, paddingHorizontal: 10, marginRight: 8 }}>
-                                                <Text style={{ color: '#222', fontFamily: 'Poppins-Bold', fontSize: 13 }}>Edit</Text>
-                                            </TouchableOpacity>
-                                            <TouchableOpacity onPress={() => openDeleteModal(item._id)} style={{ backgroundColor: '#d32f2f', borderRadius: 5, paddingVertical: 4, paddingHorizontal: 10 }}>
-                                                <Text style={{ color: '#fff', fontFamily: 'Poppins-Bold', fontSize: 13 }}>Delete</Text>
-                                            </TouchableOpacity>
-                                        </View>
-                                      )}
+                                        <Text
+                                            style={{
+                                                fontFamily: 'Poppins-Bold',
+                                                color: '#00418b',
+                                                fontSize: 17,
+                                                marginBottom: 4,
+                                                letterSpacing: 0.1,
+                                            }}
+                                        >
+                                            {item.title}
+                                        </Text>
+                                        <Text
+                                            style={{
+                                                fontFamily: 'Poppins-Regular',
+                                                color: '#222',
+                                                fontSize: 15,
+                                                lineHeight: 21,
+                                            }}
+                                        >
+                                            {item.content}
+                                        </Text>
+                                        {/* Edit/Delete buttons (faculty only) */}
+                                        {user?.role === 'faculty' && (
+                                            <View style={{ flexDirection: 'row', position: 'absolute', top: 12, right: 12 }}>
+                                                <TouchableOpacity onPress={() => openEditModal(item)} style={{ backgroundColor: '#ffd600', borderRadius: 5, paddingVertical: 4, paddingHorizontal: 10, marginRight: 8 }}>
+                                                    <Text style={{ color: '#222', fontFamily: 'Poppins-Bold', fontSize: 13 }}>Edit</Text>
+                                                </TouchableOpacity>
+                                                <TouchableOpacity onPress={() => openDeleteModal(item._id)} style={{ backgroundColor: '#d32f2f', borderRadius: 5, paddingVertical: 4, paddingHorizontal: 10 }}>
+                                                    <Text style={{ color: '#fff', fontFamily: 'Poppins-Bold', fontSize: 13 }}>Delete</Text>
+                                                </TouchableOpacity>
+                                            </View>
+                                        )}
                                     </View>
                                 ))
                             )
@@ -505,10 +505,10 @@ export default function FacultyModule() {
                 return (
                     <>
                         {/* Classwork Title Row */}
-                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10, justifyContent: 'space-between', position: 'relative', zIndex: 9999 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10, justifyContent: 'space-between', position: 'relative'}}>
                             <Text style={{ fontFamily: 'Poppins-Bold', fontSize: 18, color: '#222', flex: 1 }}>Classwork</Text>
                             {/* + Create Dropdown Button (faculty only) */}
-                            <View style={{ position: 'relative', alignSelf: 'flex-start' }}>
+                            {/* <View style={{ position: 'relative', alignSelf: 'flex-start ', zIndex: 9999  }}>
                                 {user?.role === 'faculty' && (
                                     <TouchableOpacity
                                         onPress={() => setShowCreateDropdown(!showCreateDropdown)}
@@ -543,7 +543,7 @@ export default function FacultyModule() {
                                         </TouchableOpacity>
                                     </View>
                                 )}
-                            </View>
+                            </View> */}
                         </View>
                         {/* Classwork Content */}
                         {loading ? (
@@ -586,15 +586,15 @@ export default function FacultyModule() {
                             <Text style={{ fontFamily: 'Poppins-Bold', fontSize: 18, color: '#222', flex: 1 }}>Class Materials</Text>
                             {/* Add Material Button (faculty only) */}
                             <View style={{ position: 'relative', alignSelf: 'flex-start' }}>
-                            {user?.role === 'faculty' && (
-                                <TouchableOpacity
-                                    onPress={() => setShowAddModuleModal(true)}
-                                    style={{ backgroundColor: '#183a8c', borderRadius: 6, paddingVertical: 7, paddingHorizontal: 14, alignSelf: 'flex-start' }}
-                                    activeOpacity={0.85}
-                                >
-                                    <Text style={{ color: '#fff', fontFamily: 'Poppins-Bold', fontSize: 14, textAlign: 'center' }}>+ Add Material</Text>
-                                </TouchableOpacity>
-                            )}
+                                {user?.role === 'faculty' && (
+                                    <TouchableOpacity
+                                        onPress={() => setShowAddModuleModal(true)}
+                                        style={{ backgroundColor: '#183a8c', borderRadius: 6, paddingVertical: 7, paddingHorizontal: 14, alignSelf: 'flex-start' }}
+                                        activeOpacity={0.85}
+                                    >
+                                        <Text style={{ color: '#fff', fontFamily: 'Poppins-Bold', fontSize: 14, textAlign: 'center' }}>+ Add Material</Text>
+                                    </TouchableOpacity>
+                                )}
                             </View>
                         </View>
                         {/* Class Materials Content */}
@@ -605,57 +605,57 @@ export default function FacultyModule() {
                         ) : (
                             materials.map(lesson => (
                                 <View key={lesson._id} style={{
-                                  backgroundColor: '#fff',
-                                  borderRadius: 12,
-                                  borderWidth: 1,
-                                  borderColor: '#1976d2',
-                                  marginBottom: 18,
-                                  shadowColor: '#000',
-                                  shadowOpacity: 0.04,
-                                  shadowRadius: 4,
-                                  elevation: 1,
-                                  overflow: 'hidden',
-                                  position: 'relative',
+                                    backgroundColor: '#fff',
+                                    borderRadius: 12,
+                                    borderWidth: 1,
+                                    borderColor: '#1976d2',
+                                    marginBottom: 18,
+                                    shadowColor: '#000',
+                                    shadowOpacity: 0.04,
+                                    shadowRadius: 4,
+                                    elevation: 1,
+                                    overflow: 'hidden',
+                                    position: 'relative',
                                 }}>
-                                  {/* Header */}
-                                  <View style={{
-                                    backgroundColor: '#183a8c',
-                                    paddingVertical: 12,
-                                    paddingHorizontal: 16,
-                                    flexDirection: 'row',
-                                    alignItems: 'center',
-                                    borderTopLeftRadius: 12,
-                                    borderTopRightRadius: 12,
-                                  }}>
-                                    <Icon name="file-document-outline" size={22} color="#fff" style={{ marginRight: 10 }} />
-                                    <Text style={{ fontFamily: 'Poppins-Bold', color: '#fff', fontSize: 17, flex: 1 }}>
-                                      {lesson.title}
-                                    </Text>
-                                    {/* Edit/Delete buttons (faculty only) */}
-                                    {user?.role === 'faculty' && (
-                                      <View style={{ flexDirection: 'row' }}>
-                                        <TouchableOpacity onPress={() => openEditModuleModal(lesson)} style={{ backgroundColor: '#ffd600', borderRadius: 5, paddingVertical: 4, paddingHorizontal: 10, marginRight: 8 }}>
-                                          <Text style={{ color: '#222', fontFamily: 'Poppins-Bold', fontSize: 13 }}>Edit</Text>
-                                        </TouchableOpacity>
-                                        <TouchableOpacity onPress={() => openDeleteModuleModal(lesson._id)} style={{ backgroundColor: '#d32f2f', borderRadius: 5, paddingVertical: 4, paddingHorizontal: 10 }}>
-                                          <Text style={{ color: '#fff', fontFamily: 'Poppins-Bold', fontSize: 13 }}>Delete</Text>
-                                        </TouchableOpacity>
-                                      </View>
-                                    )}
-                                  </View>
-                                  {/* Section label row */}
-                                  <View style={{ flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 8, borderBottomWidth: 1, borderColor: '#e0e0e0', backgroundColor: '#f9f9f9' }}>
-                                    <Text style={{ fontFamily: 'Poppins-Bold', color: '#222', fontSize: 14, flex: 1 }}>Module</Text>
-                                  </View>
-                                  {/* File rows */}
-                                  {lesson.files && lesson.files.map(file => (
-                                    <View key={file.fileUrl} style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 8, borderBottomWidth: 1, borderColor: '#e0e0e0', backgroundColor: '#fff' }}>
-                                      <Icon name="file-document-outline" size={18} color="#222" style={{ marginRight: 6 }} />
-                                      <TouchableOpacity onPress={() => {/* handle file open/download */}}>
-                                        <Text style={{ fontFamily: 'Poppins-Regular', color: '#1976d2', fontSize: 14, textDecorationLine: 'underline' }}>{file.fileName}</Text>
-                                      </TouchableOpacity>
+                                    {/* Header */}
+                                    <View style={{
+                                        backgroundColor: '#183a8c',
+                                        paddingVertical: 12,
+                                        paddingHorizontal: 16,
+                                        flexDirection: 'row',
+                                        alignItems: 'center',
+                                        borderTopLeftRadius: 12,
+                                        borderTopRightRadius: 12,
+                                    }}>
+                                        <Icon name="file-document-outline" size={22} color="#fff" style={{ marginRight: 10 }} />
+                                        <Text style={{ fontFamily: 'Poppins-Bold', color: '#fff', fontSize: 17, flex: 1 }}>
+                                            {lesson.title}
+                                        </Text>
+                                        {/* Edit/Delete buttons (faculty only) */}
+                                        {user?.role === 'faculty' && (
+                                            <View style={{ flexDirection: 'row' }}>
+                                                <TouchableOpacity onPress={() => openEditModuleModal(lesson)} style={{ backgroundColor: '#ffd600', borderRadius: 5, paddingVertical: 4, paddingHorizontal: 10, marginRight: 8 }}>
+                                                    <Text style={{ color: '#222', fontFamily: 'Poppins-Bold', fontSize: 13 }}>Edit</Text>
+                                                </TouchableOpacity>
+                                                <TouchableOpacity onPress={() => openDeleteModuleModal(lesson._id)} style={{ backgroundColor: '#d32f2f', borderRadius: 5, paddingVertical: 4, paddingHorizontal: 10 }}>
+                                                    <Text style={{ color: '#fff', fontFamily: 'Poppins-Bold', fontSize: 13 }}>Delete</Text>
+                                                </TouchableOpacity>
+                                            </View>
+                                        )}
                                     </View>
-                                  ))}
+                                    {/* Section label row */}
+                                    <View style={{ flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 8, borderBottomWidth: 1, borderColor: '#e0e0e0', backgroundColor: '#f9f9f9' }}>
+                                        <Text style={{ fontFamily: 'Poppins-Bold', color: '#222', fontSize: 14, flex: 1 }}>Module</Text>
+                                    </View>
+                                    {/* File rows */}
+                                    {lesson.files && lesson.files.map(file => (
+                                        <View key={file.fileUrl} style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 8, borderBottomWidth: 1, borderColor: '#e0e0e0', backgroundColor: '#fff' }}>
+                                            <Icon name="file-document-outline" size={18} color="#222" style={{ marginRight: 6 }} />
+                                            <TouchableOpacity onPress={() => {/* handle file open/download */ }}>
+                                                <Text style={{ fontFamily: 'Poppins-Regular', color: '#1976d2', fontSize: 14, textDecorationLine: 'underline' }}>{file.fileName}</Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                    ))}
                                 </View>
                             ))
                         )}
@@ -738,7 +738,7 @@ export default function FacultyModule() {
                 </View>
             </View>
             {/* Tabs */}
-            <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: 18, gap: 8, marginLeft:10, marginRight:10 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: 18, gap: 8, marginLeft: 10, marginRight: 10 }}>
                 {['Announcement', 'Classwork', 'Class Materials'].map(tab => (
                     <TouchableOpacity
                         key={tab}
@@ -756,9 +756,29 @@ export default function FacultyModule() {
             </View>
             {/* Main Card */}
             <View style={{ flex: 1, alignItems: 'center', marginTop: 12, marginBottom: 0 }}>
-                <ScrollView style={{ backgroundColor: '#fff', borderWidth: 1, borderColor: '#00418b', width: '92%', flex: 1, padding: 18, marginBottom: 20, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8, elevation: 2, overflow: 'visible' }}>
-                    {renderTabContent()}
-                </ScrollView>
+                <View style={{
+                    backgroundColor: '#fff',
+                    borderWidth: 1,
+                    borderColor: '#00418b',
+                    width: '92%',
+                    marginBottom: 20,
+                    shadowColor: '#000',
+                    shadowOpacity: 0.06,
+                    shadowRadius: 8,
+                    elevation: 2,
+                    overflow: 'hidden',
+                    flex: 1,
+                }}>
+                    <ScrollView
+                        style={{ flex: 1 }}
+                        contentContainerStyle={{
+                            padding: 18,
+                            paddingBottom: 40,
+                        }}
+                    >
+                        {renderTabContent()}
+                    </ScrollView>
+                </View>
             </View>
             {/* Blue curved background at bottom */}
             <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 90, backgroundColor: '#00418b', borderTopLeftRadius: 60, borderTopRightRadius: 60, zIndex: -1 }} />

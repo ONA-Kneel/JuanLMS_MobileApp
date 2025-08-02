@@ -265,9 +265,17 @@ export default function FacultyDashboard() {
                   borderRadius: 12,
                   marginBottom: 16,
                   alignItems: 'center',
-                  justifyContent: 'center'
+                  justifyContent: 'center',
+                  overflow: 'hidden'
                 }}>
-                  <Icon name="book-open-page-variant" size={48} color="#00418b" />
+                  {course.image ? (
+                    <Image
+                      source={{ uri: course.image }}
+                      style={{ width: '100%', height: '100%', resizeMode: 'cover' }}
+                    />
+                  ) : (
+                    <Icon name="book-open-page-variant" size={48} color="#00418b" />
+                  )}
                 </View>
                 {/* Class Info */}
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>

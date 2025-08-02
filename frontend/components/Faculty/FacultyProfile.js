@@ -106,9 +106,7 @@ export default function FacultyProfile() {
           style={FacultyProfileStyle.avatar}
           resizeMode="cover"
         />
-        <TouchableOpacity onPress={() => setIsEditModalVisible(true)} style={FacultyProfileStyle.editAvatarBtn}>
-          <Feather name="edit" size={20} color="#00418b" />
-        </TouchableOpacity>
+        
       </View>
       <Modal
         visible={isEditModalVisible}
@@ -155,6 +153,10 @@ export default function FacultyProfile() {
       </Modal>
       {/* Card */}
       <View style={FacultyProfileStyle.card}>
+        <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }} onPress={pickImage}>
+          <Feather name="edit" size={15} color="#00418b" style={{ marginRight: 6 }} />
+          <Text style={FacultyProfileStyle.actionText}>Change Photo</Text>
+        </TouchableOpacity>
         <Text style={FacultyProfileStyle.name}>{user.firstname} {user.lastname} <Text style={FacultyProfileStyle.emoji}>🎓</Text></Text>
         <Text style={FacultyProfileStyle.email}>{user.email}</Text>
         <View style={FacultyProfileStyle.row}>
@@ -168,17 +170,17 @@ export default function FacultyProfile() {
           </View>
         </View>
         <View style={FacultyProfileStyle.actionRow}>
-          <TouchableOpacity style={FacultyProfileStyle.actionBtn}>
+          {/* <TouchableOpacity style={FacultyProfileStyle.actionBtn}>
             <Feather name="edit" size={20} color="#00418b" />
             <Text style={FacultyProfileStyle.actionText}>Edit</Text>
-          </TouchableOpacity>
+          </TouchableOpacity> */}
           <TouchableOpacity style={FacultyProfileStyle.actionBtn}>
             <Feather name="lock" size={20} color="#00418b" />
             <Text style={FacultyProfileStyle.actionText}>Password</Text>
           </TouchableOpacity>
           <TouchableOpacity style={FacultyProfileStyle.actionBtn}>
             <Feather name="bell" size={20} color="#00418b" />
-            <Text style={FacultyProfileStyle.actionText}>Notify</Text>
+            <Text style={FacultyProfileStyle.actionText}>Notification</Text>
           </TouchableOpacity>
           <TouchableOpacity style={FacultyProfileStyle.actionBtn} onPress={goToSupportCenter}>
             <Feather name="help-circle" size={20} color="#00418b" />
