@@ -189,74 +189,104 @@ export default function StudentDashboard() {
         )}
 
         {/* Your Classes Section */}
-        <Text style={StudentDashboardStyle.sectionTitle}>Your Classes</Text>
-        
-        {loading ? (
-          <View style={{ alignItems: 'center', padding: 20 }}>
-            <ActivityIndicator size="large" color="#00418b" />
-            <Text style={{ marginTop: 10, color: '#666', fontFamily: 'Poppins-Regular' }}>Loading your classes...</Text>
-          </View>
-        ) : error ? (
-          <View style={{ alignItems: 'center', padding: 20 }}>
-            <Icon name="alert-circle" size={32} color="#ff4444" />
-            <Text style={{ marginTop: 10, color: '#ff4444', fontFamily: 'Poppins-Regular' }}>{error}</Text>
-          </View>
-        ) : classes.length === 0 ? (
-          <View style={{ alignItems: 'center', padding: 20 }}>
-            <Icon name="book-open-variant" size={32} color="#666" />
-            <Text style={{ marginTop: 10, color: '#666', fontFamily: 'Poppins-Regular' }}>You have no classes yet.</Text>
-          </View>
-        ) : (
-          classes.map((course, index) => (
-            <TouchableOpacity 
-              key={index} 
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 24, marginBottom: 8 }}>
+          <Text style={{ fontSize: 16, fontWeight: 'bold', fontFamily: 'Poppins-Bold' }}>Your Classes</Text>
+          {classes.length > 3 && (
+            <TouchableOpacity
+              onPress={() => changeScreen.navigate('SClasses')}
               style={{
-                backgroundColor: '#fff',
-                borderRadius: 16,
-                padding: 20,
-                marginBottom: 18,
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.1,
-                shadowRadius: 4,
-                elevation: 3,
-              }}
-              onPress={() => modules(course)}
-            >
-              {/* Class Info */}
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                <Text style={{ 
-                  fontSize: 18, 
-                  fontWeight: 'bold', 
+                backgroundColor: '#00418b',
+                paddingHorizontal: 12,
+                paddingVertical: 6,
+                borderRadius: 8
+              }}>
+              <Text style={{ color: '#fff', fontSize: 12, fontFamily: 'Poppins-Bold' }}>View All</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {classes.slice(0, 3).map((course, index) => (
+          <TouchableOpacity
+            key={index}
+            style={{
+              backgroundColor: '#fff',
+              borderRadius: 16,
+              padding: 20,
+              marginBottom: 18,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.1,
+              shadowRadius: 4,
+              elevation: 3,
+            }}
+            onPress={() => modules(course)}
+          >
+            {/* Class Image Placeholder */}
+            <View style={{
+              height: 120,
+              backgroundColor: '#e3eefd',
+              borderRadius: 12,
+              marginBottom: 16,
+              alignItems: 'center',
+              justifyContent: 'center',
+              overflow: 'hidden'
+            }}>
+              {course.image ? (
+                <Image
+                  source={{ uri: course.image }}
+                  style={{ width: '100%', height: '100%', resizeMode: 'cover' }}
+                />
+              ) : (
+                <Icon name="book-open-page-variant" size={48} color="#00418b" />
+              )}
+            </View>
+            {/* Class Info */}
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <View style={{ flex: 1 }}>
+                <Text style={{
+                  fontSize: 18,
+                  fontWeight: 'bold',
                   color: '#333',
                   fontFamily: 'Poppins-Bold',
-                  flex: 1,
+                  marginBottom: 4
                 }}>
                   {course.className || course.name}
                 </Text>
-                <Text style={{ 
-                  fontSize: 14, 
+                <Text style={{
+                  fontSize: 14,
                   color: '#666',
                   fontFamily: 'Poppins-Regular',
-                  marginLeft: 10,
+                  marginBottom: 8
                 }}>
                   {course.classCode || course.code}
                 </Text>
+                <Text style={{
+                  fontSize: 12,
+                  color: '#888',
+                  fontFamily: 'Poppins-Regular'
+                }}>
+                  {course.members ? course.members.length : 0} Students
+                </Text>
               </View>
-              <Text style={{ 
-                fontSize: 12, 
-                color: '#888',
-                fontFamily: 'Poppins-Regular',
-                marginBottom: 8,
-              }}>
-                {course.members ? course.members.length : 0} Students
-              </Text>
-              {/* Arrow Icon */}
-              <View style={{ position: 'absolute', right: 20, bottom: 20 }}>
-                <Icon name="arrow-right" size={24} color="#00418b" />
-              </View>
-            </TouchableOpacity>
-          ))
+              <Icon name="chevron-right" size={24} color="#00418b" />
+            </View>
+          </TouchableOpacity>
+        ))}
+
+        {classes.length > 3 && (
+          <TouchableOpacity
+            onPress={() => changeScreen.navigate('SClasses')}
+            style={{
+              alignItems: 'center',
+              padding: 16,
+              backgroundColor: '#f0f0f0',
+              borderRadius: 12,
+              marginTop: 8
+            }}>
+            <Text style={{ color: '#00418b', fontFamily: 'Poppins-Bold' }}>
+              View {classes.length - 3} more classes
+            </Text>
+          </TouchableOpacity>
         )}
 
         {/* Completed Classes Section */}
