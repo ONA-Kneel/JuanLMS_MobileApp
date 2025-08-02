@@ -1,5 +1,5 @@
 import { Text, TouchableOpacity, View, ScrollView, ActivityIndicator } from 'react-native';
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import FacultyModuleStyle from '../styles/faculty/FacultyModuleStyle';
@@ -25,6 +25,8 @@ export default function FacultyModule() {
     const [materials, setMaterials] = useState([]);
     const [materialsLoading, setMaterialsLoading] = useState(true);
     const [showCreateDropdown, setShowCreateDropdown] = useState(false);
+    const [dropdownPos, setDropdownPos] = useState({ x: 0, y: 0, width: 0, height: 0 });
+    const createBtnRef = useRef(null);
     const { user } = useUser();
 
     useEffect(() => {
@@ -243,25 +245,18 @@ export default function FacultyModule() {
                             <Text style={{ fontFamily: 'Poppins-Bold', fontSize: 18, color: '#222', flex: 1 }}>Classwork</Text>
                             {/* + Create Dropdown Button (faculty only) */}
                             {user?.role === 'faculty' && (
-                                <View style={{ position: 'relative' }}>
-                                    <TouchableOpacity
-                                        onPress={() => setShowCreateDropdown(!showCreateDropdown)}
-                                        style={{ backgroundColor: '#183a8c', borderRadius: 6, paddingVertical: 7, paddingHorizontal: 14, alignSelf: 'flex-start' }}
-                                        activeOpacity={0.85}
-                                    >
-                                        <Text style={{ color: '#fff', fontFamily: 'Poppins-Bold', fontSize: 14, textAlign: 'center' }}>+ Create ▼</Text>
-                                    </TouchableOpacity>
-                                    {showCreateDropdown && (
-                                        <View style={{ position: 'absolute', top: 38, right: 0, backgroundColor: '#fff', borderRadius: 8, borderWidth: 1, borderColor: '#183a8c', zIndex: 10, minWidth: 120, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 6, elevation: 2 }}>
-                                            <TouchableOpacity onPress={handleCreateAssignment} style={{ paddingVertical: 10, paddingHorizontal: 14 }}>
-                                                <Text style={{ color: '#222', fontFamily: 'Poppins-Regular', fontSize: 14 }}>Assignment</Text>
-                                            </TouchableOpacity>
-                                            <TouchableOpacity onPress={handleCreateQuiz} style={{ paddingVertical: 10, paddingHorizontal: 14 }}>
-                                                <Text style={{ color: '#222', fontFamily: 'Poppins-Regular', fontSize: 14 }}>Quiz</Text>
-                                            </TouchableOpacity>
-                                        </View>
-                                    )}
-                                </View>
+                                <TouchableOpacity
+                                    ref={createBtnRef}
+                                    onLayout={event => {
+                                        const { x, y, width, height } = event.nativeEvent.layout;
+                                        setDropdownPos({ x, y, width, height });
+                                    }}
+                                    onPress={() => setShowCreateDropdown(!showCreateDropdown)}
+                                    style={{ backgroundColor: '#183a8c', borderRadius: 6, paddingVertical: 7, paddingHorizontal: 14, alignSelf: 'flex-start' }}
+                                    activeOpacity={0.85}
+                                >
+                                    <Text style={{ color: '#fff', fontFamily: 'Poppins-Bold', fontSize: 14, textAlign: 'center' }}>+ Create ▼</Text>
+                                </TouchableOpacity>
                             )}
                         </View>
                         {/* Classwork Content */}
@@ -400,12 +395,37 @@ export default function FacultyModule() {
             </View>
             {/* Main Card */}
             <View style={{ flex: 1, alignItems: 'center', marginTop: 12, marginBottom: 0 }}>
-                <ScrollView style={{ backgroundColor: '#fff', borderRadius: 18, borderWidth: 1, borderColor: '#00418b', width: '92%', flex: 1, padding: 18, marginBottom: 20, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8, elevation: 2 }}>
+                <ScrollView style={{ backgroundColor: '#fff', borderWidth: 1, borderColor: '#00418b', width: '92%', flex: 1, padding: 18, marginBottom: 20, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8, elevation: 2, overflow: 'visible' }}>
                     {renderTabContent()}
                 </ScrollView>
             </View>
             {/* Blue curved background at bottom */}
             <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 90, backgroundColor: '#00418b', borderTopLeftRadius: 60, borderTopRightRadius: 60, zIndex: -1 }} />
+            {/* Portal-like Dropdown for + Create */}
+            {showCreateDropdown && (
+                <View style={{
+                    position: 'absolute',
+                    top: dropdownPos.y + dropdownPos.height + 10, // 10px below button
+                    left: dropdownPos.x,
+                    backgroundColor: '#fff',
+                    borderRadius: 8,
+                    borderWidth: 1,
+                    borderColor: '#183a8c',
+                    zIndex: 2000,
+                    minWidth: 120,
+                    shadowColor: '#000',
+                    shadowOpacity: 0.12,
+                    shadowRadius: 8,
+                    elevation: 12,
+                }}>
+                    <TouchableOpacity onPress={handleCreateAssignment} style={{ paddingVertical: 10, paddingHorizontal: 14 }}>
+                        <Text style={{ color: '#222', fontFamily: 'Poppins-Regular', fontSize: 14 }}>Assignment</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={handleCreateQuiz} style={{ paddingVertical: 10, paddingHorizontal: 14 }}>
+                        <Text style={{ color: '#222', fontFamily: 'Poppins-Regular', fontSize: 14 }}>Quiz</Text>
+                    </TouchableOpacity>
+                </View>
+            )}
         </View>
     )
 }
