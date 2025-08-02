@@ -102,8 +102,32 @@ export default function FacultyDashboard() {
 
   return (
     <View style={FacultyDashStyle.container}>
+      {/* Blue background */}
+      <View style={FacultyDashStyle.blueHeaderBackground} />
+      {/* White card header */}
+      <View style={FacultyDashStyle.whiteHeaderCard}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <View>
+          <Text style={FacultyDashStyle.headerTitle}>
+              Hello, <Text style={{ fontWeight: 'bold', fontFamily: 'Poppins-Bold' }}>{user?.firstname || 'Student'}!</Text>
+            </Text>
+            <Text style={FacultyDashStyle.headerSubtitle}>{formatDateTime(currentDateTime)}</Text>
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          
+            <TouchableOpacity onPress={() => navigation.navigate('FProfile')}>
+              <Image 
+                source={require('../../assets/profile-icon (2).png')} 
+                style={{ width: 36, height: 36, borderRadius: 18 }}
+                resizeMode="cover"
+              />
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+
       {/* Header */}
-      <View style={FacultyDashStyle.header}>
+      {/* <View style={FacultyDashStyle.header}>
         <View style={FacultyDashStyle.headerContent}>
           <View>
             <Text style={FacultyDashStyle.welcomeText}>Welcome back,</Text>
@@ -118,7 +142,7 @@ export default function FacultyDashboard() {
             />
           </TouchableOpacity>
         </View>
-      </View>
+      </View> */}
       
       <ScrollView contentContainerStyle={{ paddingBottom: 80, paddingHorizontal: 20, paddingTop: 10 }}>
         {/* Stats Row */}

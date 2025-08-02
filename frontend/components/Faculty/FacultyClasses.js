@@ -118,7 +118,7 @@ export default function FacultyClasses() {
 
       <ScrollView style={{ flex: 1, padding: 15 }}>
         {/* Stats Section */}
-        {classes.length > 0 && (
+        {/* {classes.length > 0 && (
           <View style={{ marginTop: 5, backgroundColor: '#fff', borderRadius: 16, padding: 20, marginBottom: 10 }}>
             <Text style={{ 
               fontSize: 16, 
@@ -166,7 +166,7 @@ export default function FacultyClasses() {
               </View>
             </View>
           </View>
-        )}
+        )} */}
 
         {/* Create Class Button */}
         <View style={{ marginBottom: 24 }}>
