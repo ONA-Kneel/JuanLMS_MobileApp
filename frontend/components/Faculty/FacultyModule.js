@@ -339,9 +339,10 @@ export default function FacultyModule() {
                         >
                             <KeyboardAvoidingView
                                 behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-                                style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.18)' }}
+                                style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.18)', zIndex: 9999 }}
                             >
-                                <View style={{ backgroundColor: '#e3eefd', borderRadius: 10, padding: 20, width: '94%', maxWidth: 700, borderWidth: 1, borderColor: '#b6c8e6' }}>
+                                <View style={{ backgroundColor: '#fff', borderRadius: 12, padding: 24, width: '94%', maxWidth: 420, borderWidth: 1, borderColor: '#b6c8e6', zIndex: 9999 }}>
+                                    <Text style={{ fontFamily: 'Poppins-Bold', color: '#222', fontSize: 18, marginBottom: 16 }}>Add New Announcement</Text>
                                     <Text style={{ fontFamily: 'Poppins-Bold', color: '#222', fontSize: 15, marginBottom: 6 }}>Title</Text>
                                     <TextInput
                                         value={announcementTitle}
@@ -353,20 +354,26 @@ export default function FacultyModule() {
                                     <TextInput
                                         value={announcementContent}
                                         onChangeText={setAnnouncementContent}
-                                        style={{ backgroundColor: '#fff', borderRadius: 4, borderWidth: 1, borderColor: '#222', padding: 8, marginBottom: 16, fontFamily: 'Poppins-Regular', fontSize: 15, minHeight: 70, textAlignVertical: 'top' }}
+                                        style={{ backgroundColor: '#fff', borderRadius: 4, borderWidth: 1, borderColor: '#222', padding: 8, marginBottom: 20, fontFamily: 'Poppins-Regular', fontSize: 15, minHeight: 70, textAlignVertical: 'top' }}
                                         placeholder="Enter announcement content"
                                         multiline
                                     />
-                                    <TouchableOpacity
-                                        onPress={saveAnnouncement}
-                                        style={{ backgroundColor: '#183a8c', borderRadius: 5, paddingVertical: 10, paddingHorizontal: 18, alignSelf: 'flex-start', marginTop: 4 }}
-                                        disabled={savingAnnouncement}
-                                    >
-                                        <Text style={{ color: '#fff', fontFamily: 'Poppins-Bold', fontSize: 15 }}>Save Announcement</Text>
-                                    </TouchableOpacity>
-                                    <TouchableOpacity onPress={() => setShowCreateAnnouncementModal(false)} style={{ position: 'absolute', top: 10, right: 14 }}>
-                                        <Text style={{ fontSize: 22, color: '#888' }}>×</Text>
-                                    </TouchableOpacity>
+                                    <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
+                                        <TouchableOpacity
+                                            onPress={() => setShowCreateAnnouncementModal(false)}
+                                            style={{ backgroundColor: '#888fa1', borderRadius: 5, paddingVertical: 10, paddingHorizontal: 18, marginRight: 10 }}
+                                            disabled={savingAnnouncement}
+                                        >
+                                            <Text style={{ color: '#fff', fontFamily: 'Poppins-Bold', fontSize: 15 }}>Cancel</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            onPress={saveAnnouncement}
+                                            style={{ backgroundColor: '#183a8c', borderRadius: 5, paddingVertical: 10, paddingHorizontal: 18, opacity: (!announcementTitle.trim() || !announcementContent.trim() || savingAnnouncement) ? 0.6 : 1 }}
+                                            disabled={!announcementTitle.trim() || !announcementContent.trim() || savingAnnouncement}
+                                        >
+                                            <Text style={{ color: '#fff', fontFamily: 'Poppins-Bold', fontSize: 15 }}>Save Announcement</Text>
+                                        </TouchableOpacity>
+                                    </View>
                                 </View>
                             </KeyboardAvoidingView>
                         </Modal>
@@ -578,6 +585,7 @@ export default function FacultyModule() {
                         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10, justifyContent: 'space-between' }}>
                             <Text style={{ fontFamily: 'Poppins-Bold', fontSize: 18, color: '#222', flex: 1 }}>Class Materials</Text>
                             {/* Add Material Button (faculty only) */}
+                            <View style={{ position: 'relative', alignSelf: 'flex-start' }}>
                             {user?.role === 'faculty' && (
                                 <TouchableOpacity
                                     onPress={() => setShowAddModuleModal(true)}
@@ -587,6 +595,7 @@ export default function FacultyModule() {
                                     <Text style={{ color: '#fff', fontFamily: 'Poppins-Bold', fontSize: 14, textAlign: 'center' }}>+ Add Material</Text>
                                 </TouchableOpacity>
                             )}
+                            </View>
                         </View>
                         {/* Class Materials Content */}
                         {materialsLoading ? (
@@ -844,6 +853,77 @@ export default function FacultyModule() {
                         </View>
                     </View>
                 </View>
+            </Modal>
+            {/* Add Material Modal */}
+            <Modal
+                visible={showAddModuleModal}
+                animationType="slide"
+                transparent={true}
+                onRequestClose={() => setShowAddModuleModal(false)}
+            >
+                <KeyboardAvoidingView
+                    behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                    style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.18)', zIndex: 9999 }}
+                >
+                    <View style={{ backgroundColor: '#fff', borderRadius: 12, padding: 24, width: '94%', maxWidth: 420, borderWidth: 1, borderColor: '#b6c8e6', zIndex: 9999 }}>
+                        <Text style={{ fontFamily: 'Poppins-Bold', color: '#222', fontSize: 18, marginBottom: 16 }}>Add New Material</Text>
+                        <Text style={{ fontFamily: 'Poppins-Bold', color: '#222', fontSize: 15, marginBottom: 6 }}>Lesson Title</Text>
+                        <TextInput
+                            value={moduleTitle}
+                            onChangeText={setModuleTitle}
+                            style={{ backgroundColor: '#fff', borderRadius: 4, borderWidth: 1, borderColor: '#222', padding: 8, marginBottom: 16, fontFamily: 'Poppins-Regular', fontSize: 15 }}
+                            placeholder="Enter lesson title"
+                        />
+                        <Text style={{ fontFamily: 'Poppins-Bold', color: '#222', fontSize: 15, marginBottom: 6 }}>Upload Files</Text>
+                        {isWeb ? (
+                            <input
+                                type="file"
+                                multiple
+                                onChange={handleFileChange}
+                                style={{ marginBottom: 16, fontFamily: 'Poppins-Regular', fontSize: 15 }}
+                            />
+                        ) : (
+                            <>
+                                <TouchableOpacity
+                                    onPress={() => handleMobileFilePick(setModuleFiles)}
+                                    style={{ backgroundColor: '#e3eefd', borderRadius: 5, borderWidth: 1, borderColor: '#183a8c', paddingVertical: 8, paddingHorizontal: 12, marginBottom: 8 }}
+                                >
+                                    <Text style={{ color: '#183a8c', fontFamily: 'Poppins-Bold', fontSize: 14 }}>Pick Files</Text>
+                                </TouchableOpacity>
+                                {moduleFiles.length > 0 && (
+                                    <View style={{ marginBottom: 12 }}>
+                                        {moduleFiles.map((file, idx) => (
+                                            <Text key={file.uri || file.name || idx} style={{ fontSize: 13, color: '#222' }}>{file.name || file.uri}</Text>
+                                        ))}
+                                    </View>
+                                )}
+                            </>
+                        )}
+                        <Text style={{ fontFamily: 'Poppins-Bold', color: '#222', fontSize: 15, marginBottom: 6 }}>or Paste Link</Text>
+                        <TextInput
+                            value={moduleLink}
+                            onChangeText={setModuleLink}
+                            style={{ backgroundColor: '#fff', borderRadius: 4, borderWidth: 1, borderColor: '#222', padding: 8, marginBottom: 20, fontFamily: 'Poppins-Regular', fontSize: 15 }}
+                            placeholder="https://example.com/lesson.pdf"
+                        />
+                        <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
+                            <TouchableOpacity
+                                onPress={() => setShowAddModuleModal(false)}
+                                style={{ backgroundColor: '#888fa1', borderRadius: 5, paddingVertical: 10, paddingHorizontal: 18, marginRight: 10 }}
+                                disabled={savingModule}
+                            >
+                                <Text style={{ color: '#fff', fontFamily: 'Poppins-Bold', fontSize: 15 }}>Cancel</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                onPress={saveModule}
+                                style={{ backgroundColor: '#183a8c', borderRadius: 5, paddingVertical: 10, paddingHorizontal: 18, opacity: (!moduleTitle.trim() || (moduleFiles.length === 0 && !moduleLink.trim()) || savingModule) ? 0.6 : 1 }}
+                                disabled={!moduleTitle.trim() || (moduleFiles.length === 0 && !moduleLink.trim()) || savingModule}
+                            >
+                                <Text style={{ color: '#fff', fontFamily: 'Poppins-Bold', fontSize: 15 }}>Save Material</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </KeyboardAvoidingView>
             </Modal>
         </View>
     )
