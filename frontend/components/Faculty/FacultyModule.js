@@ -5,6 +5,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import FacultyModuleStyle from '../styles/faculty/FacultyModuleStyle';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
+import { useUser } from '../UserContext';
 
 export default function FacultyModule() {
     const route = useRoute();
@@ -23,6 +24,8 @@ export default function FacultyModule() {
     const [classwork, setClasswork] = useState([]); // Add this state
     const [materials, setMaterials] = useState([]);
     const [materialsLoading, setMaterialsLoading] = useState(true);
+    const [showCreateDropdown, setShowCreateDropdown] = useState(false);
+    const { user } = useUser();
 
     useEffect(() => {
         if (classId) {
@@ -142,17 +145,45 @@ export default function FacultyModule() {
     });
     if (!fontsLoaded) return null;
 
+    // Placeholder handlers
+    const handleCreateAnnouncement = () => {
+        // TODO: Open create announcement modal/screen
+        alert('Create New Announcement');
+    };
+    const handleCreateAssignment = () => {
+        setShowCreateDropdown(false);
+        alert('Create Assignment');
+    };
+    const handleCreateQuiz = () => {
+        setShowCreateDropdown(false);
+        alert('Create Quiz');
+    };
+    const handleAddMaterial = () => {
+        alert('Add Material');
+    };
+
     const renderTabContent = () => {
         switch (activeTab) {
             case 'Announcement':
                 return (
                     <>
                         {/* Announcement Title Row */}
-                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
-                            <Text style={{ fontFamily: 'Poppins-Bold', fontSize: 18, color: '#222', flex: 1 }}>Announcement</Text>
-                            <Icon name="video" size={22} color="#222" style={{ marginHorizontal: 6 }} />
-                            <Icon name="phone" size={22} color="#222" />
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10, justifyContent: 'space-between' }}>
+                            <Text style={{ fontFamily: 'Poppins-Bold', fontSize: 18, color: '#222', flex: 1, alignItems: 'center' }}>Announcement</Text>
+                            {/* Create New Announcement Button (faculty only) */}
+                            <View style={{ position: 'relative' }}>
+                                {user?.role === 'faculty' && (
+                                    <TouchableOpacity
+                                        onPress={handleCreateAnnouncement}
+                                        style={{ backgroundColor: '#183a8c', borderRadius: 6, paddingVertical: 7, paddingHorizontal: 14, alignSelf: 'flex-start', marginBottom: 14 }}
+                                        activeOpacity={0.85}
+                                    >
+                                        <Text style={{ color: '#fff', fontFamily: 'Poppins-Bold', fontSize: 14, textAlign: 'center' }}>+ Announcement</Text>
+                                    </TouchableOpacity>
+                                )}
+                            </View>
                         </View>
+                        
                         {/* Announcements */}
                         {loading ? (
                             <ActivityIndicator />
@@ -161,10 +192,43 @@ export default function FacultyModule() {
                                 <Text style={{ fontFamily: 'Poppins-Regular', color: '#222', fontSize: 13, marginTop: 10 }}>No announcements yet.</Text>
                             ) : (
                                 announcements.map((item) => (
-                                    <View key={item._id} style={{ backgroundColor: '#e3eefd', borderRadius: 8, borderWidth: 1, borderColor: '#00418b', padding: 10, marginBottom: 8 }}>
-                                        <Text style={{ fontFamily: 'Poppins-Bold', color: '#00418b', fontSize: 15 }}>{item.title}</Text>
-                                        <Text style={{ fontFamily: 'Poppins-Regular', color: '#222', fontSize: 13 }}>{item.content}</Text>
-                                        <Text style={{ fontFamily: 'Poppins-Regular', color: '#888', fontSize: 11, marginTop: 4 }}>{new Date(item.createdAt).toLocaleString()}</Text>
+                                    <View
+                                      key={item._id}
+                                      style={{
+                                        backgroundColor: '#e3eefd',
+                                        borderRadius: 12,
+                                        borderWidth: 1,
+                                        borderColor: '#1976d2',
+                                        paddingVertical: 16,
+                                        paddingHorizontal: 18,
+                                        marginBottom: 16,
+                                        shadowColor: '#000',
+                                        shadowOpacity: 0.04,
+                                        shadowRadius: 4,
+                                        elevation: 1,
+                                      }}
+                                    >
+                                      <Text
+                                        style={{
+                                          fontFamily: 'Poppins-Bold',
+                                          color: '#00418b',
+                                          fontSize: 17,
+                                          marginBottom: 4,
+                                          letterSpacing: 0.1,
+                                        }}
+                                      >
+                                        {item.title}
+                                      </Text>
+                                      <Text
+                                        style={{
+                                          fontFamily: 'Poppins-Regular',
+                                          color: '#222',
+                                          fontSize: 15,
+                                          lineHeight: 21,
+                                        }}
+                                      >
+                                        {item.content}
+                                      </Text>
                                     </View>
                                 ))
                             )
@@ -175,10 +239,30 @@ export default function FacultyModule() {
                 return (
                     <>
                         {/* Classwork Title Row */}
-                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10, justifyContent: 'space-between' }}>
                             <Text style={{ fontFamily: 'Poppins-Bold', fontSize: 18, color: '#222', flex: 1 }}>Classwork</Text>
-                            <Icon name="video" size={22} color="#222" style={{ marginHorizontal: 6 }} />
-                            <Icon name="phone" size={22} color="#222" />
+                            {/* + Create Dropdown Button (faculty only) */}
+                            {user?.role === 'faculty' && (
+                                <View style={{ position: 'relative' }}>
+                                    <TouchableOpacity
+                                        onPress={() => setShowCreateDropdown(!showCreateDropdown)}
+                                        style={{ backgroundColor: '#183a8c', borderRadius: 6, paddingVertical: 7, paddingHorizontal: 14, alignSelf: 'flex-start' }}
+                                        activeOpacity={0.85}
+                                    >
+                                        <Text style={{ color: '#fff', fontFamily: 'Poppins-Bold', fontSize: 14, textAlign: 'center' }}>+ Create ▼</Text>
+                                    </TouchableOpacity>
+                                    {showCreateDropdown && (
+                                        <View style={{ position: 'absolute', top: 38, right: 0, backgroundColor: '#fff', borderRadius: 8, borderWidth: 1, borderColor: '#183a8c', zIndex: 10, minWidth: 120, shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 6, elevation: 2 }}>
+                                            <TouchableOpacity onPress={handleCreateAssignment} style={{ paddingVertical: 10, paddingHorizontal: 14 }}>
+                                                <Text style={{ color: '#222', fontFamily: 'Poppins-Regular', fontSize: 14 }}>Assignment</Text>
+                                            </TouchableOpacity>
+                                            <TouchableOpacity onPress={handleCreateQuiz} style={{ paddingVertical: 10, paddingHorizontal: 14 }}>
+                                                <Text style={{ color: '#222', fontFamily: 'Poppins-Regular', fontSize: 14 }}>Quiz</Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                    )}
+                                </View>
+                            )}
                         </View>
                         {/* Classwork Content */}
                         {loading ? (
@@ -187,10 +271,27 @@ export default function FacultyModule() {
                             <Text style={{ fontFamily: 'Poppins-Regular', color: '#222', fontSize: 13, marginTop: 10 }}>No classwork assigned yet.</Text>
                         ) : (
                             classwork.map(item => (
-                                <View key={item._id} style={{ backgroundColor: item.type === 'quiz' ? '#ffe4b5' : '#e3eefd', borderRadius: 8, borderWidth: 1, borderColor: '#00418b', padding: 10, marginBottom: 8 }}>
-                                    <Text style={{ fontFamily: 'Poppins-Bold', color: '#00418b', fontSize: 15 }}>{item.type === 'quiz' ? 'Quiz: ' : 'Assignment: '}{item.title}</Text>
-                                    <Text style={{ fontFamily: 'Poppins-Regular', color: '#222', fontSize: 13 }}>{item.description || item.instructions}</Text>
-                                    {item.dueDate && <Text style={{ fontFamily: 'Poppins-Regular', color: '#888', fontSize: 11, marginTop: 4 }}>Due: {new Date(item.dueDate).toLocaleString()}</Text>}
+                                <View key={item._id} style={{ backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: '#cfe2ff', padding: 18, marginBottom: 16, flexDirection: 'row', alignItems: 'flex-start', shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, elevation: 1 }}>
+                                    <View style={{ flex: 1 }}>
+                                        {/* Type Pill */}
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                                            <View style={{ backgroundColor: item.type === 'quiz' ? '#cdb4f6' : '#b6f5c3', borderRadius: 6, paddingHorizontal: 10, paddingVertical: 2, marginRight: 8 }}>
+                                                <Text style={{ color: item.type === 'quiz' ? '#7c3aed' : '#15803d', fontWeight: 'bold', fontSize: 13, fontFamily: 'Poppins-Bold' }}>{item.type === 'quiz' ? 'Quiz' : 'Assignment'}</Text>
+                                            </View>
+                                        </View>
+                                        {/* Title */}
+                                        <Text style={{ fontFamily: 'Poppins-Bold', color: '#222', fontSize: 18, marginBottom: 2 }}>{item.title}</Text>
+                                        {/* Description */}
+                                        <Text style={{ fontFamily: 'Poppins-Regular', color: '#222', fontSize: 15, marginBottom: 6 }}>{item.description || item.instructions}</Text>
+                                        {/* Due Date */}
+                                        {item.dueDate && <Text style={{ fontFamily: 'Poppins-Regular', color: '#888', fontSize: 13, marginBottom: 2 }}>Due: {new Date(item.dueDate).toLocaleString()}</Text>}
+                                        {/* Points */}
+                                        <Text style={{ fontFamily: 'Poppins-Regular', color: '#888', fontSize: 13 }}>Points: {item.points || 1}</Text>
+                                    </View>
+                                    {/* Three-dot menu */}
+                                    <View style={{ marginLeft: 10 }}>
+                                        <Icon name="dots-vertical" size={22} color="#222" />
+                                    </View>
                                 </View>
                             ))
                         )}
@@ -200,10 +301,18 @@ export default function FacultyModule() {
                 return (
                     <>
                         {/* Class Materials Title Row */}
-                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10, justifyContent: 'space-between' }}>
                             <Text style={{ fontFamily: 'Poppins-Bold', fontSize: 18, color: '#222', flex: 1 }}>Class Materials</Text>
-                            <Icon name="video" size={22} color="#222" style={{ marginHorizontal: 6 }} />
-                            <Icon name="phone" size={22} color="#222" />
+                            {/* Add Material Button (faculty only) */}
+                            {user?.role === 'faculty' && (
+                                <TouchableOpacity
+                                    onPress={handleAddMaterial}
+                                    style={{ backgroundColor: '#183a8c', borderRadius: 6, paddingVertical: 7, paddingHorizontal: 14, alignSelf: 'flex-start' }}
+                                    activeOpacity={0.85}
+                                >
+                                    <Text style={{ color: '#fff', fontFamily: 'Poppins-Bold', fontSize: 14, textAlign: 'center' }}>+ Add Material</Text>
+                                </TouchableOpacity>
+                            )}
                         </View>
                         {/* Class Materials Content */}
                         {materialsLoading ? (
@@ -212,11 +321,46 @@ export default function FacultyModule() {
                             <Text style={{ fontFamily: 'Poppins-Regular', color: '#222', fontSize: 13, marginTop: 10 }}>No materials uploaded yet.</Text>
                         ) : (
                             materials.map(lesson => (
-                                <View key={lesson._id} style={{ backgroundColor: '#e3eefd', borderRadius: 8, borderWidth: 1, borderColor: '#00418b', padding: 10, marginBottom: 8 }}>
-                                    <Text style={{ fontFamily: 'Poppins-Bold', color: '#00418b', fontSize: 15 }}>{lesson.title}</Text>
-                                    {lesson.files && lesson.files.map(file => (
-                                        <Text key={file.fileUrl} style={{ fontFamily: 'Poppins-Regular', color: '#222', fontSize: 13 }}>{file.fileName}</Text>
-                                    ))}
+                                <View key={lesson._id} style={{
+                                  backgroundColor: '#fff',
+                                  borderRadius: 12,
+                                  borderWidth: 1,
+                                  borderColor: '#1976d2',
+                                  marginBottom: 18,
+                                  shadowColor: '#000',
+                                  shadowOpacity: 0.04,
+                                  shadowRadius: 4,
+                                  elevation: 1,
+                                  overflow: 'hidden',
+                                }}>
+                                  {/* Header */}
+                                  <View style={{
+                                    backgroundColor: '#183a8c',
+                                    paddingVertical: 12,
+                                    paddingHorizontal: 16,
+                                    flexDirection: 'row',
+                                    alignItems: 'center',
+                                    borderTopLeftRadius: 12,
+                                    borderTopRightRadius: 12,
+                                  }}>
+                                    <Icon name="file-document-outline" size={22} color="#fff" style={{ marginRight: 10 }} />
+                                    <Text style={{ fontFamily: 'Poppins-Bold', color: '#fff', fontSize: 17, flex: 1 }}>
+                                      {lesson.title}
+                                    </Text>
+                                  </View>
+                                  {/* Section label row */}
+                                  <View style={{ flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 8, borderBottomWidth: 1, borderColor: '#e0e0e0', backgroundColor: '#f9f9f9' }}>
+                                    <Text style={{ fontFamily: 'Poppins-Bold', color: '#222', fontSize: 14, flex: 1 }}>Module</Text>
+                                  </View>
+                                  {/* File rows */}
+                                  {lesson.files && lesson.files.map(file => (
+                                    <View key={file.fileUrl} style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 8, borderBottomWidth: 1, borderColor: '#e0e0e0', backgroundColor: '#fff' }}>
+                                      <Icon name="file-document-outline" size={18} color="#222" style={{ marginRight: 6 }} />
+                                      <TouchableOpacity onPress={() => {/* handle file open/download */}}>
+                                        <Text style={{ fontFamily: 'Poppins-Regular', color: '#1976d2', fontSize: 14, textDecorationLine: 'underline' }}>{file.fileName}</Text>
+                                      </TouchableOpacity>
+                                    </View>
+                                  ))}
                                 </View>
                             ))
                         )}

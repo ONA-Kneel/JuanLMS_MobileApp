@@ -210,18 +210,50 @@ export default function StudentDashboard() {
           classes.map((course, index) => (
             <TouchableOpacity 
               key={index} 
-              style={StudentDashStyle.card}
-              onPress={() => modules(course)}>
-              <View style={StudentDashStyle.cardHeader}>
-                <Text style={[StudentDashStyle.courseTitle, { fontFamily: 'Poppins-Bold' }]}>
+              style={{
+                backgroundColor: '#fff',
+                borderRadius: 16,
+                padding: 20,
+                marginBottom: 18,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.1,
+                shadowRadius: 4,
+                elevation: 3,
+              }}
+              onPress={() => modules(course)}
+            >
+              {/* Class Info */}
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <Text style={{ 
+                  fontSize: 18, 
+                  fontWeight: 'bold', 
+                  color: '#333',
+                  fontFamily: 'Poppins-Bold',
+                  flex: 1,
+                }}>
                   {course.className || course.name}
                 </Text>
-                <Text style={[StudentDashStyle.courseCode, { fontFamily: 'Poppins-Regular' }]}>
+                <Text style={{ 
+                  fontSize: 14, 
+                  color: '#666',
+                  fontFamily: 'Poppins-Regular',
+                  marginLeft: 10,
+                }}>
                   {course.classCode || course.code}
                 </Text>
               </View>
-              <View style={StudentDashStyle.arrowButton}>
-                <Icon name="arrow-right" size={24} color="white" />
+              <Text style={{ 
+                fontSize: 12, 
+                color: '#888',
+                fontFamily: 'Poppins-Regular',
+                marginBottom: 8,
+              }}>
+                {course.members ? course.members.length : 0} Students
+              </Text>
+              {/* Arrow Icon */}
+              <View style={{ position: 'absolute', right: 20, bottom: 20 }}>
+                <Icon name="arrow-right" size={24} color="#00418b" />
               </View>
             </TouchableOpacity>
           ))

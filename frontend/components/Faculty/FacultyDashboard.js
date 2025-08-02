@@ -163,7 +163,7 @@ export default function FacultyDashboard() {
         </View>
         
         {/* Create Classes and Progression Buttons */}
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 }}>
+        {/* <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 }}>
           <TouchableOpacity onPress={createClasses} style={{ 
             flex: 1, 
             backgroundColor: '#e3eefd', 
@@ -197,7 +197,7 @@ export default function FacultyDashboard() {
             <Icon name="chart-line" size={32} color="#00418b" style={{ marginBottom: 8 }} />
             <Text style={{ color: '#00418b', fontWeight: 'bold', fontSize: 16, fontFamily: 'Poppins-Bold' }}>Student Progress</Text>
           </TouchableOpacity>
-        </View>
+        </View> */}
         
         {/* Your Classes */}
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 24, marginBottom: 8 }}>
@@ -245,31 +245,62 @@ export default function FacultyDashboard() {
             {classes.slice(0, 3).map((course, index) => (
               <TouchableOpacity 
                 key={index} 
-                style={FacultyDashStyle.card}
-                onPress={() => modules(course)}>
-                <View style={FacultyDashStyle.cardHeader}>
-                  <Text style={[FacultyDashStyle.courseTitle, { fontFamily: 'Poppins-Bold' }]}>
-                    {course.className || course.name}
-                  </Text>
-                  <Text style={[FacultyDashStyle.courseCode, { fontFamily: 'Poppins-Regular' }]}>
-                    {course.classCode || course.code}
-                  </Text>
+                style={{
+                  backgroundColor: '#fff',
+                  borderRadius: 16,
+                  padding: 20,
+                  marginBottom: 18,
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 4,
+                  elevation: 3,
+                }}
+                onPress={() => modules(course)}
+              >
+                {/* Class Image Placeholder */}
+                <View style={{
+                  height: 120,
+                  backgroundColor: '#e3eefd',
+                  borderRadius: 12,
+                  marginBottom: 16,
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <Icon name="book-open-page-variant" size={48} color="#00418b" />
                 </View>
-                <Text style={[FacultyDashStyle.progressText, { fontFamily: 'Poppins-Regular' }]}>
-                  {course.members ? course.members.length : 0} Students
-                </Text>
-                <View style={{ height: 10, backgroundColor: 'white', borderRadius: 50, marginTop: 5, overflow: 'hidden' }}>
-                  <View style={{ 
-                    height: 10, 
-                    backgroundColor: '#04061f', 
-                    borderRadius: 50, 
-                    width: `${Math.min((course.members ? course.members.length : 0) / 30 * 100, 100)}%` 
-                  }} />
+                {/* Class Info */}
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ 
+                      fontSize: 18, 
+                      fontWeight: 'bold', 
+                      color: '#333',
+                      fontFamily: 'Poppins-Bold',
+                      marginBottom: 4
+                    }}>
+                      {course.className || course.name}
+                    </Text>
+                    <Text style={{ 
+                      fontSize: 14, 
+                      color: '#666',
+                      fontFamily: 'Poppins-Regular',
+                      marginBottom: 8
+                    }}>
+                      {course.classCode || course.code}
+                    </Text>
+                    <Text style={{ 
+                      fontSize: 12, 
+                      color: '#888',
+                      fontFamily: 'Poppins-Regular'
+                    }}>
+                      {course.members ? course.members.length : 0} Students
+                    </Text>
+                  </View>
+                  <Icon name="chevron-right" size={24} color="#00418b" />
                 </View>
-                <TouchableOpacity onPress={() => modules(course)} style={FacultyDashStyle.arrowButton}>
-                  <Icon name="arrow-right" size={24} color="white" />
-                </TouchableOpacity>
               </TouchableOpacity>
+                
             ))}
             {classes.length > 3 && (
               <TouchableOpacity 

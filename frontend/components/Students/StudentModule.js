@@ -169,10 +169,9 @@ export default function StudentModule(){
                                 <Text style={{ fontFamily: 'Poppins-Regular', color: '#222', fontSize: 13, marginTop: 10 }}>No announcements yet.</Text>
                             ) : (
                                 announcements.map((item) => (
-                                    <View key={item._id} style={{ backgroundColor: '#e3eefd', borderRadius: 8, borderWidth: 1, borderColor: '#00418b', padding: 10, marginBottom: 8 }}>
-                                        <Text style={{ fontFamily: 'Poppins-Bold', color: '#00418b', fontSize: 15 }}>{item.title}</Text>
-                                        <Text style={{ fontFamily: 'Poppins-Regular', color: '#222', fontSize: 13 }}>{item.content}</Text>
-                                        <Text style={{ fontFamily: 'Poppins-Regular', color: '#888', fontSize: 11, marginTop: 4 }}>{new Date(item.createdAt).toLocaleString()}</Text>
+                                    <View key={item._id} style={{ backgroundColor: '#e3eefd', borderRadius: 8, borderWidth: 1, borderColor: '#00418b', padding: 14, marginBottom: 12 }}>
+                                        <Text style={{ fontFamily: 'Poppins-Bold', color: '#00418b', fontSize: 16, marginBottom: 2 }}>{item.title}</Text>
+                                        <Text style={{ fontFamily: 'Poppins-Regular', color: '#222', fontSize: 14 }}>{item.content}</Text>
                                     </View>
                                 ))
                             )
@@ -220,10 +219,16 @@ export default function StudentModule(){
                             <Text style={{ fontFamily: 'Poppins-Regular', color: '#222', fontSize: 13, marginTop: 10 }}>No materials uploaded yet.</Text>
                         ) : (
                             materials.map(lesson => (
-                                <View key={lesson._id} style={{ backgroundColor: '#e3eefd', borderRadius: 8, borderWidth: 1, borderColor: '#00418b', padding: 10, marginBottom: 8 }}>
-                                    <Text style={{ fontFamily: 'Poppins-Bold', color: '#00418b', fontSize: 15 }}>{lesson.title}</Text>
+                                <View key={lesson._id} style={{ backgroundColor: '#e3eefd', borderRadius: 12, borderWidth: 1, borderColor: '#1976d2', paddingVertical: 16, paddingHorizontal: 18, marginBottom: 16, width: '100%', alignSelf: 'center', shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, elevation: 1 }}>
+                                    <Text style={{ fontFamily: 'Poppins-Bold', color: '#00418b', fontSize: 17, marginBottom: 4, letterSpacing: 0.1 }}>
+                                        {lesson.title}
+                                    </Text>
+                                    <Text style={{ fontFamily: 'Poppins-Bold', color: '#222', fontSize: 14, marginBottom: 6 }}>Modules:</Text>
                                     {lesson.files && lesson.files.map(file => (
-                                        <Text key={file.fileUrl} style={{ fontFamily: 'Poppins-Regular', color: '#222', fontSize: 13 }}>{file.fileName}</Text>
+                                        <TouchableOpacity key={file.fileUrl} onPress={() => {/* handle file open/download */}} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                                            <Icon name="file-document-outline" size={18} color="#222" style={{ marginRight: 6 }} />
+                                            <Text style={{ fontFamily: 'Poppins-Regular', color: '#1976d2', fontSize: 14, textDecorationLine: 'underline' }}>{file.fileName}</Text>
+                                        </TouchableOpacity>
                                     ))}
                                 </View>
                             ))

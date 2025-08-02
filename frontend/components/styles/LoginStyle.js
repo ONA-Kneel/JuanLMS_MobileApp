@@ -3,7 +3,7 @@ import { StyleSheet, Dimensions } from 'react-native';
 const { width, height } = Dimensions.get('window');
 
 const CARD_WIDTH = Math.min(width * 0.96, 420);
-const CARD_RADIUS = 32;
+const CARD_RADIUS = 40;
 
 const LoginStyle = StyleSheet.create({
   container: {
@@ -11,15 +11,19 @@ const LoginStyle = StyleSheet.create({
     backgroundColor: '#0a1a4f',
     alignItems: 'center',
     justifyContent: 'center',
+    width: '100%',
+    height: '100%',
   },
   topSection: {
+    flex:1,
     width: '100%',
     backgroundColor: '#0a1a4f',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 100, // reduced from 100
+    marginTop: '20%', // reduced from 100
     paddingTop: 70,
-    paddingBottom: 0, // was 10, now 0 for closer text
+    paddingBottom: 0,
+    marginBottom: '35%', // was 10, now 0 for closer text
   },
   logo: {
     height: height * 0.15,
@@ -36,9 +40,10 @@ const LoginStyle = StyleSheet.create({
     marginTop: 0, // remove extra space between lines
   },
   card: {
+    flex:1,
     backgroundColor: '#fff',
     borderRadius: CARD_RADIUS,
-    width: CARD_WIDTH,
+    width:'100%',
     alignSelf: 'center',
     paddingTop: 32,
     paddingBottom: 16,
@@ -50,7 +55,7 @@ const LoginStyle = StyleSheet.create({
     shadowRadius: 12,
     elevation: 8,
     alignItems: 'center',
-    minHeight: height * 0.85,
+    minHeight: height * 0.62,
     marginBottom: 0,
     borderBottomLeftRadius: 0,
     borderBottomRightRadius: 0,
@@ -155,5 +160,4 @@ const LoginStyle = StyleSheet.create({
     fontFamily: 'Poppins-Bold',
   },
 });
-
 export default LoginStyle;

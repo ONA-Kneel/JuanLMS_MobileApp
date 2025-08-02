@@ -77,13 +77,13 @@ export default function FacultyClasses() {
       {/* Header */}
       <View style={{ 
         backgroundColor: '#00418b', 
-        paddingTop: 50, 
+        paddingTop: 30, 
         paddingBottom: 20, 
         paddingHorizontal: 20,
         borderBottomLeftRadius: 20,
         borderBottomRightRadius: 20
       }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', textAlign: 'center' }}>
           <TouchableOpacity onPress={goBack} style={{ padding: 8 }}>
             <Icon name="arrow-left" size={24} color="#fff" />
           </TouchableOpacity>
@@ -91,15 +91,16 @@ export default function FacultyClasses() {
             fontSize: 20, 
             fontWeight: 'bold', 
             color: '#fff', 
-            fontFamily: 'Poppins-Bold' 
+            fontFamily: 'Poppins-Bold', 
+            marginLeft:'5%'
           }}>
             My Classes
           </Text>
-          <TouchableOpacity onPress={createClass} style={{ padding: 8 }}>
-            <Icon name="plus" size={24} color="#fff" />
-          </TouchableOpacity>
+          {/* <TouchableOpacity onPress={createClass} style={{ padding: 8 }}>
+              <Icon name="plus" size={24} color="#fff" />
+            </TouchableOpacity> */}
         </View>
-        <Text style={{ 
+        {/* <Text style={{ 
           color: '#fff', 
           fontSize: 14, 
           marginTop: 5, 
@@ -111,10 +112,62 @@ export default function FacultyClasses() {
             month: 'long',
             day: 'numeric',
           })}
-        </Text>
+        </Text> */}
       </View>
+      
 
-      <ScrollView style={{ flex: 1, padding: 20 }}>
+      <ScrollView style={{ flex: 1, padding: 15 }}>
+        {/* Stats Section */}
+        {classes.length > 0 && (
+          <View style={{ marginTop: 5, backgroundColor: '#fff', borderRadius: 16, padding: 20, marginBottom: 10 }}>
+            <Text style={{ 
+              fontSize: 16, 
+              fontWeight: 'bold', 
+              marginBottom: 16, 
+              fontFamily: 'Poppins-Bold',
+              color: '#333'
+            }}>
+              Class Statistics
+            </Text>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-around' }}>
+              <View style={{ alignItems: 'center' }}>
+                <Text style={{ 
+                  fontSize: 24, 
+                  fontWeight: 'bold', 
+                  color: '#00418b',
+                  fontFamily: 'Poppins-Bold'
+                }}>
+                  {classes.length}
+                </Text>
+                <Text style={{ 
+                  fontSize: 12, 
+                  color: '#666',
+                  fontFamily: 'Poppins-Regular'
+                }}>
+                  Total Classes
+                </Text>
+              </View>
+              <View style={{ alignItems: 'center' }}>
+                <Text style={{ 
+                  fontSize: 24, 
+                  fontWeight: 'bold', 
+                  color: '#00418b',
+                  fontFamily: 'Poppins-Bold'
+                }}>
+                  {classes.reduce((total, cls) => total + (cls.members ? cls.members.length : 0), 0)}
+                </Text>
+                <Text style={{ 
+                  fontSize: 12, 
+                  color: '#666',
+                  fontFamily: 'Poppins-Regular'
+                }}>
+                  Total Students
+                </Text>
+              </View>
+            </View>
+          </View>
+        )}
+
         {/* Create Class Button */}
         <View style={{ marginBottom: 24 }}>
           <TouchableOpacity 
@@ -269,56 +322,7 @@ export default function FacultyClasses() {
           </View>
         )}
 
-        {/* Stats Section */}
-        {classes.length > 0 && (
-          <View style={{ marginTop: 32, backgroundColor: '#fff', borderRadius: 16, padding: 20 }}>
-            <Text style={{ 
-              fontSize: 16, 
-              fontWeight: 'bold', 
-              marginBottom: 16, 
-              fontFamily: 'Poppins-Bold',
-              color: '#333'
-            }}>
-              Class Statistics
-            </Text>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-around' }}>
-              <View style={{ alignItems: 'center' }}>
-                <Text style={{ 
-                  fontSize: 24, 
-                  fontWeight: 'bold', 
-                  color: '#00418b',
-                  fontFamily: 'Poppins-Bold'
-                }}>
-                  {classes.length}
-                </Text>
-                <Text style={{ 
-                  fontSize: 12, 
-                  color: '#666',
-                  fontFamily: 'Poppins-Regular'
-                }}>
-                  Total Classes
-                </Text>
-              </View>
-              <View style={{ alignItems: 'center' }}>
-                <Text style={{ 
-                  fontSize: 24, 
-                  fontWeight: 'bold', 
-                  color: '#00418b',
-                  fontFamily: 'Poppins-Bold'
-                }}>
-                  {classes.reduce((total, cls) => total + (cls.members ? cls.members.length : 0), 0)}
-                </Text>
-                <Text style={{ 
-                  fontSize: 12, 
-                  color: '#666',
-                  fontFamily: 'Poppins-Regular'
-                }}>
-                  Total Students
-                </Text>
-              </View>
-            </View>
-          </View>
-        )}
+        
       </ScrollView>
     </View>
   );
