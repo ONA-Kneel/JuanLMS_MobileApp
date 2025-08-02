@@ -6,6 +6,7 @@ import FacultyModuleStyle from '../styles/faculty/FacultyModuleStyle';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
 import { useUser } from '../UserContext';
+import * as DocumentPicker from 'expo-document-picker';
 
 export default function FacultyModule() {
     const route = useRoute();
@@ -40,6 +41,16 @@ export default function FacultyModule() {
     const [savingEdit, setSavingEdit] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [deleteAnnouncementId, setDeleteAnnouncementId] = useState(null);
+
+    // Edit/Delete state for modules
+    const [showEditModuleModal, setShowEditModuleModal] = useState(false);
+    const [editModuleId, setEditModuleId] = useState(null);
+    const [editModuleTitle, setEditModuleTitle] = useState('');
+    const [editModuleFiles, setEditModuleFiles] = useState([]);
+    const [editModuleLink, setEditModuleLink] = useState('');
+    const [savingEditModule, setSavingEditModule] = useState(false);
+    const [showDeleteModuleModal, setShowDeleteModuleModal] = useState(false);
+    const [deleteModuleId, setDeleteModuleId] = useState(null);
 
     useEffect(() => {
         if (classId) {
@@ -237,6 +248,66 @@ export default function FacultyModule() {
             alert('Failed to delete announcement');
         }
     };
+
+    // Edit handlers
+    function openEditModuleModal(module) {
+        setEditModuleId(module._id);
+        setEditModuleTitle(module.title);
+        setEditModuleFiles(module.files || []);
+        setEditModuleLink(module.link || '');
+        setShowEditModuleModal(true);
+    }
+    function handleEditModuleFileChange(e) {
+        setEditModuleFiles(Array.from(e.target.files));
+    }
+    async function saveEditModule() {
+        if (!editModuleTitle.trim() || (editModuleFiles.length === 0 && !editModuleLink.trim())) return;
+        setSavingEditModule(true);
+        try {
+            const formData = new FormData();
+            formData.append('title', editModuleTitle);
+            if (editModuleLink.trim()) formData.append('link', editModuleLink.trim());
+            editModuleFiles.forEach(file => {
+                if (isWeb) {
+                    formData.append('files', file);
+                } else {
+                    formData.append('files', {
+                        uri: file.uri,
+                        name: file.name || 'file',
+                        type: file.mimeType || 'application/octet-stream',
+                    });
+                }
+            });
+            await axios.put(`http://localhost:5000/api/lessons/${editModuleId}`, formData, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+            });
+            setShowEditModuleModal(false);
+            setEditModuleId(null);
+            setEditModuleTitle('');
+            setEditModuleFiles([]);
+            setEditModuleLink('');
+            fetchMaterials(classID);
+        } catch (err) {
+            alert('Failed to save module changes');
+        } finally {
+            setSavingEditModule(false);
+        }
+    }
+    // Delete handlers
+    function openDeleteModuleModal(moduleId) {
+        setDeleteModuleId(moduleId);
+        setShowDeleteModuleModal(true);
+    }
+    async function confirmDeleteModule() {
+        try {
+            await axios.delete(`http://localhost:5000/api/lessons/${deleteModuleId}`);
+            setShowDeleteModuleModal(false);
+            setDeleteModuleId(null);
+            fetchMaterials(classID);
+        } catch (err) {
+            alert('Failed to delete module');
+        }
+    }
 
     const renderTabContent = () => {
         switch (activeTab) {
@@ -487,7 +558,7 @@ export default function FacultyModule() {
                             {/* Add Material Button (faculty only) */}
                             {user?.role === 'faculty' && (
                                 <TouchableOpacity
-                                    onPress={handleAddMaterial}
+                                    onPress={() => setShowAddModuleModal(true)}
                                     style={{ backgroundColor: '#183a8c', borderRadius: 6, paddingVertical: 7, paddingHorizontal: 14, alignSelf: 'flex-start' }}
                                     activeOpacity={0.85}
                                 >
@@ -513,6 +584,7 @@ export default function FacultyModule() {
                                   shadowRadius: 4,
                                   elevation: 1,
                                   overflow: 'hidden',
+                                  position: 'relative',
                                 }}>
                                   {/* Header */}
                                   <View style={{
@@ -528,6 +600,17 @@ export default function FacultyModule() {
                                     <Text style={{ fontFamily: 'Poppins-Bold', color: '#fff', fontSize: 17, flex: 1 }}>
                                       {lesson.title}
                                     </Text>
+                                    {/* Edit/Delete buttons (faculty only) */}
+                                    {user?.role === 'faculty' && (
+                                      <View style={{ flexDirection: 'row' }}>
+                                        <TouchableOpacity onPress={() => openEditModuleModal(lesson)} style={{ backgroundColor: '#ffd600', borderRadius: 5, paddingVertical: 4, paddingHorizontal: 10, marginRight: 8 }}>
+                                          <Text style={{ color: '#222', fontFamily: 'Poppins-Bold', fontSize: 13 }}>Edit</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity onPress={() => openDeleteModuleModal(lesson._id)} style={{ backgroundColor: '#d32f2f', borderRadius: 5, paddingVertical: 4, paddingHorizontal: 10 }}>
+                                          <Text style={{ color: '#fff', fontFamily: 'Poppins-Bold', fontSize: 13 }}>Delete</Text>
+                                        </TouchableOpacity>
+                                      </View>
+                                    )}
                                   </View>
                                   {/* Section label row */}
                                   <View style={{ flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 8, borderBottomWidth: 1, borderColor: '#e0e0e0', backgroundColor: '#f9f9f9' }}>
@@ -551,6 +634,67 @@ export default function FacultyModule() {
                 return null;
         }
     };
+
+    // For web file input
+    const isWeb = typeof window !== 'undefined' && typeof window.document !== 'undefined';
+
+    // Add mobile file picker handler
+    async function handleMobileFilePick(setFiles) {
+        try {
+            const result = await DocumentPicker.getDocumentAsync({ multiple: true, copyToCacheDirectory: true });
+            if (!result.canceled) {
+                // result.assets is an array of picked files
+                setFiles(files => [...files, ...result.assets]);
+            }
+        } catch (err) {
+            alert('Failed to pick file');
+        }
+    }
+
+    const [showAddModuleModal, setShowAddModuleModal] = useState(false);
+    const [moduleTitle, setModuleTitle] = useState('');
+    const [moduleFiles, setModuleFiles] = useState([]);
+    const [moduleLink, setModuleLink] = useState('');
+    const [savingModule, setSavingModule] = useState(false);
+
+    // File input handler (web only)
+    function handleFileChange(e) {
+        setModuleFiles(Array.from(e.target.files));
+    }
+
+    async function saveModule() {
+        if (!moduleTitle.trim() || (moduleFiles.length === 0 && !moduleLink.trim())) return;
+        setSavingModule(true);
+        try {
+            const formData = new FormData();
+            formData.append('classID', classID);
+            formData.append('title', moduleTitle);
+            if (moduleLink.trim()) formData.append('link', moduleLink.trim());
+            moduleFiles.forEach(file => {
+                if (isWeb) {
+                    formData.append('files', file);
+                } else {
+                    formData.append('files', {
+                        uri: file.uri,
+                        name: file.name || 'file',
+                        type: file.mimeType || 'application/octet-stream',
+                    });
+                }
+            });
+            await axios.post('http://localhost:5000/api/lessons', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+            });
+            setShowAddModuleModal(false);
+            setModuleTitle('');
+            setModuleFiles([]);
+            setModuleLink('');
+            fetchMaterials(classID);
+        } catch (err) {
+            alert('Failed to save module');
+        } finally {
+            setSavingModule(false);
+        }
+    }
 
     return (
         <View style={{ flex: 1, backgroundColor: '#f5f5f5', paddingHorizontal: 10 }}>
@@ -612,6 +756,168 @@ export default function FacultyModule() {
                     </TouchableOpacity>
                 </View>
             )}
+            <Modal
+                visible={showAddModuleModal}
+                animationType="slide"
+                transparent={true}
+                onRequestClose={() => setShowAddModuleModal(false)}
+            >
+                <KeyboardAvoidingView
+                    behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                    style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.18)' }}
+                >
+                    <View style={{ backgroundColor: '#fff', borderRadius: 12, padding: 24, width: '94%', maxWidth: 420, borderWidth: 1, borderColor: '#b6c8e6' }}>
+                        <Text style={{ fontFamily: 'Poppins-Bold', color: '#222', fontSize: 18, marginBottom: 16 }}>Add New Module</Text>
+                        <Text style={{ fontFamily: 'Poppins-Bold', color: '#222', fontSize: 15, marginBottom: 6 }}>Lesson Title</Text>
+                        <TextInput
+                            value={moduleTitle}
+                            onChangeText={setModuleTitle}
+                            style={{ backgroundColor: '#fff', borderRadius: 4, borderWidth: 1, borderColor: '#222', padding: 8, marginBottom: 16, fontFamily: 'Poppins-Regular', fontSize: 15 }}
+                            placeholder="Enter lesson title"
+                        />
+                        <Text style={{ fontFamily: 'Poppins-Bold', color: '#222', fontSize: 15, marginBottom: 6 }}>Upload Files</Text>
+                        {isWeb ? (
+                            <input
+                                type="file"
+                                multiple
+                                onChange={handleFileChange}
+                                style={{ marginBottom: 16, fontFamily: 'Poppins-Regular', fontSize: 15 }}
+                            />
+                        ) : (
+                            <>
+                                <TouchableOpacity
+                                    onPress={() => handleMobileFilePick(setModuleFiles)}
+                                    style={{ backgroundColor: '#e3eefd', borderRadius: 5, borderWidth: 1, borderColor: '#183a8c', paddingVertical: 8, paddingHorizontal: 12, marginBottom: 8 }}
+                                >
+                                    <Text style={{ color: '#183a8c', fontFamily: 'Poppins-Bold', fontSize: 14 }}>Pick Files</Text>
+                                </TouchableOpacity>
+                                {moduleFiles.length > 0 && (
+                                    <View style={{ marginBottom: 12 }}>
+                                        {moduleFiles.map((file, idx) => (
+                                            <Text key={file.uri || file.name || idx} style={{ fontSize: 13, color: '#222' }}>{file.name || file.uri}</Text>
+                                        ))}
+                                    </View>
+                                )}
+                            </>
+                        )}
+                        <Text style={{ fontFamily: 'Poppins-Bold', color: '#222', fontSize: 15, marginBottom: 6 }}>or Paste Link</Text>
+                        <TextInput
+                            value={moduleLink}
+                            onChangeText={setModuleLink}
+                            style={{ backgroundColor: '#fff', borderRadius: 4, borderWidth: 1, borderColor: '#222', padding: 8, marginBottom: 20, fontFamily: 'Poppins-Regular', fontSize: 15 }}
+                            placeholder="https://example.com/lesson.pdf"
+                        />
+                        <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
+                            <TouchableOpacity
+                                onPress={() => setShowAddModuleModal(false)}
+                                style={{ backgroundColor: '#888fa1', borderRadius: 5, paddingVertical: 10, paddingHorizontal: 18, marginRight: 10 }}
+                                disabled={savingModule}
+                            >
+                                <Text style={{ color: '#fff', fontFamily: 'Poppins-Bold', fontSize: 15 }}>Cancel</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                onPress={saveModule}
+                                style={{ backgroundColor: '#183a8c', borderRadius: 5, paddingVertical: 10, paddingHorizontal: 18, opacity: (!moduleTitle.trim() || (moduleFiles.length === 0 && !moduleLink.trim()) || savingModule) ? 0.6 : 1 }}
+                                disabled={!moduleTitle.trim() || (moduleFiles.length === 0 && !moduleLink.trim()) || savingModule}
+                            >
+                                <Text style={{ color: '#fff', fontFamily: 'Poppins-Bold', fontSize: 15 }}>Save Module</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </KeyboardAvoidingView>
+            </Modal>
+            {/* Edit Module Modal */}
+            <Modal
+                visible={showEditModuleModal}
+                animationType="slide"
+                transparent={true}
+                onRequestClose={() => setShowEditModuleModal(false)}
+            >
+                <KeyboardAvoidingView
+                    behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                    style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.18)' }}
+                >
+                    <View style={{ backgroundColor: '#fff', borderRadius: 12, padding: 24, width: '94%', maxWidth: 420, borderWidth: 1, borderColor: '#b6c8e6' }}>
+                        <Text style={{ fontFamily: 'Poppins-Bold', color: '#222', fontSize: 18, marginBottom: 16 }}>Edit Module</Text>
+                        <Text style={{ fontFamily: 'Poppins-Bold', color: '#222', fontSize: 15, marginBottom: 6 }}>Lesson Title</Text>
+                        <TextInput
+                            value={editModuleTitle}
+                            onChangeText={setEditModuleTitle}
+                            style={{ backgroundColor: '#fff', borderRadius: 4, borderWidth: 1, borderColor: '#222', padding: 8, marginBottom: 16, fontFamily: 'Poppins-Regular', fontSize: 15 }}
+                            placeholder="Enter lesson title"
+                        />
+                        <Text style={{ fontFamily: 'Poppins-Bold', color: '#222', fontSize: 15, marginBottom: 6 }}>Upload Files</Text>
+                        {isWeb ? (
+                            <input
+                                type="file"
+                                multiple
+                                onChange={handleEditModuleFileChange}
+                                style={{ marginBottom: 16, fontFamily: 'Poppins-Regular', fontSize: 15 }}
+                            />
+                        ) : (
+                            <>
+                                <TouchableOpacity
+                                    onPress={() => handleMobileFilePick(setEditModuleFiles)}
+                                    style={{ backgroundColor: '#e3eefd', borderRadius: 5, borderWidth: 1, borderColor: '#183a8c', paddingVertical: 8, paddingHorizontal: 12, marginBottom: 8 }}
+                                >
+                                    <Text style={{ color: '#183a8c', fontFamily: 'Poppins-Bold', fontSize: 14 }}>Pick Files</Text>
+                                </TouchableOpacity>
+                                {editModuleFiles.length > 0 && (
+                                    <View style={{ marginBottom: 12 }}>
+                                        {editModuleFiles.map((file, idx) => (
+                                            <Text key={file.uri || file.name || idx} style={{ fontSize: 13, color: '#222' }}>{file.name || file.uri}</Text>
+                                        ))}
+                                    </View>
+                                )}
+                            </>
+                        )}
+                        <Text style={{ fontFamily: 'Poppins-Bold', color: '#222', fontSize: 15, marginBottom: 6 }}>or Paste Link</Text>
+                        <TextInput
+                            value={editModuleLink}
+                            onChangeText={setEditModuleLink}
+                            style={{ backgroundColor: '#fff', borderRadius: 4, borderWidth: 1, borderColor: '#222', padding: 8, marginBottom: 20, fontFamily: 'Poppins-Regular', fontSize: 15 }}
+                            placeholder="https://example.com/lesson.pdf"
+                        />
+                        <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
+                            <TouchableOpacity
+                                onPress={() => setShowEditModuleModal(false)}
+                                style={{ backgroundColor: '#888fa1', borderRadius: 5, paddingVertical: 10, paddingHorizontal: 18, marginRight: 10 }}
+                                disabled={savingEditModule}
+                            >
+                                <Text style={{ color: '#fff', fontFamily: 'Poppins-Bold', fontSize: 15 }}>Cancel</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                onPress={saveEditModule}
+                                style={{ backgroundColor: '#183a8c', borderRadius: 5, paddingVertical: 10, paddingHorizontal: 18, opacity: (!editModuleTitle.trim() || (editModuleFiles.length === 0 && !editModuleLink.trim()) || savingEditModule) ? 0.6 : 1 }}
+                                disabled={!editModuleTitle.trim() || (editModuleFiles.length === 0 && !editModuleLink.trim()) || savingEditModule}
+                            >
+                                <Text style={{ color: '#fff', fontFamily: 'Poppins-Bold', fontSize: 15 }}>Save Module</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </KeyboardAvoidingView>
+            </Modal>
+            {/* Delete Module Confirmation Modal */}
+            <Modal
+                visible={showDeleteModuleModal}
+                animationType="fade"
+                transparent={true}
+                onRequestClose={() => setShowDeleteModuleModal(false)}
+            >
+                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.18)' }}>
+                    <View style={{ backgroundColor: '#fff', borderRadius: 10, padding: 24, width: '85%', maxWidth: 400, borderWidth: 1, borderColor: '#b6c8e6', alignItems: 'center' }}>
+                        <Text style={{ fontFamily: 'Poppins-Bold', color: '#222', fontSize: 16, marginBottom: 12, textAlign: 'center' }}>Are you sure you want to delete this module?</Text>
+                        <View style={{ flexDirection: 'row', marginTop: 10 }}>
+                            <TouchableOpacity onPress={confirmDeleteModule} style={{ backgroundColor: '#d32f2f', borderRadius: 5, paddingVertical: 10, paddingHorizontal: 18, marginRight: 10 }}>
+                                <Text style={{ color: '#fff', fontFamily: 'Poppins-Bold', fontSize: 15 }}>Delete</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity onPress={() => setShowDeleteModuleModal(false)} style={{ backgroundColor: '#bdbdbd', borderRadius: 5, paddingVertical: 10, paddingHorizontal: 18 }}>
+                                <Text style={{ color: '#222', fontFamily: 'Poppins-Bold', fontSize: 15 }}>Cancel</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
         </View>
     )
 }
