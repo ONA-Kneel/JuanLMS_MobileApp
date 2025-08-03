@@ -8,6 +8,23 @@ import { useFonts } from 'expo-font';
 import { useUser } from '../UserContext';
 import * as DocumentPicker from 'expo-document-picker';
 
+function formatDateHeader(date) {
+  if (!date) return 'No date';
+  const d = new Date(date);
+  return d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+}
+
+function groupByDate(items, getDate) {
+  const groups = {};
+  items.forEach(item => {
+    const date = getDate(item);
+    const key = date ? new Date(date).toDateString() : 'No date';
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(item);
+  });
+  return groups;
+}
+
 export default function FacultyModule() {
     const route = useRoute();
     const navigation = useNavigation();
@@ -548,33 +565,65 @@ export default function FacultyModule() {
                         {/* Classwork Content */}
                         {loading ? (
                             <ActivityIndicator />
-                        ) : classwork.length === 0 ? (
-                            <Text style={{ fontFamily: 'Poppins-Regular', color: '#222', fontSize: 13, marginTop: 10 }}>No classwork assigned yet.</Text>
                         ) : (
-                            classwork.map(item => (
-                                <View key={item._id} style={{ backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: '#cfe2ff', padding: 18, marginBottom: 16, flexDirection: 'row', alignItems: 'flex-start', shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, elevation: 1 }}>
-                                    <View style={{ flex: 1 }}>
-                                        {/* Type Pill */}
-                                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
-                                            <View style={{ backgroundColor: item.type === 'quiz' ? '#cdb4f6' : '#b6f5c3', borderRadius: 6, paddingHorizontal: 10, paddingVertical: 2, marginRight: 8 }}>
-                                                <Text style={{ color: item.type === 'quiz' ? '#7c3aed' : '#15803d', fontWeight: 'bold', fontSize: 13, fontFamily: 'Poppins-Bold' }}>{item.type === 'quiz' ? 'Quiz' : 'Assignment'}</Text>
-                                            </View>
-                                        </View>
-                                        {/* Title */}
-                                        <Text style={{ fontFamily: 'Poppins-Bold', color: '#222', fontSize: 18, marginBottom: 2 }}>{item.title}</Text>
-                                        {/* Description */}
-                                        <Text style={{ fontFamily: 'Poppins-Regular', color: '#222', fontSize: 15, marginBottom: 6 }}>{item.description || item.instructions}</Text>
-                                        {/* Due Date */}
-                                        {item.dueDate && <Text style={{ fontFamily: 'Poppins-Regular', color: '#888', fontSize: 13, marginBottom: 2 }}>Due: {new Date(item.dueDate).toLocaleString()}</Text>}
-                                        {/* Points */}
-                                        <Text style={{ fontFamily: 'Poppins-Regular', color: '#888', fontSize: 13 }}>Points: {item.points || 1}</Text>
+                            (() => {
+                                // Sort by createdAt/postAt descending
+                                const sorted = [...classwork].sort((a, b) => {
+                                    const aDate = a.postAt || a.createdAt;
+                                    const bDate = b.postAt || b.createdAt;
+                                    return new Date(bDate) - new Date(aDate);
+                                });
+                                // Group by date
+                                const groups = groupByDate(sorted, item => item.postAt || item.createdAt);
+                                return Object.entries(groups).map(([dateKey, items]) => (
+                                    <View key={dateKey}>
+                                        <Text style={{ fontFamily: 'Poppins-Bold', fontSize: 16, color: '#222', marginBottom: 8, marginTop: 18 }}>
+                                            {(() => {
+                                                const year = new Date(dateKey).getFullYear();
+                                                return year >= 2099 ? 'Not Posted Yet' : formatDateHeader(dateKey);
+                                            })()}
+                                        </Text>
+                                        {items.map(item => {
+                                            const isFuturePost = item.postAt && new Date(item.postAt) > new Date();
+                                            const isSuperFuture = item.postAt && new Date(item.postAt).getFullYear() >= 2099;
+                                            return (
+                                                <View key={item._id} style={{ backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: '#cfe2ff', padding: 18, marginBottom: 16, flexDirection: 'row', alignItems: 'flex-start', shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, elevation: 1 }}>
+                                                    {isFuturePost ? (
+                                                        <View style={{ position: 'absolute', top: 12, right: 12, backgroundColor: '#888fa1', borderRadius: 12, paddingHorizontal: 10, paddingVertical: 3 }}>
+                                                            <Text style={{ color: '#fff', fontFamily: 'Poppins-Bold', fontSize: 12 }}>Not Posted Yet</Text>
+                                                        </View>
+                                                    ) : null}
+                                                    <View style={{ flex: 1 }}>
+                                                        {/* Type Pill */}
+                                                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                                                            <View style={{ backgroundColor: item.type === 'quiz' ? '#cdb4f6' : '#b6f5c3', borderRadius: 6, paddingHorizontal: 10, paddingVertical: 2, marginRight: 8 }}>
+                                                                <Text style={{ color: item.type === 'quiz' ? '#7c3aed' : '#15803d', fontWeight: 'bold', fontSize: 13, fontFamily: 'Poppins-Bold' }}>{item.type === 'quiz' ? 'Quiz' : 'Assignment'}</Text>
+                                                            </View>
+                                                        </View>
+                                                        {/* Title */}
+                                                        <Text style={{ fontFamily: 'Poppins-Bold', color: '#222', fontSize: 18, marginBottom: 2 }}>{item.title}</Text>
+                                                        {isFuturePost ? (
+                                                            <Text style={{ color: '#888fa1', fontFamily: 'Poppins-Regular', fontSize: 13, marginTop: 4 }}>
+                                                                {isSuperFuture ? 'Not Posted Yet' : `Will be posted on ${formatDateHeader(item.postAt)}`}
+                                                            </Text>
+                                                        ) : null}
+                                                        {/* Description */}
+                                                        <Text style={{ fontFamily: 'Poppins-Regular', color: '#222', fontSize: 15, marginBottom: 6 }}>{item.description || item.instructions}</Text>
+                                                        {/* Due Date */}
+                                                        {item.dueDate && <Text style={{ fontFamily: 'Poppins-Regular', color: '#888', fontSize: 13, marginBottom: 2 }}>Due: {new Date(item.dueDate).toLocaleString()}</Text>}
+                                                        {/* Points */}
+                                                        <Text style={{ fontFamily: 'Poppins-Regular', color: '#888', fontSize: 13 }}>Points: {item.points || 1}</Text>
+                                                    </View>
+                                                    {/* Three-dot menu */}
+                                                    <View style={{ marginLeft: 10 }}>
+                                                        <Icon name="dots-vertical" size={22} color="#222" />
+                                                    </View>
+                                                </View>
+                                            );
+                                        })}
                                     </View>
-                                    {/* Three-dot menu */}
-                                    <View style={{ marginLeft: 10 }}>
-                                        <Icon name="dots-vertical" size={22} color="#222" />
-                                    </View>
-                                </View>
-                            ))
+                                ))
+                            })()
                         )}
                     </>
                 );

@@ -8,6 +8,23 @@ import StudentModuleStyle from '../styles/Stud/StudentModuleStyle';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
 
+function formatDateHeader(date) {
+  if (!date) return 'No due date';
+  const d = new Date(date);
+  return d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+}
+
+function groupByDate(items, getDate) {
+  const groups = {};
+  items.forEach(item => {
+    const date = getDate(item);
+    const key = date ? new Date(date).toDateString() : 'No due date';
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(item);
+  });
+  return groups;
+}
+
 export default function StudentModule(){
     const route = useRoute();
     const navigation = useNavigation();
@@ -207,45 +224,36 @@ export default function StudentModule(){
                         ) : classwork.length === 0 ? (
                             <Text style={{ fontFamily: 'Poppins-Regular', color: '#222', fontSize: 13, marginTop: 10 }}>No classwork assigned yet.</Text>
                         ) : (
-                            classwork.map(item => (
-                                <View key={item._id} style={{
-                                    backgroundColor: '#fff',
-                                    borderRadius: 12,
-                                    borderWidth: 1,
-                                    borderColor: '#cfe2ff',
-                                    padding: 18,
-                                    marginBottom: 16,
-                                    flexDirection: 'row',
-                                    alignItems: 'flex-start',
-                                    shadowColor: '#000',
-                                    shadowOpacity: 0.04,
-                                    shadowRadius: 4,
-                                    elevation: 1,
-                                }}>
-                                    <View style={{ flex: 1 }}>
-                                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
-                                            <View style={{
-                                                backgroundColor: item.type === 'quiz' ? '#cdb4f6' : '#b6f5c3',
-                                                borderRadius: 6,
-                                                paddingHorizontal: 10,
-                                                paddingVertical: 2,
-                                                marginRight: 8,
-                                            }}>
-                                                <Text style={{
-                                                    color: item.type === 'quiz' ? '#7c3aed' : '#15803d',
-                                                    fontWeight: 'bold',
-                                                    fontSize: 13,
-                                                    fontFamily: 'Poppins-Bold'
-                                                }}>{item.type === 'quiz' ? 'Quiz' : 'Assignment'}</Text>
-                                            </View>
-                                        </View>
-                                        <Text style={{ fontFamily: 'Poppins-Bold', color: '#222', fontSize: 18, marginBottom: 2 }}>{item.title}</Text>
-                                        <Text style={{ fontFamily: 'Poppins-Regular', color: '#222', fontSize: 15, marginBottom: 6 }}>{item.description || item.instructions}</Text>
-                                        {item.dueDate && <Text style={{ fontFamily: 'Poppins-Regular', color: '#888', fontSize: 13, marginBottom: 2 }}>Due: {new Date(item.dueDate).toLocaleString()}</Text>}
-                                        <Text style={{ fontFamily: 'Poppins-Regular', color: '#888', fontSize: 13 }}>Points: {item.points || 1}</Text>
-                                    </View>
-                                </View>
-                            ))
+                            (() => {
+  // Sort by dueDate ascending
+  const sorted = [...classwork].sort((a, b) => {
+    const aDate = a.dueDate || a.createdAt;
+    const bDate = b.dueDate || b.createdAt;
+    return new Date(aDate) - new Date(bDate);
+  });
+  // Group by dueDate
+  const groups = groupByDate(sorted, item => item.dueDate);
+  return Object.entries(groups).map(([dateKey, items]) => (
+    <View key={dateKey}>
+      <Text style={{ fontFamily: 'Poppins-Bold', fontSize: 16, color: '#222', marginBottom: 8, marginTop: 18 }}>{formatDateHeader(dateKey)}</Text>
+      {items.map(item => (
+        <View key={item._id} style={{ backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: '#cfe2ff', padding: 18, marginBottom: 16, flexDirection: 'row', alignItems: 'flex-start', shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, elevation: 1 }}>
+          <View style={{ flex: 1 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+              <View style={{ backgroundColor: item.type === 'quiz' ? '#cdb4f6' : '#b6f5c3', borderRadius: 6, paddingHorizontal: 10, paddingVertical: 2, marginRight: 8 }}>
+                <Text style={{ color: item.type === 'quiz' ? '#7c3aed' : '#15803d', fontWeight: 'bold', fontSize: 13, fontFamily: 'Poppins-Bold' }}>{item.type === 'quiz' ? 'Quiz' : 'Assignment'}</Text>
+              </View>
+            </View>
+            <Text style={{ fontFamily: 'Poppins-Bold', color: '#222', fontSize: 18, marginBottom: 2 }}>{item.title}</Text>
+            <Text style={{ fontFamily: 'Poppins-Regular', color: '#222', fontSize: 15, marginBottom: 6 }}>{item.description || item.instructions}</Text>
+            {item.dueDate && <Text style={{ fontFamily: 'Poppins-Regular', color: '#888', fontSize: 13, marginBottom: 2 }}>Due: {new Date(item.dueDate).toLocaleString()}</Text>}
+            <Text style={{ fontFamily: 'Poppins-Regular', color: '#888', fontSize: 13 }}>Points: {item.points || 1}</Text>
+          </View>
+        </View>
+      ))}
+    </View>
+  ));
+})()
                         )}
                     </>
                 );
