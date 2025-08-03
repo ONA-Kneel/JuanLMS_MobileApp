@@ -228,20 +228,14 @@ const AdminDashStyle = StyleSheet.create({
     color: '#333',
   },
 
-  // Sidebar row (Audit Preview and Calendar)
-  sidebarRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  // Audit preview section (full width)
+  auditPreviewSection: {
     marginBottom: 20,
   },
-
-  // Audit preview
   auditPreviewCard: {
     backgroundColor: '#fff',
     borderRadius: 12,
     padding: 16,
-    flex: 1,
-    marginRight: 8,
     shadowColor: '#000',
     shadowOpacity: 0.04,
     shadowRadius: 4,
@@ -277,13 +271,14 @@ const AdminDashStyle = StyleSheet.create({
     flex: 1,
   },
 
-  // Calendar
+  // Calendar section (full width)
+  calendarSection: {
+    marginBottom: 20,
+  },
   calendarCard: {
     backgroundColor: '#fff',
     borderRadius: 12,
     padding: 16,
-    flex: 1,
-    marginLeft: 8,
     shadowColor: '#000',
     shadowOpacity: 0.04,
     shadowRadius: 4,

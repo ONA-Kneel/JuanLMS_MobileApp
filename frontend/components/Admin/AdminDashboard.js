@@ -307,11 +307,10 @@ export default function AdminDashboard() {
           </View>
         </View>
 
-        {/* Audit Preview and Calendar Row */}
-        <View style={AdminDashStyle.sidebarRow}>
-          {/* Audit Preview */}
+        {/* Audit Preview Section */}
+        <View style={AdminDashStyle.auditPreviewSection}>
+          <Text style={AdminDashStyle.sectionTitle}>Audit Preview</Text>
           <View style={AdminDashStyle.auditPreviewCard}>
-            <Text style={AdminDashStyle.sectionTitle}>Audit Preview</Text>
             <ScrollView style={AdminDashStyle.auditScrollView}>
               {recentLogs.map((log, index) => (
                 <View key={index} style={AdminDashStyle.auditRow}>
@@ -324,10 +323,12 @@ export default function AdminDashboard() {
               ))}
             </ScrollView>
           </View>
+        </View>
 
-          {/* Academic Calendar */}
+        {/* Academic Calendar Section */}
+        <View style={AdminDashStyle.calendarSection}>
+          <Text style={AdminDashStyle.sectionTitle}>Academic Calendar</Text>
           <View style={AdminDashStyle.calendarCard}>
-            <Text style={AdminDashStyle.sectionTitle}>Academic Calendar</Text>
             <View style={AdminDashStyle.calendarHeader}>
               <Text style={AdminDashStyle.calendarMonth}>
                 {currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' })}
