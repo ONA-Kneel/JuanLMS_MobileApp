@@ -12,6 +12,7 @@ import announcementRoutes from './routes/announcementRoutes.js';
 import quizRoutes from './routes/quizRoutes.js';
 import assignmentRoutes from './routes/assignmentRoutes.js';
 import groupChatsRouter from './routes/groupChats.js';
+import adminRoutes from './routes/adminRoutes.js';
 import http from 'http';
 import { Server } from 'socket.io';
 import { MongoClient } from 'mongodb';
@@ -31,6 +32,7 @@ app.use('/api/assignments', assignmentRoutes);
 app.use('/api/tickets', ticketsRouter);
 app.use('/api', classRoutes);
 app.use('/api/lessons', lessonRoutes);
+app.use('/api', adminRoutes);
 
 // Serve uploaded files
 app.use('/uploads', express.static('uploads'));
