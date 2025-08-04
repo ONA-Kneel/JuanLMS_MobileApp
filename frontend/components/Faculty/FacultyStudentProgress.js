@@ -4,6 +4,7 @@ import { ProgressBar } from "react-native-paper";
 import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import StudentProgStyle from "../styles/Stud/StudentProgStyle";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function FacultyStudentProgress() {
     const navigation = useNavigation();

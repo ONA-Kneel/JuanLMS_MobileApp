@@ -3,6 +3,7 @@ import { Text, TouchableOpacity, View, ScrollView, Image, ActivityIndicator } fr
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../UserContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function StudentClasses() {
   const navigation = useNavigation();
@@ -12,23 +13,22 @@ export default function StudentClasses() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    const fetchClasses = async () => {
-      if (!user || !user._id) {
-        console.log('No user ID available');
-        setLoading(false);
-        return;
-      }
-      
+    if (!user || !user._id) {
+      setLoading(false);
+      return;
+    }
+    (async () => {
       setLoading(true);
       setError(null);
-      
       try {
+        const token = await AsyncStorage.getItem('jwtToken');
         console.log('Fetching classes for student:', user._id);
         const response = await fetch(`http://localhost:5000/api/student-classes?studentID=${user._id}`, {
           method: 'GET',
           headers: {
             'Accept': 'application/json',
             'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
           },
         });
         
@@ -55,13 +55,17 @@ export default function StudentClasses() {
       } finally {
         setLoading(false);
       }
-    };
-    
-    fetchClasses();
+    })();
   }, [user]);
 
   const handleClassPress = (course) => {
-    navigation.navigate('SModule', { classId: course.classID || course._id });
+    // Find the exact class by classID to avoid wrong navigation
+    const exactClass = classes.find(c => c.classID === course.classID);
+    if (exactClass) {
+      navigation.navigate('SModule', { classId: exactClass.classID });
+    } else {
+      navigation.navigate('SModule', { classId: course.classID });
+    }
   };
 
   const goBack = () => {

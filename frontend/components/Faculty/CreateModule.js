@@ -5,6 +5,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from "@react-navigation/native";
 import { ScrollView } from "react-native-web";
 import FacultyModuleStyle from "../styles/faculty/FacultyModuleStyle";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 
 export default function CreateModule(){

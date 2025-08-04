@@ -5,6 +5,7 @@ import { Calendar } from 'react-native-calendars';
 import { Ionicons } from '@expo/vector-icons';
 import StudentCalendarStyle from '../styles/Stud/StudentCalendarStyle';
 import { useNavigation } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const timeToString = (time) => {
   const date = new Date(time);
@@ -90,7 +91,10 @@ export default function StudentCalendar() {
         }
 
         try {
-          const resEvents = await fetch('http://localhost:5000/api/events');
+          const token = await AsyncStorage.getItem('jwtToken');
+          const resEvents = await fetch('http://localhost:5000/api/events', {
+            headers: { Authorization: `Bearer ${token}` }
+          });
           if (!resEvents.ok) throw new Error('Failed to fetch events');
           const eventsData = await resEvents.json();
           

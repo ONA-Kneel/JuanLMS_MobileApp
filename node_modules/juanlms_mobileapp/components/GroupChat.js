@@ -15,6 +15,7 @@ import { useUser } from './UserContext';
 import io from 'socket.io-client';
 import axios from 'axios';
 import AdminChatStyle from './styles/administrator/AdminChatStyle';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const SOCKET_URL = 'http://localhost:5000';
 
@@ -40,16 +41,18 @@ export default function GroupChat() {
     console.log('Current user:', user);
     console.log('Selected group:', selectedGroup);
 
-    // Fetch group messages
-    axios.get(`${SOCKET_URL}/api/group-chats/${selectedGroup._id}/messages?userId=${user._id}`)
-      .then(res => setMessages(res.data))
-      .catch((err) => {
-        console.log('Error fetching group messages:', err);
-        setMessages([]);
-      });
-
-    // Fetch group members
-    fetchGroupMembers();
+    (async () => {
+      const token = await AsyncStorage.getItem('jwtToken');
+      axios.get(`${SOCKET_URL}/api/group-chats/${selectedGroup._id}/messages?userId=${user._id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+        .then(res => setMessages(res.data))
+        .catch((err) => {
+          console.log('Error fetching group messages:', err);
+          setMessages([]);
+        });
+      fetchGroupMembers(token);
+    })();
 
     // Setup socket connection
     if (!socketRef.current) {
@@ -68,10 +71,12 @@ export default function GroupChat() {
     };
   }, [selectedGroup, user]);
 
-  const fetchGroupMembers = async () => {
+  const fetchGroupMembers = async (token) => {
     try {
       const memberPromises = selectedGroup.participants.map(async (participantId) => {
-        const response = await axios.get(`${SOCKET_URL}/users/${participantId}`);
+        const response = await axios.get(`${SOCKET_URL}/users/${participantId}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
         return response.data;
       });
       const members = await Promise.all(memberPromises);
@@ -97,9 +102,12 @@ export default function GroupChat() {
 
     // Save to database
     try {
+      const token = await AsyncStorage.getItem('jwtToken');
       await axios.post(`${SOCKET_URL}/api/group-chats/${selectedGroup._id}/messages`, {
         senderId: user._id,
         message: input,
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
       });
     } catch (err) {
       console.log('Error saving group message:', err);
@@ -114,8 +122,11 @@ export default function GroupChat() {
 
   const handleLeaveGroup = async () => {
     try {
+      const token = await AsyncStorage.getItem('jwtToken');
       await axios.post(`${SOCKET_URL}/api/group-chats/${selectedGroup._id}/leave`, {
         userId: user._id,
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
       });
 
       // Leave the group in socket
@@ -135,9 +146,12 @@ export default function GroupChat() {
 
   const handleRemoveMember = async (memberId) => {
     try {
+      const token = await AsyncStorage.getItem('jwtToken');
       await axios.post(`${SOCKET_URL}/api/group-chats/${selectedGroup._id}/remove-member`, {
         userId: user._id,
         memberId: memberId,
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
       });
 
       // Refresh group members

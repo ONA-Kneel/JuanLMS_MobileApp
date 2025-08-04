@@ -4,6 +4,7 @@ import { Picker } from "@react-native-picker/picker";
 import FacultyModuleStyle from "../styles/faculty/FacultyModuleStyle";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import { useNavigation } from "@react-navigation/native";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 
 export default function CreateActivity() {

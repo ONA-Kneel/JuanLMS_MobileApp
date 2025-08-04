@@ -11,11 +11,11 @@ function generateClassID() {
 router.post('/classes', async (req, res) => {
     try {
         const db = database.getDb();
-        let { classID, className, classCode, classDesc, members, facultyID } = req.body;
+        let { classID, className, classCode, classDesc, members, facultyID, image } = req.body;
         if (!classID) {
             classID = generateClassID();
         }
-        const newClass = { classID, className, classCode, classDesc, members, facultyID };
+        const newClass = { classID, className, classCode, classDesc, members, facultyID, image };
         console.log('Creating class:', newClass);
         console.log('Members array:', members);
         console.log('Members type:', typeof members);

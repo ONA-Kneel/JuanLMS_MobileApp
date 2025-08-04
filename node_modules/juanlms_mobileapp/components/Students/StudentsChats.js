@@ -5,6 +5,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../UserContext';
 import axios from 'axios';
 import StudentChatStyle from '../styles/Stud/StudentChatsStyle';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const SOCKET_URL = 'http://localhost:5000';
 const ALLOWED_ROLES = ['students', 'director', 'admin', 'faculty'];
@@ -23,6 +24,38 @@ export default function StudentsChats() {
 
   useEffect(() => {
     if (!user || !user._id) return;
+    (async () => {
+      const token = await AsyncStorage.getItem('jwtToken');
+      axios.get(`${SOCKET_URL}/users`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+        .then(res => {
+          const userMap = {};
+          const filteredUsers = res.data.filter(u =>
+            u._id !== user._id &&
+            ALLOWED_ROLES.includes(u.role.toLowerCase())
+          );
+          filteredUsers.forEach(u => {
+            userMap[u._id] = u;
+          });
+          setUsers(userMap);
+          setAllUsers(filteredUsers);
+        })
+        .catch((err) => {
+          console.error('Error fetching users:', err);
+          setUsers({});
+          setAllUsers([]);
+          setError('Failed to load users. Please try again later.');
+        });
+      axios.get(`${SOCKET_URL}/api/messages/recent/${user._id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+        .then(res => setRecentChats(res.data))
+        .catch((err) => {
+          console.error('Error fetching recent chats:', err);
+          setRecentChats([]);
+        });
+    })();
 
     const fetchUsers = async () => {
       try {

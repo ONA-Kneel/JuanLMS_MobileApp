@@ -3,6 +3,14 @@ import { Text, TouchableOpacity, View, ScrollView, Image, ActivityIndicator } fr
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../UserContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const BASE_URL = 'http://localhost:5000';
+function getImageUrl(imagePath) {
+  if (!imagePath) return null;
+  if (imagePath.startsWith('http')) return imagePath;
+  return `${BASE_URL}${imagePath}`;
+}
 
 export default function FacultyClasses() {
   const navigation = useNavigation();
@@ -24,11 +32,13 @@ export default function FacultyClasses() {
       
       try {
         console.log('Fetching classes for faculty:', user._id);
-        const response = await fetch(`http://localhost:5000/api/faculty-classes?facultyID=${user._id}`, {
+        const token = await AsyncStorage.getItem('jwtToken');
+        const response = await fetch(`http://localhost:5000/api/classes/faculty-classes`, {
           method: 'GET',
           headers: {
             'Accept': 'application/json',
             'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
           },
         });
         
@@ -38,13 +48,13 @@ export default function FacultyClasses() {
         
         const data = await response.json();
         console.log('API Response:', data);
-        
-        if (data.success && Array.isArray(data.classes)) {
-          console.log('Classes loaded successfully:', data.classes);
+        if (Array.isArray(data)) {
+          setClasses(data);
+          setError(null);
+        } else if (data.success && Array.isArray(data.classes)) {
           setClasses(data.classes);
           setError(null);
         } else {
-          console.error('Invalid API Response:', data);
           setClasses([]);
           setError(data.error || 'Failed to fetch classes');
         }
@@ -61,7 +71,13 @@ export default function FacultyClasses() {
   }, [user]);
 
   const handleClassPress = (course) => {
-    navigation.navigate('FMod', { classId: course.classID || course._id });
+    // Find the exact class by classID to avoid wrong navigation
+    const exactClass = classes.find(c => c.classID === course.classID);
+    if (exactClass) {
+      navigation.navigate('FMod', { classId: exactClass.classID });
+    } else {
+      navigation.navigate('FMod', { classId: course.classID });
+    }
   };
 
   const createClass = () => {
@@ -260,73 +276,77 @@ export default function FacultyClasses() {
           </View>
         ) : (
           <View style={{ gap: 16 }}>
-            {classes.map((course, index) => (
-              <TouchableOpacity 
-                key={index} 
-                style={{
-                  backgroundColor: '#fff',
-                  borderRadius: 16,
-                  padding: 20,
-                  elevation: 3,
-                  shadowColor: '#000',
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: 0.1,
-                  shadowRadius: 4,
-                }}
-                onPress={() => handleClassPress(course)}
-              >
-                {/* Class Image Placeholder */}
-                <View style={{
-                  height: 120,
-                  backgroundColor: '#e3eefd',
-                  borderRadius: 12,
-                  marginBottom: 16,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  overflow: 'hidden'
-                }}>
-                  {course.image ? (
-                    <Image
-                      source={{ uri: course.image }}
-                      style={{ width: '100%', height: '100%', resizeMode: 'cover' }}
-                    />
-                  ) : (
-                    <Icon name="book-open-page-variant" size={48} color="#00418b" />
-                  )}
-                </View>
-
-                {/* Class Info */}
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ 
-                      fontSize: 18, 
-                      fontWeight: 'bold', 
-                      color: '#333',
-                      fontFamily: 'Poppins-Bold',
-                      marginBottom: 4
-                    }}>
-                      {course.className || course.name}
-                    </Text>
-                    <Text style={{ 
-                      fontSize: 14, 
-                      color: '#666',
-                      fontFamily: 'Poppins-Regular',
-                      marginBottom: 8
-                    }}>
-                      {course.classCode || course.code}
-                    </Text>
-                    <Text style={{ 
-                      fontSize: 12, 
-                      color: '#888',
-                      fontFamily: 'Poppins-Regular'
-                    }}>
-                      {course.members ? course.members.length : 0} Students
-                    </Text>
+            {classes.map((course, index) => {
+              const imageUrl = getImageUrl(course.image);
+              console.log('Class:', course.className, 'course.image:', course.image, 'imageUrl:', imageUrl);
+              return (
+                <TouchableOpacity 
+                  key={index} 
+                  style={{
+                    backgroundColor: '#fff',
+                    borderRadius: 16,
+                    padding: 20,
+                    elevation: 3,
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.1,
+                    shadowRadius: 4,
+                  }}
+                  onPress={() => handleClassPress(course)}
+                >
+                  {/* Class Image Placeholder */}
+                  <View style={{
+                    height: 120,
+                    backgroundColor: '#e3eefd',
+                    borderRadius: 12,
+                    marginBottom: 16,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    overflow: 'hidden'
+                  }}>
+                    {course.image ? (
+                      <Image
+                        source={{ uri: imageUrl }}
+                        style={{ width: '100%', height: '100%', resizeMode: 'cover' }}
+                      />
+                    ) : (
+                      <Icon name="book-open-page-variant" size={48} color="#00418b" />
+                    )}
                   </View>
-                  <Icon name="chevron-right" size={24} color="#00418b" />
-                </View>
-              </TouchableOpacity>
-            ))}
+
+                  {/* Class Info */}
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ 
+                        fontSize: 18, 
+                        fontWeight: 'bold', 
+                        color: '#333',
+                        fontFamily: 'Poppins-Bold',
+                        marginBottom: 4
+                      }}>
+                        {course.className || course.name}
+                      </Text>
+                      <Text style={{ 
+                        fontSize: 14, 
+                        color: '#666',
+                        fontFamily: 'Poppins-Regular',
+                        marginBottom: 8
+                      }}>
+                        {course.classCode || course.code}
+                      </Text>
+                      <Text style={{ 
+                        fontSize: 12, 
+                        color: '#888',
+                        fontFamily: 'Poppins-Regular'
+                      }}>
+                        {course.members ? course.members.length : 0} Students
+                      </Text>
+                    </View>
+                    <Icon name="chevron-right" size={24} color="#00418b" />
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
           </View>
         )}
 

@@ -19,6 +19,7 @@ import { MongoClient } from 'mongodb';
 import ticketsRouter from "./routes/tickets.js";
 import lessonRoutes from './routes/lessonRoutes.js';
 
+
 const app = express();
 const PORT = 5000;
 
@@ -34,6 +35,7 @@ app.use('/api', classRoutes);
 app.use('/api/lessons', lessonRoutes);
 app.use('/api', adminRoutes);
 app.use('/api/group-chats', groupChatsRouter);
+app.use('/uploads', express.static('uploads'));
 
 // Serve uploaded files
 app.use('/uploads', express.static('uploads'));

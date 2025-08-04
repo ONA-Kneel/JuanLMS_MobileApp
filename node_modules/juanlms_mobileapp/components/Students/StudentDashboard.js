@@ -6,6 +6,7 @@ import { useNavigation } from '@react-navigation/native';
 import CustomBottomNav from '../CustomBottomNav';
 import StudentDashboardStyle from '../styles/Stud/StudentDashStyle';
 import { useUser } from '../UserContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function StudentDashboard() {
   const changeScreen = useNavigation();
@@ -41,11 +42,13 @@ export default function StudentDashboard() {
       
       try {
         console.log('Fetching classes for user:', user._id);
+        const token = await AsyncStorage.getItem('jwtToken');
         const response = await fetch(`http://localhost:5000/api/student-classes?studentID=${user._id}`, {
           method: 'GET',
           headers: {
             'Accept': 'application/json',
             'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
           },
         });
         
@@ -95,7 +98,10 @@ export default function StudentDashboard() {
         const dd = String(today.getDate()).padStart(2, '0');
         const todayStr = `${yyyy}-${mm}-${dd}`;
         
-        const response = await fetch(`http://localhost:5000/api/student-assignments?studentID=${user._id}&date=${todayStr}`);
+        const token = await AsyncStorage.getItem('jwtToken');
+        const response = await fetch(`http://localhost:5000/api/student-assignments?studentID=${user._id}&date=${todayStr}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
         const data = await response.json();
         
         if (data.success) {
@@ -132,7 +138,13 @@ export default function StudentDashboard() {
   };
 
   const modules = (course) => {
-    changeScreen.navigate("SModule", { classId: course.classID || course.classId || course._id });
+    // Find the exact class by classID to avoid wrong navigation
+    const exactClass = classes.find(c => c.classID === course.classID);
+    if (exactClass) {
+      changeScreen.navigate("SModule", { classId: exactClass.classID });
+    } else {
+      changeScreen.navigate("SModule", { classId: course.classID || course.classId || course._id });
+    }
   };
 
   return (

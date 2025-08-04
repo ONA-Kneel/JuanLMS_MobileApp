@@ -7,6 +7,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import StudentModuleStyle from '../styles/Stud/StudentModuleStyle';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 function formatDateHeader(date) {
   if (!date) return 'No due date';
@@ -31,6 +32,7 @@ export default function StudentModule(){
     
     // Get the classId from navigation params
     const classId = route.params?.classId;
+    console.log('DEBUG StudentModule: classId from navigation params:', classId);
     
     const [classID, setClassID] = useState(classId || null);
     const [classInfo, setClassInfo] = useState({
@@ -44,6 +46,7 @@ export default function StudentModule(){
     const [materialsLoading, setMaterialsLoading] = useState(true);
 
     useEffect(() => {
+        console.log('DEBUG StudentModule: useEffect classId:', classId);
         if (classId) {
             // If we have a specific classId from navigation, use it
             fetchSpecificClass(classId);
@@ -55,7 +58,10 @@ export default function StudentModule(){
 
     const fetchClasswork = async (classId) => {
         try {
-            const res = await axios.get(`http://localhost:5000/api/assignments?classID=${classId}`);
+            const token = await AsyncStorage.getItem('jwtToken');
+            const res = await axios.get(`http://localhost:5000/api/assignments?classID=${classId}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
             setClasswork(res.data);
             console.log('Fetched classwork (Student):', res.data); // Debug log
         } catch (err) {
@@ -67,7 +73,10 @@ export default function StudentModule(){
     const fetchMaterials = async (classId) => {
         setMaterialsLoading(true);
         try {
-            const res = await axios.get(`http://localhost:5000/api/lessons?classID=${classId}`);
+            const token = await AsyncStorage.getItem('jwtToken');
+            const res = await axios.get(`http://localhost:5000/api/lessons?classID=${classId}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
             setMaterials(res.data);
         } catch (err) {
             setMaterials([]);
@@ -78,19 +87,30 @@ export default function StudentModule(){
 
     const fetchSpecificClass = async (targetClassId) => {
         try {
-            // Fetch specific class by ID
-            const classRes = await axios.get(`http://localhost:5000/api/classes/${targetClassId}`);
-            if (classRes.data.success) {
-                setClassID(classRes.data.class.classID);
+            const token = await AsyncStorage.getItem('jwtToken');
+            console.log('DEBUG StudentModule: fetchSpecificClass targetClassId:', targetClassId);
+            // Fetch all classes and find the one with the exact classID
+            const classesRes = await axios.get(`http://localhost:5000/api/classes`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            console.log('DEBUG StudentModule: API returned:', classesRes.data);
+            let classObj = null;
+            if (Array.isArray(classesRes.data)) {
+                classObj = classesRes.data.find(c => c.classID === targetClassId);
+            } else if (classesRes.data.success && Array.isArray(classesRes.data.classes)) {
+                classObj = classesRes.data.classes.find(c => c.classID === targetClassId);
+            }
+            console.log('DEBUG StudentModule: selected classObj:', classObj);
+            if (classObj) {
+                setClassID(classObj.classID);
                 setClassInfo({
-                    className: classRes.data.class.className,
-                    classCode: classRes.data.class.classCode
+                    className: classObj.className,
+                    classCode: classObj.classCode
                 });
-                
                 // Fetch announcements for this specific class
-                fetchAnnouncements(classRes.data.class.classID);
-                fetchClasswork(classRes.data.class.classID); // Fetch classwork
-                fetchMaterials(classRes.data.class.classID); // Fetch materials
+                fetchAnnouncements(classObj.classID);
+                fetchClasswork(classObj.classID); // Fetch classwork
+                fetchMaterials(classObj.classID); // Fetch materials
             } else {
                 throw new Error('Class not found');
             }
@@ -103,8 +123,11 @@ export default function StudentModule(){
 
     const fetchAvailableClasses = async () => {
         try {
+            const token = await AsyncStorage.getItem('jwtToken');
             // First, get all available classes
-            const classesRes = await axios.get(`http://localhost:5000/api/classes`);
+            const classesRes = await axios.get(`http://localhost:5000/api/classes`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
             if (classesRes.data.success && classesRes.data.classes.length > 0) {
                 // Use the first available class
                 const firstClass = classesRes.data.classes[0];
@@ -137,7 +160,11 @@ export default function StudentModule(){
 
     const fetchAnnouncements = async (classId) => {
         try {
-            const res = await axios.get(`http://localhost:5000/api/announcements?classID=${classId}`);
+            const token = await AsyncStorage.getItem('jwtToken');
+            console.log('DEBUG StudentModule: fetchAnnouncements classId:', classId);
+            const res = await axios.get(`http://localhost:5000/api/announcements?classID=${classId}`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
             setAnnouncements(res.data);
         } catch (err) {
             console.log('Error fetching announcements:', err);

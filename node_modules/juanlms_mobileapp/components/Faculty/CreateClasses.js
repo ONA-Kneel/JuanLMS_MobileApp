@@ -5,6 +5,7 @@ import { useNavigation } from "@react-navigation/native";
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import axios from 'axios';
 import { useUser } from '../UserContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function CreateClasses() {
     const changeScreen = useNavigation();
@@ -24,13 +25,18 @@ export default function CreateClasses() {
 
     // Fetch students on mount
     useEffect(() => {
-        axios.get('http://localhost:5000/users')
-            .then(res => {
-                // Only students
-                const filtered = res.data.filter(u => u.role && u.role.toLowerCase() === 'student');
-                setStudents(filtered);
+        (async () => {
+            const token = await AsyncStorage.getItem('jwtToken');
+            axios.get('http://localhost:5000/users', {
+                headers: { Authorization: `Bearer ${token}` }
             })
-            .catch(() => setStudents([]));
+                .then(res => {
+                    // Only students
+                    const filtered = res.data.filter(u => u.role && u.role.toLowerCase() === 'student');
+                    setStudents(filtered);
+                })
+                .catch(() => setStudents([]));
+        })();
     }, []);
 
     // Auto-generate class code
@@ -69,12 +75,15 @@ export default function CreateClasses() {
             return;
         }
         try {
+            const token = await AsyncStorage.getItem('jwtToken');
             const res = await axios.post('http://localhost:5000/api/classes', {
                 className,
                 classCode,
                 classDesc: description,
                 members: members.map(m => m._id),
                 facultyID: user?._id || ''
+            }, {
+                headers: { Authorization: `Bearer ${token}` }
             });
             if (res.status === 201 && res.data.success) {
                 changeScreen.navigate('FDash');

@@ -4,6 +4,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
 import FacultyDashStyle from '../styles/faculty/FacultyDashStyle';
 import { useUser } from '../UserContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function FacultyDashboard() {
   const navigation = useNavigation();
@@ -34,12 +35,14 @@ export default function FacultyDashboard() {
       setError(null);
       
       try {
+        const token = await AsyncStorage.getItem('jwtToken');
         console.log('Fetching classes for faculty:', user._id);
-        const response = await fetch(`http://localhost:5000/api/faculty-classes?facultyID=${user._id}`, {
+        const response = await fetch(`http://localhost:5000/api/classes/faculty-classes`, {
           method: 'GET',
           headers: {
             'Accept': 'application/json',
             'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
           },
         });
         
@@ -49,13 +52,13 @@ export default function FacultyDashboard() {
         
         const data = await response.json();
         console.log('API Response:', data);
-        
-        if (data.success && Array.isArray(data.classes)) {
-          console.log('Classes loaded successfully:', data.classes);
+        if (Array.isArray(data)) {
+          setClasses(data);
+          setError(null);
+        } else if (data.success && Array.isArray(data.classes)) {
           setClasses(data.classes);
           setError(null);
         } else {
-          console.error('Invalid API Response:', data);
           setClasses([]);
           setError(data.error || 'Failed to fetch classes');
         }
@@ -280,7 +283,17 @@ export default function FacultyDashboard() {
                   shadowRadius: 4,
                   elevation: 3,
                 }}
-                onPress={() => modules(course)}
+                onPress={() => {
+                  // Find the exact class by classID to avoid wrong navigation
+                  const exactClass = classes.find(c => c.classID === course.classID);
+                  if (exactClass) {
+                    console.log('Navigating to class:', exactClass.classID, exactClass.className);
+                    navigation.navigate('FMod', { classId: exactClass.classID });
+                  } else {
+                    // fallback
+                    navigation.navigate('FMod', { classId: course.classID });
+                  }
+                }}
               >
                 {/* Class Image Placeholder */}
                 <View style={{

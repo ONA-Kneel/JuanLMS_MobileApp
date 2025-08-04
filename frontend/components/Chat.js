@@ -5,6 +5,7 @@ import { useUser } from './UserContext';
 import io from 'socket.io-client';
 import axios from 'axios';
 import AdminChatStyle from './styles/administrator/AdminChatStyle';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const SOCKET_URL = 'http://localhost:5000';
 
@@ -40,32 +41,35 @@ export default function Chat() {
     console.log('Selected user:', selectedUser);
     console.log('Fetching messages for:', user._id, selectedUser._id);
 
-    // Fetch messages
-    axios.get(`${SOCKET_URL}/api/messages/${user._id}/${selectedUser._id}`)
-      .then(res => setMessages(res.data))
-      .catch((err) => {
-        console.log('Error fetching messages:', err);
-        setMessages([]);
-      });
-
-    // Mark messages as read
-    axios.put(`${SOCKET_URL}/api/messages/read/${user._id}/${selectedUser._id}`)
-      .then(() => {
-        if (setRecentChats) {
-          setRecentChats(prev => {
-            const updated = prev.map(chat =>
-              chat.partnerId === selectedUser._id
-                ? { ...chat, unreadCount: 0 }
-                : chat
-            );
-            // Sort by most recent lastMessage
-            return updated.sort((a, b) =>
-              new Date(b.lastMessage.timestamp) - new Date(a.lastMessage.timestamp)
-            );
-          });
-        }
+    (async () => {
+      const token = await AsyncStorage.getItem('jwtToken');
+      axios.get(`${SOCKET_URL}/api/messages/${user._id}/${selectedUser._id}`, {
+        headers: { Authorization: `Bearer ${token}` }
       })
-      .catch(err => console.log('Error marking messages as read:', err));
+        .then(res => setMessages(res.data))
+        .catch((err) => {
+          console.log('Error fetching messages:', err);
+          setMessages([]);
+        });
+      axios.put(`${SOCKET_URL}/api/messages/read/${user._id}/${selectedUser._id}`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+        .then(() => {
+          if (setRecentChats) {
+            setRecentChats(prev => {
+              const updated = prev.map(chat =>
+                chat.partnerId === selectedUser._id
+                  ? { ...chat, unreadCount: 0 }
+                  : chat
+              );
+              return updated.sort((a, b) =>
+                new Date(b.lastMessage.timestamp) - new Date(a.lastMessage.timestamp)
+              );
+            });
+          }
+        })
+        .catch(err => console.log('Error marking messages as read:', err));
+    })();
 
     if (!socketRef.current) {
       socketRef.current = io(SOCKET_URL);
@@ -104,11 +108,14 @@ export default function Chat() {
 
     // 2. Save to database
     try {
+      const token = await AsyncStorage.getItem('jwtToken');
       await axios.post(`${SOCKET_URL}/api/messages`, {
         senderId: user._id,
         receiverId: selectedUser._id,
         message: input,
         timestamp: msg.timestamp,
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
       });
     } catch (err) {
       console.log('Error saving message:', err);

@@ -5,6 +5,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../UserContext';
 import axios from 'axios';
 import FacultyChatStyle from '../styles/faculty/FacultyChatStyle';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const SOCKET_URL = 'http://localhost:5000';
 const ALLOWED_ROLES = ['students', 'director', 'admin', 'faculty'];
@@ -21,36 +22,38 @@ export default function FacultyChats() {
 
   useEffect(() => {
     if (!user || !user._id) return;
-
-    // Fetch all users for reference
-    axios.get(`${SOCKET_URL}/users`)
-      .then(res => {
-        const userMap = {};
-        const filteredUsers = res.data.filter(u => 
-          u._id !== user._id && 
-          ALLOWED_ROLES.includes(u.role.toLowerCase())
-        );
-        
-        filteredUsers.forEach(u => {
-          userMap[u._id] = u;
-        });
-        setUsers(userMap);
-        setAllUsers(filteredUsers);
+    (async () => {
+      const token = await AsyncStorage.getItem('jwtToken');
+      axios.get(`${SOCKET_URL}/users`, {
+        headers: { Authorization: `Bearer ${token}` }
       })
-      .catch(() => {
-        setUsers({});
-        setAllUsers([]);
-      });
-
-    // Fetch recent chats
-    axios.get(`${SOCKET_URL}/api/messages/recent/${user._id}`)
-      .then(res => setRecentChats(res.data))
-      .catch(() => setRecentChats([]));
-
-    // Fetch user's groups
-    axios.get(`${SOCKET_URL}/api/group-chats/user/${user._id}`)
-      .then(res => setGroups(res.data))
-      .catch(() => setGroups([]));
+        .then(res => {
+          const userMap = {};
+          const filteredUsers = res.data.filter(u =>
+            u._id !== user._id &&
+            ALLOWED_ROLES.includes(u.role.toLowerCase())
+          );
+          filteredUsers.forEach(u => {
+            userMap[u._id] = u;
+          });
+          setUsers(userMap);
+          setAllUsers(filteredUsers);
+        })
+        .catch(() => {
+          setUsers({});
+          setAllUsers([]);
+        });
+      axios.get(`${SOCKET_URL}/api/messages/recent/${user._id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+        .then(res => setRecentChats(res.data))
+        .catch(() => setRecentChats([]));
+      axios.get(`${SOCKET_URL}/api/group-chats/user/${user._id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+        .then(res => setGroups(res.data))
+        .catch(() => setGroups([]));
+    })();
   }, [user && user._id]);
 
   if (!user || !user._id) {
@@ -69,12 +72,12 @@ export default function FacultyChats() {
   });
 
   // Filter groups by search term
-  const filteredGroups = groups.filter(group => 
+  const filteredGroups = groups.filter(group =>
     group.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   // Filter users for new chat search
-  const filteredUsers = allUsers.filter(u => 
+  const filteredUsers = allUsers.filter(u =>
     `${u.firstname} ${u.lastname}`.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -99,21 +102,21 @@ export default function FacultyChats() {
             <Text style={FacultyChatStyle.headerSubtitle}>Messages</Text>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <TouchableOpacity 
+            <TouchableOpacity
               onPress={() => navigation.navigate('UnifiedChat')}
-              style={{ 
-                backgroundColor: '#00418b', 
-                paddingHorizontal: 12, 
-                paddingVertical: 6, 
-                borderRadius: 15, 
-                marginRight: 10 
+              style={{
+                backgroundColor: '#00418b',
+                paddingHorizontal: 12,
+                paddingVertical: 6,
+                borderRadius: 15,
+                marginRight: 10
               }}
             >
               <Text style={{ color: 'white', fontSize: 16, fontWeight: 'bold' }}>+</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => navigation.navigate('FProfile')}>
-              <Image 
-                source={require('../../assets/profile-icon (2).png')} 
+              <Image
+                source={require('../../assets/profile-icon (2).png')}
                 style={{ width: 36, height: 36, borderRadius: 18 }}
                 resizeMode="cover"
               />
@@ -130,14 +133,14 @@ export default function FacultyChats() {
         onBlur={handleSearchBlur}
         style={{ margin: 16, borderWidth: 1, borderColor: '#ccc', borderRadius: 5, padding: 8 }}
       />
-      
+
       {/* Search Results */}
       {showSearchResults && searchTerm && (
-        <View style={{ 
-          position: 'absolute', 
-          top: 180, 
-          left: 16, 
-          right: 16, 
+        <View style={{
+          position: 'absolute',
+          top: 180,
+          left: 16,
+          right: 16,
           backgroundColor: 'white',
           borderRadius: 10,
           elevation: 5,
@@ -160,18 +163,18 @@ export default function FacultyChats() {
                       setSearchTerm('');
                       setShowSearchResults(false);
                     }}
-                    style={{ 
-                      padding: 15, 
-                      borderBottomWidth: 1, 
+                    style={{
+                      padding: 15,
+                      borderBottomWidth: 1,
                       borderBottomColor: '#eee',
                       flexDirection: 'row',
                       alignItems: 'center'
                     }}>
-                    <View style={{ 
-                      width: 40, 
-                      height: 40, 
-                      borderRadius: 20, 
-                      backgroundColor: '#00418b', 
+                    <View style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: 20,
+                      backgroundColor: '#00418b',
                       marginRight: 12,
                       justifyContent: 'center',
                       alignItems: 'center'
@@ -186,7 +189,7 @@ export default function FacultyChats() {
                     </View>
                   </TouchableOpacity>
                 ))}
-                
+
                 {/* Then show users */}
                 {filteredUsers.map(u => (
                   <TouchableOpacity
@@ -196,15 +199,15 @@ export default function FacultyChats() {
                       setSearchTerm('');
                       setShowSearchResults(false);
                     }}
-                    style={{ 
-                      padding: 15, 
-                      borderBottomWidth: 1, 
+                    style={{
+                      padding: 15,
+                      borderBottomWidth: 1,
                       borderBottomColor: '#eee',
                       flexDirection: 'row',
                       alignItems: 'center'
                     }}>
-                    <Image 
-                      source={u.profilePicture ? { uri: u.profilePicture } : require('../../assets/profile-icon (2).png')} 
+                    <Image
+                      source={u.profilePicture ? { uri: u.profilePicture } : require('../../assets/profile-icon (2).png')}
                       style={{ width: 40, height: 40, borderRadius: 20, marginRight: 12 }}
                       resizeMode="cover"
                     />
@@ -232,15 +235,15 @@ export default function FacultyChats() {
           {recentChats.map(chat => {
             const partner = users[chat.partnerId];
             if (!partner) return null;
-            
+
             return (
               <TouchableOpacity
                 key={`chat-${chat.partnerId}`}
                 onPress={() => navigation.navigate('UnifiedChat', { selectedUser: partner, setRecentChats })}
-                style={{ 
-                  backgroundColor: 'white', 
-                  padding: 15, 
-                  borderRadius: 10, 
+                style={{
+                  backgroundColor: 'white',
+                  padding: 15,
+                  borderRadius: 10,
                   marginBottom: 10,
                   flexDirection: 'row',
                   alignItems: 'center',
@@ -250,8 +253,8 @@ export default function FacultyChats() {
                   shadowOpacity: 0.2,
                   shadowRadius: 2,
                 }}>
-                <Image 
-                  source={partner.profilePicture ? { uri: partner.profilePicture } : require('../../assets/profile-icon (2).png')} 
+                <Image
+                  source={partner.profilePicture ? { uri: partner.profilePicture } : require('../../assets/profile-icon (2).png')}
                   style={{ width: 40, height: 40, borderRadius: 20, marginRight: 12 }}
                   resizeMode="cover"
                 />
@@ -259,11 +262,11 @@ export default function FacultyChats() {
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Text style={{ fontWeight: 'bold', fontSize: 16 }}>{partner.firstname} {partner.lastname}</Text>
                     {chat.unreadCount > 0 && (
-                      <View style={{ 
-                        backgroundColor: '#00418b', 
-                        borderRadius: 12, 
-                        paddingHorizontal: 8, 
-                        paddingVertical: 2 
+                      <View style={{
+                        backgroundColor: '#00418b',
+                        borderRadius: 12,
+                        paddingHorizontal: 8,
+                        paddingVertical: 2
                       }}>
                         <Text style={{ color: 'white', fontSize: 12 }}>{chat.unreadCount} unread</Text>
                       </View>

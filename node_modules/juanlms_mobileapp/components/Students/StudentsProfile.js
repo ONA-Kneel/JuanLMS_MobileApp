@@ -92,13 +92,14 @@ export default function StudentsProfile() {
   const handleSaveProfile = async () => {
     setIsLoading(true);
     try {
+      const token = await AsyncStorage.getItem('jwtToken');
       let profilePicPath = editedUser?.profilePic;
       let data;
       if (editedUser?.newProfilePicAsset) {
         if (Platform.OS === 'web') {
           const formData = new FormData();
           formData.append('profilePicture', editedUser.newProfilePicAsset);
-          data = await profileService.uploadProfilePicture(user._id, formData, true);
+          data = await profileService.uploadProfilePicture(user._id, formData, true, token);
         } else {
           let asset = editedUser.newProfilePicAsset;
           let localUri = asset.uri;
@@ -112,7 +113,7 @@ export default function StudentsProfile() {
             fileName: asset.fileName || 'profile.jpg',
             type: asset.type || 'image/jpeg',
           };
-          data = await profileService.uploadProfilePicture(user._id, patchedAsset);
+          data = await profileService.uploadProfilePicture(user._id, patchedAsset, false, token);
         }
         if (data.success && (data.profilePic || data.profile_picture)) {
           profilePicPath = data.profilePic || data.profile_picture;

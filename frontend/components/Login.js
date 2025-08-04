@@ -164,6 +164,8 @@ export default function Login() {
           timestamp: new Date().toISOString(),
         });
 
+        await AsyncStorage.setItem('jwtToken', data.token);
+
         switch (role) {
           case 'student': 
             console.log('Navigating to Student Dashboard');

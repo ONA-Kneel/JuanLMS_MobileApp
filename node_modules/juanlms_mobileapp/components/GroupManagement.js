@@ -13,6 +13,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { useUser } from './UserContext';
 import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const SOCKET_URL = 'http://localhost:5000';
 const ALLOWED_ROLES = ['students', 'director', 'admin', 'faculty'];
@@ -30,20 +31,23 @@ export default function GroupManagement() {
 
   useEffect(() => {
     if (!user || !user._id) return;
-
-    // Fetch all users for member selection
-    axios.get(`${SOCKET_URL}/users`)
-      .then(res => {
-        const filteredUsers = res.data.filter(u => 
-          u._id !== user._id && 
-          ALLOWED_ROLES.includes(u.role.toLowerCase())
-        );
-        setAllUsers(filteredUsers);
+    (async () => {
+      const token = await AsyncStorage.getItem('jwtToken');
+      axios.get(`${SOCKET_URL}/users`, {
+        headers: { Authorization: `Bearer ${token}` }
       })
-      .catch(err => {
-        console.error('Error fetching users:', err);
-        setAllUsers([]);
-      });
+        .then(res => {
+          const filteredUsers = res.data.filter(u =>
+            u._id !== user._id &&
+            ALLOWED_ROLES.includes(u.role.toLowerCase())
+          );
+          setAllUsers(filteredUsers);
+        })
+        .catch(err => {
+          console.error('Error fetching users:', err);
+          setAllUsers([]);
+        });
+    })();
   }, [user]);
 
   const handleCreateGroup = async () => {
@@ -53,10 +57,13 @@ export default function GroupManagement() {
     }
 
     try {
+      const token = await AsyncStorage.getItem('jwtToken');
       const response = await axios.post(`${SOCKET_URL}/api/group-chats`, {
         name: groupName.trim(),
         createdBy: user._id,
         participants: selectedMembers
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
       });
 
       Alert.alert('Success', 'Group created successfully!', [
@@ -75,8 +82,11 @@ export default function GroupManagement() {
     }
 
     try {
+      const token = await AsyncStorage.getItem('jwtToken');
       await axios.post(`${SOCKET_URL}/api/group-chats/${joinCode}/join`, {
         userId: user._id
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
       });
 
       Alert.alert('Success', 'Successfully joined the group!', [
@@ -95,7 +105,7 @@ export default function GroupManagement() {
   };
 
   const toggleMemberSelection = (userId) => {
-    setSelectedMembers(prev => 
+    setSelectedMembers(prev =>
       prev.includes(userId)
         ? prev.filter(id => id !== userId)
         : [...prev, userId]
@@ -109,11 +119,11 @@ export default function GroupManagement() {
   return (
     <View style={{ flex: 1, backgroundColor: '#f3f3f3' }}>
       {/* Header */}
-      <View style={{ 
-        backgroundColor: '#00418b', 
-        paddingTop: 40, 
-        paddingBottom: 20, 
-        paddingHorizontal: 16 
+      <View style={{
+        backgroundColor: '#00418b',
+        paddingTop: 40,
+        paddingBottom: 20,
+        paddingHorizontal: 16
       }}>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginRight: 12 }}>
@@ -126,11 +136,11 @@ export default function GroupManagement() {
       </View>
 
       {/* Tab Buttons */}
-      <View style={{ 
-        flexDirection: 'row', 
-        backgroundColor: '#fff', 
-        marginHorizontal: 16, 
-        marginTop: 16, 
+      <View style={{
+        flexDirection: 'row',
+        backgroundColor: '#fff',
+        marginHorizontal: 16,
+        marginTop: 16,
         borderRadius: 8,
         overflow: 'hidden'
       }}>
@@ -143,7 +153,7 @@ export default function GroupManagement() {
           }}
           onPress={() => setActiveTab('create')}
         >
-          <Text style={{ 
+          <Text style={{
             color: activeTab === 'create' ? '#fff' : '#00418b',
             fontWeight: 'bold'
           }}>
@@ -159,7 +169,7 @@ export default function GroupManagement() {
           }}
           onPress={() => setActiveTab('join')}
         >
-          <Text style={{ 
+          <Text style={{
             color: activeTab === 'join' ? '#fff' : '#00418b',
             fontWeight: 'bold'
           }}>
@@ -175,7 +185,7 @@ export default function GroupManagement() {
             <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 16 }}>
               Create New Group
             </Text>
-            
+
             <TextInput
               placeholder="Group Name"
               value={groupName}
@@ -205,7 +215,7 @@ export default function GroupManagement() {
               }}
             >
               <Text style={{ color: selectedMembers.length > 0 ? '#000' : '#999' }}>
-                {selectedMembers.length > 0 
+                {selectedMembers.length > 0
                   ? `${selectedMembers.length} member(s) selected`
                   : 'Select members...'
                 }
@@ -263,7 +273,7 @@ export default function GroupManagement() {
             <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 16 }}>
               Join Group
             </Text>
-            
+
             <TextInput
               placeholder="Enter Join Code"
               value={joinCode}
@@ -304,7 +314,7 @@ export default function GroupManagement() {
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' }}>
           <View style={{ backgroundColor: 'white', borderRadius: 10, padding: 20, width: '90%', maxHeight: '80%' }}>
             <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 15 }}>Select Members</Text>
-            
+
             <TextInput
               placeholder="Search users..."
               value={searchTerm}

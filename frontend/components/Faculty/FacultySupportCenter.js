@@ -4,6 +4,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import StudentSupportStyle from '../styles/Stud/StudentSupportStyle';
 import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../UserContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const commonQuestions = [
   { question: 'How do I reset my password?', answer: 'Go to settings and select "Reset Password".' },
@@ -59,7 +60,10 @@ export default function FacultySupportCenter() {
     setSearching(true);
     const ticketNumber = activeTicketInput.trim();
     if (!ticketNumber) return;
-    const res = await fetch(`http://localhost:5000/api/tickets/number/${ticketNumber}`);
+    const token = await AsyncStorage.getItem('jwtToken');
+    const res = await fetch(`http://localhost:5000/api/tickets/number/${ticketNumber}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
     if (res.ok) {
       const ticket = await res.json();
       setTicketLookupModal({ visible: true, found: true, ticket });
@@ -74,8 +78,11 @@ export default function FacultySupportCenter() {
   }, [activeTab]);
 
   const fetchTickets = async () => {
-    const userId = user?._id;
-    const res = await fetch(`http://localhost:5000/api/tickets/user/${userId}`);
+    if (!user || !user._id) return;
+    const token = await AsyncStorage.getItem('jwtToken');
+    const res = await fetch(`http://localhost:5000/api/tickets/user/${user._id}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
     const data = await res.json();
     setTickets(data.filter(t => t.status === activeTab));
   };

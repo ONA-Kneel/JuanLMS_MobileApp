@@ -70,9 +70,10 @@ export default function FacultyProfile() {
   const handleSaveProfile = async () => {
     setIsLoading(true);
     try {
+      const token = await AsyncStorage.getItem('jwtToken');
       let profilePicPath = editedUser?.profilePic;
       if (editedUser?.newProfilePicAsset) {
-        const data = await profileService.uploadProfilePicture(user._id, editedUser.newProfilePicAsset);
+        const data = await profileService.uploadProfilePicture(user._id, editedUser.newProfilePicAsset, false, token);
         if (data.success && data.profilePic) {
           profilePicPath = data.profilePic;
         }

@@ -5,6 +5,7 @@ import { Calendar } from 'react-native-calendars';
 import { Ionicons } from '@expo/vector-icons';
 import FacultyCalendarStyle from '../styles/faculty/FacultyCalendarStyle';
 import { useNavigation } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const timeToString = (time) => {
   const date = new Date(time);
@@ -61,7 +62,10 @@ export default function FacultyCalendar() {
           const data = await res.json();
           holidays = holidays.concat(data);
         }
-        const resEvents = await fetch('http://localhost:5000/api/events');
+        const token = await AsyncStorage.getItem('jwtToken');
+        const resEvents = await fetch('http://localhost:5000/api/events', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
         const eventsData = await resEvents.json();
         const newItems = {};
         holidays.forEach(holiday => {
