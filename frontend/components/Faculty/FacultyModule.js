@@ -85,7 +85,7 @@ export default function FacultyModule() {
     const fetchClasswork = async (classId) => {
         try {
             const token = await AsyncStorage.getItem('jwtToken');
-            const res = await axios.get(`http://localhost:5000/api/assignments?classID=${classId}`, {
+            const res = await axios.get(`http://localhost:5000/assignments?classID=${classId}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setClasswork(res.data);
@@ -100,7 +100,7 @@ export default function FacultyModule() {
         setMaterialsLoading(true);
         try {
             const token = await AsyncStorage.getItem('jwtToken');
-            const res = await axios.get(`http://localhost:5000/api/lessons?classID=${classId}`, {
+            const res = await axios.get(`http://localhost:5000/lessons?classID=${classId}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setMaterials(res.data);
@@ -188,7 +188,7 @@ export default function FacultyModule() {
         try {
             const token = await AsyncStorage.getItem('jwtToken');
             console.log('DEBUG FacultyModule: fetchAnnouncements classId:', classId);
-            const res = await axios.get(`http://localhost:5000/api/announcements?classID=${classId}`, {
+            const res = await axios.get(`http://localhost:5000/announcements?classID=${classId}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setAnnouncements(res.data);
@@ -235,7 +235,7 @@ export default function FacultyModule() {
         setSavingAnnouncement(true);
         try {
             const token = await AsyncStorage.getItem('jwtToken');
-            await axios.post('http://localhost:5000/api/announcements', {
+            await axios.post('http://localhost:5000/announcements', {
                 classID,
                 title: announcementTitle,
                 content: announcementContent,
@@ -266,7 +266,7 @@ export default function FacultyModule() {
         setSavingEdit(true);
         try {
             const token = await AsyncStorage.getItem('jwtToken');
-            await axios.put(`http://localhost:5000/api/announcements/${editAnnouncementId}`, {
+            await axios.put(`http://localhost:5000/announcements/${editAnnouncementId}`, {
                 title: editTitle,
                 content: editContent,
             }, {
@@ -291,7 +291,7 @@ export default function FacultyModule() {
     const confirmDelete = async () => {
         try {
             const token = await AsyncStorage.getItem('jwtToken');
-            await axios.delete(`http://localhost:5000/api/announcements/${deleteAnnouncementId}`, {
+            await axios.delete(`http://localhost:5000/announcements/${deleteAnnouncementId}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setShowDeleteModal(false);
@@ -332,7 +332,7 @@ export default function FacultyModule() {
                     });
                 }
             });
-            await axios.put(`http://localhost:5000/api/lessons/${editModuleId}`, formData, {
+            await axios.put(`http://localhost:5000/lessons/${editModuleId}`, formData, {
                 headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' },
             });
             setShowEditModuleModal(false);
@@ -355,7 +355,7 @@ export default function FacultyModule() {
     async function confirmDeleteModule() {
         try {
             const token = await AsyncStorage.getItem('jwtToken');
-            await axios.delete(`http://localhost:5000/api/lessons/${deleteModuleId}`, {
+            await axios.delete(`http://localhost:5000/lessons/${deleteModuleId}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setShowDeleteModuleModal(false);
@@ -803,7 +803,7 @@ export default function FacultyModule() {
                     });
                 }
             });
-            await axios.post('http://localhost:5000/api/lessons', formData, {
+            await axios.post('http://localhost:5000/lessons', formData, {
                 headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' },
             });
             setShowAddModuleModal(false);

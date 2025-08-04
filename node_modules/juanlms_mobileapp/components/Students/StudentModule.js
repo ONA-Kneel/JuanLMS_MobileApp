@@ -59,7 +59,7 @@ export default function StudentModule(){
     const fetchClasswork = async (classId) => {
         try {
             const token = await AsyncStorage.getItem('jwtToken');
-            const res = await axios.get(`http://localhost:5000/api/assignments?classID=${classId}`, {
+            const res = await axios.get(`http://localhost:5000/assignments?classID=${classId}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setClasswork(res.data);
@@ -74,7 +74,7 @@ export default function StudentModule(){
         setMaterialsLoading(true);
         try {
             const token = await AsyncStorage.getItem('jwtToken');
-            const res = await axios.get(`http://localhost:5000/api/lessons?classID=${classId}`, {
+            const res = await axios.get(`http://localhost:5000/lessons?classID=${classId}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setMaterials(res.data);
@@ -162,7 +162,7 @@ export default function StudentModule(){
         try {
             const token = await AsyncStorage.getItem('jwtToken');
             console.log('DEBUG StudentModule: fetchAnnouncements classId:', classId);
-            const res = await axios.get(`http://localhost:5000/api/announcements?classID=${classId}`, {
+            const res = await axios.get(`http://localhost:5000/announcements?classID=${classId}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setAnnouncements(res.data);
