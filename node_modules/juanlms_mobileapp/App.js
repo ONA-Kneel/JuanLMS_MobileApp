@@ -14,6 +14,7 @@ import Login from './components/Login';
 import Chat from './components/Chat';
 import GroupChat from './components/GroupChat';
 import GroupManagement from './components/GroupManagement';
+import UnifiedChat from './components/UnifiedChat';
 // import SupportMain from './components/SupportMain';
 // import SupportRequest from './components/SupportRequest';
 
@@ -216,6 +217,7 @@ export default function App() {
         <Screens.Screen name='Chat' component={Chat} options={{ headerShown: false }}/>
         <Screens.Screen name='GroupChat' component={GroupChat} options={{ headerShown: false }}/>
         <Screens.Screen name='GroupManagement' component={GroupManagement} options={{ headerShown: false }}/>
+        <Screens.Screen name='UnifiedChat' component={UnifiedChat} options={{ headerShown: false }}/>
         <Screens.Screen name='Login' component={Login} options={{ headerShown: false }}/>
 
         {/* Students */}

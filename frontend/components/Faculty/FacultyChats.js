@@ -100,7 +100,7 @@ export default function FacultyChats() {
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <TouchableOpacity 
-              onPress={() => navigation.navigate('GroupManagement')}
+              onPress={() => navigation.navigate('UnifiedChat')}
               style={{ 
                 backgroundColor: '#00418b', 
                 paddingHorizontal: 12, 
@@ -109,7 +109,7 @@ export default function FacultyChats() {
                 marginRight: 10 
               }}
             >
-              <Text style={{ color: 'white', fontSize: 12, fontWeight: 'bold' }}>Groups</Text>
+              <Text style={{ color: 'white', fontSize: 16, fontWeight: 'bold' }}>+</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => navigation.navigate('FProfile')}>
               <Image 
@@ -156,7 +156,7 @@ export default function FacultyChats() {
                   <TouchableOpacity
                     key={group._id}
                     onPress={() => {
-                      navigation.navigate('GroupChat', { selectedGroup: group, setRecentChats });
+                      navigation.navigate('UnifiedChat', { selectedGroup: group, setRecentChats });
                       setSearchTerm('');
                       setShowSearchResults(false);
                     }}
@@ -192,7 +192,7 @@ export default function FacultyChats() {
                   <TouchableOpacity
                     key={u._id}
                     onPress={() => {
-                      navigation.navigate('Chat', { selectedUser: u, setRecentChats });
+                      navigation.navigate('UnifiedChat', { selectedUser: u, setRecentChats });
                       setSearchTerm('');
                       setShowSearchResults(false);
                     }}
@@ -235,8 +235,8 @@ export default function FacultyChats() {
             
             return (
               <TouchableOpacity
-                key={chat.partnerId}
-                onPress={() => navigation.navigate('Chat', { selectedUser: partner, setRecentChats })}
+                key={`chat-${chat.partnerId}`}
+                onPress={() => navigation.navigate('UnifiedChat', { selectedUser: partner, setRecentChats })}
                 style={{ 
                   backgroundColor: 'white', 
                   padding: 15, 
@@ -279,62 +279,57 @@ export default function FacultyChats() {
           })}
 
           {/* Group Chats */}
-          {groups.length > 0 && (
-            <>
-              <Text style={{ fontWeight: 'bold', fontSize: 18, marginTop: 20, marginBottom: 10, color: '#00418b' }}>
-                Group Chats
-              </Text>
-              {groups.map(group => (
-                <TouchableOpacity
-                  key={group._id}
-                  onPress={() => navigation.navigate('GroupChat', { selectedGroup: group, setRecentChats })}
-                  style={{ 
-                    backgroundColor: 'white', 
-                    padding: 15, 
-                    borderRadius: 10, 
-                    marginBottom: 10,
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    elevation: 2,
-                    shadowColor: '#000',
-                    shadowOffset: { width: 0, height: 1 },
-                    shadowOpacity: 0.2,
-                    shadowRadius: 2,
-                  }}>
+          {groups.map(group => (
+            <TouchableOpacity
+              key={`group-${group._id}`}
+              onPress={() => navigation.navigate('UnifiedChat', { selectedGroup: group, setRecentChats })}
+              style={{ 
+                backgroundColor: 'white', 
+                padding: 15, 
+                borderRadius: 10, 
+                marginBottom: 10,
+                flexDirection: 'row',
+                alignItems: 'center',
+                elevation: 2,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 1 },
+                shadowOpacity: 0.2,
+                shadowRadius: 2,
+              }}>
+              <View style={{ 
+                width: 40, 
+                height: 40, 
+                borderRadius: 20, 
+                backgroundColor: '#00418b', 
+                marginRight: 12,
+                justifyContent: 'center',
+                alignItems: 'center'
+              }}>
+                <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>
+                  {group.name.charAt(0).toUpperCase()}
+                </Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Text style={{ fontWeight: 'bold', fontSize: 16 }}>{group.name}</Text>
                   <View style={{ 
-                    width: 40, 
-                    height: 40, 
-                    borderRadius: 20, 
-                    backgroundColor: '#00418b', 
-                    marginRight: 12,
-                    justifyContent: 'center',
-                    alignItems: 'center'
+                    backgroundColor: '#e8f4fd', 
+                    borderRadius: 12, 
+                    paddingHorizontal: 8, 
+                    paddingVertical: 2 
                   }}>
-                    <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>
-                      {group.name.charAt(0).toUpperCase()}
-                    </Text>
+                    <Text style={{ color: '#00418b', fontSize: 12 }}>Group</Text>
                   </View>
-                  <View style={{ flex: 1 }}>
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Text style={{ fontWeight: 'bold', fontSize: 16 }}>{group.name}</Text>
-                      <View style={{ 
-                        backgroundColor: '#e8f4fd', 
-                        borderRadius: 12, 
-                        paddingHorizontal: 8, 
-                        paddingVertical: 2 
-                      }}>
-                        <Text style={{ color: '#00418b', fontSize: 12 }}>Group</Text>
-                      </View>
-                    </View>
-                    <Text style={{ color: '#666', fontSize: 12 }}>{group.participants.length} members</Text>
-                    <Text style={{ color: '#888', fontSize: 12, marginTop: 4 }} numberOfLines={1}>
-                      Join code: {group.joinCode}
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </>
-          )}
+                </View>
+                <Text style={{ color: '#666', fontSize: 12 }}>{group.participants.length} members</Text>
+                {group.description && (
+                  <Text style={{ color: '#888', fontSize: 12, marginTop: 4 }} numberOfLines={1}>
+                    {group.description}
+                  </Text>
+                )}
+              </View>
+            </TouchableOpacity>
+          ))}
         </ScrollView>
       </View>
     </View>

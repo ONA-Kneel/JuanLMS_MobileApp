@@ -33,6 +33,7 @@ app.use('/api/tickets', ticketsRouter);
 app.use('/api', classRoutes);
 app.use('/api/lessons', lessonRoutes);
 app.use('/api', adminRoutes);
+app.use('/api/group-chats', groupChatsRouter);
 
 // Serve uploaded files
 app.use('/uploads', express.static('uploads'));

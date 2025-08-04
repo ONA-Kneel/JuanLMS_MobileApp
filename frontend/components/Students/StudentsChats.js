@@ -13,6 +13,7 @@ export default function StudentsChats() {
   const navigation = useNavigation();
   const { user } = useUser();
   const [recentChats, setRecentChats] = useState([]);
+  const [userGroups, setUserGroups] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [users, setUsers] = useState({});
   const [allUsers, setAllUsers] = useState([]);
@@ -68,8 +69,19 @@ export default function StudentsChats() {
       }
     };
 
+    const fetchUserGroups = async () => {
+      try {
+        const res = await axios.get(`${SOCKET_URL}/api/group-chats/user/${user._id}`);
+        setUserGroups(res.data);
+      } catch (err) {
+        console.error('Error fetching user groups:', err);
+        setUserGroups([]);
+      }
+    };
+
     fetchUsers();
     fetchRecentChats();
+    fetchUserGroups();
   }, [user && user._id]);
 
   if (!user || !user._id) {
@@ -123,18 +135,32 @@ export default function StudentsChats() {
       <View style={StudentChatStyle.blueHeaderBackground} />
       {/* White card header */}
       <View style={StudentChatStyle.whiteHeaderCard}>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <View>
             <Text style={StudentChatStyle.headerTitle}>Chats</Text>
             <Text style={StudentChatStyle.headerSubtitle}>Messages</Text>
           </View>
-          <TouchableOpacity onPress={() => navigation.navigate('SProfile')}>
-            <Image 
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <TouchableOpacity 
+              onPress={() => navigation.navigate('UnifiedChat')}
+              style={{ 
+                backgroundColor: '#00418b', 
+                paddingHorizontal: 12, 
+                paddingVertical: 6, 
+                borderRadius: 15, 
+                marginRight: 10 
+              }}
+            >
+              <Text style={{ color: 'white', fontSize: 16, fontWeight: 'bold' }}>+</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.navigate('SProfile')}>
+              <Image 
                 source={require('../../assets/profile-icon (2).png')} 
                 style={{ width: 36, height: 36, borderRadius: 18 }}
                 resizeMode="cover"
-            />
-          </TouchableOpacity>
+              />
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
       {/* Search Bar */}
@@ -169,7 +195,7 @@ export default function StudentsChats() {
               <TouchableOpacity
                 key={u._id}
                 onPress={() => {
-                  navigation.navigate('Chat', { selectedUser: u, setRecentChats });
+                  navigation.navigate('UnifiedChat', { selectedUser: u, setRecentChats });
                   setSearchTerm('');
                   setShowSearchResults(false);
                 }}
@@ -199,14 +225,15 @@ export default function StudentsChats() {
       <View style={{ padding: 16 }}>
         <Text style={{ fontWeight: 'bold', fontSize: 22, marginBottom: 10 }}>Recent Chats</Text>
         <ScrollView>
+          {/* Individual Chats */}
           {filteredChats.map(chat => {
             const partner = users[chat.partnerId];
             if (!partner) return null;
             
             return (
               <TouchableOpacity
-                key={chat.partnerId}
-                onPress={() => navigation.navigate('Chat', { selectedUser: partner, setRecentChats })}
+                key={`chat-${chat.partnerId}`}
+                onPress={() => navigation.navigate('UnifiedChat', { selectedUser: partner, setRecentChats })}
                 style={{ 
                   backgroundColor: 'white', 
                   padding: 15, 
@@ -247,6 +274,59 @@ export default function StudentsChats() {
               </TouchableOpacity>
             );
           })}
+
+          {/* Group Chats */}
+          {userGroups.map(group => (
+            <TouchableOpacity
+              key={`group-${group._id}`}
+              onPress={() => navigation.navigate('UnifiedChat', { selectedGroup: group, setRecentChats })}
+              style={{ 
+                backgroundColor: 'white', 
+                padding: 15, 
+                borderRadius: 10, 
+                marginBottom: 10,
+                flexDirection: 'row',
+                alignItems: 'center',
+                elevation: 2,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 1 },
+                shadowOpacity: 0.2,
+                shadowRadius: 2,
+              }}>
+              <View style={{ 
+                width: 40, 
+                height: 40, 
+                borderRadius: 20, 
+                backgroundColor: '#00418b', 
+                marginRight: 12,
+                justifyContent: 'center',
+                alignItems: 'center'
+              }}>
+                <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>
+                  {group.name.charAt(0).toUpperCase()}
+                </Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Text style={{ fontWeight: 'bold', fontSize: 16 }}>{group.name}</Text>
+                  <View style={{ 
+                    backgroundColor: '#e8f4fd', 
+                    borderRadius: 12, 
+                    paddingHorizontal: 8, 
+                    paddingVertical: 2 
+                  }}>
+                    <Text style={{ color: '#00418b', fontSize: 12 }}>Group</Text>
+                  </View>
+                </View>
+                <Text style={{ color: '#666', fontSize: 12 }}>{group.participants.length} members</Text>
+                {group.description && (
+                  <Text style={{ color: '#888', fontSize: 12, marginTop: 4 }} numberOfLines={1}>
+                    {group.description}
+                  </Text>
+                )}
+              </View>
+            </TouchableOpacity>
+          ))}
         </ScrollView>
       </View>
     </View>

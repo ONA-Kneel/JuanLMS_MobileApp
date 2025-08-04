@@ -8,7 +8,7 @@ const router = express.Router();
 // Create a new group chat
 router.post('/', async (req, res) => {
   try {
-    const { name, createdBy, participants } = req.body;
+    const { name, description, createdBy, participants } = req.body;
     
     if (!name || !createdBy || !participants || participants.length === 0) {
       return res.status(400).json({ error: 'Missing required fields' });
@@ -21,6 +21,7 @@ router.post('/', async (req, res) => {
 
     const newGroup = new GroupChat({
       name,
+      description: description || '',
       createdBy,
       participants: allParticipants
     });
@@ -45,17 +46,17 @@ router.get('/user/:userId', async (req, res) => {
   }
 });
 
-// Join a group using join code
-router.post('/:joinCode/join', async (req, res) => {
+// Join a group using group ID
+router.post('/:groupId/join', async (req, res) => {
   try {
-    const { joinCode } = req.params;
+    const { groupId } = req.params;
     const { userId } = req.body;
 
     if (!userId) {
       return res.status(400).json({ error: 'User ID is required' });
     }
 
-    const group = await GroupChat.findOne({ joinCode });
+    const group = await GroupChat.findById(groupId);
     if (!group) {
       return res.status(404).json({ error: 'Group not found' });
     }

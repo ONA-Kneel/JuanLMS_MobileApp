@@ -6,6 +6,11 @@ const groupChatSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
+  description: {
+    type: String,
+    trim: true,
+    default: ''
+  },
   createdBy: {
     type: String,
     required: true
@@ -17,7 +22,7 @@ const groupChatSchema = new mongoose.Schema({
   joinCode: {
     type: String,
     unique: true,
-    required: true
+    sparse: true
   },
   createdAt: {
     type: Date,
