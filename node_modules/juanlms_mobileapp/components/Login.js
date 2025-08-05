@@ -167,7 +167,7 @@ export default function Login() {
         await AsyncStorage.setItem('jwtToken', data.token);
 
         switch (role) {
-          case 'student': 
+          case 'students': 
             console.log('Navigating to Student Dashboard');
             navigation.navigate('SDash'); 
             break;
