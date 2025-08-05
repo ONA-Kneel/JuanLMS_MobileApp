@@ -14,13 +14,11 @@ export default function StudentsChats() {
   const navigation = useNavigation();
   const { user } = useUser();
   const [recentChats, setRecentChats] = useState([]);
-  const [userGroups, setUserGroups] = useState([]);
+  const [groups, setGroups] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [users, setUsers] = useState({});
   const [allUsers, setAllUsers] = useState([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
 
   useEffect(() => {
     if (!user || !user._id) return;
@@ -41,80 +39,21 @@ export default function StudentsChats() {
           setUsers(userMap);
           setAllUsers(filteredUsers);
         })
-        .catch((err) => {
-          console.error('Error fetching users:', err);
+        .catch(() => {
           setUsers({});
           setAllUsers([]);
-          setError('Failed to load users. Please try again later.');
         });
       axios.get(`${SOCKET_URL}/api/messages/recent/${user._id}`, {
         headers: { Authorization: `Bearer ${token}` }
       })
         .then(res => setRecentChats(res.data))
-        .catch((err) => {
-          console.error('Error fetching recent chats:', err);
-          setRecentChats([]);
-        });
+        .catch(() => setRecentChats([]));
+      axios.get(`${SOCKET_URL}/api/group-chats/user/${user._id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+        .then(res => setGroups(res.data))
+        .catch(() => setGroups([]));
     })();
-
-    const fetchUsers = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
-        // Fetch all users for reference
-        // NOTE: Changed endpoint from /users/new to /users due to backend 502 error
-        axios.get(`${SOCKET_URL}/users`)
-          .then(res => {
-            const userMap = {};
-            const filteredUsers = res.data.filter(u => 
-              u._id !== user._id && 
-              ALLOWED_ROLES.includes(u.role.toLowerCase())
-            );
-            filteredUsers.forEach(u => {
-              userMap[u._id] = u;
-            });
-            setUsers(userMap);
-            setAllUsers(filteredUsers);
-          })
-          .catch((err) => {
-            console.error('Error fetching users:', err);
-            setUsers({});
-            setAllUsers([]);
-            setError('Failed to load users. Please try again later.');
-          });
-      } catch (err) {
-        console.error('Error fetching users:', err);
-        setError('Failed to load users. Please try again later.');
-        setUsers({});
-        setAllUsers([]);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    const fetchRecentChats = async () => {
-      try {
-        const res = await axios.get(`${SOCKET_URL}/api/messages/recent/${user._id}`);
-        setRecentChats(res.data);
-      } catch (err) {
-        console.error('Error fetching recent chats:', err);
-        setRecentChats([]);
-      }
-    };
-
-    const fetchUserGroups = async () => {
-      try {
-        const res = await axios.get(`${SOCKET_URL}/api/group-chats/user/${user._id}`);
-        setUserGroups(res.data);
-      } catch (err) {
-        console.error('Error fetching user groups:', err);
-        setUserGroups([]);
-      }
-    };
-
-    fetchUsers();
-    fetchRecentChats();
-    fetchUserGroups();
   }, [user && user._id]);
 
   if (!user || !user._id) {
@@ -125,28 +64,17 @@ export default function StudentsChats() {
     );
   }
 
-  if (isLoading) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <Text>Loading chats...</Text>
-      </View>
-    );
-  }
-
-  if (error) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <Text style={{ color: 'red' }}>{error}</Text>
-      </View>
-    );
-  }
-
   // Filter chats by search term
   const filteredChats = recentChats.filter(chat => {
     const partner = users[chat.partnerId];
     if (!partner) return false;
     return `${partner.firstname} ${partner.lastname}`.toLowerCase().includes(searchTerm.toLowerCase());
   });
+
+  // Filter groups by search term
+  const filteredGroups = groups.filter(group =>
+    group.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   // Filter users for new chat search
   const filteredUsers = allUsers.filter(u => 
@@ -259,7 +187,7 @@ export default function StudentsChats() {
         <Text style={{ fontWeight: 'bold', fontSize: 22, marginBottom: 10 }}>Recent Chats</Text>
         <ScrollView>
           {/* Individual Chats */}
-          {filteredChats.map(chat => {
+          {recentChats.map(chat => {
             const partner = users[chat.partnerId];
             if (!partner) return null;
             
@@ -309,7 +237,7 @@ export default function StudentsChats() {
           })}
 
           {/* Group Chats */}
-          {userGroups.map(group => (
+          {groups.map(group => (
             <TouchableOpacity
               key={`group-${group._id}`}
               onPress={() => navigation.navigate('UnifiedChat', { selectedGroup: group, setRecentChats })}
