@@ -6,7 +6,7 @@ import io from 'socket.io-client';
 import axios from 'axios';
 import AdminChatStyle from './styles/administrator/AdminChatStyle';
 
-const SOCKET_URL = 'https://juanlms-mobileapp.onrender.com';
+const SOCKET_URL = 'https://juanlms-webapp-server.onrender.com';
 
 const ALLOWED_ROLES = ['students', 'director', 'admin', 'faculty'];
 

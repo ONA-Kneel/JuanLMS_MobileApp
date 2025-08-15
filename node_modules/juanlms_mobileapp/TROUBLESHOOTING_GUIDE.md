@@ -64,7 +64,7 @@
 
 2. **Create a sample class** (using the student ID from logs):
    ```bash
-   curl -X POST https://juanlms-mobileapp.onrender.com/api/test/create-sample-class
+   curl -X POST https://juanlms-webapp-server.onrender.com/api/test/create-sample-class
    ```
 
 3. **Check the response** to ensure the class was created successfully.
@@ -118,17 +118,17 @@ Check the console logs to understand:
 
 ### Check All Classes
 ```bash
-curl https://juanlms-mobileapp.onrender.com/api/debug/classes
+curl https://juanlms-webapp-server.onrender.com/api/debug/classes
 ```
 
 ### Check Specific User
 ```bash
-curl https://juanlms-mobileapp.onrender.com/api/debug/user/6845bdd2a05093bb0765c450
+curl https://juanlms-webapp-server.onrender.com/api/debug/user/6845bdd2a05093bb0765c450
 ```
 
 ### Create Sample Class
 ```bash
-curl -X POST https://juanlms-mobileapp.onrender.com/api/test/create-sample-class
+curl -X POST https://juanlms-webapp-server.onrender.com/api/test/create-sample-class
 ```
 
 ## Expected Console Output

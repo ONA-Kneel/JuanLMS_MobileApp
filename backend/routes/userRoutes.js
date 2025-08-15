@@ -3,7 +3,7 @@ import database from "../connect.cjs";
 import { ObjectId } from "mongodb";
 import jwt from "jsonwebtoken";
 import crypto from 'crypto';
-import bcrypt from 'bcryptjs';
+import bcrypt from 'bcrypt';
 import fs from 'fs';
 import multer from 'multer';
 import path from 'path';
@@ -57,59 +57,38 @@ userRoutes.get("/users/:id", async (req, res) => {
 
 // Create ONE
 userRoutes.post("/users", async (req, res) => {
-    try {
-        const db = database.getDb();
-        const email = req.body.email.toLowerCase();
-        
-        // Hash the password before storing
-        const hashedPassword = await bcrypt.hash(req.body.password, 10);
-        
-        const mongoObject = {
+    const db = database.getDb();
+    const email = req.body.email.toLowerCase();
+    const mongoObject = {
+        firstname: req.body.firstname,
+        middlename: req.body.middlename,
+        lastname: req.body.lastname,
+        email: encrypt(email, process.env.ENCRYPTION_KEY),
+        emailHash: hashEmail(email),
+        contactno: req.body.contactno,
+        password: req.body.password, // 🔐 optionally hash this
+    };
+    const result = await db.collection("users").insertOne(mongoObject);
+    res.json(result);
+});
+
+// Update ONE
+userRoutes.post("/users/:id", async (req, res) => {
+    const db = database.getDb();
+    const email = req.body.email.toLowerCase();
+    const updateObject = {
+        $set: {
             firstname: req.body.firstname,
             middlename: req.body.middlename,
             lastname: req.body.lastname,
             email: encrypt(email, process.env.ENCRYPTION_KEY),
             emailHash: hashEmail(email),
             contactno: req.body.contactno,
-            password: hashedPassword,
-        };
-        const result = await db.collection("users").insertOne(mongoObject);
-        res.json(result);
-    } catch (error) {
-        console.error('Error creating user:', error);
-        res.status(500).json({ success: false, message: "Failed to create user" });
-    }
-});
-
-// Update ONE
-userRoutes.post("/users/:id", async (req, res) => {
-    try {
-        const db = database.getDb();
-        const email = req.body.email.toLowerCase();
-        
-        const updateObject = {
-            $set: {
-                firstname: req.body.firstname,
-                middlename: req.body.middlename,
-                lastname: req.body.lastname,
-                email: encrypt(email, process.env.ENCRYPTION_KEY),
-                emailHash: hashEmail(email),
-                contactno: req.body.contactno,
-            },
-        };
-        
-        // Only hash password if it's being updated
-        if (req.body.password) {
-            const hashedPassword = await bcrypt.hash(req.body.password, 10);
-            updateObject.$set.password = hashedPassword;
-        }
-        
-        const result = await db.collection("users").updateOne({ _id: new ObjectId(req.params.id) }, updateObject);
-        res.json(result);
-    } catch (error) {
-        console.error('Error updating user:', error);
-        res.status(500).json({ success: false, message: "Failed to update user" });
-    }
+            password: req.body.password,
+        },
+    };
+    const result = await db.collection("users").updateOne({ _id: new ObjectId(req.params.id) }, updateObject);
+    res.json(result);
 });
 
 // Delete ONE

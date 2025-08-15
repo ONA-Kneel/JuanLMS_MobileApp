@@ -6,7 +6,7 @@ import { useUser } from '../UserContext';
 import axios from 'axios';
 import StudentChatStyle from '../styles/Stud/StudentChatsStyle';
 
-const SOCKET_URL = 'https://juanlms-mobileapp.onrender.com';
+const SOCKET_URL = 'https://juanlms-webapp-server.onrender.com';
 const ALLOWED_ROLES = ['students', 'director', 'admin', 'faculty'];
 
 export default function StudentsChats() {

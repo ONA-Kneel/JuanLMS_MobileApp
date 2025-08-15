@@ -112,7 +112,7 @@ export default function StudentSupportCenter() {
     setSearching(true);
     const ticketNumber = activeTicketInput.trim();
     if (!ticketNumber) return;
-    const res = await fetch(`https://juanlms-mobileapp.onrender.com/api/tickets/number/${ticketNumber}`);
+    const res = await fetch(`https://juanlms-webapp-server.onrender.com/api/tickets/number/${ticketNumber}`);
     if (res.ok) {
       const ticket = await res.json();
       setTicketLookupModal({ visible: true, found: true, ticket });
@@ -128,7 +128,7 @@ export default function StudentSupportCenter() {
 
   const fetchTickets = async () => {
     if (!user || !user._id) return;
-    const res = await fetch(`https://juanlms-mobileapp.onrender.com/api/tickets/user/${user._id}`);
+    const res = await fetch(`https://juanlms-webapp-server.onrender.com/api/tickets/user/${user._id}`);
     const data = await res.json();
     setTickets(data.filter(t => t.status === activeTab));
   };
@@ -170,7 +170,7 @@ export default function StudentSupportCenter() {
         </TouchableOpacity>
         <TouchableOpacity style={StudentSupportStyle.sendBtn} onPress={async () => {
           if (!subject.trim() || !ticket.trim() || !user || !user._id) return;
-          const res = await fetch('https://juanlms-mobileapp.onrender.com/api/tickets', {
+          const res = await fetch('https://juanlms-webapp-server.onrender.com/api/tickets', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ userId: user._id, subject, description: ticket })

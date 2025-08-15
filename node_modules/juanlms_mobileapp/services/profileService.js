@@ -2,7 +2,7 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
-const API_URL = 'https://juanlms-mobileapp.onrender.com'; // Update this with your actual API URL
+const API_URL = 'https://juanlms-webapp-server.onrender.com'; // Update this with your actual API URL
 
 const profileService = {
   async updateProfile(userId, profileData) {

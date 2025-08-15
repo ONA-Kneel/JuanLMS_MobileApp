@@ -38,7 +38,7 @@ export default function StudentModule(){
 
     const fetchClasswork = async (classId) => {
         try {
-            const res = await axios.get(`https://juanlms-mobileapp.onrender.com/api/assignments?classID=${classId}`);
+            const res = await axios.get(`https://juanlms-webapp-server.onrender.com/api/assignments?classID=${classId}`);
             setClasswork(res.data);
             console.log('Fetched classwork (Student):', res.data); // Debug log
         } catch (err) {
@@ -50,7 +50,7 @@ export default function StudentModule(){
     const fetchMaterials = async (classId) => {
         setMaterialsLoading(true);
         try {
-            const res = await axios.get(`https://juanlms-mobileapp.onrender.com/api/lessons?classID=${classId}`);
+            const res = await axios.get(`https://juanlms-webapp-server.onrender.com/api/lessons?classID=${classId}`);
             setMaterials(res.data);
         } catch (err) {
             setMaterials([]);
@@ -62,7 +62,7 @@ export default function StudentModule(){
     const fetchSpecificClass = async (targetClassId) => {
         try {
             // Fetch specific class by ID
-            const classRes = await axios.get(`https://juanlms-mobileapp.onrender.com/api/classes/${targetClassId}`);
+            const classRes = await axios.get(`https://juanlms-webapp-server.onrender.com/api/classes/${targetClassId}`);
             if (classRes.data.success) {
                 setClassID(classRes.data.class.classID);
                 setClassInfo({
@@ -87,7 +87,7 @@ export default function StudentModule(){
     const fetchAvailableClasses = async () => {
         try {
             // First, get all available classes
-            const classesRes = await axios.get(`https://juanlms-mobileapp.onrender.com/api/classes`);
+            const classesRes = await axios.get(`https://juanlms-webapp-server.onrender.com/api/classes`);
             if (classesRes.data.success && classesRes.data.classes.length > 0) {
                 // Use the first available class
                 const firstClass = classesRes.data.classes[0];
@@ -120,7 +120,7 @@ export default function StudentModule(){
 
     const fetchAnnouncements = async (classId) => {
         try {
-            const res = await axios.get(`https://juanlms-mobileapp.onrender.com/api/announcements?classID=${classId}`);
+            const res = await axios.get(`https://juanlms-webapp-server.onrender.com/api/announcements?classID=${classId}`);
             setAnnouncements(res.data);
         } catch (err) {
             console.log('Error fetching announcements:', err);
