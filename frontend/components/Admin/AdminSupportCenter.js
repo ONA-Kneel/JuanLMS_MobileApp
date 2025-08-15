@@ -22,7 +22,7 @@ export default function AdminSupportCenter() {
   const navigation = useNavigation();
 
   useEffect(() => {
-    const s = io('http://localhost:5000');
+    const s = io('https://juanlms-webapp-server.onrender.com');
     setSocket(s);
     s.on('new_ticket', (ticket) => fetchTickets());
     s.on('ticket_reply', (ticket) => fetchTickets());
@@ -32,7 +32,7 @@ export default function AdminSupportCenter() {
   }, [activeTab]);
 
   const fetchTickets = async () => {
-    const res = await fetch(`http://localhost:5000/api/tickets?status=${activeTab}`);
+    const res = await fetch(`https://juanlms-webapp-server.onrender.com/api/tickets?status=${activeTab}`);
     const data = await res.json();
     setTickets(data);
   };
@@ -244,7 +244,7 @@ export default function AdminSupportCenter() {
                   <TouchableOpacity
                     style={{ backgroundColor: '#00418b', borderRadius: 8, padding: 10, marginRight: 8 }}
                     onPress={async () => {
-                      await fetch(`http://localhost:5000/api/tickets/${selectedTicket._id}/close`, { method: 'POST' });
+                      await fetch(`https://juanlms-webapp-server.onrender.com/api/tickets/${selectedTicket._id}/close`, { method: 'POST' });
                       setSelectedTicket(null);
                       fetchTickets();
                     }}
@@ -254,7 +254,7 @@ export default function AdminSupportCenter() {
                   <TouchableOpacity
                     style={{ backgroundColor: '#fff', borderRadius: 8, padding: 10, borderWidth: 2, borderColor: '#00418b' }}
                     onPress={async () => {
-                      await fetch(`http://localhost:5000/api/tickets/${selectedTicket._id}/open`, { method: 'POST' });
+                      await fetch(`https://juanlms-webapp-server.onrender.com/api/tickets/${selectedTicket._id}/open`, { method: 'POST' });
                       setSelectedTicket(null);
                       fetchTickets();
                     }}
@@ -269,7 +269,7 @@ export default function AdminSupportCenter() {
                   <TouchableOpacity
                     style={{ backgroundColor: '#fff', borderRadius: 8, padding: 10, borderWidth: 2, borderColor: '#00418b' }}
                     onPress={async () => {
-                      await fetch(`http://localhost:5000/api/tickets/${selectedTicket._id}/open`, { method: 'POST' });
+                      await fetch(`https://juanlms-webapp-server.onrender.com/api/tickets/${selectedTicket._id}/open`, { method: 'POST' });
                       setSelectedTicket(null);
                       fetchTickets();
                     }}
@@ -281,7 +281,7 @@ export default function AdminSupportCenter() {
                     onPress={async () => {
                       const confirmed = window.confirm('Are you sure you want to delete this ticket?');
                       if (confirmed) {
-                        await fetch(`http://localhost:5000/api/tickets/${selectedTicket._id}`, { method: 'DELETE' });
+                        await fetch(`https://juanlms-webapp-server.onrender.com/api/tickets/${selectedTicket._id}`, { method: 'DELETE' });
                         setSelectedTicket(null);
                         fetchTickets();
                       }
@@ -323,7 +323,7 @@ export default function AdminSupportCenter() {
               />
               <TouchableOpacity onPress={async () => {
                 if (!reply.trim()) return;
-                await fetch(`http://localhost:5000/api/tickets/${selectedTicket._id}/reply`, {
+                await fetch(`https://juanlms-webapp-server.onrender.com/api/tickets/${selectedTicket._id}/reply`, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ sender: 'admin', senderId: 'ADMIN_ID', message: reply })

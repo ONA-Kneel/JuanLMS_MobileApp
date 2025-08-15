@@ -15,7 +15,7 @@ import { useUser } from './UserContext';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const SOCKET_URL = 'http://localhost:5000';
+const SOCKET_URL = 'https://juanlms-webapp-server.onrender.com';
 const ALLOWED_ROLES = ['students', 'director', 'admin', 'faculty'];
 
 export default function GroupManagement() {

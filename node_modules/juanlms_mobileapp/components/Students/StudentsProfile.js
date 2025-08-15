@@ -17,7 +17,7 @@ function capitalizeWords(str) {
   return str.replace(/\b\w/g, char => char.toUpperCase());
 }
 
-const API_URL = 'http://localhost:5000'; // or your production URL
+const API_URL = 'https://juanlms-webapp-server.onrender.com'; // or your production URL
 
 export default function StudentsProfile() {
   const { user, loading } = useUser();
