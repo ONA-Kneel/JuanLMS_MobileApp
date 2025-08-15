@@ -27,7 +27,7 @@ export default function CreateClasses() {
     useEffect(() => {
         (async () => {
             const token = await AsyncStorage.getItem('jwtToken');
-            axios.get('http://localhost:5000/users', {
+            axios.get('https://juanlms-webapp-server.onrender.com/users', {
                 headers: { Authorization: `Bearer ${token}` }
             })
                 .then(res => {
@@ -76,7 +76,7 @@ export default function CreateClasses() {
         }
         try {
             const token = await AsyncStorage.getItem('jwtToken');
-            const res = await axios.post('http://localhost:5000/api/classes', {
+            const res = await axios.post('https://juanlms-webapp-server.onrender.com/api/classes', {
                 className,
                 classCode,
                 classDesc: description,

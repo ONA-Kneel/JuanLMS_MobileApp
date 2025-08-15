@@ -1,6 +1,6 @@
 import fetch from 'node-fetch';
 
-const BASE_URL = 'http://localhost:5000';
+const BASE_URL = 'https://juanlms-webapp-server.onrender.com';
 
 async function testAdminAPI() {
   console.log('Testing Admin API Endpoints...\n');

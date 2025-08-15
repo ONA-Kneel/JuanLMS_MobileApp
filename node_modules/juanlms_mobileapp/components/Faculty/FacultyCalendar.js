@@ -63,7 +63,7 @@ export default function FacultyCalendar() {
           holidays = holidays.concat(data);
         }
         const token = await AsyncStorage.getItem('jwtToken');
-        const resEvents = await fetch('http://localhost:5000/api/events', {
+        const resEvents = await fetch('https://juanlms-webapp-server.onrender.com/api/events', {
           headers: { Authorization: `Bearer ${token}` }
         });
         const eventsData = await resEvents.json();

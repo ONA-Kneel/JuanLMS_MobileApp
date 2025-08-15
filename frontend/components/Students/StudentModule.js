@@ -59,7 +59,7 @@ export default function StudentModule(){
     const fetchClasswork = async (classId) => {
         try {
             const token = await AsyncStorage.getItem('jwtToken');
-            const res = await axios.get(`http://localhost:5000/assignments?classID=${classId}`, {
+            const res = await axios.get(`https://juanlms-webapp-server.onrender.com/assignments?classID=${classId}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setClasswork(res.data);
@@ -74,7 +74,7 @@ export default function StudentModule(){
         setMaterialsLoading(true);
         try {
             const token = await AsyncStorage.getItem('jwtToken');
-            const res = await axios.get(`http://localhost:5000/lessons?classID=${classId}`, {
+            const res = await axios.get(`https://juanlms-webapp-server.onrender.com/lessons?classID=${classId}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setMaterials(res.data);
@@ -90,7 +90,7 @@ export default function StudentModule(){
             const token = await AsyncStorage.getItem('jwtToken');
             console.log('DEBUG StudentModule: fetchSpecificClass targetClassId:', targetClassId);
             // Fetch all classes and find the one with the exact classID
-            const classesRes = await axios.get(`http://localhost:5000/api/classes`, {
+            const classesRes = await axios.get(`https://juanlms-webapp-server.onrender.com/api/classes`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             console.log('DEBUG StudentModule: API returned:', classesRes.data);
@@ -125,7 +125,7 @@ export default function StudentModule(){
         try {
             const token = await AsyncStorage.getItem('jwtToken');
             // First, get all available classes
-            const classesRes = await axios.get(`http://localhost:5000/api/classes`, {
+            const classesRes = await axios.get(`https://juanlms-webapp-server.onrender.com/api/classes`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             if (classesRes.data.success && classesRes.data.classes.length > 0) {
@@ -162,7 +162,7 @@ export default function StudentModule(){
         try {
             const token = await AsyncStorage.getItem('jwtToken');
             console.log('DEBUG StudentModule: fetchAnnouncements classId:', classId);
-            const res = await axios.get(`http://localhost:5000/announcements?classID=${classId}`, {
+            const res = await axios.get(`https://juanlms-webapp-server.onrender.com/announcements?classID=${classId}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setAnnouncements(res.data);

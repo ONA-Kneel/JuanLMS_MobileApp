@@ -92,7 +92,7 @@ export default function StudentCalendar() {
 
         try {
           const token = await AsyncStorage.getItem('jwtToken');
-          const resEvents = await fetch('http://localhost:5000/api/events', {
+          const resEvents = await fetch('https://juanlms-webapp-server.onrender.com/api/events', {
             headers: { Authorization: `Bearer ${token}` }
           });
           if (!resEvents.ok) throw new Error('Failed to fetch events');

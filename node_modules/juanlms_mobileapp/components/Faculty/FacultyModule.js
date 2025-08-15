@@ -85,7 +85,7 @@ export default function FacultyModule() {
     const fetchClasswork = async (classId) => {
         try {
             const token = await AsyncStorage.getItem('jwtToken');
-            const res = await axios.get(`http://localhost:5000/assignments?classID=${classId}`, {
+            const res = await axios.get(`https://juanlms-webapp-server.onrender.com/assignments?classID=${classId}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setClasswork(res.data);
@@ -100,7 +100,7 @@ export default function FacultyModule() {
         setMaterialsLoading(true);
         try {
             const token = await AsyncStorage.getItem('jwtToken');
-            const res = await axios.get(`http://localhost:5000/lessons?classID=${classId}`, {
+            const res = await axios.get(`https://juanlms-webapp-server.onrender.com/lessons?classID=${classId}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setMaterials(res.data);
@@ -116,7 +116,7 @@ export default function FacultyModule() {
             const token = await AsyncStorage.getItem('jwtToken');
             console.log('DEBUG FacultyModule: fetchSpecificClass targetClassId:', targetClassId);
             // Fetch class by classID using query param
-            const classRes = await axios.get(`http://localhost:5000/api/classes?classID=${targetClassId}`, {
+            const classRes = await axios.get(`https://juanlms-webapp-server.onrender.com/api/classes?classID=${targetClassId}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             console.log('DEBUG FacultyModule: API returned classes:', classRes.data);
@@ -151,7 +151,7 @@ export default function FacultyModule() {
         try {
             // First, get all available classes
             const token = await AsyncStorage.getItem('jwtToken');
-            const classesRes = await axios.get(`http://localhost:5000/api/classes`, {
+            const classesRes = await axios.get(`https://juanlms-webapp-server.onrender.com/api/classes`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             if (classesRes.data.success && classesRes.data.classes.length > 0) {
@@ -188,7 +188,7 @@ export default function FacultyModule() {
         try {
             const token = await AsyncStorage.getItem('jwtToken');
             console.log('DEBUG FacultyModule: fetchAnnouncements classId:', classId);
-            const res = await axios.get(`http://localhost:5000/announcements?classID=${classId}`, {
+            const res = await axios.get(`https://juanlms-webapp-server.onrender.com/announcements?classID=${classId}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setAnnouncements(res.data);
@@ -235,7 +235,7 @@ export default function FacultyModule() {
         setSavingAnnouncement(true);
         try {
             const token = await AsyncStorage.getItem('jwtToken');
-            await axios.post('http://localhost:5000/announcements', {
+            await axios.post('https://juanlms-webapp-server.onrender.com/announcements', {
                 classID,
                 title: announcementTitle,
                 content: announcementContent,
@@ -266,7 +266,7 @@ export default function FacultyModule() {
         setSavingEdit(true);
         try {
             const token = await AsyncStorage.getItem('jwtToken');
-            await axios.put(`http://localhost:5000/announcements/${editAnnouncementId}`, {
+            await axios.put(`https://juanlms-webapp-server.onrender.com/announcements/${editAnnouncementId}`, {
                 title: editTitle,
                 content: editContent,
             }, {
@@ -291,7 +291,7 @@ export default function FacultyModule() {
     const confirmDelete = async () => {
         try {
             const token = await AsyncStorage.getItem('jwtToken');
-            await axios.delete(`http://localhost:5000/announcements/${deleteAnnouncementId}`, {
+            await axios.delete(`https://juanlms-webapp-server.onrender.com/announcements/${deleteAnnouncementId}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setShowDeleteModal(false);
@@ -332,7 +332,7 @@ export default function FacultyModule() {
                     });
                 }
             });
-            await axios.put(`http://localhost:5000/lessons/${editModuleId}`, formData, {
+            await axios.put(`https://juanlms-webapp-server.onrender.com/lessons/${editModuleId}`, formData, {
                 headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' },
             });
             setShowEditModuleModal(false);
@@ -355,7 +355,7 @@ export default function FacultyModule() {
     async function confirmDeleteModule() {
         try {
             const token = await AsyncStorage.getItem('jwtToken');
-            await axios.delete(`http://localhost:5000/lessons/${deleteModuleId}`, {
+            await axios.delete(`https://juanlms-webapp-server.onrender.com/lessons/${deleteModuleId}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setShowDeleteModuleModal(false);
@@ -803,7 +803,7 @@ export default function FacultyModule() {
                     });
                 }
             });
-            await axios.post('http://localhost:5000/lessons', formData, {
+            await axios.post('https://juanlms-webapp-server.onrender.com/lessons', formData, {
                 headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' },
             });
             setShowAddModuleModal(false);

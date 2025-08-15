@@ -5,7 +5,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../UserContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const BASE_URL = 'http://localhost:5000';
+const BASE_URL = 'https://juanlms-webapp-server.onrender.com';
 function getImageUrl(imagePath) {
   if (!imagePath) return null;
   if (imagePath.startsWith('http')) return imagePath;
@@ -33,7 +33,7 @@ export default function FacultyClasses() {
       try {
         console.log('Fetching classes for faculty:', user._id);
         const token = await AsyncStorage.getItem('jwtToken');
-        const response = await fetch(`http://localhost:5000/api/classes/faculty-classes`, {
+        const response = await fetch(`https://juanlms-webapp-server.onrender.com/api/classes/faculty-classes`, {
           method: 'GET',
           headers: {
             'Accept': 'application/json',

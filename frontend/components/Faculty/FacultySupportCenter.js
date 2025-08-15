@@ -61,7 +61,7 @@ export default function FacultySupportCenter() {
     const ticketNumber = activeTicketInput.trim();
     if (!ticketNumber) return;
     const token = await AsyncStorage.getItem('jwtToken');
-    const res = await fetch(`http://localhost:5000/api/tickets/number/${ticketNumber}`, {
+    const res = await fetch(`https://juanlms-webapp-server.onrender.com/api/tickets/number/${ticketNumber}`, {
       headers: { Authorization: `Bearer ${token}` }
     });
     if (res.ok) {
@@ -80,7 +80,7 @@ export default function FacultySupportCenter() {
   const fetchTickets = async () => {
     if (!user || !user._id) return;
     const token = await AsyncStorage.getItem('jwtToken');
-    const res = await fetch(`http://localhost:5000/api/tickets/user/${user._id}`, {
+    const res = await fetch(`https://juanlms-webapp-server.onrender.com/api/tickets/user/${user._id}`, {
       headers: { Authorization: `Bearer ${token}` }
     });
     const data = await res.json();
@@ -175,7 +175,7 @@ export default function FacultySupportCenter() {
         <TouchableOpacity style={StudentSupportStyle.sendBtn} onPress={async () => {
           if (!subject.trim() || !ticket.trim()) return;
           const userId = user?._id;
-          const res = await fetch('http://localhost:5000/api/tickets', {
+          const res = await fetch('https://juanlms-webapp-server.onrender.com/api/tickets', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ userId, subject, description: ticket })

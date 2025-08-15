@@ -21,7 +21,7 @@ export default function StudentClasses() {
         console.log('Fetching classes for student:', user._id);
         
         // Use the correct backend URL for the web app backend
-        const response = await fetch(`http://localhost:5000/api/classes`, {
+        const response = await fetch(`https://juanlms-webapp-server.onrender.com/api/classes`, {
           method: 'GET',
           headers: {
             'Accept': 'application/json',
