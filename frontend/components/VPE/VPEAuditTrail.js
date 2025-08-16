@@ -5,7 +5,7 @@ import { formatDate } from '../../utils/dateUtils';
 import { useIsFocused } from '@react-navigation/native';
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:5000';
+const API_BASE_URL = 'https://juanlms-webapp-server.onrender.com';
 
 function groupLogsByDay(logs) {
   return logs.reduce((acc, log) => {
@@ -31,11 +31,11 @@ export default function VPEAuditTrail() {
       setIsLoading(true);
       setError(null);
 
-      const response = await axios.get(`${API_BASE_URL}/api/admin/audit-preview?limit=100`);
+      const response = await axios.get(`${API_BASE_URL}/audit-logs?page=1&limit=100`);
 
-      if (response.data && Array.isArray(response.data)) {
-        setLogs(response.data);
-        setFilteredLogs(response.data);
+      if (response.data && response.data.logs && Array.isArray(response.data.logs)) {
+        setLogs(response.data.logs);
+        setFilteredLogs(response.data.logs);
       } else {
         setLogs([]);
         setFilteredLogs([]);

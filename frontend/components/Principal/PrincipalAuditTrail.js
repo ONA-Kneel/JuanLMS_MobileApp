@@ -14,7 +14,7 @@ import { useIsFocused } from '@react-navigation/native';
 import axios from 'axios';
 import { formatDate } from '../../utils/dateUtils';
 
-const API_BASE_URL = 'http://localhost:5000';
+const API_BASE_URL = 'https://juanlms-webapp-server.onrender.com';
 
 const getFilterColor = (category) => {
   switch (category.toLowerCase()) {
@@ -93,20 +93,20 @@ export default function PrincipalAuditTrail() {
       setIsLoading(true);
       setError(null);
 
-      const response = await axios.get(`${API_BASE_URL}/api/admin/audit-preview?limit=100`);
+      const response = await axios.get(`${API_BASE_URL}/audit-logs?page=1&limit=100`);
 
-      if (response.data && Array.isArray(response.data)) {
-        setLogs(response.data);
-        setFilteredLogs(response.data);
+      if (response.data && response.data.logs && Array.isArray(response.data.logs)) {
+        setLogs(response.data.logs);
+        setFilteredLogs(response.data.logs);
       } else {
-        setLogs(getMockLogs());
-        setFilteredLogs(getMockLogs());
+        setLogs([]);
+        setFilteredLogs([]);
       }
     } catch (error) {
       console.error('Error fetching audit logs:', error);
       setError('Failed to fetch audit logs. Please try again.');
-      setLogs(getMockLogs());
-      setFilteredLogs(getMockLogs());
+      setLogs([]);
+      setFilteredLogs([]);
     } finally {
       setIsLoading(false);
     }

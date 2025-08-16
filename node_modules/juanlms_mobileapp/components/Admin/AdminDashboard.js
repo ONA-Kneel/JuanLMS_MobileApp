@@ -15,7 +15,7 @@ export default function AdminDashboard() {
   const { user } = useUser();
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
   const [recentLogs, setRecentLogs] = useState([]);
-  const [userStats, setUserStats] = useState({ admins: 0, faculty: 0, students: 0 });
+  const [userStats, setUserStats] = useState({ admin: 0, faculty: 0, student: 0 });
   const [schoolYearProgress, setSchoolYearProgress] = useState(0);
   const [termProgress, setTermProgress] = useState(0);
   const [lastLogins, setLastLogins] = useState([]);
@@ -35,34 +35,28 @@ export default function AdminDashboard() {
     return () => clearInterval(timer);
   }, []);
 
-    // Fetch dashboard data
+  // Fetch dashboard data
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
         setLoading(true);
         setError(null);
         
-        // Try to fetch from admin service first
-        try {
-          const data = await adminService.getDashboardSummary();
-          
-          if (data && data.userStats) {
-            setUserStats(data.userStats);
-          }
-          if (data && data.recentLogins) {
-            setLastLogins(data.recentLogins);
-          }
-          if (data && data.auditPreview) {
-            setRecentLogs(data.auditPreview);
-          }
-          if (data && data.academicProgress) {
-            setSchoolYearProgress(data.academicProgress.schoolYear || 0);
-            setTermProgress(data.academicProgress.term || 0);
-          }
-        } catch (serviceError) {
-          console.error('Admin service error:', serviceError);
-          // Fallback to direct API calls
-          await fetchDashboardDataDirect();
+        // Fetch from admin service
+        const data = await adminService.getDashboardSummary();
+        
+        if (data && data.userStats) {
+          setUserStats(data.userStats);
+        }
+        if (data && data.recentLogins) {
+          setLastLogins(data.recentLogins);
+        }
+        if (data && data.auditPreview) {
+          setRecentLogs(data.auditPreview);
+        }
+        if (data && data.academicProgress) {
+          setSchoolYearProgress(data.academicProgress.schoolYear || 0);
+          setTermProgress(data.academicProgress.term || 0);
         }
         
       } catch (error) {
@@ -70,7 +64,7 @@ export default function AdminDashboard() {
         setError('Failed to load dashboard data');
         
         // Fallback to mock data if all else fails
-        setUserStats({ admins: 1, faculty: 8, students: 17 });
+        setUserStats({ admin: 1, faculty: 8, student: 17 });
         setLastLogins([
           { userName: 'Rochelle Borre', role: 'students', lastLogin: '2025-07-22T00:06:11' },
           { userName: 'Niel Nathan Borre', role: 'faculty', lastLogin: '2025-07-20T23:23:40' },
@@ -88,55 +82,6 @@ export default function AdminDashboard() {
         setTermProgress(100);
       } finally {
         setLoading(false);
-      }
-    };
-
-    // Direct API fetch function as fallback
-    const fetchDashboardDataDirect = async () => {
-      try {
-        const baseURL = 'http://localhost:5000';
-        
-        // Fetch user stats
-        try {
-          const statsRes = await fetch(`${baseURL}/api/admin/user-stats`);
-          if (statsRes.ok) {
-            const statsData = await statsRes.json();
-            setUserStats(statsData);
-          } else {
-            console.error('Stats API error:', statsRes.status);
-          }
-        } catch (statsError) {
-          console.error('Stats fetch error:', statsError);
-        }
-        
-        // Fetch recent logins
-        try {
-          const loginsRes = await fetch(`${baseURL}/api/admin/recent-logins?limit=5`);
-          if (loginsRes.ok) {
-            const loginsData = await loginsRes.json();
-            setLastLogins(loginsData);
-          } else {
-            console.error('Logins API error:', loginsRes.status);
-          }
-        } catch (loginsError) {
-          console.error('Logins fetch error:', loginsError);
-        }
-        
-        // Fetch audit preview
-        try {
-          const auditRes = await fetch(`${baseURL}/api/admin/audit-preview?limit=5`);
-          if (auditRes.ok) {
-            const auditData = await auditRes.json();
-            setRecentLogs(auditData);
-          } else {
-            console.error('Audit API error:', auditRes.status);
-          }
-        } catch (auditError) {
-          console.error('Audit fetch error:', auditError);
-        }
-        
-      } catch (directError) {
-        console.error('Direct API fetch error:', directError);
       }
     };
 
@@ -215,15 +160,22 @@ export default function AdminDashboard() {
     setRefreshing(true);
     try {
       const data = await adminService.getDashboardSummary();
-      setUserStats(data.userStats);
-      setLastLogins(data.recentLogins);
-      setRecentLogs(data.auditPreview);
-      setSchoolYearProgress(data.academicProgress.schoolYear);
-      setTermProgress(data.academicProgress.term);
-      setError(null);
+      
+      if (data && data.userStats) {
+        setUserStats(data.userStats);
+      }
+      if (data && data.recentLogins) {
+        setLastLogins(data.recentLogins);
+      }
+      if (data && data.auditPreview) {
+        setRecentLogs(data.auditPreview);
+      }
+      if (data && data.academicProgress) {
+        setSchoolYearProgress(data.academicProgress.schoolYear || 0);
+        setTermProgress(data.academicProgress.term || 0);
+      }
     } catch (error) {
       console.error('Error refreshing dashboard:', error);
-      setError('Failed to refresh dashboard data');
     } finally {
       setRefreshing(false);
     }
@@ -315,7 +267,7 @@ export default function AdminDashboard() {
         <View style={AdminDashStyle.summaryCardsContainer}>
           <View style={AdminDashStyle.summaryCard}>
             <Icon name="account-cog" size={24} color="#00418b" />
-            <Text style={AdminDashStyle.summaryNumber}>{userStats.admins}</Text>
+            <Text style={AdminDashStyle.summaryNumber}>{userStats.admin}</Text>
             <Text style={AdminDashStyle.summaryLabel}>Admins</Text>
           </View>
           <View style={AdminDashStyle.summaryCard}>
@@ -325,7 +277,7 @@ export default function AdminDashboard() {
           </View>
           <View style={AdminDashStyle.summaryCard}>
             <Icon name="school" size={24} color="#00418b" />
-            <Text style={AdminDashStyle.summaryNumber}>{userStats.students}</Text>
+            <Text style={AdminDashStyle.summaryNumber}>{userStats.student}</Text>
             <Text style={AdminDashStyle.summaryLabel}>Students</Text>
           </View>
         </View>

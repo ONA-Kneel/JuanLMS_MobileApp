@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, StyleSheet, TextInput, TouchableOpacity, Alert, RefreshControl } from 'react-native';
+import { View, Text, FlatList, StyleSheet, TextInput, TouchableOpacity, RefreshControl, ScrollView } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { formatDate } from '../../utils/dateUtils';
 import { useIsFocused } from '@react-navigation/native';
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:5000';
+const API_BASE_URL = 'https://juanlms-webapp-server.onrender.com';
 
 function groupLogsByDay(logs) {
   return logs.reduce((acc, log) => {
@@ -23,41 +23,26 @@ export default function AdminAuditTrail() {
   const [isLoading, setIsLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
+  const [activeFilter, setActiveFilter] = useState('all'); // 'all', 'academic', 'faculty', 'admin'
   const isFocused = useIsFocused();
 
   const fetchLogs = async () => {
     try {
       setIsLoading(true);
       setError(null);
-      
-      // Fetch audit logs from backend API
-      const response = await axios.get(`${API_BASE_URL}/api/admin/audit-preview?limit=100`);
-      
-      if (response.data && Array.isArray(response.data)) {
-        if (response.data.length === 0) {
-          setLogs([]);
-          setFilteredLogs([]);
-          setError('No audit logs found');
-        } else {
-          setLogs(response.data);
-          setFilteredLogs(response.data);
-        }
+
+      const response = await axios.get(`${API_BASE_URL}/audit-logs?page=1&limit=100`);
+
+      if (response.data && response.data.logs && Array.isArray(response.data.logs)) {
+        setLogs(response.data.logs);
+        setFilteredLogs(response.data.logs);
       } else {
         setLogs([]);
         setFilteredLogs([]);
-        setError('Invalid data format received from server');
       }
     } catch (error) {
       console.error('Error fetching audit logs:', error);
-      if (error.code === 'ECONNREFUSED') {
-        setError('Cannot connect to server. Please check if backend is running.');
-      } else if (error.response?.status === 404) {
-        setError('Audit logs endpoint not found. Please check backend configuration.');
-      } else if (error.response?.status === 500) {
-        setError('Server error. Please try again later.');
-      } else {
-        setError('Failed to fetch audit logs. Please try again.');
-      }
+      setError('Failed to fetch audit logs. Please try again.');
       setLogs([]);
       setFilteredLogs([]);
     } finally {

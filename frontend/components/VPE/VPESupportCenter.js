@@ -5,7 +5,7 @@ import axios from 'axios';
 import { useContext } from 'react';
 import { UserContext } from '../UserContext';
 
-const API_BASE_URL = 'http://localhost:5000';
+const API_BASE_URL = 'https://juanlms-webapp-server.onrender.com';
 
 export default function VPESupportCenter() {
   const { user } = useContext(UserContext);

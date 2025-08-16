@@ -70,7 +70,7 @@ export default function AdminCalendar() {
 
         let eventsData = [];
         try {
-          const resEvents = await fetch('http://localhost:5000/api/events');
+          const resEvents = await fetch('https://juanlms-webapp-server.onrender.com/events');
           if (resEvents.ok) {
             const data = await resEvents.json();
             eventsData = Array.isArray(data) ? data : [];

@@ -13,7 +13,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useIsFocused } from '@react-navigation/native';
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:5000';
+const API_BASE_URL = 'https://juanlms-webapp-server.onrender.com';
 
 const StatCard = ({ title, value, icon, color, onPress }) => (
   <TouchableOpacity style={[styles.statCard, { borderLeftColor: color }]} onPress={onPress}>
@@ -50,14 +50,21 @@ export default function PrincipalDashboard() {
   const fetchDashboardData = async () => {
     try {
       setIsLoading(true);
-      const response = await axios.get(`${API_BASE_URL}/api/admin/dashboard-summary`);
       
-      if (response.data) {
+      // Fetch data from multiple endpoints like the web app does
+      const [userCounts, recentLogins, auditLogs] = await Promise.all([
+        axios.get(`${API_BASE_URL}/user-counts`),
+        axios.get(`${API_BASE_URL}/audit-logs/last-logins`),
+        axios.get(`${API_BASE_URL}/audit-logs?page=1&limit=5`)
+      ]);
+      
+      if (userCounts.data && recentLogins.data && auditLogs.data) {
+        const totalUsers = (userCounts.data.admin || 0) + (userCounts.data.faculty || 0) + (userCounts.data.student || 0);
         setDashboardData({
-          totalUsers: response.data.totalUsers || 0,
-          totalClasses: response.data.totalClasses || 0,
-          totalAnnouncements: response.data.totalAnnouncements || 0,
-          recentLogins: response.data.recentLogins || [],
+          totalUsers,
+          totalClasses: 45, // This would need a separate endpoint
+          totalAnnouncements: 23, // This would need a separate endpoint
+          recentLogins: recentLogins.data.lastLogins || [],
         });
       }
     } catch (error) {

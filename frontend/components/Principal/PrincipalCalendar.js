@@ -13,7 +13,7 @@ import { useIsFocused } from '@react-navigation/native';
 import axios from 'axios';
 import { formatDate, getCurrentDate, addDays, isSameDay, isSameMonth, isBefore, clone } from '../../utils/dateUtils';
 
-const API_BASE_URL = 'http://localhost:5000';
+const API_BASE_URL = 'https://juanlms-webapp-server.onrender.com';
 
 const CalendarDay = ({ day, isCurrentMonth, isSelected, hasEvents, onPress, isToday }) => (
   <TouchableOpacity
@@ -62,14 +62,56 @@ export default function PrincipalCalendar() {
   const fetchCalendarEvents = async () => {
     try {
       setIsLoading(true);
-      const response = await axios.get(`${API_BASE_URL}/api/admin/academic-calendar`);
       
-      if (response.data && Array.isArray(response.data)) {
-        setEvents(response.data);
-      } else {
-        // Use mock data as fallback
-        setEvents(getMockEvents());
+      // Fetch calendar events from multiple endpoints like the web app does
+      const [classDates, events, holidays] = await Promise.all([
+        axios.get(`${API_BASE_URL}/api/class-dates`),
+        axios.get(`${API_BASE_URL}/events`),
+        axios.get(`https://date.nager.at/api/v3/PublicHolidays/${new Date().getFullYear()}/PH`)
+      ]);
+      
+      let allEvents = [];
+      
+      // Process class dates
+      if (classDates.data && Array.isArray(classDates.data)) {
+        allEvents = allEvents.concat(classDates.data.map(date => ({
+          id: `class-${date._id}`,
+          title: 'Class Day',
+          date: formatDate(new Date(date.date), 'YYYY-MM-DD'),
+          time: 'All Day',
+          location: 'All Classrooms',
+          color: '#4CAF50',
+          category: 'Academic'
+        })));
       }
+      
+      // Process events
+      if (events.data && Array.isArray(events.data)) {
+        allEvents = allEvents.concat(events.data.map(event => ({
+          id: `event-${event._id}`,
+          title: event.title,
+          date: formatDate(new Date(event.date), 'YYYY-MM-DD'),
+          time: event.time || 'All Day',
+          location: event.location || 'TBD',
+          color: event.color || '#2196F3',
+          category: event.category || 'Event'
+        })));
+      }
+      
+      // Process holidays
+      if (holidays.data && Array.isArray(holidays.data)) {
+        allEvents = allEvents.concat(holidays.data.map(holiday => ({
+          id: `holiday-${holiday.date}`,
+          title: holiday.localName || 'Holiday',
+          date: holiday.date,
+          time: 'All Day',
+          location: 'School Closed',
+          color: '#FF9800',
+          category: 'Holiday'
+        })));
+      }
+      
+      setEvents(allEvents);
     } catch (error) {
       console.error('Error fetching calendar events:', error);
       setEvents(getMockEvents());

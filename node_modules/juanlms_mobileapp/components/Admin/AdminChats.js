@@ -6,8 +6,8 @@ import { useUser } from '../UserContext';
 import axios from 'axios';
 import AdminChatStyle from '../styles/administrator/AdminChatStyle';
 
-const SOCKET_URL = 'http://localhost:5000';
-const ALLOWED_ROLES = ['students', 'director', 'admin', 'faculty'];
+const SOCKET_URL = 'https://juanlms-webapp-server.onrender.com';
+const ALLOWED_ROLES = ['students', 'faculty', 'admin', 'principal'];
 
 export default function AdminChats() {
   const navigation = useNavigation();

@@ -6,7 +6,7 @@ import axios from 'axios';
 import { useContext } from 'react';
 import { UserContext } from '../UserContext';
 
-const API_BASE_URL = 'http://localhost:5000';
+const API_BASE_URL = 'https://juanlms-webapp-server.onrender.com';
 
 export default function VPEChats() {
   const navigation = useNavigation();
@@ -28,12 +28,12 @@ export default function VPEChats() {
     try {
       setIsLoading(true);
       
-      // Fetch users for chat (faculty, admin, director roles)
-      const response = await axios.get(`${API_BASE_URL}/api/users`);
+      // Fetch users for chat (faculty, admin, principal roles)
+      const response = await axios.get(`${API_BASE_URL}/users`);
       
       if (response.data && Array.isArray(response.data)) {
-        // Filter users by role (VPE can chat with faculty, admin, director)
-        const allowedRoles = ['faculty', 'admin', 'director'];
+        // Filter users by role (VPE can chat with faculty, admin, principal)
+        const allowedRoles = ['faculty', 'admin', 'principal'];
         const filteredUsers = response.data.filter(user => 
           allowedRoles.includes(user.role?.toLowerCase())
         );
@@ -83,7 +83,7 @@ export default function VPEChats() {
       _id: '3',
       firstname: 'David',
       lastname: 'Johnson',
-      role: 'director',
+      role: 'principal',
       email: 'david.johnson@juanlms.edu'
     }
   ];

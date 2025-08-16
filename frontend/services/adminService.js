@@ -7,7 +7,7 @@ class AdminService {
 
   async getBaseURL() {
     if (!this.baseURL) {
-      this.baseURL = await AsyncStorage.getItem('baseURL') || 'http://localhost:5000';
+      this.baseURL = await AsyncStorage.getItem('baseURL') || 'https://juanlms-webapp-server.onrender.com';
     }
     return this.baseURL;
   }
@@ -37,51 +37,137 @@ class AdminService {
     }
   }
 
-  // Get dashboard summary (all data in one call)
-  async getDashboardSummary() {
-    return this.makeRequest('/api/admin/dashboard-summary');
-  }
-
-  // Get user statistics
+  // Get user statistics (matches web app /user-counts endpoint)
   async getUserStats() {
-    return this.makeRequest('/api/admin/user-stats');
+    return this.makeRequest('/user-counts');
   }
 
-  // Get recent login history
+  // Get recent login history from audit logs
   async getRecentLogins(limit = 10) {
-    return this.makeRequest(`/api/admin/recent-logins?limit=${limit}`);
+    return this.makeRequest(`/audit-logs?page=1&limit=${limit}&action=Login`);
   }
 
-  // Get audit trail preview
+  // Get audit trail preview (matches web app /audit-logs endpoint)
   async getAuditPreview(limit = 10) {
-    return this.makeRequest(`/api/admin/audit-preview?limit=${limit}`);
+    return this.makeRequest(`/audit-logs?page=1&limit=${limit}`);
   }
 
-  // Get active users today
+  // Get active users today from audit logs
   async getActiveUsersToday() {
-    return this.makeRequest('/api/admin/active-users-today');
+    const today = new Date();
+    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 23, 59, 59);
+    
+    // Filter audit logs for today's logins
+    const logs = await this.makeRequest(`/audit-logs?page=1&limit=100&action=Login`);
+    if (logs && logs.logs) {
+      const todayLogins = logs.logs.filter(log => {
+        const logDate = new Date(log.timestamp);
+        return logDate >= startOfDay && logDate <= endOfDay;
+      });
+      return todayLogins.length;
+    }
+    return 0;
   }
 
-  // Get academic progress
+  // Get academic progress (calculate based on current date and academic calendar)
   async getAcademicProgress() {
-    return this.makeRequest('/api/admin/academic-progress');
+    try {
+      // Get current academic year and term
+      const yearRes = await this.makeRequest('/api/schoolyears/active');
+      if (!yearRes) return { schoolYear: 0, term: 0 };
+
+      const schoolYearStart = new Date(yearRes.schoolYearStart);
+      const schoolYearEnd = new Date(yearRes.schoolYearEnd);
+      const now = new Date();
+
+      // Calculate school year progress
+      const schoolYearTotal = schoolYearEnd - schoolYearStart;
+      const schoolYearElapsed = Math.max(0, now - schoolYearStart);
+      const schoolYearProgress = Math.min(100, (schoolYearElapsed / schoolYearTotal) * 100);
+
+      // Get current term
+      const schoolYearName = `${yearRes.schoolYearStart}-${yearRes.schoolYearEnd}`;
+      const termsRes = await this.makeRequest(`/api/terms/schoolyear/${schoolYearName}`);
+      
+      let termProgress = 0;
+      if (termsRes && Array.isArray(termsRes)) {
+        const activeTerm = termsRes.find(term => term.status === 'active');
+        if (activeTerm) {
+          const termStart = new Date(activeTerm.startDate);
+          const termEnd = new Date(activeTerm.endDate);
+          const termTotal = termEnd - termStart;
+          const termElapsed = Math.max(0, now - termStart);
+          termProgress = Math.min(100, (termElapsed / termTotal) * 100);
+        }
+      }
+
+      return {
+        schoolYear: Math.round(schoolYearProgress),
+        term: Math.round(termProgress)
+      };
+    } catch (error) {
+      console.error('Error fetching academic progress:', error);
+      return { schoolYear: 0, term: 0 };
+    }
   }
 
   // Get academic calendar events
   async getAcademicCalendar(month, year) {
-    const params = new URLSearchParams();
-    if (month !== undefined) params.append('month', month);
-    if (year !== undefined) params.append('year', year);
-    
-    return this.makeRequest(`/api/admin/academic-calendar?${params.toString()}`);
+    try {
+      const params = new URLSearchParams();
+      if (month !== undefined) params.append('month', month);
+      if (year !== undefined) params.append('year', year);
+      
+      // Get class dates and events
+      const classDates = await this.makeRequest('/api/class-dates');
+      const events = await this.makeRequest('/events');
+      
+      // Get holidays from external API
+      const holidaysRes = await fetch(`https://date.nager.at/api/v3/PublicHolidays/${year || new Date().getFullYear()}/PH`);
+      const holidays = await holidaysRes.json();
+      
+      return {
+        classDates: classDates || [],
+        events: events || [],
+        holidays: holidays || []
+      };
+    } catch (error) {
+      console.error('Error fetching academic calendar:', error);
+      return { classDates: [], events: [], holidays: [] };
+    }
   }
 
   // Create audit log entry
   async createAuditLog(auditData) {
-    return this.makeRequest('/api/admin/audit-log', {
+    return this.makeRequest('/audit-log', {
       method: 'POST',
       body: JSON.stringify(auditData),
     });
+  }
+
+  // Get dashboard summary (combines multiple endpoints like web app)
+  async getDashboardSummary() {
+    try {
+      const [userStats, recentLogins, auditPreview, activeUsers, academicProgress] = await Promise.all([
+        this.getUserStats(),
+        this.getRecentLogins(5),
+        this.getAuditPreview(5),
+        this.getActiveUsersToday(),
+        this.getAcademicProgress()
+      ]);
+
+      return {
+        userStats,
+        recentLogins: recentLogins?.logs || [],
+        auditPreview: auditPreview?.logs || [],
+        activeUsers,
+        academicProgress
+      };
+    } catch (error) {
+      console.error('Error fetching dashboard summary:', error);
+      throw error;
+    }
   }
 
   // Refresh dashboard data

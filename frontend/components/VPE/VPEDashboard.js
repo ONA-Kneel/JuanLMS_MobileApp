@@ -4,7 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:5000';
+const API_BASE_URL = 'https://juanlms-webapp-server.onrender.com';
 
 export default function VPEDashboard() {
   const navigation = useNavigation();
@@ -24,15 +24,19 @@ export default function VPEDashboard() {
     try {
       setIsLoading(true);
       
-      // Fetch dashboard summary from admin API (VPE has similar access)
-      const response = await axios.get(`${API_BASE_URL}/api/admin/dashboard-summary`);
+      // Fetch data from multiple endpoints like the web app does
+      const [userCounts, recentLogins] = await Promise.all([
+        axios.get(`${API_BASE_URL}/user-counts`),
+        axios.get(`${API_BASE_URL}/audit-logs/last-logins`)
+      ]);
       
-      if (response.data) {
+      if (userCounts.data && recentLogins.data) {
+        const totalUsers = (userCounts.data.admin || 0) + (userCounts.data.faculty || 0) + (userCounts.data.student || 0);
         setStats({
-          totalUsers: response.data.userStats?.total || 0,
+          totalUsers,
           totalClasses: 0, // Will be implemented when class API is available
           totalAnnouncements: 0, // Will be implemented when announcement API is available
-          recentLogins: response.data.recentLogins || []
+          recentLogins: recentLogins.data.lastLogins || []
         });
       }
     } catch (error) {
