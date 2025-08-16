@@ -47,15 +47,7 @@ import FacultySCMain from './components/Faculty/FacultySCMain';
 import FacultySupportCenter from './components/Faculty/FacultySupportCenter';
 
 
-//Director
-import DirectorDashboard from './components/Directors/DirectorDashboard';
-import DirectorProfile from './components/Directors/DirectorProfile';
-import DirectorSupportCenter from './components/Directors/DirectorSupportCenter';
-import DirectorChats from './components/Directors/DirectorChats';
-import DirectorCalendar from './components/Directors/DirectorCalendar';
-import DirectorCModule from './components/Directors/DirectorCModule';
-import DirectorCQuizzes from './components/Directors/DirectorCQuizzess';
-import DirectorSCMain from './components/Directors/DirectorSCMain';
+
 
 //Admin
 import AdminDashboard from './components/Admin/AdminDashboard';
@@ -87,12 +79,7 @@ import PrincipalAuditTrail from './components/Principal/PrincipalAuditTrail';
 import PrincipalAnnouncements from './components/Principal/PrincipalAnnouncements';
 import PrincipalGrades from './components/Principal/PrincipalGrades';
 
-//Parent
-import ParentDashboard from './components/Parents/ParentDashboard';
-import ParentSchedule from './components/Parents/ParentSchedule';
-import ParentProgress from './components/Parents/ParentProgress';
-import ParentGrades from './components/Parents/ParentGrades';
-import ParentProfile from './components/Parents/ParentProfile';
+
 
 //chats
 import { ChatProvider } from './ChatContext';
@@ -146,18 +133,7 @@ const adminNavItems = [
   // { label: 'Profile', icon: 'account', route: 'AProfile' },
 ];
 
-const directorNavItems = [
-  { label: 'Dashboard', icon: 'view-dashboard', route: 'DDash' },
-  { label: 'Calendar', icon: 'calendar', route: 'DCalendar' },
-  { label: 'Chats', icon: 'chat', route: 'DChats' },
-  // { label: 'Profile', icon: 'account', route: 'DProfile' },
-];
 
-const parentNavItems = [
-  { label: 'Dashboard', icon: 'view-dashboard', route: 'PDash' },
-  { label: 'Grades', icon: 'star', route: 'PGrades' },
-  // { label: 'Profile', icon: 'account', route: 'PProfile' },
-];
 
 function AdminDash() {
   return (
@@ -175,33 +151,7 @@ function AdminDash() {
   );
 }
 
-function DirectorDash() {
-  return (
-    <Tabs.Navigator
-      tabBar={props => <CustomBottomNav {...props} navItems={directorNavItems} />}
-      screenOptions={{ headerShown: false }}
-    >
-      <Tabs.Screen name='DDash' component={DirectorDashboard} />
-      <Tabs.Screen name='DCalendar' component={DirectorCalendar} />
-      <Tabs.Screen name='DChats' component={DirectorChats} />
-      {/* <Tabs.Screen name='DSupportCenter' component={DirectorSupportCenter} /> */}
-      <Tabs.Screen name='DProfile' component={DirectorProfile} />
-    </Tabs.Navigator>
-  );
-}
 
-function ParentDash() {
-  return (
-    <Tabs.Navigator
-      tabBar={props => <CustomBottomNav {...props} navItems={parentNavItems} />}
-      screenOptions={{ headerShown: false }}
-    >
-      <Tabs.Screen name='PDash' component={ParentDashboard} />
-      <Tabs.Screen name='PGrades' component={ParentGrades} />
-      {/* <Tabs.Screen name='PProfile' component={ParentProfile} /> */}
-    </Tabs.Navigator>
-  );
-}
 
 const vpeNavItems = [
   { label: 'Dashboard', icon: 'view-dashboard', route: 'VPEDash' },
@@ -327,15 +277,7 @@ export default function App() {
         <Screens.Screen name='AProfile' component={AdminProfile} options={{ headerShown: false }}/>
         <Screens.Screen name='ASupportCenter' component={AdminSupportCenter} options={{ headerShown: false }}/>
 
-        {/* Directors */}
-        <Screens.Screen name='DDash' component={DirectorDash} options={{headerShown: false}}/>
-        <Screens.Screen name='DSupCent' component={DirectorSupportCenter} options={{headerShown: false}}/>
-        <Screens.Screen name='DProfile' component={DirectorProfile} options={{headerShown: false}}/>
-        <Screens.Screen name='DChats' component={DirectorChats} options={{headerShown: false}}/>
-        <Screens.Screen name='DCalendar' component={DirectorCalendar} options={{headerShown: false}}/>
-        <Screens.Screen name='DModules' component={DirectorCModule} options={{headerShown: false}}/>
-        <Screens.Screen name='DQuizzes' component={DirectorCQuizzes} options={{headerShown: false}}/>
-        <Screens.Screen name='DScMain' component={DirectorSCMain} options={{headerShown: false}}/>
+
 
         {/* VPE */}
         <Screens.Screen name='VPEDash' component={VPETabs} options={{ headerShown: false }}/>
@@ -345,13 +287,7 @@ export default function App() {
         <Screens.Screen name='PrincipalDash' component={PrincipalTabs} options={{ headerShown: false }}/>
         <Screens.Screen name='PrincipalProfile' component={PrincipalProfile} options={{ headerShown: false }}/>
 
-        {/* Parents */}
-        {/*"My Grades" tab should be "Student's Grade" */}
-        <Screens.Screen name='PDash' component={ParentDash} options={{ headerShown: false }}/>
-        <Screens.Screen name='PSched' component={ParentSchedule} options={{ headerShown: false }}/>
-        <Screens.Screen name='PProg' component={ParentProgress} options={{ headerShown: false }}/>
-        <Screens.Screen name='PGrade' component={ParentGrades} options={{ headerShown: false }}/>
-        <Screens.Screen name='PProfile' component={ParentProfile} options={{ headerShown: false }}/>
+
       </Screens.Navigator>
     </NavigationContainer>
     </ChatProvider>

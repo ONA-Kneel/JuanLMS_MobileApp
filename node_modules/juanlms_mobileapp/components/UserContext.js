@@ -13,10 +13,23 @@ export function UserProvider({ children }) {
     });
   }, []);
 
+  // Function to update user data
+  const updateUser = async (newUserData) => {
+    try {
+      const updatedUser = { ...user, ...newUserData };
+      setUser(updatedUser);
+      await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
+      return { success: true };
+    } catch (error) {
+      console.error('Error updating user:', error);
+      return { success: false, error: error.message };
+    }
+  };
+
   console.log('UserProvider rendered');
 
   return (
-    <UserContext.Provider value={{ user, setUser }}>
+    <UserContext.Provider value={{ user, setUser, updateUser }}>
       {children}
     </UserContext.Provider>
   );

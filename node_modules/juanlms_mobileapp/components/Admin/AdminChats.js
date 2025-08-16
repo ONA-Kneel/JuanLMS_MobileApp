@@ -6,7 +6,7 @@ import { useUser } from '../UserContext';
 import axios from 'axios';
 import AdminChatStyle from '../styles/administrator/AdminChatStyle';
 
-const SOCKET_URL = 'https://juanlms-webapp-server.onrender.com';
+const SOCKET_URL = 'http://localhost:5000';
 const ALLOWED_ROLES = ['students', 'director', 'admin', 'faculty'];
 
 export default function AdminChats() {
@@ -26,7 +26,7 @@ export default function AdminChats() {
     axios.get(`${SOCKET_URL}/users`)
       .then(res => {
         const userMap = {};
-        const filteredUsers = res.data.filter(u => 
+        const filteredUsers = (res.data || []).filter(u => 
           u._id !== user._id && 
           ALLOWED_ROLES.includes(u.role.toLowerCase())
         );
@@ -37,20 +37,39 @@ export default function AdminChats() {
         setUsers(userMap);
         setAllUsers(filteredUsers);
       })
-      .catch(() => {
+      .catch((error) => {
+        console.error('Error fetching users:', error);
         setUsers({});
         setAllUsers([]);
       });
 
     // Fetch recent chats
     axios.get(`${SOCKET_URL}/api/messages/recent/${user._id}`)
-      .then(res => setRecentChats(res.data))
-      .catch(() => setRecentChats([]));
+      .then(res => {
+        if (res.data && Array.isArray(res.data)) {
+          setRecentChats(res.data);
+        } else {
+          setRecentChats([]);
+        }
+      })
+      .catch((error) => {
+        console.error('Error fetching recent chats:', error);
+        setRecentChats([]);
+      });
 
     // Fetch user's groups
     axios.get(`${SOCKET_URL}/api/group-chats/user/${user._id}`)
-      .then(res => setUserGroups(res.data))
-      .catch(() => setUserGroups([]));
+      .then(res => {
+        if (res.data && Array.isArray(res.data)) {
+          setUserGroups(res.data);
+        } else {
+          setUserGroups([]);
+        }
+      })
+      .catch((error) => {
+        console.error('Error fetching user groups:', error);
+        setUserGroups([]);
+      });
   }, [user && user._id]);
 
   if (!user || !user._id) {

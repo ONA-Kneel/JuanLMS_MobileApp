@@ -23,7 +23,13 @@ import lessonRoutes from './routes/lessonRoutes.js';
 const app = express();
 const PORT = 5000;
 
-app.use(cors());
+// Configure CORS to allow mobile app development server
+app.use(cors({
+  origin: ['http://localhost:8081', 'http://localhost:19006', 'http://localhost:19000', 'http://localhost:3000'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+}));
 app.use(express.json());
 app.use(users);
 app.use('/api/messages', messagesRouter);

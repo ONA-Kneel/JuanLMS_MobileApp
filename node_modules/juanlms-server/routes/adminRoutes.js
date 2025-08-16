@@ -6,7 +6,7 @@ import moment from 'moment';
 const adminRoutes = e.Router();
 
 // Get user statistics (counts by role)
-adminRoutes.get("/admin/user-stats", async (req, res) => {
+adminRoutes.get("/api/admin/user-stats", async (req, res) => {
     try {
         const db = database.getDb();
         
@@ -28,7 +28,7 @@ adminRoutes.get("/admin/user-stats", async (req, res) => {
 });
 
 // Get recent login history
-adminRoutes.get("/admin/recent-logins", async (req, res) => {
+adminRoutes.get("/api/admin/recent-logins", async (req, res) => {
     try {
         const db = database.getDb();
         const limit = parseInt(req.query.limit) || 10;
@@ -55,7 +55,7 @@ adminRoutes.get("/admin/recent-logins", async (req, res) => {
 });
 
 // Get audit trail preview
-adminRoutes.get("/admin/audit-preview", async (req, res) => {
+adminRoutes.get("/api/admin/audit-preview", async (req, res) => {
     try {
         const db = database.getDb();
         const limit = parseInt(req.query.limit) || 10;
@@ -82,7 +82,7 @@ adminRoutes.get("/admin/audit-preview", async (req, res) => {
 });
 
 // Get active users today
-adminRoutes.get("/admin/active-users-today", async (req, res) => {
+adminRoutes.get("/api/admin/active-users-today", async (req, res) => {
     try {
         const db = database.getDb();
         const today = new Date();
@@ -194,7 +194,7 @@ adminRoutes.post("/admin/audit-log", async (req, res) => {
 });
 
 // Get dashboard summary
-adminRoutes.get("/admin/dashboard-summary", async (req, res) => {
+adminRoutes.get("/api/admin/dashboard-summary", async (req, res) => {
     try {
         const db = database.getDb();
         

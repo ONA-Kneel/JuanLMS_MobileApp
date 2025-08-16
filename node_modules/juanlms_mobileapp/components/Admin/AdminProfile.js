@@ -10,6 +10,8 @@ import profileService from '../../services/profileService';
 import { updateUser } from '../UserContext';
 import * as ImagePicker from 'expo-image-picker';
 
+const API_URL = 'http://localhost:5000';
+
 
 export default function AdminProfile() {
   const { user } = useUser();
@@ -100,7 +102,11 @@ export default function AdminProfile() {
       {/* Profile Image */}
       <View style={AdminProfileStyle.avatarWrapper}>
         <Image
-          source={user.profilePic ? { uri: API_URL + user.profilePic } : require('../../assets/profile-icon (2).png')}
+          source={
+            user.profilePic 
+              ? { uri: user.profilePic.startsWith('http') ? user.profilePic : API_URL + user.profilePic }
+              : require('../../assets/profile-icon (2).png')
+          }
           style={AdminProfileStyle.avatar}
           resizeMode="cover"
         />
@@ -121,7 +127,7 @@ export default function AdminProfile() {
                 source={editedUser?.newProfilePicAsset
                   ? { uri: editedUser.newProfilePicAsset.uri }
                   : editedUser?.profilePic
-                    ? { uri: API_URL + editedUser.profilePic }
+                    ? { uri: editedUser.profilePic.startsWith('http') ? editedUser.profilePic : API_URL + editedUser.profilePic }
                     : require('../../assets/profile-icon (2).png')}
                 style={AdminProfileStyle.avatar}
                 resizeMode="cover"
@@ -155,30 +161,30 @@ export default function AdminProfile() {
       <View style={AdminProfileStyle.card}>
         <Text style={AdminProfileStyle.name}>{user.firstname} {user.lastname} <Text style={AdminProfileStyle.emoji}>🎓</Text></Text>
         <Text style={AdminProfileStyle.email}>{user.email}</Text>
-        <View style={AdminProfileStyle.row}>
-          <View style={AdminProfileStyle.infoBox}>
-            <Text style={AdminProfileStyle.infoLabel}>College</Text>
-            <Text style={AdminProfileStyle.infoValue}>{user.college || 'N/A'}</Text>
+        
+                  <View style={AdminProfileStyle.actionRow}>
+            <TouchableOpacity 
+              style={AdminProfileStyle.actionBtn}
+              onPress={() => setIsEditModalVisible(true)}
+            >
+              <Feather name="edit" size={20} color="#00418b" />
+              <Text style={AdminProfileStyle.actionText}>Edit</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={AdminProfileStyle.actionBtn}
+              onPress={() => navigation.navigate('ChangePassword')}
+            >
+              <Feather name="lock" size={20} color="#00418b" />
+              <Text style={AdminProfileStyle.actionText}>Password</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={AdminProfileStyle.actionBtn}
+              onPress={() => navigation.navigate('Notifications')}
+            >
+              <Feather name="bell" size={20} color="#00418b" />
+              <Text style={AdminProfileStyle.actionText}>Notify</Text>
+            </TouchableOpacity>
           </View>
-          <View style={AdminProfileStyle.infoBox}>
-            <Text style={AdminProfileStyle.infoLabel}>Role</Text>
-            <Text style={AdminProfileStyle.infoValue}>Admin</Text>
-          </View>
-        </View>
-        <View style={AdminProfileStyle.actionRow}>
-          <TouchableOpacity style={AdminProfileStyle.actionBtn}>
-            <Feather name="edit" size={20} color="#00418b" />
-            <Text style={AdminProfileStyle.actionText}>Edit</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={AdminProfileStyle.actionBtn}>
-            <Feather name="lock" size={20} color="#00418b" />
-            <Text style={AdminProfileStyle.actionText}>Password</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={AdminProfileStyle.actionBtn}>
-            <Feather name="bell" size={20} color="#00418b" />
-            <Text style={AdminProfileStyle.actionText}>Notify</Text>
-          </TouchableOpacity>
-        </View>
       </View>
       {/* Settings List (optional) */}
       {/* <ScrollView style={AdminProfileStyle.settingsList}>

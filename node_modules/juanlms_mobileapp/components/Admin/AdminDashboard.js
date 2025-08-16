@@ -24,6 +24,8 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [academicYear, setAcademicYear] = useState('2025-2026');
+  const [currentTerm, setCurrentTerm] = useState('Term 1');
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -33,26 +35,41 @@ export default function AdminDashboard() {
     return () => clearInterval(timer);
   }, []);
 
-  // Fetch dashboard data
+    // Fetch dashboard data
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
         setLoading(true);
         setError(null);
         
-        const data = await adminService.getDashboardSummary();
-        
-        setUserStats(data.userStats);
-        setLastLogins(data.recentLogins);
-        setRecentLogs(data.auditPreview);
-        setSchoolYearProgress(data.academicProgress.schoolYear);
-        setTermProgress(data.academicProgress.term);
+        // Try to fetch from admin service first
+        try {
+          const data = await adminService.getDashboardSummary();
+          
+          if (data && data.userStats) {
+            setUserStats(data.userStats);
+          }
+          if (data && data.recentLogins) {
+            setLastLogins(data.recentLogins);
+          }
+          if (data && data.auditPreview) {
+            setRecentLogs(data.auditPreview);
+          }
+          if (data && data.academicProgress) {
+            setSchoolYearProgress(data.academicProgress.schoolYear || 0);
+            setTermProgress(data.academicProgress.term || 0);
+          }
+        } catch (serviceError) {
+          console.error('Admin service error:', serviceError);
+          // Fallback to direct API calls
+          await fetchDashboardDataDirect();
+        }
         
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
         setError('Failed to load dashboard data');
         
-        // Fallback to mock data if API fails
+        // Fallback to mock data if all else fails
         setUserStats({ admins: 1, faculty: 8, students: 17 });
         setLastLogins([
           { userName: 'Rochelle Borre', role: 'students', lastLogin: '2025-07-22T00:06:11' },
@@ -62,15 +79,64 @@ export default function AdminDashboard() {
         ]);
         setRecentLogs([
           { timestamp: '2025-08-03T12:43:56', userName: 'Will Bianca', action: 'Login' },
-          { timestamp: '2025-08-03T12:29:16', userName: 'Hillary Jade Alimurong', action: 'Login' },
-          { timestamp: '2025-08-03T12:14:32', userName: 'Will Bianca', action: 'Login' },
-          { timestamp: '2025-08-03T12:11:23', userName: 'Hillary Jade Alimurong', action: 'Login' },
-          { timestamp: '2025-08-03T11:33:31', userName: 'Nicolette Borre', action: 'Login' },
+          { timestamp: '2025-07-22T00:06:11', userName: 'Rochelle Borre', action: 'Login' },
+          { timestamp: '2025-07-20T23:23:40', userName: 'Niel Nathan Borre', action: 'Login' },
+          { timestamp: '2025-07-13T01:59:20', userName: 'Roman Cyril Panganiban', action: 'Login' },
+          { timestamp: '2025-07-05T19:04:07', userName: 'hatdog asd', action: 'Login' },
         ]);
         setSchoolYearProgress(18);
         setTermProgress(100);
       } finally {
         setLoading(false);
+      }
+    };
+
+    // Direct API fetch function as fallback
+    const fetchDashboardDataDirect = async () => {
+      try {
+        const baseURL = 'http://localhost:5000';
+        
+        // Fetch user stats
+        try {
+          const statsRes = await fetch(`${baseURL}/api/admin/user-stats`);
+          if (statsRes.ok) {
+            const statsData = await statsRes.json();
+            setUserStats(statsData);
+          } else {
+            console.error('Stats API error:', statsRes.status);
+          }
+        } catch (statsError) {
+          console.error('Stats fetch error:', statsError);
+        }
+        
+        // Fetch recent logins
+        try {
+          const loginsRes = await fetch(`${baseURL}/api/admin/recent-logins?limit=5`);
+          if (loginsRes.ok) {
+            const loginsData = await loginsRes.json();
+            setLastLogins(loginsData);
+          } else {
+            console.error('Logins API error:', loginsRes.status);
+          }
+        } catch (loginsError) {
+          console.error('Logins fetch error:', loginsError);
+        }
+        
+        // Fetch audit preview
+        try {
+          const auditRes = await fetch(`${baseURL}/api/admin/audit-preview?limit=5`);
+          if (auditRes.ok) {
+            const auditData = await auditRes.json();
+            setRecentLogs(auditData);
+          } else {
+            console.error('Audit API error:', auditRes.status);
+          }
+        } catch (auditError) {
+          console.error('Audit fetch error:', auditError);
+        }
+        
+      } catch (directError) {
+        console.error('Direct API fetch error:', directError);
       }
     };
 
@@ -163,6 +229,33 @@ export default function AdminDashboard() {
     }
   };
 
+  // Helper function to get row color based on last login
+  const getRowColor = (lastLogin) => {
+    if (!lastLogin) return '#f0f0f0';
+    const now = new Date();
+    const loginDate = new Date(lastLogin);
+    const diffDays = Math.floor((now - loginDate) / (1000 * 60 * 60 * 24));
+    
+    if (diffDays >= 3) return '#fee2e2'; // red
+    if (diffDays === 2) return '#fef3c7'; // yellow
+    if (diffDays <= 1) return '#dcfce7'; // green
+    return '#f0f0f0';
+  };
+
+  // Format date for display
+  const formatDate = (dateString) => {
+    if (!dateString) return 'Never';
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffTime = Math.abs(now - date);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) return 'Today';
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays < 7) return `${diffDays} days ago`;
+    return date.toLocaleDateString();
+  };
+
   if (loading) {
     return (
       <View style={[AdminDashStyle.container, { justifyContent: 'center', alignItems: 'center' }]}>
@@ -187,7 +280,7 @@ export default function AdminDashboard() {
               Hello, <Text style={AdminDashStyle.userName}>{user?.firstname || 'Admin'}!</Text>
             </Text>
             <Text style={AdminDashStyle.dateText}>
-              2025-2026 | Term 1 | {formatDateTime(currentDateTime)}
+              {academicYear} | {currentTerm} | {formatDateTime(currentDateTime)}
             </Text>
           </View>
           <TouchableOpacity onPress={() => navigateToScreen('AProfile')}>
@@ -231,7 +324,7 @@ export default function AdminDashboard() {
             <Text style={AdminDashStyle.summaryLabel}>Faculty</Text>
           </View>
           <View style={AdminDashStyle.summaryCard}>
-            <Icon name="account-school" size={24} color="#00418b" />
+            <Icon name="school" size={24} color="#00418b" />
             <Text style={AdminDashStyle.summaryNumber}>{userStats.students}</Text>
             <Text style={AdminDashStyle.summaryLabel}>Students</Text>
           </View>
@@ -263,114 +356,120 @@ export default function AdminDashboard() {
               <Text style={AdminDashStyle.progressText}>{termProgress}%</Text>
             </View>
             <Text style={AdminDashStyle.progressSubtext}>
-              From 8/2/2025 to 8/3/2025
+              Current term progress
             </Text>
           </View>
         </View>
 
-        {/* Active Users Today */}
-        <View style={AdminDashStyle.activeUsersSection}>
-          <Text style={AdminDashStyle.sectionTitle}>Active Users Today</Text>
-          <View style={AdminDashStyle.comingSoonCard}>
-            <Text style={AdminDashStyle.comingSoonText}>(Coming soon)</Text>
-          </View>
-
-        </View>
-
-        {/* Last Logins Preview */}
-        <View style={AdminDashStyle.lastLoginsSection}>
-          <View style={AdminDashStyle.sectionHeader}>
-            <Text style={AdminDashStyle.sectionTitle}>Last Logins Preview</Text>
-            <TouchableOpacity onPress={() => navigateToScreen('AAuditTrail')}>
-              <Text style={AdminDashStyle.viewAllText}>View All</Text>
-            </TouchableOpacity>
-          </View>
-          
-          <View style={AdminDashStyle.tableContainer}>
+        {/* Last Logins Table */}
+        <View style={AdminDashStyle.tableSection}>
+          <Text style={AdminDashStyle.sectionTitle}>Recent Logins</Text>
+          <View style={AdminDashStyle.tableCard}>
             <View style={AdminDashStyle.tableHeader}>
-              <Text style={AdminDashStyle.tableHeaderText}>User</Text>
-              <Text style={AdminDashStyle.tableHeaderText}>Role</Text>
-              <Text style={AdminDashStyle.tableHeaderText}>Last Login</Text>
+              <Text style={[AdminDashStyle.tableHeaderText, { flex: 2 }]}>User</Text>
+              <Text style={[AdminDashStyle.tableHeaderText, { flex: 1 }]}>Role</Text>
+              <Text style={[AdminDashStyle.tableHeaderText, { flex: 2 }]}>Last Login</Text>
             </View>
-            
-            {lastLogins.map((login, index) => (
-              <View key={index} style={[
+            {lastLogins.length > 0 ? (
+              lastLogins.map((login, index) => (
+                <View 
+                  key={index} 
+                  style={[
                 AdminDashStyle.tableRow,
-                index % 2 === 0 && AdminDashStyle.tableRowAlternate
-              ]}>
-                <Text style={AdminDashStyle.tableCellText}>{login.userName}</Text>
-                <Text style={AdminDashStyle.tableCellText}>{login.role}</Text>
-                <Text style={AdminDashStyle.tableCellText}>
-                  {moment(login.lastLogin).format('MMM D, YYYY [at] hh:mm:ss A')}
+                    { backgroundColor: getRowColor(login.lastLogin) }
+                  ]}
+                >
+                  <Text style={[AdminDashStyle.tableCellText, { flex: 2 }]} numberOfLines={1}>
+                    {login.userName}
+                  </Text>
+                  <Text style={[AdminDashStyle.tableCellText, { flex: 1 }]} numberOfLines={1}>
+                    {login.role}
+                  </Text>
+                  <Text style={[AdminDashStyle.tableCellText, { flex: 2 }]} numberOfLines={1}>
+                    {formatDate(login.lastLogin)}
                 </Text>
-              </View>
-            ))}
-          </View>
-        </View>
-
-        {/* Audit Preview Section */}
-        <View style={AdminDashStyle.auditPreviewSection}>
-          <Text style={AdminDashStyle.sectionTitle}>Audit Preview</Text>
-          <View style={AdminDashStyle.auditPreviewCard}>
-            <ScrollView style={AdminDashStyle.auditScrollView}>
-              {recentLogs.map((log, index) => (
-                <View key={index} style={AdminDashStyle.auditRow}>
-                  <Text style={AdminDashStyle.auditTime}>
-                    {moment(log.timestamp).format('hh:mm:ss A')}
-                  </Text>
-                  <Text style={AdminDashStyle.auditUser}>{log.userName}</Text>
-                  <Text style={AdminDashStyle.auditAction}>{log.action}</Text>
                 </View>
-              ))}
-            </ScrollView>
+              ))
+            ) : (
+              <View style={AdminDashStyle.emptyState}>
+                <Text style={AdminDashStyle.emptyStateText}>No recent logins found</Text>
+              </View>
+            )}
           </View>
         </View>
 
-        {/* Academic Calendar Section */}
-        <View style={AdminDashStyle.calendarSection}>
-          <Text style={AdminDashStyle.sectionTitle}>Academic Calendar</Text>
-          <View style={AdminDashStyle.calendarCard}>
-            <View style={AdminDashStyle.calendarHeader}>
-              <Text style={AdminDashStyle.calendarMonth}>
-                {currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' })}
-              </Text>
-              <View style={AdminDashStyle.calendarControls}>
-                <TouchableOpacity onPress={goToToday} style={AdminDashStyle.calendarButton}>
-                  <Text style={AdminDashStyle.calendarButtonText}>today</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => changeMonth('prev')} style={AdminDashStyle.calendarButton}>
-                  <Text style={AdminDashStyle.calendarButtonText}>&lt;</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => changeMonth('next')} style={AdminDashStyle.calendarButton}>
-                  <Text style={AdminDashStyle.calendarButtonText}>&gt;</Text>
-                </TouchableOpacity>
-              </View>
+        {/* Audit Trail Preview */}
+        <View style={AdminDashStyle.tableSection}>
+          <Text style={AdminDashStyle.sectionTitle}>Recent Activities</Text>
+          <View style={AdminDashStyle.tableCard}>
+            <View style={AdminDashStyle.tableHeader}>
+              <Text style={[AdminDashStyle.tableHeaderText, { flex: 2 }]}>User</Text>
+              <Text style={[AdminDashStyle.tableHeaderText, { flex: 1 }]}>Action</Text>
+              <Text style={[AdminDashStyle.tableHeaderText, { flex: 2 }]}>Time</Text>
             </View>
+            {recentLogs.length > 0 ? (
+              recentLogs.map((log, index) => (
+                <View 
+                  key={index} 
+                  style={[
+                    AdminDashStyle.tableRow, 
+                    { backgroundColor: index % 2 === 0 ? '#ffffff' : '#f8f9fa' }
+                  ]}
+                >
+                  <Text style={[AdminDashStyle.tableCellText, { flex: 2 }]} numberOfLines={1}>
+                    {log.userName}
+                  </Text>
+                  <Text style={[AdminDashStyle.tableCellText, { flex: 1 }]} numberOfLines={1}>
+                    {log.action}
+                  </Text>
+                  <Text style={[AdminDashStyle.tableCellText, { flex: 2 }]} numberOfLines={1}>
+                    {formatDate(log.timestamp)}
+                  </Text>
+                </View>
+              ))
+            ) : (
+              <View style={AdminDashStyle.emptyState}>
+                <Text style={AdminDashStyle.emptyStateText}>No recent activities found</Text>
+              </View>
+            )}
+          </View>
+        </View>
+
+        {/* Quick Actions */}
+        <View style={AdminDashStyle.quickActionsSection}>
+          <Text style={AdminDashStyle.sectionTitle}>Quick Actions</Text>
+          <View style={AdminDashStyle.quickActionsGrid}>
+            <TouchableOpacity 
+              style={AdminDashStyle.quickActionCard}
+              onPress={() => navigateToScreen('ACalendar')}
+            >
+              <Icon name="calendar" size={32} color="#00418b" />
+              <Text style={AdminDashStyle.quickActionText}>Calendar</Text>
+                </TouchableOpacity>
             
-            <View style={AdminDashStyle.calendarGrid}>
-              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                <Text key={day} style={AdminDashStyle.calendarDayHeader}>{day}</Text>
-              ))}
-              
-              {calendarDays.map((day, index) => (
-                <View key={index} style={[
-                  AdminDashStyle.calendarDay,
-                  day.isToday && AdminDashStyle.calendarToday,
-                  day.isHoliday && AdminDashStyle.calendarHoliday
-                ]}>
-                  <Text style={[
-                    AdminDashStyle.calendarDayText,
-                    day.isToday && AdminDashStyle.calendarTodayText,
-                    day.isHoliday && AdminDashStyle.calendarHolidayText
-                  ]}>
-                    {day.day}
-                  </Text>
-                  {day.isHoliday && (
-                    <Text style={AdminDashStyle.holidayText}>Holid</Text>
-                  )}
-                </View>
-              ))}
-            </View>
+            <TouchableOpacity 
+              style={AdminDashStyle.quickActionCard}
+              onPress={() => navigateToScreen('AChat')}
+            >
+              <Icon name="chat" size={32} color="#00418b" />
+              <Text style={AdminDashStyle.quickActionText}>Chats</Text>
+                </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={AdminDashStyle.quickActionCard}
+              onPress={() => navigateToScreen('AAuditTrail')}
+            >
+              <Icon name="history" size={32} color="#00418b" />
+              <Text style={AdminDashStyle.quickActionText}>Audit Trail</Text>
+                </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={AdminDashStyle.quickActionCard}
+              onPress={() => navigateToScreen('ASupportCenter')}
+            >
+              <Icon name="help-circle" size={32} color="#00418b" />
+              <Text style={AdminDashStyle.quickActionText}>Support</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </ScrollView>

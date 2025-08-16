@@ -56,44 +56,71 @@ export default function AdminCalendar() {
     const fetchAll = async () => {
       try {
         let holidays = [];
-        for (let year = 2024; year <= 2030; year++) {
-          const res = await fetch(`https://date.nager.at/api/v3/PublicHolidays/${year}/PH`);
-          const data = await res.json();
-          holidays = holidays.concat(data);
-        }
-        const resEvents = await fetch('https://juanlms-webapp-server.onrender.com/api/events');
-        const eventsData = await resEvents.json();
-        const newItems = {};
-        holidays.forEach(holiday => {
-          if (!newItems[holiday.date]) newItems[holiday.date] = [];
-          newItems[holiday.date].push({
-            name: holiday.localName,
-            type: 'holiday',
-            color: '#FFEB3B',
-            height: 50
-          });
-        });
-        eventsData.forEach(event => {
-          if (!event.date) return;
-          let date = '';
-          try {
-            date = event.date.split('T')[0];
-          } catch (err) {
-            console.error('Error splitting event date:', err);
-            return;
+        // Fetch holidays for current year only to reduce API calls
+        const currentYear = new Date().getFullYear();
+        try {
+          const res = await fetch(`https://date.nager.at/api/v3/PublicHolidays/${currentYear}/PH`);
+          if (res.ok) {
+            const data = await res.json();
+            holidays = Array.isArray(data) ? data : [];
           }
-          if (!newItems[date]) newItems[date] = [];
-          newItems[date].push({
-            name: event.title,
-            type: 'event',
-            color: event.color || '#2196f3',
-            time: event.time || '',
-            height: 50
-          });
+        } catch (holidayErr) {
+          console.error('Failed to fetch holidays:', holidayErr);
+        }
+
+        let eventsData = [];
+        try {
+          const resEvents = await fetch('http://localhost:5000/api/events');
+          if (resEvents.ok) {
+            const data = await resEvents.json();
+            eventsData = Array.isArray(data) ? data : [];
+          }
+        } catch (eventErr) {
+          console.error('Failed to fetch events:', eventErr);
+        }
+
+        const newItems = {};
+        
+        // Process holidays
+        holidays.forEach(holiday => {
+          if (holiday && holiday.date) {
+            if (!newItems[holiday.date]) newItems[holiday.date] = [];
+            newItems[holiday.date].push({
+              name: holiday.localName || 'Holiday',
+              type: 'holiday',
+              color: '#FFEB3B',
+              height: 50
+            });
+          }
         });
+
+        // Process events
+        eventsData.forEach(event => {
+          if (event && event.date) {
+            let date = '';
+            try {
+              date = event.date.split('T')[0];
+            } catch (err) {
+              console.error('Error splitting event date:', err);
+              return;
+            }
+            if (date && !newItems[date]) newItems[date] = [];
+            if (date) {
+              newItems[date].push({
+                name: event.title || 'Event',
+                type: 'event',
+                color: event.color || '#2196f3',
+                time: event.time || '',
+                height: 50
+              });
+            }
+          }
+        });
+        
         setItems(newItems);
       } catch (err) {
-        console.error('Failed to fetch holidays or events:', err);
+        console.error('Failed to fetch calendar data:', err);
+        setItems({});
       }
     };
     fetchAll();

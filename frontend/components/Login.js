@@ -9,7 +9,7 @@ import { useUser } from './UserContext';
 import { addAuditLog } from './Admin/auditTrailUtils';
 
 // Set your public backend URL here (replace with your actual deployed backend URL)
-const BACKEND_URL = 'https://juanlms-webapp-server.onrender.com/login'; // Update this to your actual backend URL
+const BACKEND_URL = 'http://localhost:5000/login'; // Update this to your actual backend URL
 
 export default function Login() {
   //mema commit na lang para lang may kulay ako today

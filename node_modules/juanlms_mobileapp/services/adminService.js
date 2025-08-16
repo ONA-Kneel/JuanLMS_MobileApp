@@ -7,7 +7,7 @@ class AdminService {
 
   async getBaseURL() {
     if (!this.baseURL) {
-      this.baseURL = await AsyncStorage.getItem('baseURL') || 'https://juanlms-webapp-server.onrender.com';
+      this.baseURL = await AsyncStorage.getItem('baseURL') || 'http://localhost:5000';
     }
     return this.baseURL;
   }

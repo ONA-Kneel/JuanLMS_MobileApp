@@ -34,15 +34,30 @@ export default function AdminAuditTrail() {
       const response = await axios.get(`${API_BASE_URL}/api/admin/audit-preview?limit=100`);
       
       if (response.data && Array.isArray(response.data)) {
-        setLogs(response.data);
-        setFilteredLogs(response.data);
+        if (response.data.length === 0) {
+          setLogs([]);
+          setFilteredLogs([]);
+          setError('No audit logs found');
+        } else {
+          setLogs(response.data);
+          setFilteredLogs(response.data);
+        }
       } else {
         setLogs([]);
         setFilteredLogs([]);
+        setError('Invalid data format received from server');
       }
     } catch (error) {
       console.error('Error fetching audit logs:', error);
-      setError('Failed to fetch audit logs. Please try again.');
+      if (error.code === 'ECONNREFUSED') {
+        setError('Cannot connect to server. Please check if backend is running.');
+      } else if (error.response?.status === 404) {
+        setError('Audit logs endpoint not found. Please check backend configuration.');
+      } else if (error.response?.status === 500) {
+        setError('Server error. Please try again later.');
+      } else {
+        setError('Failed to fetch audit logs. Please try again.');
+      }
       setLogs([]);
       setFilteredLogs([]);
     } finally {

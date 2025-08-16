@@ -417,6 +417,135 @@ const AdminDashStyle = StyleSheet.create({
     top: '50%',
     transform: [{ translateY: -10 }],
   },
+
+  // Progress section
+  progressSection: {
+    marginBottom: 20,
+  },
+  progressCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  progressTitle: {
+    fontSize: 16,
+    fontFamily: 'Poppins-SemiBold',
+    color: '#222',
+    marginBottom: 8,
+  },
+  progressBarContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  progressBar: {
+    flex: 1,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 12,
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 4,
+  },
+  progressText: {
+    fontSize: 14,
+    fontFamily: 'Poppins-Bold',
+    color: '#00418b',
+    minWidth: 40,
+    textAlign: 'right',
+  },
+  progressSubtext: {
+    fontSize: 12,
+    fontFamily: 'Poppins-Regular',
+    color: '#666',
+  },
+
+  // Table section
+  tableSection: {
+    marginBottom: 20,
+  },
+  tableCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
+    overflow: 'hidden',
+  },
+  tableHeader: {
+    flexDirection: 'row',
+    backgroundColor: '#f8f9fa',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e9ecef',
+  },
+  tableHeaderText: {
+    fontSize: 12,
+    fontFamily: 'Poppins-SemiBold',
+    color: '#495057',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  tableRow: {
+    flexDirection: 'row',
+    backgroundColor: '#ffffff',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f3f4',
+  },
+  tableCellText: {
+    fontSize: 14,
+    fontFamily: 'Poppins-Regular',
+    color: '#212529',
+  },
+  emptyState: {
+    padding: 24,
+    alignItems: 'center',
+  },
+  emptyStateText: {
+    fontSize: 14,
+    fontFamily: 'Poppins-Regular',
+    color: '#6c757d',
+    fontStyle: 'italic',
+  },
+
+  // Quick actions section
+  quickActionsSection: {
+    marginBottom: 20,
+  },
+  quickActionsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  quickActionCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    width: (width - 60) / 2,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  quickActionText: {
+    fontSize: 14,
+    fontFamily: 'Poppins-Medium',
+    color: '#222',
+    marginTop: 8,
+    textAlign: 'center',
+  },
 });
 
 export default AdminDashStyle;
