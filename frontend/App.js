@@ -68,6 +68,25 @@ import AdminFaculty from './components/Admin/AdminFaculty';
 import AdminAuditTrail from './components/Admin/AdminAuditTrail';
 import AdminSupportCenter from './components/Admin/AdminSupportCenter';
 
+//VPE
+import VPEDashboard from './components/VPE/VPEDashboard';
+import VPECalendar from './components/VPE/VPECalendar';
+import VPEChats from './components/VPE/VPEChats';
+import VPESupportCenter from './components/VPE/VPESupportCenter';
+import VPEProfile from './components/VPE/VPEProfile';
+import VPEAuditTrail from './components/VPE/VPEAuditTrail';
+import VPEAnnouncements from './components/VPE/VPEAnnouncements';
+
+//Principal
+import PrincipalDashboard from './components/Principal/PrincipalDashboard';
+import PrincipalCalendar from './components/Principal/PrincipalCalendar';
+import PrincipalChats from './components/Principal/PrincipalChats';
+import PrincipalSupportCenter from './components/Principal/PrincipalSupportCenter';
+import PrincipalProfile from './components/Principal/PrincipalProfile';
+import PrincipalAuditTrail from './components/Principal/PrincipalAuditTrail';
+import PrincipalAnnouncements from './components/Principal/PrincipalAnnouncements';
+import PrincipalGrades from './components/Principal/PrincipalGrades';
+
 //Parent
 import ParentDashboard from './components/Parents/ParentDashboard';
 import ParentSchedule from './components/Parents/ParentSchedule';
@@ -184,6 +203,58 @@ function ParentDash() {
   );
 }
 
+const vpeNavItems = [
+  { label: 'Dashboard', icon: 'view-dashboard', route: 'VPEDash' },
+  { label: 'Calendar', icon: 'calendar', route: 'VPECalendar' },
+  { label: 'Chats', icon: 'chat', route: 'VPEChats' },
+  { label: 'Support', icon: 'help-circle', route: 'VPESupport' },
+  { label: 'Audit', icon: 'history', route: 'VPEAudit' },
+  { label: 'Announcements', icon: 'bullhorn', route: 'VPEAnnouncements' },
+];
+
+function VPETabs() {
+  return (
+    <Tabs.Navigator
+      tabBar={props => <CustomBottomNav {...props} navItems={vpeNavItems} />}
+      screenOptions={{ headerShown: false }}
+    >
+      <Tabs.Screen name='VPEDash' component={VPEDashboard} />
+      <Tabs.Screen name='VPECalendar' component={VPECalendar} />
+      <Tabs.Screen name='VPEChats' component={VPEChats} />
+      <Tabs.Screen name='VPESupport' component={VPESupportCenter} />
+      <Tabs.Screen name='VPEAudit' component={VPEAuditTrail} />
+      <Tabs.Screen name='VPEAnnouncements' component={VPEAnnouncements} />
+    </Tabs.Navigator>
+  );
+}
+
+const principalNavItems = [
+  { label: 'Dashboard', icon: 'view-dashboard', route: 'PrincipalDash' },
+  { label: 'Calendar', icon: 'calendar', route: 'PrincipalCalendar' },
+  { label: 'Chats', icon: 'chat', route: 'PrincipalChats' },
+  { label: 'Support', icon: 'help-circle', route: 'PrincipalSupport' },
+  { label: 'Audit', icon: 'history', route: 'PrincipalAudit' },
+  { label: 'Announcements', icon: 'bullhorn', route: 'PrincipalAnnouncements' },
+  { label: 'Grades', icon: 'star', route: 'PrincipalGrades' },
+];
+
+function PrincipalTabs() {
+  return (
+    <Tabs.Navigator
+      tabBar={props => <CustomBottomNav {...props} navItems={principalNavItems} />}
+      screenOptions={{ headerShown: false }}
+    >
+      <Tabs.Screen name='PrincipalDash' component={PrincipalDashboard} />
+      <Tabs.Screen name='PrincipalCalendar' component={PrincipalCalendar} />
+      <Tabs.Screen name='PrincipalChats' component={PrincipalChats} />
+      <Tabs.Screen name='PrincipalSupport' component={PrincipalSupportCenter} />
+      <Tabs.Screen name='PrincipalAudit' component={PrincipalAuditTrail} />
+      <Tabs.Screen name='PrincipalAnnouncements' component={PrincipalAnnouncements} />
+      <Tabs.Screen name='PrincipalGrades' component={PrincipalGrades} />
+    </Tabs.Navigator>
+  );
+}
+
 //Specific Screen Change
 const Screens = createNativeStackNavigator();
 export default function App() {
@@ -266,6 +337,13 @@ export default function App() {
         <Screens.Screen name='DQuizzes' component={DirectorCQuizzes} options={{headerShown: false}}/>
         <Screens.Screen name='DScMain' component={DirectorSCMain} options={{headerShown: false}}/>
 
+        {/* VPE */}
+        <Screens.Screen name='VPEDash' component={VPETabs} options={{ headerShown: false }}/>
+        <Screens.Screen name='VPEProfile' component={VPEProfile} options={{ headerShown: false }}/>
+
+        {/* Principal */}
+        <Screens.Screen name='PrincipalDash' component={PrincipalTabs} options={{ headerShown: false }}/>
+        <Screens.Screen name='PrincipalProfile' component={PrincipalProfile} options={{ headerShown: false }}/>
 
         {/* Parents */}
         {/*"My Grades" tab should be "Student's Grade" */}

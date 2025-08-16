@@ -5,7 +5,7 @@ import AdminDashStyle from '../styles/administrator/AdminDashStyle';
 import { useUser } from '../UserContext';
 import { useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import moment from 'moment';
+import { formatDate } from '../../utils/dateUtils';
 import adminService from '../../services/adminService';
 
 const { width } = Dimensions.get('window');
@@ -300,7 +300,7 @@ export default function AdminDashboard() {
                 <Text style={AdminDashStyle.tableCellText}>{login.userName}</Text>
                 <Text style={AdminDashStyle.tableCellText}>{login.role}</Text>
                 <Text style={AdminDashStyle.tableCellText}>
-                  {moment(login.lastLogin).format('MMM D, YYYY [at] hh:mm:ss A')}
+                  {formatDate(login.lastLogin, 'MMM D, YYYY [at] hh:mm:ss A')}
                 </Text>
               </View>
             ))}
@@ -315,7 +315,7 @@ export default function AdminDashboard() {
               {recentLogs.map((log, index) => (
                 <View key={index} style={AdminDashStyle.auditRow}>
                   <Text style={AdminDashStyle.auditTime}>
-                    {moment(log.timestamp).format('hh:mm:ss A')}
+                    {formatDate(log.timestamp, 'hh:mm:ss A')}
                   </Text>
                   <Text style={AdminDashStyle.auditUser}>{log.userName}</Text>
                   <Text style={AdminDashStyle.auditAction}>{log.action}</Text>

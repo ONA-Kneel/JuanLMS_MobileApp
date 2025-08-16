@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { View, Text, ScrollView, TouchableOpacity, Dimensions, ActivityIndicator } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import moment from 'moment';
+import { formatDate } from '../../utils/dateUtils';
 import adminService from '../../services/adminService';
 
 export default function AdminProgress() {
@@ -302,7 +302,7 @@ export default function AdminProgress() {
                     Current Term: Term 1
                 </Text>
                 <Text style={styles.progressSubtext}>
-                    Current Date: {moment().format('MMMM D, YYYY')}
+                    Current Date: {formatDate(new Date(), 'MMMM D, YYYY')}
                 </Text>
             </View>
         </ScrollView>

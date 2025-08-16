@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, StyleSheet, TextInput, TouchableOpacity } from 'react-native';
+import { View, Text, FlatList, StyleSheet, TextInput, TouchableOpacity, Alert, RefreshControl } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import moment from 'moment';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { formatDate } from '../../utils/dateUtils';
 import { useIsFocused } from '@react-navigation/native';
+import axios from 'axios';
+
+const API_BASE_URL = 'http://localhost:5000';
 
 function groupLogsByDay(logs) {
   return logs.reduce((acc, log) => {
-    const day = moment(log.timestamp).format('YYYY-MM-DD');
+    const day = formatDate(log.timestamp, 'YYYY-MM-DD');
     if (!acc[day]) acc[day] = [];
     acc[day].push(log);
     return acc;
@@ -18,16 +20,46 @@ export default function AdminAuditTrail() {
   const [searchQuery, setSearchQuery] = useState('');
   const [logs, setLogs] = useState([]);
   const [filteredLogs, setFilteredLogs] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState(null);
   const isFocused = useIsFocused();
 
+  const fetchLogs = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      // Fetch audit logs from backend API
+      const response = await axios.get(`${API_BASE_URL}/api/admin/audit-preview?limit=100`);
+      
+      if (response.data && Array.isArray(response.data)) {
+        setLogs(response.data);
+        setFilteredLogs(response.data);
+      } else {
+        setLogs([]);
+        setFilteredLogs([]);
+      }
+    } catch (error) {
+      console.error('Error fetching audit logs:', error);
+      setError('Failed to fetch audit logs. Please try again.');
+      setLogs([]);
+      setFilteredLogs([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchLogs();
+    setRefreshing(false);
+  };
+
   useEffect(() => {
-    const fetchLogs = async () => {
-      const storedLogs = await AsyncStorage.getItem('auditLogs');
-      const parsedLogs = storedLogs ? JSON.parse(storedLogs) : [];
-      setLogs(parsedLogs);
-      setFilteredLogs(parsedLogs);
-    };
-    if (isFocused) fetchLogs();
+    if (isFocused) {
+      fetchLogs();
+    }
   }, [isFocused]);
 
   // Filter logs based on search query
@@ -59,6 +91,18 @@ export default function AdminAuditTrail() {
 
   const grouped = groupLogsByDay(filteredLogs);
   const days = Object.keys(grouped).sort((a, b) => b.localeCompare(a));
+
+  if (error) {
+    return (
+      <View style={styles.errorContainer}>
+        <Icon name="alert-circle" size={48} color="#ff6b6b" />
+        <Text style={styles.errorText}>{error}</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={fetchLogs}>
+          <Text style={styles.retryButtonText}>Retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -100,44 +144,58 @@ export default function AdminAuditTrail() {
       <FlatList
         data={days}
         keyExtractor={item => item}
-        renderItem={({ item: day }) => (
-          <View style={styles.daySection}>
-            <Text style={styles.dayHeader}>{moment(day).format('MMMM D, YYYY')}</Text>
-            {[...grouped[day]]
-              .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-              .map((log, idx) => (
-                <View key={log._id || log.id || idx} style={styles.card}>
-                  <View style={styles.cardRow}>
-                    <Icon name="account" size={24} color="#00418b" style={{ marginRight: 8 }} />
-                    <Text style={styles.userName}>
-                      {log.userName} <Text style={styles.role}>({log.userRole})</Text>
-                    </Text>
-                  </View>
-                  <View style={styles.cardRow}>
-                    <Icon name="flash" size={20} color="#888" style={{ marginRight: 4 }} />
-                    <Text style={styles.action}>{log.action}</Text>
-                    <Text style={styles.time}>{moment(log.timestamp).format('hh:mm A')}</Text>
-                  </View>
-                  {log.details && (
-                    <View style={styles.detailsRow}>
-                      <Text style={styles.details}>{log.details}</Text>
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+        renderItem={({ item: day }) => {
+          return (
+            <View style={styles.daySection}>
+              <Text style={styles.dayHeader}>{formatDate(day, 'MMMM D, YYYY')}</Text>
+              {[...grouped[day]]
+                .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+                .map((log, idx) => (
+                  <View key={log._id || log.id || idx} style={styles.card}>
+                    <View style={styles.cardRow}>
+                      <Icon name="account" size={24} color="#00418b" style={{ marginRight: 8 }} />
+                      <Text style={styles.userName}>
+                        {log.userName} <Text style={styles.role}>({log.userRole})</Text>
+                      </Text>
                     </View>
-                  )}
-                </View>
-              ))}
-          </View>
-        )}
-        ListEmptyComponent={
+                    <View style={styles.cardRow}>
+                      <Icon name="flash" size={20} color="#888" style={{ marginRight: 4 }} />
+                      <Text style={styles.action}>{log.action}</Text>
+                      <Text style={styles.time}>{formatDate(log.timestamp, 'hh:mm A')}</Text>
+                    </View>
+                    {log.details && (
+                      <View style={styles.detailsRow}>
+                        <Text style={styles.details}>{log.details}</Text>
+                      </View>
+                    )}
+                  </View>
+                ))}
+            </View>
+          );
+        }}
+        ListEmptyComponent={(
           <View style={styles.emptyContainer}>
-            <Icon name="file-search-outline" size={48} color="#ccc" />
-            <Text style={styles.emptyText}>
-              {searchQuery.length > 0 ? 'No results found for your search.' : 'No logs found.'}
-            </Text>
-            {searchQuery.length > 0 && (
-              <Text style={styles.emptySubtext}>Try adjusting your search terms.</Text>
+            {isLoading ? (
+              <>
+                <Icon name="loading" size={48} color="#ccc" />
+                <Text style={styles.emptyText}>Loading audit logs...</Text>
+              </>
+            ) : (
+              <>
+                <Icon name="file-search-outline" size={48} color="#ccc" />
+                <Text style={styles.emptyText}>
+                  {searchQuery.length > 0 ? 'No results found for your search.' : 'No logs found.'}
+                </Text>
+                {searchQuery.length > 0 && (
+                  <Text style={styles.emptySubtext}>Try adjusting your search terms.</Text>
+                )}
+              </>
             )}
           </View>
-        }
+        )}
         showsVerticalScrollIndicator={false}
       />
     </View>
@@ -278,5 +336,30 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins-Regular',
     textAlign: 'center',
     marginTop: 4,
+  },
+  errorContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#ff6b6b',
+    fontFamily: 'Poppins-Regular',
+    textAlign: 'center',
+    marginTop: 12,
+    marginBottom: 20,
+  },
+  retryButton: {
+    backgroundColor: '#00418b',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontFamily: 'Poppins-Medium',
   },
 }); 

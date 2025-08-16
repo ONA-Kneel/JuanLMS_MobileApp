@@ -187,6 +187,14 @@ export default function Login() {
             console.log('Navigating to Director Dashboard');
             navigation.navigate('DDash'); 
             break;
+          case 'vpe': 
+            console.log('Navigating to VPE Dashboard');
+            navigation.navigate('VPEDash'); 
+            break;
+          case 'principal': 
+            console.log('Navigating to Principal Dashboard');
+            navigation.navigate('PrincipalDash'); 
+            break;
           default: 
             console.error('Unknown role:', role);
             showToast('Unknown role!', 'error'); 
