@@ -5,7 +5,7 @@ import AdminDashStyle from '../styles/administrator/AdminDashStyle';
 import { useUser } from '../UserContext';
 import { useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { formatDate } from '../../utils/dateUtils';
+import moment from 'moment';
 import adminService from '../../services/adminService';
 
 const { width } = Dimensions.get('window');
@@ -274,6 +274,7 @@ export default function AdminDashboard() {
           <View style={AdminDashStyle.comingSoonCard}>
             <Text style={AdminDashStyle.comingSoonText}>(Coming soon)</Text>
           </View>
+
         </View>
 
         {/* Last Logins Preview */}
@@ -300,7 +301,7 @@ export default function AdminDashboard() {
                 <Text style={AdminDashStyle.tableCellText}>{login.userName}</Text>
                 <Text style={AdminDashStyle.tableCellText}>{login.role}</Text>
                 <Text style={AdminDashStyle.tableCellText}>
-                  {formatDate(login.lastLogin, 'MMM D, YYYY [at] hh:mm:ss A')}
+                  {moment(login.lastLogin).format('MMM D, YYYY [at] hh:mm:ss A')}
                 </Text>
               </View>
             ))}
@@ -315,7 +316,7 @@ export default function AdminDashboard() {
               {recentLogs.map((log, index) => (
                 <View key={index} style={AdminDashStyle.auditRow}>
                   <Text style={AdminDashStyle.auditTime}>
-                    {formatDate(log.timestamp, 'hh:mm:ss A')}
+                    {moment(log.timestamp).format('hh:mm:ss A')}
                   </Text>
                   <Text style={AdminDashStyle.auditUser}>{log.userName}</Text>
                   <Text style={AdminDashStyle.auditAction}>{log.action}</Text>
