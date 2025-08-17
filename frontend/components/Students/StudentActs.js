@@ -34,7 +34,7 @@ function Upcoming({ activities, onActivityPress }) {
   }
 
   return (
-    <ScrollView style={styles.tabContainer} showsVerticalScrollIndicator={false}>
+    <ScrollView style={styles.contentTabContainer} showsVerticalScrollIndicator={false}>
       {activities.map((activity, index) => (
         <TouchableOpacity
           key={index}
@@ -75,19 +75,14 @@ function Upcoming({ activities, onActivityPress }) {
           
           <View style={styles.activityFooter}>
             <View style={styles.activityStatus}>
-              <View style={[styles.statusDot, { backgroundColor: '#FF9800' }]} />
+              <View style={[styles.statusDot, { backgroundColor: '#4CAF50' }]} />
               <Text style={styles.statusText}>Upcoming</Text>
+            </View>
+            <View style={styles.attachmentsInfo}>
+              <MaterialIcons name="info" size={16} color="#666" />
+              <Text style={styles.attachmentsText}>Tap to view details</Text>
+            </View>
           </View>
-            
-            {activity.attachments && activity.attachments.length > 0 && (
-              <View style={styles.attachmentsInfo}>
-                <MaterialIcons name="attach-file" size={16} color="#666" />
-                <Text style={styles.attachmentsText}>
-                  {activity.attachments.length} attachment(s)
-                </Text>
-              </View>
-            )}
-        </View>
         </TouchableOpacity>
       ))}
     </ScrollView>
@@ -109,7 +104,7 @@ function PastDue({ activities, onActivityPress }) {
   }
 
   return (
-    <ScrollView style={styles.tabContainer} showsVerticalScrollIndicator={false}>
+    <ScrollView style={styles.contentTabContainer} showsVerticalScrollIndicator={false}>
       {activities.map((activity, index) => (
         <TouchableOpacity
           key={index}
@@ -154,7 +149,7 @@ function PastDue({ activities, onActivityPress }) {
             <View style={styles.latePenalty}>
               <Text style={styles.latePenaltyText}>Late penalty may apply</Text>
             </View>
-    </View>
+          </View>
         </TouchableOpacity>
       ))}
     </ScrollView>
@@ -176,7 +171,7 @@ function Completed({ activities, onActivityPress }) {
 }
 
   return (
-    <ScrollView style={styles.tabContainer} showsVerticalScrollIndicator={false}>
+    <ScrollView style={styles.contentTabContainer} showsVerticalScrollIndicator={false}>
       {activities.map((activity, index) => (
         <TouchableOpacity
           key={index}
@@ -300,7 +295,7 @@ export default function StudentActs() {
         const quizActivities = userQuizzes.map(quiz => ({
           ...quiz,
           type: 'quiz',
-          dueDate: quiz.endDate,
+          dueDate: quiz.endDate || quiz.dueDate,
           points: quiz.points || 0,
           className: quiz.className || 'Unknown Class'
         }));
@@ -596,7 +591,7 @@ const styles = {
   tabContent: {
     flex: 1,
   },
-  tabContainer: {
+  contentTabContainer: {
     flex: 1,
     padding: 20,
   },

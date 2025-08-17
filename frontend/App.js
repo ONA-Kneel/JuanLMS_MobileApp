@@ -30,6 +30,8 @@ import StudentsProfile from './components/Students/StudentsProfile';
 import StudentCalendar from './components/Students/StudentsCalendar';
 import StudentSCMain from './components/Students/StudentSCMain';
 import StudentSupportCenter from './components/Students/StudentSupportCenter';
+import QuizView from './components/Students/QuizView';
+import AssignmentDetail from './components/Students/AssignmentDetail';
 import CustomBottomNav from './components/CustomBottomNav';
 
 //Faculty
@@ -252,6 +254,8 @@ export default function App() {
         <Screens.Screen name ='SMain' component={StudentSCMain} options={{ headerShown: false }}/>
         <Screens.Screen name ='SReq' component={StudentSupportCenter} options={{ headerShown: false }}/>
         <Screens.Screen name ='SProfile' component={StudentsProfile} options={{ headerShown: false }}/>
+        <Screens.Screen name='QuizView' component={QuizView} options={{ headerShown: false }}/>
+        <Screens.Screen name='AssignmentDetail' component={AssignmentDetail} options={{ headerShown: false }}/>
 
 
         {/*Faculties */}
