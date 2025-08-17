@@ -141,6 +141,8 @@ export default function Login() {
         const role = tokenPayload.role;
         const userId = tokenPayload.id;
 
+        console.log('Processing login for role:', role);
+
         // Fetch user data
         console.log('Fetching user data for ID:', userId);
         const userRes = await fetch(`${loginUrl.replace('/login', '')}/users/${userId}`, {
@@ -175,39 +177,27 @@ export default function Login() {
           timestamp: new Date().toISOString(),
         });
 
-        switch (role) {
-          case 'students': 
-            console.log('Navigating to Student Dashboard');
-            navigation.navigate('SDash'); 
-            break;
-          case 'faculty': 
-            console.log('Navigating to Faculty Dashboard');
-            navigation.navigate('FDash'); 
-            break;
-          case 'admin': 
-            console.log('Navigating to Admin Dashboard');
-            navigation.navigate('ADash'); 
-            break;
-          case 'parent': 
-            console.log('Navigating to Parent Dashboard');
-            navigation.navigate('PDash'); 
-            break;
-          case 'director': 
-            console.log('Navigating to Director Dashboard');
-            navigation.navigate('DDash'); 
-            break;
-          case 'vpe': 
-            console.log('Navigating to VPE Dashboard');
-            navigation.navigate('VPEDash'); 
-            break;
-          case 'principal': 
-            console.log('Navigating to Principal Dashboard');
-            navigation.navigate('PrincipalDash'); 
-            break;
-          default: 
-            console.error('Unknown role:', role);
-            showToast('Unknown role!', 'error'); 
-            break;
+        // Role mapping for navigation
+        const roleNavigationMap = {
+          'students': 'SDash',
+          'faculty': 'FDash',
+          'admin': 'ADash',
+          'parent': 'PDash',
+          'director': 'DDash',
+          'vpe': 'VPEDash',
+          'vice president of education': 'VPEDash',
+          'vicepresident': 'VPEDash',
+          'vice president': 'VPEDash',
+          'principal': 'PrincipalDash'
+        };
+
+        const targetRoute = roleNavigationMap[role];
+        if (targetRoute) {
+          console.log(`Navigating to ${targetRoute} for role: ${role}`);
+          navigation.navigate(targetRoute);
+        } else {
+          console.error('Unknown role:', role);
+          showToast('Unknown role!', 'error');
         }
       } else {
         console.error('Login failed:', data.message);
