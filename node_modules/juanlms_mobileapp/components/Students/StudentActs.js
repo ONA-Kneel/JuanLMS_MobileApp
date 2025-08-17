@@ -55,17 +55,32 @@ function Upcoming({ activities, onActivityPress }) {
                 color={activity.type === 'quiz' ? '#9C27B0' : '#FF9800'} 
               />
             </View>
-            <View style={styles.activityInfo}>
-              <Text style={styles.activityTitle}>{activity.title}</Text>
-              <Text style={styles.activityClass}>{activity.className}</Text>
-              <Text style={styles.activityDue}>
-                Due: {new Date(activity.dueDate).toLocaleDateString('en-US', {
-                  month: 'short',
-                  day: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                  hour12: true
-                })}
+            <View style={styles.activityContent}>
+              <Text style={[
+                styles.activityTitle,
+                activity.isSubmitted && styles.completedActivityTitle
+              ]}>
+                {activity.title}
+              </Text>
+              <Text style={[
+                styles.activityClass,
+                activity.isSubmitted && styles.completedActivityText
+              ]}>
+                {activity.className || 'Unknown Class'}
+              </Text>
+              {activity.description && (
+                <Text style={[
+                  styles.activityDescription,
+                  activity.isSubmitted && styles.completedActivityText
+                ]}>
+                  {activity.description}
+                </Text>
+              )}
+              <Text style={[
+                styles.activityDueDate,
+                activity.isSubmitted && styles.completedActivityText
+              ]}>
+                Due: {formatDateTime(activity.dueDate)}
               </Text>
             </View>
             <View style={styles.activityPoints}>
@@ -881,9 +896,14 @@ const styles = {
     justifyContent: 'center',
     marginRight: 12,
   },
-  activityInfo: {
+  activityContent: {
     flex: 1,
     marginRight: 12,
+  },
+  activityRight: {
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    minWidth: 60,
   },
   activityTitle: {
     fontSize: 16,
@@ -896,9 +916,16 @@ const styles = {
     color: '#666',
     marginBottom: 4,
   },
-  activityDue: {
+  activityDescription: {
+    fontSize: 13,
+    color: '#666',
+    marginBottom: 4,
+    lineHeight: 18,
+  },
+  activityDueDate: {
     fontSize: 12,
     color: '#999',
+    marginBottom: 2,
   },
   activityPoints: {
     alignItems: 'center',
@@ -909,12 +936,6 @@ const styles = {
     fontSize: 14,
     fontWeight: 'bold',
     color: '#00418b',
-  },
-  activityDescription: {
-    fontSize: 14,
-    color: '#666',
-    lineHeight: 20,
-    marginBottom: 12,
   },
   activityFooter: {
     flexDirection: 'row',

@@ -1,4 +1,4 @@
-import { Text, TouchableOpacity, View, Image, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import { Text, TouchableOpacity, View, Image, ScrollView, ActivityIndicator, Alert, Modal, Dimensions, Linking } from 'react-native';
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { ImageBackground, ProgressBar } from 'react-native-web';
@@ -46,6 +46,8 @@ export default function StudentModule(){
     const [materials, setMaterials] = useState([]);
     const [materialsLoading, setMaterialsLoading] = useState(true);
     const [filterType, setFilterType] = useState('all'); // Add filter state
+    const [selectedFile, setSelectedFile] = useState(null);
+    const [showFileViewer, setShowFileViewer] = useState(false);
 
     useEffect(() => {
         console.log('DEBUG StudentModule: useEffect classId:', classId);
@@ -196,6 +198,58 @@ export default function StudentModule(){
 
     const [currentLesson, setCurrentLesson] = useState(0);
     const totalLessons = lessons.length;
+
+    // Helper functions for file handling
+    const isImageFile = (fileName) => {
+        const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'];
+        const lowerFileName = fileName.toLowerCase();
+        return imageExtensions.some(ext => lowerFileName.endsWith(ext));
+    };
+
+    const isVideoFile = (fileName) => {
+        const videoExtensions = ['.mp4', '.avi', '.mov', '.wmv', '.flv', '.webm'];
+        const lowerFileName = fileName.toLowerCase();
+        return videoExtensions.some(ext => lowerFileName.endsWith(ext));
+    };
+
+    const isPdfFile = (fileName) => {
+        const lowerFileName = fileName.toLowerCase();
+        return lowerFileName.endsWith('.pdf');
+    };
+
+    const handleFilePress = (file) => {
+        if (isImageFile(file.fileName)) {
+            // Open image in viewer modal
+            setSelectedFile(file);
+            setShowFileViewer(true);
+        } else if (isVideoFile(file.fileName)) {
+            // For videos, we'll try to open them in the device's default video player
+            if (file.fileUrl) {
+                Linking.openURL(file.fileUrl).catch(() => {
+                    Alert.alert('Error', 'Unable to open video file');
+                });
+            }
+        } else if (isPdfFile(file.fileName)) {
+            // For PDFs, try to open in browser or download
+            if (file.fileUrl) {
+                Linking.openURL(file.fileUrl).catch(() => {
+                    Alert.alert('Error', 'Unable to open PDF file');
+                });
+            }
+        } else {
+            // For other files, download them
+            if (file.fileUrl) {
+                Linking.openURL(file.fileUrl).catch(() => {
+                    Alert.alert('Error', 'Unable to download file');
+                });
+            }
+        }
+    };
+
+    const closeFileViewer = () => {
+        setShowFileViewer(false);
+        setSelectedFile(null);
+    };
 
     //navigation
     const changeScreen = useNavigation();
@@ -469,6 +523,18 @@ export default function StudentModule(){
                                                                 {item.className || 'Unknown Class'}
                                                             </Text>
                                                             
+                                                            {item.description && (
+                                                                <Text style={{ 
+                                                                    fontFamily: 'Poppins-Regular', 
+                                                                    color: '#666', 
+                                                                    fontSize: 13, 
+                                                                    marginBottom: 6,
+                                                                    lineHeight: 18
+                                                                }}>
+                                                                    {item.description}
+                                                                </Text>
+                                                            )}
+                                                            
                                                             {item.dueDate && (
                                                                 <Text style={{ 
                                                                     fontFamily: 'Poppins-Regular', 
@@ -653,6 +719,18 @@ export default function StudentModule(){
                                                                 {item.className || 'Unknown Class'}
                                                             </Text>
                                                             
+                                                            {item.description && (
+                                                                <Text style={{ 
+                                                                    fontFamily: 'Poppins-Regular', 
+                                                                    color: '#666', 
+                                                                    fontSize: 13, 
+                                                                    marginBottom: 6,
+                                                                    lineHeight: 18
+                                                                }}>
+                                                                    {item.description}
+                                                                </Text>
+                                                            )}
+                                                            
                                                             {item.dueDate && (
                                                                 <Text style={{ 
                                                                     fontFamily: 'Poppins-Regular', 
@@ -735,10 +813,53 @@ export default function StudentModule(){
                                     </View>
                                     {/* File rows */}
                                     {lesson.files && lesson.files.map(file => (
-                                        <View key={file.fileUrl} style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 8, borderBottomWidth: 1, borderColor: '#e0e0e0', backgroundColor: '#fff' }}>
-                                            <Icon name="file-document-outline" size={18} color="#222" style={{ marginRight: 6 }} />
-                                            <TouchableOpacity onPress={() => {/* handle file open/download */ }}>
-                                                <Text style={{ fontFamily: 'Poppins-Regular', color: '#1976d2', fontSize: 14, textDecorationLine: 'underline' }}>{file.fileName}</Text>
+                                        <View key={file.fileUrl} style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#e0e0e0', backgroundColor: '#fff' }}>
+                                            {/* File type icon */}
+                                            <View style={{ marginRight: 12 }}>
+                                                {isImageFile(file.fileName) ? (
+                                                    <MaterialIcons name="image" size={20} color="#4CAF50" />
+                                                ) : isVideoFile(file.fileName) ? (
+                                                    <MaterialIcons name="video-file" size={20} color="#FF5722" />
+                                                ) : isPdfFile(file.fileName) ? (
+                                                    <MaterialIcons name="picture-as-pdf" size={20} color="#F44336" />
+                                                ) : (
+                                                    <MaterialIcons name="insert-drive-file" size={20} color="#2196F3" />
+                                                )}
+                                            </View>
+                                            
+                                            {/* File info */}
+                                            <View style={{ flex: 1, marginRight: 12 }}>
+                                                <Text style={{ fontFamily: 'Poppins-Regular', color: '#1976d2', fontSize: 14, textDecorationLine: 'underline', marginBottom: 2 }}>
+                                                    {file.fileName}
+                                                </Text>
+                                                <Text style={{ fontFamily: 'Poppins-Regular', color: '#666', fontSize: 12 }}>
+                                                    {isImageFile(file.fileName) ? 'Image File' : 
+                                                     isVideoFile(file.fileName) ? 'Video File' : 
+                                                     isPdfFile(file.fileName) ? 'PDF Document' : 'Document'}
+                                                </Text>
+                                            </View>
+                                            
+                                            {/* Action button */}
+                                            <TouchableOpacity 
+                                                style={{
+                                                    backgroundColor: isImageFile(file.fileName) ? '#4CAF50' : '#2196F3',
+                                                    paddingHorizontal: 12,
+                                                    paddingVertical: 6,
+                                                    borderRadius: 6,
+                                                    flexDirection: 'row',
+                                                    alignItems: 'center',
+                                                    gap: 4
+                                                }}
+                                                onPress={() => handleFilePress(file)}
+                                            >
+                                                <MaterialIcons 
+                                                    name={isImageFile(file.fileName) ? 'visibility' : 'download'} 
+                                                    size={16} 
+                                                    color="white" 
+                                                />
+                                                <Text style={{ color: 'white', fontSize: 12, fontWeight: 'bold' }}>
+                                                    {isImageFile(file.fileName) ? 'View' : 'Download'}
+                                                </Text>
                                             </TouchableOpacity>
                                         </View>
                                     ))}
@@ -787,6 +908,129 @@ export default function StudentModule(){
             </View>
             {/* Blue curved background at bottom */}
             <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 90, backgroundColor: '#00418b', borderTopLeftRadius: 60, borderTopRightRadius: 60, zIndex: -1 }} />
+            
+            {/* File Viewer Modal */}
+            <Modal
+                visible={showFileViewer}
+                transparent
+                animationType="fade"
+                onRequestClose={closeFileViewer}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={styles.fileViewerModal}>
+                        {/* Header */}
+                        <View style={styles.fileViewerHeader}>
+                            <Text style={styles.fileViewerTitle}>
+                                {selectedFile?.fileName || 'File Viewer'}
+                            </Text>
+                            <TouchableOpacity onPress={closeFileViewer} style={styles.closeButton}>
+                                <MaterialIcons name="close" size={24} color="#666" />
+                            </TouchableOpacity>
+                        </View>
+                        
+                        {/* File Content */}
+                        <View style={styles.fileContent}>
+                            {selectedFile && isImageFile(selectedFile.fileName) && (
+                                <Image
+                                    source={{ uri: selectedFile.fileUrl }}
+                                    style={styles.imageViewer}
+                                    resizeMode="contain"
+                                    onError={() => {
+                                        Alert.alert('Error', 'Unable to load image');
+                                        closeFileViewer();
+                                    }}
+                                />
+                            )}
+                        </View>
+                        
+                        {/* Action Buttons */}
+                        <View style={styles.fileActions}>
+                            <TouchableOpacity
+                                style={styles.downloadButton}
+                                onPress={() => {
+                                    if (selectedFile?.fileUrl) {
+                                        Linking.openURL(selectedFile.fileUrl).catch(() => {
+                                            Alert.alert('Error', 'Unable to download file');
+                                        });
+                                    }
+                                }}
+                            >
+                                <MaterialIcons name="download" size={20} color="white" />
+                                <Text style={styles.downloadButtonText}>Download</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
         </View>
     )
 }
+
+const styles = {
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    fileViewerModal: {
+        backgroundColor: 'white',
+        borderRadius: 12,
+        width: '90%',
+        maxHeight: '80%',
+        overflow: 'hidden',
+    },
+    fileViewerHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: '#e0e0e0',
+        backgroundColor: '#f8f9fa',
+    },
+    fileViewerTitle: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: '#333',
+        flex: 1,
+        marginRight: 16,
+    },
+    closeButton: {
+        padding: 4,
+    },
+    fileContent: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 20,
+        minHeight: 300,
+    },
+    imageViewer: {
+        width: '100%',
+        height: 300,
+        borderRadius: 8,
+    },
+    fileActions: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        padding: 16,
+        borderTopWidth: 1,
+        borderTopColor: '#e0e0e0',
+        backgroundColor: '#f8f9fa',
+    },
+    downloadButton: {
+        backgroundColor: '#00418b',
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 20,
+        paddingVertical: 12,
+        borderRadius: 8,
+        gap: 8,
+    },
+    downloadButtonText: {
+        color: 'white',
+        fontSize: 16,
+        fontWeight: 'bold',
+    },
+};
