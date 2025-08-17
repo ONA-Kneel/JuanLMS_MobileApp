@@ -1,4 +1,4 @@
-import { Text, TouchableOpacity, View, Image, ScrollView, ActivityIndicator } from 'react-native';
+import { Text, TouchableOpacity, View, Image, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { ImageBackground, ProgressBar } from 'react-native-web';
@@ -8,6 +8,7 @@ import StudentModuleStyle from '../styles/Stud/StudentModuleStyle';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { MaterialIcons } from '@expo/vector-icons';
 
 function formatDateHeader(date) {
   if (!date) return 'No due date';
@@ -348,6 +349,18 @@ export default function StudentModule(){
                                                             opacity: 0.75
                                                         }}
                                                         onPress={() => {
+                                                            // Check if activity is already completed
+                                                            if (item.isSubmitted) {
+                                                                Alert.alert(
+                                                                    'Already Completed',
+                                                                    `You have already completed this ${item.type === 'quiz' ? 'quiz' : 'assignment'}.`,
+                                                                    [
+                                                                        { text: 'OK', style: 'default' }
+                                                                    ]
+                                                                );
+                                                                return;
+                                                            }
+                                                            
                                                             if (item.type === 'quiz') {
                                                                 navigation.navigate('QuizView', { quizId: item._id });
                                                             } else {
@@ -361,61 +374,127 @@ export default function StudentModule(){
                                                             }
                                                         }}
                                                     >
-                                                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                                                            <View style={{ 
-                                                                backgroundColor: item.type === 'quiz' ? '#e9d5ff' : '#dcfce7', 
-                                                                borderRadius: 6, 
-                                                                paddingHorizontal: 10, 
-                                                                paddingVertical: 4, 
-                                                                marginRight: 8 
+                                                        <View style={[
+                                                            {
+                                                                backgroundColor: 'white',
+                                                                borderRadius: 12,
+                                                                padding: 16,
+                                                                marginBottom: 12,
+                                                                elevation: 2,
+                                                                shadowColor: '#000',
+                                                                shadowOffset: { width: 0, height: 2 },
+                                                                shadowOpacity: 0.1,
+                                                                shadowRadius: 4,
+                                                            },
+                                                            !item.isPosted && {
+                                                                opacity: 0.6,
+                                                                backgroundColor: '#f5f5f5'
+                                                            }
+                                                        ]}>
+                                                            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                                                                <View style={{ 
+                                                                    backgroundColor: item.type === 'quiz' ? '#e9d5ff' : '#dcfce7', 
+                                                                    borderRadius: 6, 
+                                                                    paddingHorizontal: 10, 
+                                                                    paddingVertical: 4, 
+                                                                    marginRight: 8 
+                                                                }}>
+                                                                    <Text style={{ 
+                                                                        color: item.type === 'quiz' ? '#7c3aed' : '#15803d', 
+                                                                        fontWeight: 'bold', 
+                                                                        fontSize: 12, 
+                                                                        fontFamily: 'Poppins-Bold' 
+                                                                    }}>
+                                                                        {item.type === 'quiz' ? 'Quiz' : 'Assignment'}
+                                                                    </Text>
+                                                                </View>
+                                                                
+                                                                {!item.isPosted && (
+                                                                    <View style={{ 
+                                                                        backgroundColor: '#6b7280', 
+                                                                        borderRadius: 6, 
+                                                                        paddingHorizontal: 8, 
+                                                                        paddingVertical: 4 
+                                                                    }}>
+                                                                        <Text style={{ 
+                                                                            color: 'white', 
+                                                                            fontWeight: 'bold', 
+                                                                            fontSize: 11, 
+                                                                            fontFamily: 'Poppins-Bold' 
+                                                                        }}>
+                                                                            Not Posted Yet
+                                                                        </Text>
+                                                                    </View>
+                                                                )}
+                                                                
+                                                                {item.isSubmitted && (
+                                                                    <View style={{ 
+                                                                        backgroundColor: '#e8f5e9', 
+                                                                        borderRadius: 6, 
+                                                                        paddingHorizontal: 8, 
+                                                                        paddingVertical: 4,
+                                                                        marginLeft: 8,
+                                                                        flexDirection: 'row',
+                                                                        alignItems: 'center'
+                                                                    }}>
+                                                                        <MaterialIcons name="check-circle" size={16} color="#4CAF50" />
+                                                                        <Text style={{ 
+                                                                            color: '#4CAF50', 
+                                                                            fontWeight: 'bold', 
+                                                                            fontSize: 11, 
+                                                                            fontFamily: 'Poppins-Bold',
+                                                                            marginLeft: 4
+                                                                        }}>
+                                                                            Completed
+                                                                        </Text>
+                                                                    </View>
+                                                                )}
+                                                            </View>
+                                                            
+                                                            <Text style={{ 
+                                                                fontFamily: 'Poppins-Bold', 
+                                                                color: '#666', 
+                                                                fontSize: 16, 
+                                                                marginBottom: 4 
                                                             }}>
+                                                                {item.title}
+                                                            </Text>
+                                                            
+                                                            <Text style={{ 
+                                                                fontFamily: 'Poppins-Regular', 
+                                                                color: '#666', 
+                                                                fontSize: 14, 
+                                                                marginBottom: 6 
+                                                            }}>
+                                                                {item.className || 'Unknown Class'}
+                                                            </Text>
+                                                            
+                                                            {item.dueDate && (
                                                                 <Text style={{ 
-                                                                    color: item.type === 'quiz' ? '#7c3aed' : '#15803d', 
-                                                                    fontWeight: 'bold', 
+                                                                    fontFamily: 'Poppins-Regular', 
+                                                                    color: '#999', 
                                                                     fontSize: 12, 
-                                                                    fontFamily: 'Poppins-Bold' 
+                                                                    marginBottom: 2 
                                                                 }}>
-                                                                    {item.type === 'quiz' ? 'Quiz' : 'Assignment'}
+                                                                    Due: {new Date(item.dueDate).toLocaleDateString('en-US', {
+                                                                        month: 'short',
+                                                                        day: 'numeric',
+                                                                        hour: '2-digit',
+                                                                        minute: '2-digit',
+                                                                        hour12: true
+                                                                    })}
                                                                 </Text>
-                                                            </View>
-                                                            <View style={{ 
-                                                                backgroundColor: '#6b7280', 
-                                                                borderRadius: 6, 
-                                                                paddingHorizontal: 8, 
-                                                                paddingVertical: 4 
+                                                            )}
+                                                            
+                                                            <Text style={{ 
+                                                                fontFamily: 'Poppins-Regular', 
+                                                                color: '#999', 
+                                                                fontSize: 12, 
+                                                                marginBottom: 2 
                                                             }}>
-                                                                <Text style={{ 
-                                                                    color: 'white', 
-                                                                    fontWeight: 'bold', 
-                                                                    fontSize: 11, 
-                                                                    fontFamily: 'Poppins-Bold' 
-                                                                }}>
-                                                                    Not Posted Yet
-                                                                </Text>
-                                                            </View>
+                                                                Points: {item.points || 0}
+                                                            </Text>
                                                         </View>
-                                                        <Text style={{ fontFamily: 'Poppins-Bold', color: '#666', fontSize: 16, marginBottom: 4 }}>{item.title}</Text>
-                                                        {item.description && (
-                                                            <Text style={{ fontFamily: 'Poppins-Regular', color: '#666', fontSize: 14, marginBottom: 6 }}>{item.description}</Text>
-                                                        )}
-                                                        {item.instructions && (
-                                                            <Text style={{ fontFamily: 'Poppins-Regular', color: '#666', fontSize: 14, marginBottom: 6 }}>{item.instructions}</Text>
-                                                        )}
-                                                        {item.dueDate && (
-                                                            <Text style={{ fontFamily: 'Poppins-Regular', color: '#999', fontSize: 12, marginBottom: 2 }}>
-                                                                Due: {new Date(item.dueDate).toLocaleString()}
-                                                            </Text>
-                                                        )}
-                                                        {item.points && (
-                                                            <Text style={{ fontFamily: 'Poppins-Regular', color: '#999', fontSize: 12, marginBottom: 2 }}>
-                                                                Points: {item.points}
-                                                            </Text>
-                                                        )}
-                                                        {item.postAt && (
-                                                            <Text style={{ fontFamily: 'Poppins-Regular', color: '#3b82f6', fontSize: 12, marginTop: 4 }}>
-                                                                Will be posted: {new Date(item.postAt).toLocaleString()}
-                                                            </Text>
-                                                        )}
                                                     </TouchableOpacity>
                                                 ))}
                                             </View>
@@ -454,6 +533,18 @@ export default function StudentModule(){
                                                             elevation: 1
                                                         }}
                                                         onPress={() => {
+                                                            // Check if activity is already completed
+                                                            if (item.isSubmitted) {
+                                                                Alert.alert(
+                                                                    'Already Completed',
+                                                                    `You have already completed this ${item.type === 'quiz' ? 'quiz' : 'assignment'}.`,
+                                                                    [
+                                                                        { text: 'OK', style: 'default' }
+                                                                    ]
+                                                                );
+                                                                return;
+                                                            }
+                                                            
                                                             if (item.type === 'quiz') {
                                                                 navigation.navigate('QuizView', { quizId: item._id });
                                                             } else {
@@ -467,41 +558,127 @@ export default function StudentModule(){
                                                             }
                                                         }}
                                                     >
-                                                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                                                            <View style={{ 
-                                                                backgroundColor: item.type === 'quiz' ? '#e9d5ff' : '#dcfce7', 
-                                                                borderRadius: 6, 
-                                                                paddingHorizontal: 10, 
-                                                                paddingVertical: 4, 
-                                                                marginRight: 8 
-                                                            }}>
-                                                                <Text style={{ 
-                                                                    color: item.type === 'quiz' ? '#7c3aed' : '#15803d', 
-                                                                    fontWeight: 'bold', 
-                                                                    fontSize: 12, 
-                                                                    fontFamily: 'Poppins-Bold' 
+                                                        <View style={[
+                                                            {
+                                                                backgroundColor: 'white',
+                                                                borderRadius: 12,
+                                                                padding: 16,
+                                                                marginBottom: 12,
+                                                                elevation: 2,
+                                                                shadowColor: '#000',
+                                                                shadowOffset: { width: 0, height: 2 },
+                                                                shadowOpacity: 0.1,
+                                                                shadowRadius: 4,
+                                                            },
+                                                            !item.isPosted && {
+                                                                opacity: 0.6,
+                                                                backgroundColor: '#f5f5f5'
+                                                            }
+                                                        ]}>
+                                                            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                                                                <View style={{ 
+                                                                    backgroundColor: item.type === 'quiz' ? '#e9d5ff' : '#dcfce7', 
+                                                                    borderRadius: 6, 
+                                                                    paddingHorizontal: 10, 
+                                                                    paddingVertical: 4, 
+                                                                    marginRight: 8 
                                                                 }}>
-                                                                    {item.type === 'quiz' ? 'Quiz' : 'Assignment'}
-                                                                </Text>
+                                                                    <Text style={{ 
+                                                                        color: item.type === 'quiz' ? '#7c3aed' : '#15803d', 
+                                                                        fontWeight: 'bold', 
+                                                                        fontSize: 12, 
+                                                                        fontFamily: 'Poppins-Bold' 
+                                                                    }}>
+                                                                        {item.type === 'quiz' ? 'Quiz' : 'Assignment'}
+                                                                    </Text>
+                                                                </View>
+                                                                
+                                                                {!item.isPosted && (
+                                                                    <View style={{ 
+                                                                        backgroundColor: '#6b7280', 
+                                                                        borderRadius: 6, 
+                                                                        paddingHorizontal: 8, 
+                                                                        paddingVertical: 4 
+                                                                    }}>
+                                                                        <Text style={{ 
+                                                                            color: 'white', 
+                                                                            fontWeight: 'bold', 
+                                                                            fontSize: 11, 
+                                                                            fontFamily: 'Poppins-Bold' 
+                                                                        }}>
+                                                                            Not Posted Yet
+                                                                        </Text>
+                                                                    </View>
+                                                                )}
+                                                                
+                                                                {item.isSubmitted && (
+                                                                    <View style={{ 
+                                                                        backgroundColor: '#e8f5e9', 
+                                                                        borderRadius: 6, 
+                                                                        paddingHorizontal: 8, 
+                                                                        paddingVertical: 4,
+                                                                        marginLeft: 8,
+                                                                        flexDirection: 'row',
+                                                                        alignItems: 'center'
+                                                                    }}>
+                                                                        <MaterialIcons name="check-circle" size={16} color="#4CAF50" />
+                                                                        <Text style={{ 
+                                                                            color: '#4CAF50', 
+                                                                            fontWeight: 'bold', 
+                                                                            fontSize: 11, 
+                                                                            fontFamily: 'Poppins-Bold',
+                                                                            marginLeft: 4
+                                                                        }}>
+                                                                            Completed
+                                                                        </Text>
+                                                                    </View>
+                                                                )}
                                                             </View>
+                                                            
+                                                            <Text style={{ 
+                                                                fontFamily: 'Poppins-Bold', 
+                                                                color: '#666', 
+                                                                fontSize: 16, 
+                                                                marginBottom: 4 
+                                                            }}>
+                                                                {item.title}
+                                                            </Text>
+                                                            
+                                                            <Text style={{ 
+                                                                fontFamily: 'Poppins-Regular', 
+                                                                color: '#666', 
+                                                                fontSize: 14, 
+                                                                marginBottom: 6 
+                                                            }}>
+                                                                {item.className || 'Unknown Class'}
+                                                            </Text>
+                                                            
+                                                            {item.dueDate && (
+                                                                <Text style={{ 
+                                                                    fontFamily: 'Poppins-Regular', 
+                                                                    color: '#999', 
+                                                                    fontSize: 12, 
+                                                                    marginBottom: 2 
+                                                                }}>
+                                                                    Due: {new Date(item.dueDate).toLocaleDateString('en-US', {
+                                                                        month: 'short',
+                                                                        day: 'numeric',
+                                                                        hour: '2-digit',
+                                                                        minute: '2-digit',
+                                                                        hour12: true
+                                                                    })}
+                                                                </Text>
+                                                            )}
+                                                            
+                                                            <Text style={{ 
+                                                                fontFamily: 'Poppins-Regular', 
+                                                                color: '#999', 
+                                                                fontSize: 12, 
+                                                                marginBottom: 2 
+                                                            }}>
+                                                                Points: {item.points || 0}
+                                                            </Text>
                                                         </View>
-                                                        <Text style={{ fontFamily: 'Poppins-Bold', color: '#222', fontSize: 16, marginBottom: 4 }}>{item.title}</Text>
-                                                        {item.description && (
-                                                            <Text style={{ fontFamily: 'Poppins-Regular', color: '#666', fontSize: 14, marginBottom: 6 }}>{item.description}</Text>
-                                                        )}
-                                                        {item.instructions && (
-                                                            <Text style={{ fontFamily: 'Poppins-Regular', color: '#666', fontSize: 14, marginBottom: 6 }}>{item.instructions}</Text>
-                                                        )}
-                                                        {item.dueDate && (
-                                                            <Text style={{ fontFamily: 'Poppins-Regular', color: '#666', fontSize: 12, marginBottom: 2 }}>
-                                                                Due: {new Date(item.dueDate).toLocaleString()}
-                                                            </Text>
-                                                        )}
-                                                        {item.points && (
-                                                            <Text style={{ fontFamily: 'Poppins-Regular', color: '#666', fontSize: 12, marginBottom: 2 }}>
-                                                                Points: {item.points}
-                                                            </Text>
-                                                        )}
                                                     </TouchableOpacity>
                                                 ))}
                                             </View>

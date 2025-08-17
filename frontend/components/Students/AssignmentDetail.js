@@ -43,6 +43,23 @@ export default function AssignmentDetail() {
     }
   }, [assignmentId]);
 
+  // Check if assignment is already completed and prevent access
+  useEffect(() => {
+    if (submissionStatus) {
+      Alert.alert(
+        'Already Completed',
+        'You have already completed this assignment.',
+        [
+          { 
+            text: 'Go Back', 
+            onPress: () => navigation.goBack(),
+            style: 'default' 
+          }
+        ]
+      );
+    }
+  }, [submissionStatus, navigation]);
+
   const fetchAssignment = async () => {
     try {
       setLoading(true);

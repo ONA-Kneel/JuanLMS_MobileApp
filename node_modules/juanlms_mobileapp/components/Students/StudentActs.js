@@ -489,12 +489,36 @@ export default function StudentActs() {
   }, [navigation]);
 
   const handleActivityPress = (activity) => {
+    // Check if activity is already completed
+    if (activity.isSubmitted) {
+      Alert.alert(
+        'Already Completed',
+        `You have already completed this ${activity.type === 'quiz' ? 'quiz' : 'assignment'}.`,
+        [
+          { text: 'OK', style: 'default' }
+        ]
+      );
+      return;
+    }
+    
     setSelectedActivity(activity);
     setShowActivityModal(true);
   };
 
   const navigateToActivity = (activity) => {
     setShowActivityModal(false);
+    
+    // Check if activity is already completed
+    if (activity.isSubmitted) {
+      Alert.alert(
+        'Already Completed',
+        `You have already completed this ${activity.type === 'quiz' ? 'quiz' : 'assignment'}.`,
+        [
+          { text: 'OK', style: 'default' }
+        ]
+      );
+      return;
+    }
     
     if (activity.type === 'quiz') {
       navigation.navigate('QuizView', { quizId: activity._id });
@@ -1085,5 +1109,70 @@ const styles = {
     color: 'white',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  completedActivityCard: {
+    opacity: 0.7, // Make completed activities visually dimmed
+    backgroundColor: '#f0f0f0', // Slightly different background for completed
+  },
+  completedActivityTitle: {
+    color: '#999', // Gray out completed activity titles
+  },
+  completedActivityText: {
+    color: '#999', // Gray out completed activity text
+  },
+  completedActivityDueDate: {
+    color: '#999', // Gray out completed activity due dates
+  },
+  activityIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#f5f5f5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  activityContent: {
+    flex: 1,
+    marginRight: 12,
+  },
+  activityRight: {
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    minWidth: 60,
+  },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#e0f2f7', // Light blue background
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginTop: 8,
+  },
+  completedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#e8f5e9', // Light green background
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginTop: 8,
+  },
+  completedBadgeText: {
+    fontSize: 12,
+    color: '#4CAF50',
+    fontWeight: '500',
+    marginLeft: 6,
+  },
+  activityInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  activityInfoText: {
+    fontSize: 12,
+    color: '#666',
+    marginLeft: 4,
   },
 };
