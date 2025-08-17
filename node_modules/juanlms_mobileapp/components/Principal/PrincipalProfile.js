@@ -1,587 +1,450 @@
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  TextInput,
-  Alert,
-  Image,
-} from 'react-native';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { useIsFocused } from '@react-navigation/native';
+import React, { useState, useRef } from 'react';
+import { View, Text, TouchableOpacity, Image, ScrollView, Alert, ActivityIndicator, Modal, TextInput } from 'react-native';
+import { MaterialIcons, Feather } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../UserContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { addAuditLog } from '../Admin/auditTrailUtils';
+import * as ImagePicker from 'expo-image-picker';
+import { Platform } from 'react-native';
 
-const ProfileField = ({ label, value, isEditable, onChangeText, placeholder }) => (
-  <View style={styles.fieldContainer}>
-    <Text style={styles.fieldLabel}>{label}</Text>
-    {isEditable ? (
-      <TextInput
-        style={styles.editableField}
-        value={value}
-        onChangeText={onChangeText}
-        placeholder={placeholder}
-        placeholderTextColor="#999"
-      />
-    ) : (
-      <Text style={styles.fieldValue}>{value}</Text>
-    )}
-  </View>
-);
+// Helper to capitalize first letter of each word
+function capitalizeWords(str) {
+  return str.replace(/\b\w/g, char => char.toUpperCase());
+}
+
+const API_URL = 'https://juanlms-webapp-server.onrender.com';
 
 export default function PrincipalProfile() {
-  const { user } = useUser();
-  const isFocused = useIsFocused();
-  const [isEditing, setIsEditing] = useState(false);
-  const [profileData, setProfileData] = useState({
-    firstName: 'Dr. Michael',
-    lastName: 'Anderson',
-    email: 'principal.anderson@juanlms.edu',
-    phone: '+1 (555) 123-4567',
-    department: 'Academic Administration',
-    position: 'Principal',
-    office: 'Room 201, Main Building',
-    extension: '201',
-    bio: 'Experienced educational leader with over 15 years in academic administration. Committed to fostering academic excellence and student success.',
-    dateOfBirth: 'March 15, 1975',
-    address: '123 Education Street, Academic City, AC 12345',
-    emergencyContact: 'Sarah Anderson (Spouse) - +1 (555) 987-6543',
-  });
+  const { user, loading } = useUser();
+  const navigation = useNavigation();
+  const [isEditModalVisible, setIsEditModalVisible] = useState(false);
+  const [editedUser, setEditedUser] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const fileInputRef = useRef(null);
+  const [webPreviewUrl, setWebPreviewUrl] = useState(null);
 
-  const [originalData, setOriginalData] = useState({});
-
-  useEffect(() => {
-    if (isFocused) {
-      // In a real app, you'd fetch the user's profile data here
-      setOriginalData({ ...profileData });
+  const logout = async () => {
+    try {
+      if (user) {
+        await addAuditLog({
+          userId: user._id,
+          userName: user.firstname + ' ' + user.lastname,
+          userRole: user.role || 'principal',
+          action: 'Logout',
+          details: `User ${user.email} logged out.`,
+          timestamp: new Date().toISOString(),
+        });
+      }
+      await AsyncStorage.removeItem('user');
+      await AsyncStorage.removeItem('jwtToken');
+      navigation.navigate('Login');
+    } catch (error) {
+      console.error('Logout error:', error);
+      Alert.alert('Error', 'Failed to logout. Please try again.');
     }
-  }, [isFocused]);
-
-  const handleEdit = () => {
-    setIsEditing(true);
   };
 
-  const handleSave = async () => {
+  const goToSupportCenter = () => {
+    navigation.navigate('PrincipalSupport');
+  };
+
+  const pickImage = async () => {
+    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (permissionResult.granted === false) {
+      Alert.alert('Permission required', 'Permission to access camera roll is required!');
+      return;
+    }
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+    });
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      setEditedUser(prev => ({
+        ...prev,
+        newProfilePicAsset: result.assets[0],
+      }));
+    }
+  };
+
+  // Web: handle file input change
+  const handleWebFileChange = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      setEditedUser(prev => ({
+        ...prev,
+        newProfilePicAsset: file,
+      }));
+      setWebPreviewUrl(URL.createObjectURL(file));
+    }
+  };
+
+  // Web: trigger file input
+  const pickImageWeb = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleSaveProfile = async () => {
+    setIsLoading(true);
     try {
       // In a real app, you'd make an API call to update the profile
-      // await axios.put(`${API_BASE_URL}/api/users/profile`, profileData);
-      
-      // Note: Audit logging would be implemented here in a real application
-
-      setOriginalData({ ...profileData });
-      setIsEditing(false);
+      // For now, just close the modal
+      setIsEditModalVisible(false);
       Alert.alert('Success', 'Profile updated successfully!');
     } catch (error) {
       console.error('Error updating profile:', error);
       Alert.alert('Error', 'Failed to update profile. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleCancel = () => {
-    setProfileData({ ...originalData });
-    setIsEditing(false);
-  };
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <ActivityIndicator size="large" color="#00418b" />
+      </View>
+    );
+  }
 
-  const handleFieldChange = (field, value) => {
-    setProfileData(prev => ({
-      ...prev,
-      [field]: value,
-    }));
-  };
+  if (!user) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.topBackground} />
+        <View style={styles.card}>
+          <Text style={styles.name}>Profile Not Available</Text>
+          <TouchableOpacity 
+            style={[styles.logout, { marginTop: 20 }]} 
+            onPress={() => navigation.navigate('Login')}
+          >
+            <Text style={styles.logoutText}>Go to Login</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
 
-  const hasChanges = () => {
-    return JSON.stringify(profileData) !== JSON.stringify(originalData);
-  };
+  const goBack = () => navigation.goBack();
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Profile</Text>
-        <Text style={styles.headerSubtitle}>Manage your account information</Text>
+    <View style={styles.container}>
+      {/* Back Button */}
+      <TouchableOpacity style={{ position: 'absolute', top: 40, left: 20, zIndex: 10 }} onPress={goBack}>
+        <MaterialIcons name="arrow-back" size={28} color="#fff" />
+      </TouchableOpacity>
+      
+      {/* Top curved background */}
+      <View style={styles.topBackground} />
+      
+      {/* Profile Image */}
+      <View style={styles.avatarWrapper}>
+        <Image
+          source={
+            user.profilePic
+              ? { uri: API_URL + user.profilePic }
+              : require('../../assets/profile-icon (2).png')
+          }
+          style={styles.avatar}
+          resizeMode="cover"
+        />
       </View>
-
-      {/* Profile Picture Section */}
-      <View style={styles.profilePictureSection}>
-        <View style={styles.profilePictureContainer}>
-          <Image
-            source={{ uri: 'https://via.placeholder.com/120x120/00418b/ffffff?text=MA' }}
-            style={styles.profilePicture}
-          />
-          {isEditing && (
-            <TouchableOpacity style={styles.changePictureButton}>
-              <Icon name="camera" size={20} color="#fff" />
-            </TouchableOpacity>
-          )}
-        </View>
-        <Text style={styles.profileName}>
-          {profileData.firstName} {profileData.lastName}
+      
+      {/* Card */}
+      <View style={styles.card}>
+        <Text style={styles.name}>
+          {capitalizeWords(`${user.firstname || 'Dr. Michael'} ${user.lastname || 'Anderson'}`)}
+          <Text style={styles.emoji}>👨‍🏫</Text>
         </Text>
-        <Text style={styles.profilePosition}>{profileData.position}</Text>
-        <Text style={styles.profileDepartment}>{profileData.department}</Text>
-      </View>
-
-      {/* Action Buttons */}
-      <View style={styles.actionButtons}>
-        {!isEditing ? (
-          <TouchableOpacity style={styles.editButton} onPress={handleEdit}>
-            <Icon name="pencil" size={20} color="#fff" />
-            <Text style={styles.editButtonText}>Edit Profile</Text>
+        <Text style={styles.email}>{user.email || 'principal.anderson@juanlms.edu'}</Text>
+        <View style={styles.row}>
+          <View style={styles.infoBox}>
+            <Text style={styles.infoLabel}>Department</Text>
+            <Text style={styles.infoValue}>{user.department || 'Academic Administration'}</Text>
+          </View>
+          <View style={styles.infoBox}>
+            <Text style={styles.infoLabel}>Role</Text>
+            <Text style={styles.infoValue}>Principal</Text>
+          </View>
+        </View>
+        <View style={styles.actionRow}>
+          <TouchableOpacity 
+            style={styles.actionBtn}
+            onPress={() => setIsEditModalVisible(true)}
+          >
+            <Feather name="edit" size={20} color="#00418b" />
+            <Text style={styles.actionText}>Edit</Text>
           </TouchableOpacity>
-        ) : (
-          <View style={styles.editActions}>
-            <TouchableOpacity
-              style={[styles.actionButton, styles.cancelButton]}
-              onPress={handleCancel}
-            >
-              <Text style={styles.cancelButtonText}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.actionButton,
-                styles.saveButton,
-                !hasChanges() && styles.saveButtonDisabled,
-              ]}
-              onPress={handleSave}
-              disabled={!hasChanges()}
-            >
-              <Text style={styles.saveButtonText}>Save Changes</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-      </View>
-
-      {/* Profile Information */}
-      <View style={styles.profileSection}>
-        <Text style={styles.sectionTitle}>Personal Information</Text>
-        
-        <View style={styles.fieldsGrid}>
-          <ProfileField
-            label="First Name"
-            value={profileData.firstName}
-            isEditable={isEditing}
-            onChangeText={(text) => handleFieldChange('firstName', text)}
-            placeholder="Enter first name"
-          />
-          <ProfileField
-            label="Last Name"
-            value={profileData.lastName}
-            isEditable={isEditing}
-            onChangeText={(text) => handleFieldChange('lastName', text)}
-            placeholder="Enter last name"
-          />
-        </View>
-
-        <ProfileField
-          label="Email Address"
-          value={profileData.email}
-          isEditable={isEditing}
-          onChangeText={(text) => handleFieldChange('email', text)}
-          placeholder="Enter email address"
-        />
-
-        <ProfileField
-          label="Phone Number"
-          value={profileData.phone}
-          isEditable={isEditing}
-          onChangeText={(text) => handleFieldChange('phone', text)}
-          placeholder="Enter phone number"
-        />
-
-        <ProfileField
-          label="Date of Birth"
-          value={profileData.dateOfBirth}
-          isEditable={isEditing}
-          onChangeText={(text) => handleFieldChange('dateOfBirth', text)}
-          placeholder="Enter date of birth"
-        />
-
-        <ProfileField
-          label="Address"
-          value={profileData.address}
-          isEditable={isEditing}
-          onChangeText={(text) => handleFieldChange('address', text)}
-          placeholder="Enter address"
-        />
-
-        <ProfileField
-          label="Emergency Contact"
-          value={profileData.emergencyContact}
-          isEditable={isEditing}
-          onChangeText={(text) => handleFieldChange('emergencyContact', text)}
-          placeholder="Enter emergency contact"
-        />
-      </View>
-
-      {/* Professional Information */}
-      <View style={styles.profileSection}>
-        <Text style={styles.sectionTitle}>Professional Information</Text>
-        
-        <ProfileField
-          label="Department"
-          value={profileData.department}
-          isEditable={isEditing}
-          onChangeText={(text) => handleFieldChange('department', text)}
-          placeholder="Enter department"
-        />
-
-        <ProfileField
-          label="Position"
-          value={profileData.position}
-          isEditable={false}
-        />
-
-        <ProfileField
-          label="Office Location"
-          value={profileData.office}
-          isEditable={isEditing}
-          onChangeText={(text) => handleFieldChange('office', text)}
-          placeholder="Enter office location"
-        />
-
-        <ProfileField
-          label="Extension"
-          value={profileData.extension}
-          isEditable={isEditing}
-          onChangeText={(text) => handleFieldChange('extension', text)}
-          placeholder="Enter extension"
-        />
-      </View>
-
-      {/* Bio Section */}
-      <View style={styles.profileSection}>
-        <Text style={styles.sectionTitle}>Biography</Text>
-        <View style={styles.fieldContainer}>
-          <Text style={styles.fieldLabel}>About</Text>
-          {isEditing ? (
-            <TextInput
-              style={[styles.editableField, styles.bioField]}
-              value={profileData.bio}
-              onChangeText={(text) => handleFieldChange('bio', text)}
-              placeholder="Tell us about yourself..."
-              placeholderTextColor="#999"
-              multiline
-              numberOfLines={4}
-              textAlignVertical="top"
-            />
-          ) : (
-            <Text style={styles.bioValue}>{profileData.bio}</Text>
-          )}
+          <TouchableOpacity style={styles.actionBtn}>
+            <Feather name="lock" size={20} color="#00418b" />
+            <Text style={styles.actionText}>Password</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.actionBtn}>
+            <Feather name="bell" size={20} color="#00418b" />
+            <Text style={styles.actionText}>Notify</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.actionBtn} onPress={goToSupportCenter}>
+            <Feather name="help-circle" size={20} color="#00418b" />
+            <Text style={styles.actionText}>Support</Text>
+          </TouchableOpacity>
         </View>
       </View>
-
-      {/* Account Security */}
-      <View style={styles.profileSection}>
-        <Text style={styles.sectionTitle}>Account Security</Text>
-        
-        <TouchableOpacity style={styles.securityOption}>
-          <Icon name="lock" size={24} color="#00418b" />
-          <View style={styles.securityOptionContent}>
-            <Text style={styles.securityOptionTitle}>Change Password</Text>
-            <Text style={styles.securityOptionDescription}>
-              Update your account password for enhanced security
-            </Text>
+      
+      {/* Logout Button */}
+      <TouchableOpacity style={styles.logout} onPress={logout}>
+        <Text style={styles.logoutText}>Log Out</Text>
+      </TouchableOpacity>
+      
+      {/* Edit Profile Modal */}
+      <Modal
+        visible={isEditModalVisible}
+        animationType="slide"
+        transparent={true}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Edit Profile</Text>
+            <TouchableOpacity
+              onPress={Platform.OS === 'web' ? pickImageWeb : pickImage}
+              style={styles.imagePicker}
+            >
+              <Image
+                source={
+                  Platform.OS === 'web'
+                    ? webPreviewUrl
+                      ? { uri: webPreviewUrl }
+                      : editedUser?.profilePic
+                        ? { uri: API_URL + editedUser.profilePic }
+                        : require('../../assets/profile-icon (2).png')
+                    : editedUser?.newProfilePicAsset
+                      ? { uri: editedUser.newProfilePicAsset.uri }
+                      : editedUser?.profilePic
+                        ? { uri: API_URL + editedUser.profilePic }
+                        : require('../../assets/profile-icon (2).png')
+                }
+                style={styles.modalAvatar}
+              />
+              <Text style={styles.imagePickerText}>Tap to change photo</Text>
+            </TouchableOpacity>
+            
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => setIsEditModalVisible(false)}
+              >
+                <Text style={styles.buttonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.saveButton]}
+                onPress={handleSaveProfile}
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <ActivityIndicator size="small" color="#00418b" />
+                ) : (
+                  <Text style={styles.buttonText}>Save</Text>
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
-          <Icon name="chevron-right" size={20} color="#666" />
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.securityOption}>
-          <Icon name="shield-check" size={24} color="#00418b" />
-          <View style={styles.securityOptionContent}>
-            <Text style={styles.securityOptionTitle}>Two-Factor Authentication</Text>
-            <Text style={styles.securityOptionDescription}>
-              Enable additional security for your account
-            </Text>
-          </View>
-          <Icon name="chevron-right" size={20} color="#666" />
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.securityOption}>
-          <Icon name="account-key" size={24} color="#00418b" />
-          <View style={styles.securityOptionContent}>
-            <Text style={styles.securityOptionTitle}>API Keys</Text>
-            <Text style={styles.securityOptionDescription}>
-              Manage your API access keys and permissions
-            </Text>
-          </View>
-          <Icon name="chevron-right" size={20} color="#666" />
-        </TouchableOpacity>
-      </View>
-
-      {/* Data Export */}
-      <View style={styles.profileSection}>
-        <Text style={styles.sectionTitle}>Data & Privacy</Text>
-        
-        <TouchableOpacity style={styles.dataOption}>
-          <Icon name="download" size={24} color="#00418b" />
-          <View style={styles.dataOptionContent}>
-            <Text style={styles.dataOptionTitle}>Export My Data</Text>
-            <Text style={styles.dataOptionDescription}>
-              Download a copy of your personal data
-            </Text>
-          </View>
-          <Icon name="chevron-right" size={20} color="#666" />
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.dataOption}>
-          <Icon name="delete" size={24} color="#F44336" />
-          <View style={styles.dataOptionContent}>
-            <Text style={[styles.dataOptionTitle, { color: '#F44336' }]}>
-              Delete Account
-            </Text>
-            <Text style={styles.dataOptionDescription}>
-              Permanently remove your account and all data
-            </Text>
-          </View>
-          <Icon name="chevron-right" size={20} color="#666" />
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
+        </View>
+      </Modal>
+      
+      {/* Hidden file input for web */}
+      {Platform.OS === 'web' && (
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          onChange={handleWebFileChange}
+          style={{ display: 'none' }}
+        />
+      )}
+    </View>
   );
 }
 
-const styles = StyleSheet.create({
+const styles = {
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  header: {
-    backgroundColor: '#00418b',
-    padding: 20,
-    paddingTop: 40,
-  },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#fff',
-    fontFamily: 'Poppins-Bold',
-  },
-  headerSubtitle: {
-    fontSize: 16,
-    color: '#e3f2fd',
-    marginTop: 4,
-    fontFamily: 'Poppins-Regular',
-  },
-  profilePictureSection: {
+    backgroundColor: '#f3f3f3',
     alignItems: 'center',
-    padding: 20,
-    backgroundColor: '#fff',
-    margin: 20,
-    borderRadius: 12,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
   },
-  profilePictureContainer: {
-    position: 'relative',
-    marginBottom: 16,
-  },
-  profilePicture: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-  },
-  changePictureButton: {
+  topBackground: {
     position: 'absolute',
-    bottom: 0,
-    right: 0,
+    top: 0,
+    left: 0,
+    width: '100%',
+    height: 180,
     backgroundColor: '#00418b',
-    width: 36,
-    height: 36,
+    borderBottomLeftRadius: 40,
+    borderBottomRightRadius: 40,
+    zIndex: 0,
+  },
+  avatarWrapper: {
+    position: 'absolute',
+    top: 110,
+    zIndex: 2,
+    alignSelf: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 60,
+    padding: 5,
+    elevation: 5,
+  },
+  avatar: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: '#eee',
+  },
+  card: {
+    marginTop: 90,
+    width: '90%',
+    backgroundColor: '#fff',
     borderRadius: 18,
     alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
+    paddingTop: '35%',
+    paddingBottom: 20,
+    paddingHorizontal: 20,
+    elevation: 6,
+    zIndex: 1,
   },
-  profileName: {
-    fontSize: 24,
+  name: {
+    fontSize: 22,
     fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 4,
     fontFamily: 'Poppins-Bold',
+    color: '#222',
+    marginBottom: 2,
   },
-  profilePosition: {
+  emoji: {
     fontSize: 18,
-    color: '#00418b',
-    marginBottom: 4,
-    fontFamily: 'Poppins-SemiBold',
   },
-  profileDepartment: {
+  email: {
     fontSize: 14,
-    color: '#666',
+    color: '#888',
+    fontFamily: 'Poppins-Regular',
+    marginBottom: 10,
+  },
+  row: {
+    flexDirection: 'row',
+    width: '100%',
+    justifyContent: 'space-between',
+    marginVertical: 10,
+  },
+  infoBox: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  infoLabel: {
+    fontSize: 13,
+    color: '#888',
     fontFamily: 'Poppins-Regular',
   },
-  actionButtons: {
-    paddingHorizontal: 20,
+  infoValue: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#00418b',
+    fontFamily: 'Poppins-SemiBold',
+  },
+  actionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginTop: 18,
+    marginBottom: 5,
+  },
+  actionBtn: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 10,
+  },
+  actionText: {
+    fontSize: 12,
+    color: '#00418b',
+    fontFamily: 'Poppins-Medium',
+    marginTop: 2,
+  },
+  logout: {
+    backgroundColor: '#00418b',
+    padding: 15,
+    width: '90%',
+    borderRadius: 50,
+    alignItems: 'center',
+    marginTop: 18,
     marginBottom: 20,
   },
-  editButton: {
-    backgroundColor: '#00418b',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-    borderRadius: 12,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  editButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-    marginLeft: 8,
+  logoutText: {
+    color: 'white',
     fontFamily: 'Poppins-SemiBold',
+    fontSize: 16,
   },
-  editActions: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  actionButton: {
+  modalContainer: {
     flex: 1,
-    paddingVertical: 16,
-    borderRadius: 12,
+    justifyContent: 'center',
     alignItems: 'center',
-    elevation: 2,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    padding: 16,
+  },
+  modalContent: {
+    width: '95%',
+    maxWidth: 400,
+    backgroundColor: '#00418b',
+    borderRadius: 28,
+    padding: 28,
+    alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.25,
     shadowRadius: 4,
+    elevation: 5,
+  },
+  modalTitle: {
+    color: 'white',
+    fontSize: 22,
+    fontWeight: 'bold',
+    marginBottom: 18,
+  },
+  imagePicker: {
+    alignItems: 'center',
+    marginBottom: 18,
+  },
+  modalAvatar: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#eee',
+  },
+  imagePickerText: {
+    color: 'white',
+    fontSize: 15,
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginTop: 18,
+  },
+  modalButton: {
+    flex: 1,
+    backgroundColor: 'white',
+    borderRadius: 30,
+    paddingVertical: 12,
+    marginHorizontal: 8,
+    alignItems: 'center',
+    elevation: 2,
   },
   cancelButton: {
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#ddd',
-  },
-  cancelButtonText: {
-    color: '#666',
-    fontSize: 16,
-    fontWeight: '600',
-    fontFamily: 'Poppins-SemiBold',
+    backgroundColor: 'white',
   },
   saveButton: {
-    backgroundColor: '#00418b',
+    backgroundColor: 'white',
   },
-  saveButtonDisabled: {
-    backgroundColor: '#ccc',
-  },
-  saveButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-    fontFamily: 'Poppins-SemiBold',
-  },
-  profileSection: {
-    backgroundColor: '#fff',
-    margin: 20,
-    marginTop: 0,
-    borderRadius: 12,
-    padding: 20,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  sectionTitle: {
-    fontSize: 18,
+  buttonText: {
+    color: '#00418b',
     fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 16,
-    fontFamily: 'Poppins-Bold',
-  },
-  fieldsGrid: {
-    flexDirection: 'row',
-    gap: 16,
-    marginBottom: 16,
-  },
-  fieldContainer: {
-    marginBottom: 16,
-  },
-  fieldLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
-    fontFamily: 'Poppins-SemiBold',
-  },
-  fieldValue: {
     fontSize: 16,
-    color: '#666',
-    fontFamily: 'Poppins-Regular',
   },
-  editableField: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    color: '#333',
-    backgroundColor: '#f9f9f9',
-    fontFamily: 'Poppins-Regular',
-  },
-  bioField: {
-    height: 100,
-    textAlignVertical: 'top',
-  },
-  bioValue: {
-    fontSize: 16,
-    color: '#666',
-    lineHeight: 24,
-    fontFamily: 'Poppins-Regular',
-  },
-  securityOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  securityOptionContent: {
-    flex: 1,
-    marginLeft: 16,
-  },
-  securityOptionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 4,
-    fontFamily: 'Poppins-SemiBold',
-  },
-  securityOptionDescription: {
-    fontSize: 14,
-    color: '#666',
-    fontFamily: 'Poppins-Regular',
-  },
-  dataOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  dataOptionContent: {
-    flex: 1,
-    marginLeft: 16,
-  },
-  dataOptionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 4,
-    fontFamily: 'Poppins-SemiBold',
-  },
-  dataOptionDescription: {
-    fontSize: 14,
-    color: '#666',
-    fontFamily: 'Poppins-Regular',
-  },
-});
+};

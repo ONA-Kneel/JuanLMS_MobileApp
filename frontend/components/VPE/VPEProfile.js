@@ -1,563 +1,450 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, TextInput, Alert, Image } from 'react-native';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import React, { useState, useRef } from 'react';
+import { View, Text, TouchableOpacity, Image, ScrollView, Alert, ActivityIndicator, Modal, TextInput } from 'react-native';
+import { MaterialIcons, Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../UserContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { addAuditLog } from '../Admin/auditTrailUtils';
+import * as ImagePicker from 'expo-image-picker';
+import { Platform } from 'react-native';
+
+// Helper to capitalize first letter of each word
+function capitalizeWords(str) {
+  return str.replace(/\b\w/g, char => char.toUpperCase());
+}
+
+const API_URL = 'https://juanlms-webapp-server.onrender.com';
 
 export default function VPEProfile() {
-  const { user, setUser } = useUser();
+  const { user, loading } = useUser();
   const navigation = useNavigation();
-  const [isEditing, setIsEditing] = useState(false);
-  const [editedProfile, setEditedProfile] = useState({
-    firstname: '',
-    lastname: '',
-    email: '',
-    phone: '',
-    department: '',
-    position: ''
-  });
+  const [isEditModalVisible, setIsEditModalVisible] = useState(false);
+  const [editedUser, setEditedUser] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const fileInputRef = useRef(null);
+  const [webPreviewUrl, setWebPreviewUrl] = useState(null);
 
-  useEffect(() => {
-    if (user) {
-      setEditedProfile({
-        firstname: user.firstname || '',
-        lastname: user.lastname || '',
-        email: user.email || '',
-        phone: user.phone || '',
-        department: user.department || 'Academic Affairs',
-        position: user.position || 'Vice President in Education'
-      });
+  const logout = async () => {
+    try {
+      if (user) {
+        await addAuditLog({
+          userId: user._id,
+          userName: user.firstname + ' ' + user.lastname,
+          userRole: user.role || 'vice president of education',
+          action: 'Logout',
+          details: `User ${user.email} logged out.`,
+          timestamp: new Date().toISOString(),
+        });
+      }
+      await AsyncStorage.removeItem('user');
+      await AsyncStorage.removeItem('jwtToken');
+      navigation.navigate('Login');
+    } catch (error) {
+      console.error('Logout error:', error);
+      Alert.alert('Error', 'Failed to logout. Please try again.');
     }
-  }, [user]);
+  };
 
-  // Show loading or error state if user is not available
+  const goToSupportCenter = () => {
+    navigation.navigate('VPESupportCenter');
+  };
+
+  const pickImage = async () => {
+    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (permissionResult.granted === false) {
+      Alert.alert('Permission required', 'Permission to access camera roll is required!');
+      return;
+    }
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+    });
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      setEditedUser(prev => ({
+        ...prev,
+        newProfilePicAsset: result.assets[0],
+      }));
+    }
+  };
+
+  // Web: handle file input change
+  const handleWebFileChange = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      setEditedUser(prev => ({
+        ...prev,
+        newProfilePicAsset: file,
+      }));
+      setWebPreviewUrl(URL.createObjectURL(file));
+    }
+  };
+
+  // Web: trigger file input
+  const pickImageWeb = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleSaveProfile = async () => {
+    setIsLoading(true);
+    try {
+      // In a real app, you'd make an API call to update the profile
+      // For now, just close the modal
+      setIsEditModalVisible(false);
+      Alert.alert('Success', 'Profile updated successfully!');
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      Alert.alert('Error', 'Failed to update profile. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <ActivityIndicator size="large" color="#00418b" />
+      </View>
+    );
+  }
+
   if (!user) {
     return (
       <View style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Profile</Text>
-          <Icon name="account" size={28} color="#00418b" />
-        </View>
-        <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading profile...</Text>
+        <View style={styles.topBackground} />
+        <View style={styles.card}>
+          <Text style={styles.name}>Profile Not Available</Text>
+          <TouchableOpacity 
+            style={[styles.logout, { marginTop: 20 }]} 
+            onPress={() => navigation.navigate('Login')}
+          >
+            <Text style={styles.logoutText}>Go to Login</Text>
+          </TouchableOpacity>
         </View>
       </View>
     );
   }
 
-  const handleSave = async () => {
-    if (!editedProfile.firstname.trim() || !editedProfile.lastname.trim() || !editedProfile.email.trim()) {
-      Alert.alert('Error', 'Please fill in all required fields');
-      return;
-    }
+  const goBack = () => navigation.goBack();
 
-    try {
-      // Update user profile
-      const updatedUser = { ...user, ...editedProfile };
-      setUser(updatedUser);
-
-      // Note: Audit logging would be implemented here in a real application
-
-      setIsEditing(false);
-      Alert.alert('Success', 'Profile updated successfully');
-    } catch (error) {
-      console.error('Error updating profile:', error);
-      Alert.alert('Error', 'Failed to update profile');
-    }
-  };
-
-  const handleCancel = () => {
-    setEditedProfile({
-      firstname: user.firstname || '',
-      lastname: user.lastname || '',
-      email: user.email || '',
-      phone: user.phone || '',
-      department: user.department || 'Academic Affairs',
-      position: user.position || 'Vice President in Education'
-    });
-    setIsEditing(false);
-  };
-
-  const ProfileField = ({ label, value, isEditing, onChangeText, placeholder, keyboardType = 'default' }) => (
-    <View style={styles.fieldContainer}>
-      <Text style={styles.fieldLabel}>{label}</Text>
-      {isEditing ? (
-        <TextInput
-          style={styles.input}
-          value={value}
-          onChangeText={onChangeText}
-          placeholder={placeholder}
-          keyboardType={keyboardType}
-          autoCapitalize="none"
-          autoCorrect={false}
+  return (
+    <View style={styles.container}>
+      {/* Back Button */}
+      <TouchableOpacity style={{ position: 'absolute', top: 40, left: 20, zIndex: 10 }} onPress={goBack}>
+        <MaterialIcons name="arrow-back" size={28} color="#fff" />
+      </TouchableOpacity>
+      
+      {/* Top curved background */}
+      <View style={styles.topBackground} />
+      
+      {/* Profile Image */}
+      <View style={styles.avatarWrapper}>
+        <Image
+          source={
+            user.profilePic
+              ? { uri: API_URL + user.profilePic }
+              : require('../../assets/profile-icon (2).png')
+          }
+          style={styles.avatar}
+          resizeMode="cover"
         />
-      ) : (
-        <Text style={styles.fieldValue}>{value || 'Not specified'}</Text>
+      </View>
+      
+      {/* Card */}
+      <View style={styles.card}>
+        <Text style={styles.name}>
+          {capitalizeWords(`${user.firstname || 'Vice President'} ${user.lastname || 'of Education'}`)}
+          <Text style={styles.emoji}>👨‍🏫</Text>
+        </Text>
+        <Text style={styles.email}>{user.email || 'vpe@juanlms.edu'}</Text>
+        <View style={styles.row}>
+          <View style={styles.infoBox}>
+            <Text style={styles.infoLabel}>Department</Text>
+            <Text style={styles.infoValue}>{user.department || 'Academic Affairs'}</Text>
+          </View>
+          <View style={styles.infoBox}>
+            <Text style={styles.infoLabel}>Role</Text>
+            <Text style={styles.infoValue}>VPE</Text>
+          </View>
+        </View>
+        <View style={styles.actionRow}>
+          <TouchableOpacity 
+            style={styles.actionBtn}
+            onPress={() => setIsEditModalVisible(true)}
+          >
+            <Feather name="edit" size={20} color="#00418b" />
+            <Text style={styles.actionText}>Edit</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.actionBtn}>
+            <Feather name="lock" size={20} color="#00418b" />
+            <Text style={styles.actionText}>Password</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.actionBtn}>
+            <Feather name="bell" size={20} color="#00418b" />
+            <Text style={styles.actionText}>Notify</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.actionBtn} onPress={goToSupportCenter}>
+            <Feather name="help-circle" size={20} color="#00418b" />
+            <Text style={styles.actionText}>Support</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+      
+      {/* Logout Button */}
+      <TouchableOpacity style={styles.logout} onPress={logout}>
+        <Text style={styles.logoutText}>Log Out</Text>
+      </TouchableOpacity>
+      
+      {/* Edit Profile Modal */}
+      <Modal
+        visible={isEditModalVisible}
+        animationType="slide"
+        transparent={true}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Edit Profile</Text>
+            <TouchableOpacity
+              onPress={Platform.OS === 'web' ? pickImageWeb : pickImage}
+              style={styles.imagePicker}
+            >
+              <Image
+                source={
+                  Platform.OS === 'web'
+                    ? webPreviewUrl
+                      ? { uri: webPreviewUrl }
+                      : editedUser?.profilePic
+                        ? { uri: API_URL + editedUser.profilePic }
+                        : require('../../assets/profile-icon (2).png')
+                    : editedUser?.newProfilePicAsset
+                      ? { uri: editedUser.newProfilePicAsset.uri }
+                      : editedUser?.profilePic
+                        ? { uri: API_URL + editedUser.profilePic }
+                        : require('../../assets/profile-icon (2).png')
+                }
+                style={styles.modalAvatar}
+              />
+              <Text style={styles.imagePickerText}>Tap to change photo</Text>
+            </TouchableOpacity>
+            
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => setIsEditModalVisible(false)}
+              >
+                <Text style={styles.buttonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.saveButton]}
+                onPress={handleSaveProfile}
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <ActivityIndicator size="small" color="#00418b" />
+                ) : (
+                  <Text style={styles.buttonText}>Save</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+      
+      {/* Hidden file input for web */}
+      {Platform.OS === 'web' && (
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          onChange={handleWebFileChange}
+          style={{ display: 'none' }}
+        />
       )}
     </View>
   );
-
-  return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Profile</Text>
-        <Icon name="account" size={28} color="#00418b" />
-      </View>
-
-      {/* Profile Picture Section */}
-      <View style={styles.profilePictureSection}>
-        <View style={styles.profilePictureContainer}>
-          <Image
-            source={require('../../assets/profile-icon (2).png')}
-            style={styles.profilePicture}
-            defaultSource={require('../../assets/profile-icon (2).png')}
-          />
-          {isEditing && (
-            <TouchableOpacity style={styles.changePictureButton}>
-              <Icon name="camera" size={20} color="#fff" />
-            </TouchableOpacity>
-          )}
-        </View>
-        <Text style={styles.roleText}>Vice President in Education</Text>
-      </View>
-
-      {/* Profile Information */}
-      <View style={styles.profileInfoContainer}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Personal Information</Text>
-          {!isEditing ? (
-            <TouchableOpacity 
-              style={styles.editButton}
-              onPress={() => setIsEditing(true)}
-            >
-              <Icon name="pencil" size={20} color="#00418b" />
-              <Text style={styles.editButtonText}>Edit</Text>
-            </TouchableOpacity>
-          ) : (
-            <View style={styles.editActions}>
-              <TouchableOpacity 
-                style={styles.cancelButton}
-                onPress={handleCancel}
-              >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={styles.saveButton}
-                onPress={handleSave}
-              >
-                <Text style={styles.saveButtonText}>Save</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </View>
-
-        <View style={styles.profileCard}>
-          <ProfileField
-            label="First Name"
-            value={editedProfile.firstname}
-            isEditing={isEditing}
-            onChangeText={(text) => setEditedProfile({...editedProfile, firstname: text})}
-            placeholder="Enter first name"
-          />
-
-          <ProfileField
-            label="Last Name"
-            value={editedProfile.lastname}
-            isEditing={isEditing}
-            onChangeText={(text) => setEditedProfile({...editedProfile, lastname: text})}
-            placeholder="Enter last name"
-          />
-
-          <ProfileField
-            label="Email"
-            value={editedProfile.email}
-            isEditing={isEditing}
-            onChangeText={(text) => setEditedProfile({...editedProfile, email: text})}
-            placeholder="Enter email address"
-            keyboardType="email-address"
-          />
-
-          <ProfileField
-            label="Phone"
-            value={editedProfile.phone}
-            isEditing={isEditing}
-            onChangeText={(text) => setEditedProfile({...editedProfile, phone: text})}
-            placeholder="Enter phone number"
-            keyboardType="phone-pad"
-          />
-
-          <ProfileField
-            label="Department"
-            value={editedProfile.department}
-            isEditing={isEditing}
-            onChangeText={(text) => setEditedProfile({...editedProfile, department: text})}
-            placeholder="Enter department"
-          />
-
-          <ProfileField
-            label="Position"
-            value={editedProfile.position}
-            isEditing={isEditing}
-            onChangeText={(text) => setEditedProfile({...editedProfile, position: text})}
-            placeholder="Enter position"
-          />
-        </View>
-      </View>
-
-      {/* Account Information */}
-      <View style={styles.accountInfoContainer}>
-        <Text style={styles.sectionTitle}>Account Information</Text>
-        <View style={styles.profileCard}>
-          <View style={styles.fieldContainer}>
-            <Text style={styles.fieldLabel}>User ID</Text>
-            <Text style={styles.fieldValue}>{user?._id || 'N/A'}</Text>
-          </View>
-
-          <View style={styles.fieldContainer}>
-            <Text style={styles.fieldLabel}>Role</Text>
-            <Text style={styles.fieldValue}>Vice President in Education</Text>
-          </View>
-
-          <View style={styles.fieldContainer}>
-            <Text style={styles.fieldLabel}>Account Created</Text>
-            <Text style={styles.fieldValue}>
-              {user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}
-            </Text>
-          </View>
-
-          <View style={styles.fieldContainer}>
-            <Text style={styles.fieldLabel}>Last Login</Text>
-            <Text style={styles.fieldValue}>
-              {user?.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : 'N/A'}
-            </Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Support Center Section */}
-      <View style={styles.supportSection}>
-        <Text style={styles.sectionTitle}>Support Center</Text>
-        <View style={styles.supportCard}>
-          <View style={styles.supportHeader}>
-            <Icon name="help-circle" size={24} color="#00418b" />
-            <Text style={styles.supportTitle}>Need Help?</Text>
-          </View>
-          <Text style={styles.supportDescription}>
-            Get assistance with system issues, report bugs, or request new features.
-          </Text>
-          
-          <View style={styles.supportActions}>
-            <TouchableOpacity 
-              style={styles.supportActionButton}
-              onPress={() => navigation.navigate('VPESupportCenter')}
-            >
-              <Icon name="plus-circle" size={20} color="#fff" />
-              <Text style={styles.supportActionText}>Create Ticket</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={styles.supportActionButton}
-              onPress={() => navigation.navigate('VPESupportCenter')}
-            >
-              <Icon name="eye" size={20} color="#fff" />
-              <Text style={styles.supportActionText}>View Tickets</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-
-      {/* Quick Actions */}
-      <View style={styles.quickActionsContainer}>
-        <Text style={styles.sectionTitle}>Quick Actions</Text>
-        <View style={styles.quickActionsGrid}>
-          <TouchableOpacity style={styles.quickActionCard}>
-            <Icon name="lock" size={24} color="#00418b" />
-            <Text style={styles.quickActionTitle}>Change Password</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.quickActionCard}>
-            <Icon name="bell" size={24} color="#00418b" />
-            <Text style={styles.quickActionTitle}>Notifications</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.quickActionCard}>
-            <Icon name="shield" size={24} color="#00418b" />
-            <Text style={styles.quickActionTitle}>Privacy Settings</Text>
-          </TouchableOpacity>
-
-
-        </View>
-      </View>
-
-      {/* Logout Button */}
-      <TouchableOpacity style={styles.logoutButton}>
-        <Icon name="logout" size={20} color="#ff6b6b" />
-        <Text style={styles.logoutButtonText}>Logout</Text>
-      </TouchableOpacity>
-    </ScrollView>
-  );
 }
 
-const styles = StyleSheet.create({
+const styles = {
   container: {
     flex: 1,
-    backgroundColor: '#f7f9fa',
-    padding: 16,
-  },
-  header: {
-    flexDirection: 'row',
+    backgroundColor: '#f3f3f3',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 24,
   },
-  headerTitle: {
+  topBackground: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: '100%',
+    height: 180,
+    backgroundColor: '#00418b',
+    borderBottomLeftRadius: 40,
+    borderBottomRightRadius: 40,
+    zIndex: 0,
+  },
+  avatarWrapper: {
+    position: 'absolute',
+    top: 110,
+    zIndex: 2,
+    alignSelf: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 60,
+    padding: 5,
+    elevation: 5,
+  },
+  avatar: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: '#eee',
+  },
+  card: {
+    marginTop: 90,
+    width: '90%',
+    backgroundColor: '#fff',
+    borderRadius: 18,
+    alignItems: 'center',
+    paddingTop: '35%',
+    paddingBottom: 20,
+    paddingHorizontal: 20,
+    elevation: 6,
+    zIndex: 1,
+  },
+  name: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: '#00418b',
     fontFamily: 'Poppins-Bold',
+    color: '#222',
+    marginBottom: 2,
   },
-  profilePictureSection: {
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  profilePictureContainer: {
-    position: 'relative',
-    marginBottom: 16,
-  },
-  profilePicture: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    borderWidth: 4,
-    borderColor: '#00418b',
-  },
-  changePictureButton: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    backgroundColor: '#00418b',
-    borderRadius: 20,
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 3,
-    borderColor: '#fff',
-  },
-  roleText: {
-    fontSize: 16,
-    color: '#666',
-    fontFamily: 'Poppins-Medium',
-  },
-  profileInfoContainer: {
-    marginBottom: 24,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  sectionTitle: {
+  emoji: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    fontFamily: 'Poppins-SemiBold',
   },
-  editButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f0f0f0',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  editButtonText: {
-    color: '#00418b',
+  email: {
     fontSize: 14,
-    fontWeight: '600',
-    marginLeft: 4,
-    fontFamily: 'Poppins-SemiBold',
-  },
-  editActions: {
-    flexDirection: 'row',
-  },
-  cancelButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-    marginRight: 8,
-  },
-  cancelButtonText: {
-    color: '#666',
-    fontSize: 14,
-    fontWeight: '600',
-    fontFamily: 'Poppins-SemiBold',
-  },
-  saveButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-    backgroundColor: '#00418b',
-  },
-  saveButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-    fontFamily: 'Poppins-SemiBold',
-  },
-  profileCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  fieldContainer: {
-    marginBottom: 16,
-  },
-  fieldLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#666',
-    marginBottom: 8,
-    fontFamily: 'Poppins-SemiBold',
-  },
-  fieldValue: {
-    fontSize: 16,
-    color: '#333',
+    color: '#888',
     fontFamily: 'Poppins-Regular',
+    marginBottom: 10,
   },
-  input: {
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    color: '#333',
-    fontFamily: 'Poppins-Regular',
-    backgroundColor: '#f9f9f9',
-  },
-  accountInfoContainer: {
-    marginBottom: 24,
-  },
-  quickActionsContainer: {
-    marginBottom: 24,
-  },
-  quickActionsGrid: {
+  row: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    width: '100%',
     justifyContent: 'space-between',
+    marginVertical: 10,
   },
-  quickActionCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    width: '48%',
-    marginBottom: 12,
+  infoBox: {
+    flex: 1,
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
   },
-  quickActionTitle: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#333',
-    marginTop: 8,
-    textAlign: 'center',
+  infoLabel: {
+    fontSize: 13,
+    color: '#888',
+    fontFamily: 'Poppins-Regular',
+  },
+  infoValue: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#00418b',
     fontFamily: 'Poppins-SemiBold',
   },
-  logoutButton: {
+  actionRow: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginTop: 18,
+    marginBottom: 5,
+  },
+  actionBtn: {
+    flex: 1,
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#fff',
-    paddingVertical: 16,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#ff6b6b',
+    paddingVertical: 10,
+  },
+  actionText: {
+    fontSize: 12,
+    color: '#00418b',
+    fontFamily: 'Poppins-Medium',
+    marginTop: 2,
+  },
+  logout: {
+    backgroundColor: '#00418b',
+    padding: 15,
+    width: '90%',
+    borderRadius: 50,
+    alignItems: 'center',
+    marginTop: 18,
     marginBottom: 20,
   },
-  logoutButtonText: {
-    color: '#ff6b6b',
+  logoutText: {
+    color: 'white',
+    fontFamily: 'Poppins-SemiBold',
     fontSize: 16,
-    fontWeight: '600',
-    marginLeft: 8,
-    fontFamily: 'Poppins-SemiBold',
   },
-  
-  // Support Center Styles
-  supportSection: {
-    marginBottom: 24,
-  },
-  supportCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  supportHeader: {
-    flexDirection: 'row',
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 12,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    padding: 16,
   },
-  supportTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-    marginLeft: 8,
-    fontFamily: 'Poppins-SemiBold',
+  modalContent: {
+    width: '95%',
+    maxWidth: 400,
+    backgroundColor: '#00418b',
+    borderRadius: 28,
+    padding: 28,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
   },
-  supportDescription: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 16,
-    fontFamily: 'Poppins-Regular',
-    lineHeight: 20,
+  modalTitle: {
+    color: 'white',
+    fontSize: 22,
+    fontWeight: 'bold',
+    marginBottom: 18,
   },
-  supportActions: {
+  imagePicker: {
+    alignItems: 'center',
+    marginBottom: 18,
+  },
+  modalAvatar: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#eee',
+  },
+  imagePickerText: {
+    color: 'white',
+    fontSize: 15,
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  modalButtons: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    width: '100%',
+    marginTop: 18,
   },
-  supportActionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#00418b',
-    paddingHorizontal: 16,
+  modalButton: {
+    flex: 1,
+    backgroundColor: 'white',
+    borderRadius: 30,
     paddingVertical: 12,
-    borderRadius: 8,
-    flex: 1,
-    marginHorizontal: 4,
-    justifyContent: 'center',
-  },
-  supportActionText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-    marginLeft: 8,
-    fontFamily: 'Poppins-SemiBold',
-  },
-  
-  // Loading state styles
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
+    marginHorizontal: 8,
     alignItems: 'center',
-    padding: 20,
+    elevation: 2,
   },
-  loadingText: {
+  cancelButton: {
+    backgroundColor: 'white',
+  },
+  saveButton: {
+    backgroundColor: 'white',
+  },
+  buttonText: {
+    color: '#00418b',
+    fontWeight: 'bold',
     fontSize: 16,
-    color: '#666',
-    fontFamily: 'Poppins-Regular',
   },
-});
+};
