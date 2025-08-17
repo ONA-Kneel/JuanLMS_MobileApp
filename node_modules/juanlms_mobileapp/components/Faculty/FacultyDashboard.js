@@ -13,6 +13,7 @@ export default function FacultyDashboard() {
   const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [academicContext, setAcademicContext] = useState('2025-2026 | Term 1');
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -37,7 +38,36 @@ export default function FacultyDashboard() {
       try {
         const token = await AsyncStorage.getItem('jwtToken');
         console.log('Fetching classes for faculty:', user._id);
-        const response = await fetch(`https://juanlms-webapp-server.onrender.com/api/classes/faculty-classes`, {
+        // First, get the current active academic year and term
+        const academicResponse = await fetch(`https://juanlms-webapp-server.onrender.com/api/academic-year/active`, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+        });
+
+        let activeYear = '2025-2026';
+        let activeTerm = 'Term 1';
+        
+        if (academicResponse.ok) {
+          const academicData = await academicResponse.json();
+          if (academicData.success && academicData.academicYear) {
+            activeYear = academicData.academicYear.year;
+            activeTerm = academicData.academicYear.currentTerm;
+          }
+        } else {
+          console.log('Academic year API not available, using default values');
+        }
+
+        console.log('Active Academic Year:', activeYear, 'Term:', activeTerm);
+        
+        // Update academic context for display
+        setAcademicContext(`${activeYear} | ${activeTerm}`);
+
+        // Fetch classes for the current active term
+        const response = await fetch(`https://juanlms-webapp-server.onrender.com/api/classes/faculty-classes?academicYear=${activeYear}&term=${activeTerm}`, {
           method: 'GET',
           headers: {
             'Accept': 'application/json',
@@ -52,16 +82,49 @@ export default function FacultyDashboard() {
         
         const data = await response.json();
         console.log('API Response:', data);
+        
+        let allClasses = [];
         if (Array.isArray(data)) {
-          setClasses(data);
-          setError(null);
+          allClasses = data;
         } else if (data.success && Array.isArray(data.classes)) {
-          setClasses(data.classes);
-          setError(null);
+          allClasses = data.classes;
         } else {
           setClasses([]);
           setError(data.error || 'Failed to fetch classes');
+          return;
         }
+
+        // Filter classes by active term and status
+        const filteredClasses = allClasses.filter(classItem => {
+          // Skip if no class data
+          if (!classItem) return false;
+          
+          // Check if class belongs to current active term
+          const classYear = classItem.academicYear || classItem.year;
+          const classTerm = classItem.term || classItem.termName;
+          
+          const isCurrentTerm = classYear === activeYear && classTerm === activeTerm;
+          
+          // Check if class is active (not completed/archived)
+          const isActive = !classItem.isCompleted && 
+                          !classItem.status === 'completed' && 
+                          !classItem.isArchived &&
+                          classItem.status !== 'archived';
+          
+          console.log(`Class: ${classItem.className || classItem.name}`, {
+            year: classYear,
+            term: classTerm,
+            isCurrentTerm,
+            isActive,
+            status: classItem.status
+          });
+          
+          return isCurrentTerm && isActive;
+        });
+
+        console.log('Filtered classes for current term:', filteredClasses.length);
+        setClasses(filteredClasses);
+        setError(null);
       } catch (error) {
         console.error('Network error fetching classes:', error);
         setClasses([]);
@@ -114,7 +177,8 @@ export default function FacultyDashboard() {
                       <Text style={FacultyDashStyle.headerTitle}>
               Hello, <Text style={{ fontWeight: 'bold', fontFamily: 'Poppins-Bold' }}>{user?.firstname || 'Faculty'}!</Text>
             </Text>
-            <Text style={FacultyDashStyle.headerSubtitle}>{formatDateTime(currentDateTime)}</Text>
+            <Text style={FacultyDashStyle.headerSubtitle}>{academicContext}</Text>
+            <Text style={FacultyDashStyle.headerSubtitle2}>{formatDateTime(currentDateTime)}</Text>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           
