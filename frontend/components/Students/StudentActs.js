@@ -29,6 +29,12 @@ function Upcoming({ activities, onActivityPress }) {
         <Text style={styles.emptyTabText}>
           You have no upcoming assignments or activities due.
         </Text>
+        {/* Debug section - remove in production */}
+        <View style={{ marginTop: 20, padding: 10, backgroundColor: '#f0f0f0', borderRadius: 8 }}>
+          <Text style={{ fontSize: 12, color: '#666', fontFamily: 'monospace' }}>
+            Debug: Check console for activities data
+          </Text>
+        </View>
       </View>
     );
   }
@@ -259,53 +265,71 @@ export default function StudentActs() {
         throw new Error('No authentication token found');
       }
 
-      // Fetch assignments
-      const assignmentsResponse = await fetch(`${API_BASE}/assignments`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-
       let allActivities = [];
-      
-      if (assignmentsResponse.ok) {
-        const assignments = await assignmentsResponse.json();
-        const userAssignments = assignments.filter(assignment => {
-          return assignment.members && assignment.members.includes(user._id);
-        });
 
-        allActivities = userAssignments.map(assignment => ({
-          ...assignment,
-          type: 'assignment',
-          dueDate: assignment.dueDate,
-          points: assignment.points || 0,
-          className: assignment.className || 'Unknown Class'
-        }));
-      }
-
-      // Fetch quizzes
-      const quizzesResponse = await fetch(`${API_BASE}/api/quizzes`, {
+      // First, get the user's classes
+      const classesResponse = await fetch(`${API_BASE}/api/classes`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
-      if (quizzesResponse.ok) {
-        const quizzes = await quizzesResponse.json();
-        const userQuizzes = quizzes.filter(quiz => {
-          return quiz.classID && quiz.members && quiz.members.includes(user._id);
-        });
+      if (classesResponse.ok) {
+        const classesData = await classesResponse.json();
+        const userClasses = classesData.success ? classesData.classes : classesData;
+        
+        if (Array.isArray(userClasses) && userClasses.length > 0) {
+          // Fetch assignments for each class
+          for (const classObj of userClasses) {
+            try {
+              const assignmentsResponse = await fetch(`${API_BASE}/assignments?classID=${classObj.classID}`, {
+                headers: { Authorization: `Bearer ${token}` }
+              });
 
-        const quizActivities = userQuizzes.map(quiz => ({
-          ...quiz,
-          type: 'quiz',
-          dueDate: quiz.endDate || quiz.dueDate,
-          points: quiz.points || 0,
-          className: quiz.className || 'Unknown Class'
-        }));
+              if (assignmentsResponse.ok) {
+                const assignments = await assignmentsResponse.json();
+                const classAssignments = assignments.map(assignment => ({
+                  ...assignment,
+                  type: 'assignment',
+                  dueDate: assignment.dueDate,
+                  points: assignment.points || 0,
+                  className: classObj.className || 'Unknown Class'
+                }));
+                allActivities = [...allActivities, ...classAssignments];
+              }
+            } catch (err) {
+              console.log(`Error fetching assignments for class ${classObj.classID}:`, err);
+            }
+          }
 
-        allActivities = [...allActivities, ...quizActivities];
+          // Fetch quizzes for each class
+          for (const classObj of userClasses) {
+            try {
+              const quizzesResponse = await fetch(`${API_BASE}/api/quizzes?classID=${classObj.classID}`, {
+                headers: { Authorization: `Bearer ${token}` }
+              });
+
+              if (quizzesResponse.ok) {
+                const quizzes = await quizzesResponse.json();
+                const classQuizzes = quizzes.map(quiz => ({
+                  ...quiz,
+                  type: 'quiz',
+                  dueDate: quiz.endDate || quiz.dueDate,
+                  points: quiz.points || 0,
+                  className: classObj.className || 'Unknown Class'
+                }));
+                allActivities = [...allActivities, ...classQuizzes];
+              }
+            } catch (err) {
+              console.log(`Error fetching quizzes for class ${classObj.classID}:`, err);
+            }
+          }
+        }
       }
 
       // Sort activities by due date
       allActivities.sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
       
+      console.log('Fetched activities for StudentActs:', allActivities);
+      console.log('Total activities count:', allActivities.length);
       setActivities(allActivities);
     } catch (err) {
       console.error('Error fetching activities:', err);
@@ -355,24 +379,30 @@ export default function StudentActs() {
 
   const getUpcomingActivities = () => {
     const now = new Date();
-    return activities.filter(activity => {
+    const upcoming = activities.filter(activity => {
       const dueDate = new Date(activity.dueDate);
       return dueDate > now;
     });
+    console.log('Upcoming activities:', upcoming);
+    return upcoming;
   };
 
   const getPastDueActivities = () => {
     const now = new Date();
-    return activities.filter(activity => {
+    const pastDue = activities.filter(activity => {
       const dueDate = new Date(activity.dueDate);
       return dueDate < now && !activity.submittedAt && !activity.completedAt;
     });
+    console.log('Past due activities:', pastDue);
+    return pastDue;
   };
 
   const getCompletedActivities = () => {
-    return activities.filter(activity => {
+    const completed = activities.filter(activity => {
       return activity.submittedAt || activity.completedAt;
     });
+    console.log('Completed activities:', completed);
+    return completed;
   };
 
   const renderTabContent = () => {
