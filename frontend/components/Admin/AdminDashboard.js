@@ -335,6 +335,36 @@ export default function AdminDashboard() {
            </View>
          </View>
 
+         {/* Debug Info - Temporary */}
+         <View style={{ backgroundColor: '#f0f8ff', padding: 16, borderRadius: 12, marginBottom: 20 }}>
+           <Text style={{ fontFamily: 'Poppins-Bold', color: '#00418b', marginBottom: 8 }}>Debug Info</Text>
+           <Text style={{ fontFamily: 'Poppins-Regular', color: '#666', fontSize: 12 }}>
+             Admin: {userStats.admin} | Faculty: {userStats.faculty} | Student: {userStats.student} | VPE: {userStats.vpe} | Principal: {userStats.principal}
+           </Text>
+           <TouchableOpacity 
+             style={{ 
+               backgroundColor: '#00418b', 
+               padding: 8, 
+               borderRadius: 6, 
+               marginTop: 8,
+               alignSelf: 'center'
+             }}
+             onPress={async () => {
+               try {
+                 const data = await adminService.getUserStats();
+                 console.log('Manual refresh user stats:', data);
+                 setUserStats(data);
+               } catch (error) {
+                 console.error('Manual refresh failed:', error);
+               }
+             }}
+           >
+             <Text style={{ color: '#fff', fontFamily: 'Poppins-Regular', fontSize: 12 }}>
+               Refresh User Stats
+             </Text>
+           </TouchableOpacity>
+         </View>
+
         {/* Progress Bars */}
         <View style={AdminDashStyle.progressSection}>
           <Text style={AdminDashStyle.sectionTitle}>Progress Tracking</Text>

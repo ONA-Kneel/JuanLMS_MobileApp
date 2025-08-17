@@ -44,18 +44,74 @@ class AdminService {
      // Get user statistics (matches web app /user-counts endpoint)
    async getUserStats() {
      try {
+       // Try the web app endpoint first (which should have all roles)
        const response = await this.makeRequest('/user-counts');
-       // Ensure all role counts are included with fallbacks
-       return {
-         admin: response?.admin || 0,
-         faculty: response?.faculty || 0,
-         student: response?.student || 0,
-         vpe: response?.vpe || 0,
-         principal: response?.principal || 0
+       console.log('User stats API response from /user-counts:', response);
+       
+       // Map different possible field names to our expected format
+       const stats = {
+         admin: response?.admin || response?.admins || response?.administrator || 0,
+         faculty: response?.faculty || response?.faculties || response?.teachers || 0,
+         student: response?.student || response?.students || response?.learners || 0,
+         vpe: response?.vpe || response?.vpes || response?.vicePresident || 0,
+         principal: response?.principal || response?.principals || response?.director || 0
        };
+       
+       console.log('Mapped user stats:', stats);
+       return stats;
      } catch (error) {
-       console.error('Error fetching user stats:', error);
-       // Return default values if API fails
+       console.error('Error fetching user stats from /user-counts, trying /api/admin/user-stats:', error);
+       
+       // Try the local backend endpoint
+       try {
+         const localResponse = await this.makeRequest('/api/admin/user-stats');
+         console.log('Local backend user stats response:', localResponse);
+         
+         const stats = {
+           admin: localResponse?.admin || localResponse?.admins || 0,
+           faculty: localResponse?.faculty || 0,
+           student: localResponse?.student || localResponse?.students || 0,
+           vpe: 0, // Local backend doesn't have these roles yet
+           principal: 0
+         };
+         
+         console.log('Local backend mapped stats:', stats);
+         return stats;
+       } catch (localError) {
+         console.error('Local backend also failed, trying fallback method:', localError);
+         
+         // Final fallback: fetch all users and count by role
+         try {
+           const usersResponse = await this.makeRequest('/users');
+           console.log('Fallback users API response:', usersResponse);
+           
+           if (usersResponse && Array.isArray(usersResponse)) {
+             const roleCounts = {
+               admin: 0,
+               faculty: 0,
+               student: 0,
+               vpe: 0,
+               principal: 0
+             };
+             
+             usersResponse.forEach(user => {
+               const role = user.role?.toLowerCase();
+               if (role === 'admin' || role === 'administrator') roleCounts.admin++;
+               else if (role === 'faculty' || role === 'teacher') roleCounts.faculty++;
+               else if (role === 'student' || role === 'learner') roleCounts.student++;
+               else if (role === 'vpe' || role === 'vicepresident') roleCounts.vpe++;
+               else if (role === 'principal' || role === 'director') roleCounts.principal++;
+             });
+             
+             console.log('Fallback role counts:', roleCounts);
+             return roleCounts;
+           }
+         } catch (fallbackError) {
+           console.error('Fallback method also failed:', fallbackError);
+         }
+       }
+       
+       // Return default values if all methods fail
        return { admin: 0, faculty: 0, student: 0, vpe: 0, principal: 0 };
      }
    }
