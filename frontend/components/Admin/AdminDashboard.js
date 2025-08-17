@@ -64,14 +64,14 @@ export default function AdminDashboard() {
         console.error('Error fetching dashboard data:', error);
         setError('Failed to load dashboard data');
         
-        // Fallback to mock data if all else fails
-        setUserStats({ admin: 1, faculty: 8, student: 17 });
-        setLastLogins([
-          { userName: 'Rochelle Borre', role: 'students', lastLogin: '2025-07-22T00:06:11' },
-          { userName: 'Niel Nathan Borre', role: 'faculty', lastLogin: '2025-07-20T23:23:40' },
-          { userName: 'Roman Cyril Panganiban', role: 'principal', lastLogin: '2025-07-13T01:59:20' },
-          { userName: 'hatdog asd', role: 'students', lastLogin: '2025-07-05T19:04:07' },
-        ]);
+                 // Fallback to mock data if all else fails
+         setUserStats({ admin: 1, faculty: 8, student: 17 });
+         setLastLogins([
+           { userName: 'Rochelle Borre', role: 'students' },
+           { userName: 'Niel Nathan Borre', role: 'faculty' },
+           { userName: 'Roman Cyril Panganiban', role: 'principal' },
+           { userName: 'hatdog asd', role: 'students' },
+         ]);
         setRecentLogs([
           { timestamp: '2025-08-03T12:43:56', userName: 'Will Bianca', action: 'Login' },
           { timestamp: '2025-07-22T00:06:11', userName: 'Rochelle Borre', action: 'Login' },
@@ -222,18 +222,7 @@ export default function AdminDashboard() {
     }
   };
 
-  // Helper function to get row color based on last login
-  const getRowColor = (lastLogin) => {
-    if (!lastLogin) return '#f0f0f0';
-    const now = new Date();
-    const loginDate = new Date(lastLogin);
-    const diffDays = Math.floor((now - loginDate) / (1000 * 60 * 60 * 24));
-    
-    if (diffDays >= 3) return '#fee2e2'; // red
-    if (diffDays === 2) return '#fef3c7'; // yellow
-    if (diffDays <= 1) return '#dcfce7'; // green
-    return '#f0f0f0';
-  };
+  
 
   // Format date for display
   const formatDate = (dateString) => {
@@ -365,42 +354,38 @@ export default function AdminDashboard() {
           </View>
         </View>
 
-        {/* Last Logins Table */}
-        <View style={AdminDashStyle.tableSection}>
-          <Text style={AdminDashStyle.sectionTitle}>Recent Logins</Text>
-          <View style={AdminDashStyle.tableCard}>
-            <View style={AdminDashStyle.tableHeader}>
-              <Text style={[AdminDashStyle.tableHeaderText, { flex: 2 }]}>User</Text>
-              <Text style={[AdminDashStyle.tableHeaderText, { flex: 1 }]}>Role</Text>
-              <Text style={[AdminDashStyle.tableHeaderText, { flex: 2 }]}>Last Login</Text>
-            </View>
-            {lastLogins.length > 0 ? (
-              lastLogins.map((login, index) => (
-                <View 
-                  key={index} 
-                  style={[
-                AdminDashStyle.tableRow,
-                    { backgroundColor: getRowColor(login.lastLogin) }
-                  ]}
-                >
-                  <Text style={[AdminDashStyle.tableCellText, { flex: 2 }]} numberOfLines={1}>
-                    {login.userName}
-                  </Text>
-                  <Text style={[AdminDashStyle.tableCellText, { flex: 1 }]} numberOfLines={1}>
-                    {login.role}
-                  </Text>
-                  <Text style={[AdminDashStyle.tableCellText, { flex: 2 }]} numberOfLines={1}>
-                    {formatDate(login.lastLogin)}
-                </Text>
-                </View>
-              ))
-            ) : (
-              <View style={AdminDashStyle.emptyState}>
-                <Text style={AdminDashStyle.emptyStateText}>No recent logins found</Text>
-              </View>
-            )}
-          </View>
-        </View>
+                 {/* Recent Logins Table */}
+         <View style={AdminDashStyle.tableSection}>
+           <Text style={AdminDashStyle.sectionTitle}>Recent Logins</Text>
+           <View style={AdminDashStyle.tableCard}>
+             <View style={AdminDashStyle.tableHeader}>
+               <Text style={[AdminDashStyle.tableHeaderText, { flex: 3 }]}>User</Text>
+               <Text style={[AdminDashStyle.tableHeaderText, { flex: 2 }]}>Role</Text>
+             </View>
+             {lastLogins.length > 0 ? (
+               lastLogins.map((login, index) => (
+                 <View 
+                   key={index} 
+                   style={[
+                     AdminDashStyle.tableRow,
+                     { backgroundColor: index % 2 === 0 ? '#ffffff' : '#f8f9fa' }
+                   ]}
+                 >
+                   <Text style={[AdminDashStyle.tableCellText, { flex: 3 }]} numberOfLines={1}>
+                     {login.userName}
+                   </Text>
+                   <Text style={[AdminDashStyle.tableCellText, { flex: 2 }]} numberOfLines={1}>
+                     {login.role}
+                   </Text>
+                 </View>
+               ))
+             ) : (
+               <View style={AdminDashStyle.emptyState}>
+                 <Text style={AdminDashStyle.emptyStateText}>No recent logins found</Text>
+               </View>
+             )}
+           </View>
+         </View>
 
         {/* Audit Trail Preview */}
         <View style={AdminDashStyle.tableSection}>

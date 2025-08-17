@@ -46,10 +46,23 @@ class AdminService {
     return this.makeRequest('/user-counts');
   }
 
-  // Get recent login history from audit logs
-  async getRecentLogins(limit = 10) {
-    return this.makeRequest(`/audit-logs?page=1&limit=${limit}&action=Login`);
-  }
+     // Get recent login history from audit logs
+   async getRecentLogins(limit = 10) {
+     try {
+       const response = await this.makeRequest(`/audit-logs?page=1&limit=${limit}&action=Login`);
+       if (response && response.logs) {
+         // Transform the data to only include userName and role
+         return response.logs.map(log => ({
+           userName: log.userName || 'Unknown User',
+           role: log.userRole || 'Unknown Role'
+         }));
+       }
+       return [];
+     } catch (error) {
+       console.error('Error fetching recent logins:', error);
+       return [];
+     }
+   }
 
   // Get audit trail preview (matches web app /audit-logs endpoint)
   async getAuditPreview(limit = 10) {
@@ -161,13 +174,13 @@ class AdminService {
         this.getAcademicProgress()
       ]);
 
-      return {
-        userStats,
-        recentLogins: recentLogins?.logs || [],
-        auditPreview: auditPreview?.logs || [],
-        activeUsers,
-        academicProgress
-      };
+             return {
+         userStats,
+         recentLogins: recentLogins || [],
+         auditPreview: auditPreview?.logs || [],
+         activeUsers,
+         academicProgress
+       };
     } catch (error) {
       console.error('Error fetching dashboard summary:', error);
       throw error;
