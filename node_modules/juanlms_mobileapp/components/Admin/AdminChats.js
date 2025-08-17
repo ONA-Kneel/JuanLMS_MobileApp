@@ -26,24 +26,39 @@ const SOCKET_URL = 'https://juanlms-webapp-server.onrender.com';
 
 // Helper function to format timestamp
 const formatTimestamp = (timestamp) => {
-  if (!timestamp) return '';
+  if (!timestamp) {
+    console.log('formatTimestamp: No timestamp provided');
+    return '';
+  }
   
-  const date = new Date(timestamp);
-  const now = new Date();
-  const diffInHours = (now - date) / (1000 * 60 * 60);
-  
-  if (diffInHours < 24) {
-    // Today - show time
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  } else if (diffInHours < 48) {
-    // Yesterday
-    return 'Yesterday';
-  } else if (diffInHours < 168) {
-    // Within a week - show day name
-    return date.toLocaleDateString([], { weekday: 'short' });
-  } else {
-    // Older - show date
-    return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  try {
+    const date = new Date(timestamp);
+    
+    // Check if date is valid
+    if (isNaN(date.getTime())) {
+      console.log('formatTimestamp: Invalid date:', timestamp);
+      return '';
+    }
+    
+    const now = new Date();
+    const diffInHours = (now - date) / (1000 * 60 * 60);
+    
+    if (diffInHours < 24) {
+      // Today - show time
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } else if (diffInHours < 48) {
+      // Yesterday
+      return 'Yesterday';
+    } else if (diffInHours < 168) {
+      // Within a week - show day name
+      return date.toLocaleDateString([], { weekday: 'short' });
+    } else {
+      // Older - show date
+      return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+    }
+  } catch (error) {
+    console.error('formatTimestamp error:', error, 'timestamp:', timestamp);
+    return '';
   }
 };
 
@@ -191,7 +206,7 @@ export default function AdminChats() {
       try {
         setLoading(true);
         const token = await AsyncStorage.getItem('jwtToken');
-        const response = await fetch(`${API_BASE}/users`, {
+        const response = await fetch(`${API_BASE}/api/users`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
@@ -257,6 +272,7 @@ export default function AdminChats() {
         
         if (response.ok) {
           const recentChatsData = await response.json();
+          console.log('Recent chats data received:', recentChatsData);
           
           // Update recentChats with actual chat data and add _id field for UI compatibility
           const recentChatsWithId = recentChatsData.map(chat => ({
@@ -278,15 +294,26 @@ export default function AdminChats() {
                   ? chat.lastMessage.message 
                   : (chat.lastMessage.fileUrl ? 'File sent' : '');
                 
+                // Ensure timestamp is properly parsed as a Date object
+                let timestamp = chat.lastMessage.timestamp;
+                if (timestamp && typeof timestamp === 'string') {
+                  timestamp = new Date(timestamp);
+                } else if (!timestamp) {
+                  timestamp = new Date(); // Fallback to current time
+                }
+                
+                console.log(`Chat ${chat.partnerId} timestamp:`, timestamp, 'Type:', typeof timestamp);
+                
                 lastMessagesWithTimestamps[chat.partnerId] = {
                   prefix,
                   text,
-                  timestamp: chat.lastMessage.timestamp
+                  timestamp: timestamp
                 };
               }
             }
           });
           
+          console.log('Last messages with timestamps:', lastMessagesWithTimestamps);
           setLastMessages(lastMessagesWithTimestamps);
         }
       } catch (error) {
@@ -306,19 +333,44 @@ export default function AdminChats() {
       
       try {
         const token = await AsyncStorage.getItem('jwtToken');
-        const response = await fetch(`${API_BASE}/messages/${user._id}/${selectedChat._id}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        });
         
-        if (response.ok) {
-          const data = await response.json();
-          setMessages(prev => ({
-            ...prev,
-            [selectedChat._id]: data
-          }));
+        if (selectedChat.isGroup) {
+          // Join group socket room
+          if (socket.current) {
+            socket.current.emit('joinGroup', { userId: user._id, groupId: selectedChat._id });
+          }
+          
+          // Fetch group messages
+          const response = await fetch(`${API_BASE}/api/group-chats/${selectedChat._id}/messages?userId=${user._id}`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            setGroupMessages(prev => ({
+              ...prev,
+              [selectedChat._id]: data
+            }));
+          }
+        } else {
+          // Fetch individual messages
+          const response = await fetch(`${API_BASE}/messages/${user._id}/${selectedChat._id}`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            setMessages(prev => ({
+              ...prev,
+              [selectedChat._id]: data
+            }));
+          }
         }
       } catch (error) {
         console.error('Error fetching messages:', error);
@@ -339,49 +391,112 @@ export default function AdminChats() {
     if (!newMessage.trim() && !selectedFile) return;
     if (!selectedChat || !user?._id) return;
 
-    try {
-      const token = await AsyncStorage.getItem('jwtToken');
-      const messageData = {
-        senderId: user._id,
-        receiverId: selectedChat._id,
-        text: newMessage.trim(),
-        fileUrl: selectedFile ? selectedFile.uri : null,
-      };
-
-      const response = await fetch(`${API_BASE}/messages`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(messageData),
-      });
-
-      if (response.ok) {
-        const sentMessage = {
-          ...messageData,
-          timestamp: new Date(),
+    // Check if this is a group chat
+    if (selectedChat.isGroup) {
+      // Handle group message
+      try {
+        const token = await AsyncStorage.getItem('jwtToken');
+        const messageData = {
+          senderId: user._id,
+          message: newMessage.trim(),
+          fileUrl: selectedFile ? selectedFile.uri : null,
         };
 
-        setMessages(prev => ({
-          ...prev,
-          [selectedChat._id]: [
-            ...(prev[selectedChat._id] || []),
-            sentMessage,
-          ],
-        }));
+        const response = await fetch(`${API_BASE}/api/group-chats/${selectedChat._id}/messages`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(messageData),
+        });
 
-        setNewMessage('');
-        setSelectedFile(null);
+        if (response.ok) {
+          const sentMessage = {
+            ...messageData,
+            groupId: selectedChat._id,
+            senderName: `${user.firstname} ${user.lastname}`,
+            timestamp: new Date(),
+          };
 
-        // Emit message through socket
-        if (socket.current) {
-          socket.current.emit('sendMessage', messageData);
+          setGroupMessages(prev => ({
+            ...prev,
+            [selectedChat._id]: [
+              ...(prev[selectedChat._id] || []),
+              sentMessage,
+            ],
+          }));
+
+          // Update last message for group
+          const prefix = 'You: ';
+          const text = newMessage.trim() || (selectedFile ? 'File sent' : '');
+          setLastMessages(prev => ({
+            ...prev,
+            [`group_${selectedChat._id}`]: { 
+              prefix, 
+              text, 
+              timestamp: sentMessage.timestamp 
+            }
+          }));
+
+          setNewMessage('');
+          setSelectedFile(null);
+
+          // Emit group message through socket
+          if (socket.current) {
+            socket.current.emit('sendGroupMessage', sentMessage);
+          }
         }
+      } catch (error) {
+        console.error('Error sending group message:', error);
+        Alert.alert('Error', 'Failed to send group message');
       }
-    } catch (error) {
-      console.error('Error sending message:', error);
-      Alert.alert('Error', 'Failed to send message');
+    } else {
+      // Handle individual message
+      try {
+        const token = await AsyncStorage.getItem('jwtToken');
+        const messageData = {
+          senderId: user._id,
+          receiverId: selectedChat._id,
+          text: newMessage.trim(),
+          fileUrl: selectedFile ? selectedFile.uri : null,
+        };
+
+        const response = await fetch(`${API_BASE}/messages`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(messageData),
+        });
+
+        if (response.ok) {
+          const sentMessage = {
+            ...messageData,
+            timestamp: new Date(),
+          };
+
+          setMessages(prev => ({
+            ...prev,
+            [selectedChat._id]: [
+              ...(prev[selectedChat._id] || []),
+              sentMessage,
+            ],
+          }));
+
+          setNewMessage('');
+          setSelectedFile(null);
+
+          // Emit message through socket
+          if (socket.current) {
+            socket.current.emit('sendMessage', messageData);
+          }
+        }
+      } catch (error) {
+        console.error('Error sending message:', error);
+        Alert.alert('Error', 'Failed to send message');
+      }
     }
   };
 
@@ -417,8 +532,8 @@ export default function AdminChats() {
       const groupData = {
         name: groupName.trim(),
         description: groupDescription.trim(),
-        creatorId: user._id,
-        members: selectedParticipants,
+        createdBy: user._id,
+        participants: selectedParticipants,
       };
 
       const response = await fetch(`${API_BASE}/api/group-chats`, {
@@ -453,7 +568,7 @@ export default function AdminChats() {
 
     try {
       const token = await AsyncStorage.getItem('jwtToken');
-              const response = await fetch(`${API_BASE}/api/group-chats/${joinGroupId}/join`, {
+              const response = await fetch(`${API_BASE}/api/group-chats/join/${joinGroupId}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -639,7 +754,10 @@ export default function AdminChats() {
                         </Text>
                         {lastMessages[chat.partnerId]?.timestamp && (
                           <Text style={{ fontSize: 12, color: '#999', marginTop: 2 }}>
-                            {formatTimestamp(lastMessages[chat.partnerId].timestamp)}
+                            {(() => {
+                              console.log(`Rendering timestamp for chat ${chat.partnerId}:`, lastMessages[chat.partnerId].timestamp);
+                              return formatTimestamp(lastMessages[chat.partnerId].timestamp);
+                            })()}
                           </Text>
                         )}
                       </View>
@@ -696,11 +814,14 @@ export default function AdminChats() {
                         {group.name}
                       </Text>
                       <Text style={{ fontSize: 14, color: '#666' }}>
-                        {lastMessages[`group_${group._id}`]?.text || `${group.members?.length || 0} members`}
+                        {lastMessages[`group_${group._id}`]?.text || `${group.participants?.length || 0} members`}
                       </Text>
                       {lastMessages[`group_${group._id}`]?.timestamp && (
                         <Text style={{ fontSize: 12, color: '#999', marginTop: 2 }}>
-                          {formatTimestamp(lastMessages[`group_${group._id}`].timestamp)}
+                          {(() => {
+                            console.log(`Rendering group timestamp for group ${group._id}:`, lastMessages[`group_${group._id}`].timestamp);
+                            return formatTimestamp(lastMessages[`group_${group._id}`].timestamp);
+                          })()}
                         </Text>
                       )}
                     </View>
@@ -901,7 +1022,7 @@ export default function AdminChats() {
         style={{ flex: 1, padding: 16 }}
         showsVerticalScrollIndicator={false}
       >
-        {messages[selectedChat._id]?.map((message, index) => (
+        {(selectedChat.isGroup ? groupMessages[selectedChat._id] : messages[selectedChat._id])?.map((message, index) => (
           <View
             key={index}
             style={{
@@ -929,12 +1050,12 @@ export default function AdminChats() {
                   </Text>
                 </View>
               ) : (
-                <Text style={{ 
-                  color: message.senderId === user._id ? '#fff' : '#333',
-                  fontSize: 16,
-                }}>
-                  {message.message}
-                </Text>
+                              <Text style={{ 
+                color: message.senderId === user._id ? '#fff' : '#333',
+                fontSize: 16,
+              }}>
+                {selectedChat.isGroup ? message.message : (message.text || message.message)}
+              </Text>
               )}
             </View>
             <Text style={{ 
@@ -943,7 +1064,7 @@ export default function AdminChats() {
               marginTop: 4,
               alignSelf: message.senderId === user._id ? 'flex-end' : 'flex-start',
             }}>
-              {new Date(message.timestamp).toLocaleTimeString()}
+              {message.timestamp ? new Date(message.timestamp).toLocaleTimeString() : ''}
             </Text>
           </View>
         ))}

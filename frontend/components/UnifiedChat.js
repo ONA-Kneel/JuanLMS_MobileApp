@@ -160,8 +160,8 @@ export default function UnifiedChat() {
 
   const fetchUsers = async () => {
     try {
-      console.log('Fetching users from:', `${SOCKET_URL}/users`);
-      const response = await axios.get(`${SOCKET_URL}/users`);
+      console.log('Fetching users from:', `${SOCKET_URL}/api/users`);
+      const response = await axios.get(`${SOCKET_URL}/api/users`);
       console.log('Users response:', response.data);
       const filteredUsers = response.data.filter(u => 
         u._id !== user._id && 
@@ -332,7 +332,7 @@ export default function UnifiedChat() {
     }
 
     try {
-      await axios.post(`${SOCKET_URL}/api/group-chats/${joinGroupId}/join`, {
+              await axios.post(`${SOCKET_URL}/api/group-chats/join/${joinGroupId}`, {
         userId: user._id
       });
 

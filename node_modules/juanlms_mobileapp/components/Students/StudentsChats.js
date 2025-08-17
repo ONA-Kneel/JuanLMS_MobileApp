@@ -26,24 +26,39 @@ const SOCKET_URL = 'https://juanlms-webapp-server.onrender.com';
 
 // Helper function to format timestamp
 const formatTimestamp = (timestamp) => {
-  if (!timestamp) return '';
+  if (!timestamp) {
+    console.log('formatTimestamp: No timestamp provided');
+    return '';
+  }
   
-  const date = new Date(timestamp);
-  const now = new Date();
-  const diffInHours = (now - date) / (1000 * 60 * 60);
-  
-  if (diffInHours < 24) {
-    // Today - show time
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  } else if (diffInHours < 48) {
-    // Yesterday
-    return 'Yesterday';
-  } else if (diffInHours < 168) {
-    // Within a week - show day name
-    return date.toLocaleDateString([], { weekday: 'short' });
-  } else {
-    // Older - show date
-    return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  try {
+    const date = new Date(timestamp);
+    
+    // Check if date is valid
+    if (isNaN(date.getTime())) {
+      console.log('formatTimestamp: Invalid date:', timestamp);
+      return '';
+    }
+    
+    const now = new Date();
+    const diffInHours = (now - date) / (1000 * 60 * 60);
+    
+    if (diffInHours < 24) {
+      // Today - show time
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } else if (diffInHours < 48) {
+      // Yesterday
+      return 'Yesterday';
+    } else if (diffInHours < 168) {
+      // Within a week - show day name
+      return date.toLocaleDateString([], { weekday: 'short' });
+    } else {
+      // Older - show date
+      return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+    }
+  } catch (error) {
+    console.error('formatTimestamp error:', error, 'timestamp:', timestamp);
+    return '';
   }
 };
 
@@ -103,6 +118,8 @@ export default function StudentChats() {
     socket.current.emit('addUser', user._id);
 
     socket.current.on('getMessage', (data) => {
+      console.log('Received socket message:', data);
+      
       const incomingMessage = {
         senderId: data.senderId,
         receiverId: user._id,
@@ -122,28 +139,48 @@ export default function StudentChats() {
         return newMessages;
       });
 
-      // Update last message for this chat
-      const chat = recentChats.find(c => c._id === incomingMessage.senderId);
-      if (chat) {
-        const prefix = incomingMessage.senderId === user._id 
-          ? 'You: ' 
-          : `${chat.lastname}, ${chat.firstname}: `;
-        const text = incomingMessage.message 
-          ? incomingMessage.message 
-          : (incomingMessage.fileUrl ? 'File sent' : '');
-        setLastMessages(prev => ({
-          ...prev,
-          [chat._id]: { 
-            prefix, 
-            text, 
-            timestamp: incomingMessage.timestamp 
-          }
-        }));
-      }
+      // Update last message for this chat using current state
+      setRecentChats(prevRecentChats => {
+        const chat = prevRecentChats.find(c => c._id === incomingMessage.senderId);
+        console.log('Found chat for incoming message:', chat);
+        
+        if (chat) {
+          setUsers(prevUsers => {
+            const partner = prevUsers.find(u => u._id === incomingMessage.senderId);
+            const prefix = partner ? `${partner.lastname}, ${partner.firstname}: ` : 'Unknown: ';
+            const text = incomingMessage.message 
+              ? incomingMessage.message 
+              : (incomingMessage.fileUrl ? 'File sent' : '');
+            
+            console.log('Updating lastMessages for chat:', incomingMessage.senderId, {
+              prefix,
+              text,
+              timestamp: incomingMessage.timestamp
+            });
+            
+            setLastMessages(prev => ({
+              ...prev,
+              [incomingMessage.senderId]: { 
+                prefix, 
+                text, 
+                timestamp: incomingMessage.timestamp 
+              }
+            }));
+            
+            return prevUsers;
+          });
+        } else {
+          console.log('Chat not found for incoming message from:', incomingMessage.senderId);
+        }
+        
+        return prevRecentChats;
+      });
     });
 
     // Group chat message handling
     socket.current.on('getGroupMessage', (data) => {
+      console.log('Received group socket message:', data);
+      
       const incomingGroupMessage = {
         senderId: data.senderId,
         groupId: data.groupId,
@@ -164,20 +201,35 @@ export default function StudentChats() {
         return newGroupMessages;
       });
 
-      // Update last message for group chats
-      const group = groups.find(g => g._id === data.groupId);
-      if (group) {
-        const prefix = `${data.senderName || 'Unknown'}: `;
-        const text = data.text || (data.fileUrl ? 'File sent' : '');
-        setLastMessages(prev => ({
-          ...prev,
-          [`group_${data.groupId}`]: { 
-            prefix, 
-            text, 
-            timestamp: incomingGroupMessage.timestamp 
-          }
-        }));
-      }
+      // Update last message for group chats using current state
+      setGroups(prevGroups => {
+        const group = prevGroups.find(g => g._id === data.groupId);
+        console.log('Found group for incoming message:', group);
+        
+        if (group) {
+          const prefix = `${data.senderName || 'Unknown'}: `;
+          const text = data.text || (data.fileUrl ? 'File sent' : '');
+          
+          console.log('Updating lastMessages for group:', data.groupId, {
+            prefix,
+            text,
+            timestamp: incomingGroupMessage.timestamp
+          });
+          
+          setLastMessages(prev => ({
+            ...prev,
+            [`group_${data.groupId}`]: { 
+              prefix, 
+              text, 
+              timestamp: incomingGroupMessage.timestamp 
+            }
+          }));
+        } else {
+          console.log('Group not found for incoming message from group:', data.groupId);
+        }
+        
+        return prevGroups;
+      });
     });
 
     return () => {
@@ -185,7 +237,7 @@ export default function StudentChats() {
         socket.current.disconnect();
       }
     };
-  }, [user?._id, recentChats]);
+  }, [user?._id]); // Remove recentChats and users from dependencies to avoid recreation
 
   // Fetch users
   useEffect(() => {
@@ -195,7 +247,7 @@ export default function StudentChats() {
       try {
         setLoading(true);
         const token = await AsyncStorage.getItem('jwtToken');
-        const response = await fetch(`${API_BASE}/users`, {
+        const response = await fetch(`${API_BASE}/api/users`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
@@ -226,7 +278,7 @@ export default function StudentChats() {
       
       try {
         const token = await AsyncStorage.getItem('jwtToken');
-        const response = await fetch(`${API_BASE}/group-chats/user/${user._id}`, {
+        const response = await fetch(`${API_BASE}/api/group-chats/user/${user._id}`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
@@ -261,6 +313,18 @@ export default function StudentChats() {
         
         if (response.ok) {
           const recentChatsData = await response.json();
+          console.log('Recent chats data received:', recentChatsData);
+          console.log('Recent chats data type:', typeof recentChatsData);
+          console.log('Recent chats data length:', recentChatsData.length);
+          
+          if (recentChatsData.length > 0) {
+            console.log('First chat data:', recentChatsData[0]);
+            console.log('First chat lastMessage:', recentChatsData[0].lastMessage);
+            if (recentChatsData[0].lastMessage) {
+              console.log('First chat timestamp:', recentChatsData[0].lastMessage.timestamp);
+              console.log('First chat timestamp type:', typeof recentChatsData[0].lastMessage.timestamp);
+            }
+          }
           
           // Update recentChats with actual chat data and add _id field for UI compatibility
           const recentChatsWithId = recentChatsData.map(chat => ({
@@ -282,16 +346,29 @@ export default function StudentChats() {
                   ? chat.lastMessage.message 
                   : (chat.lastMessage.fileUrl ? 'File sent' : '');
                 
+                // Ensure timestamp is properly parsed as a Date object
+                let timestamp = chat.lastMessage.timestamp;
+                if (timestamp && typeof timestamp === 'string') {
+                  timestamp = new Date(timestamp);
+                } else if (!timestamp) {
+                  timestamp = new Date(); // Fallback to current time
+                }
+                
+                console.log(`Chat ${chat.partnerId} timestamp:`, timestamp, 'Type:', typeof timestamp);
+                
                 lastMessagesWithTimestamps[chat.partnerId] = {
                   prefix,
                   text,
-                  timestamp: chat.lastMessage.timestamp
+                  timestamp: timestamp
                 };
               }
             }
           });
           
+          console.log('Last messages with timestamps:', lastMessagesWithTimestamps);
           setLastMessages(lastMessagesWithTimestamps);
+        } else {
+          console.error('Failed to fetch recent chats:', response.status, response.statusText);
         }
       } catch (error) {
         console.error('Error fetching recent chats:', error);
@@ -310,19 +387,44 @@ export default function StudentChats() {
       
       try {
         const token = await AsyncStorage.getItem('jwtToken');
-        const response = await fetch(`${API_BASE}/messages/${user._id}/${selectedChat._id}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        });
         
-        if (response.ok) {
-          const data = await response.json();
-          setMessages(prev => ({
-            ...prev,
-            [selectedChat._id]: data
-          }));
+        if (selectedChat.isGroup) {
+          // Join group socket room
+          if (socket.current) {
+            socket.current.emit('joinGroup', { userId: user._id, groupId: selectedChat._id });
+          }
+          
+          // Fetch group messages
+          const response = await fetch(`${API_BASE}/api/group-chats/${selectedChat._id}/messages?userId=${user._id}`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            setGroupMessages(prev => ({
+              ...prev,
+              [selectedChat._id]: data
+            }));
+          }
+        } else {
+          // Fetch individual messages
+          const response = await fetch(`${API_BASE}/messages/${user._id}/${selectedChat._id}`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            setMessages(prev => ({
+              ...prev,
+              [selectedChat._id]: data
+            }));
+          }
         }
       } catch (error) {
         console.error('Error fetching messages:', error);
@@ -343,49 +445,141 @@ export default function StudentChats() {
     if (!newMessage.trim() && !selectedFile) return;
     if (!selectedChat || !user?._id) return;
 
-    try {
-      const token = await AsyncStorage.getItem('jwtToken');
-      const messageData = {
-        senderId: user._id,
-        receiverId: selectedChat._id,
-        text: newMessage.trim(),
-        fileUrl: selectedFile ? selectedFile.uri : null,
-      };
-
-      const response = await fetch(`${API_BASE}/messages`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(messageData),
-      });
-
-      if (response.ok) {
-        const sentMessage = {
-          ...messageData,
-          timestamp: new Date(),
+    // Check if this is a group chat
+    if (selectedChat.isGroup) {
+      // Handle group message
+      try {
+        const token = await AsyncStorage.getItem('jwtToken');
+        const messageData = {
+          senderId: user._id,
+          message: newMessage.trim(),
+          fileUrl: selectedFile ? selectedFile.uri : null,
         };
 
-        setMessages(prev => ({
-          ...prev,
-          [selectedChat._id]: [
-            ...(prev[selectedChat._id] || []),
-            sentMessage,
-          ],
-        }));
+        const response = await fetch(`${API_BASE}/api/group-chats/${selectedChat._id}/messages`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(messageData),
+        });
 
-        setNewMessage('');
-        setSelectedFile(null);
+        if (response.ok) {
+          const sentMessage = {
+            ...messageData,
+            groupId: selectedChat._id,
+            senderName: `${user.firstname} ${user.lastname}`,
+            timestamp: new Date(),
+          };
 
-        // Emit message through socket
-        if (socket.current) {
-          socket.current.emit('sendMessage', messageData);
+          setGroupMessages(prev => ({
+            ...prev,
+            [selectedChat._id]: [
+              ...(prev[selectedChat._id] || []),
+              sentMessage,
+            ],
+          }));
+
+          // Update last message for group
+          const prefix = 'You: ';
+          const text = newMessage.trim() || (selectedFile ? 'File sent' : '');
+          setLastMessages(prev => ({
+            ...prev,
+            [`group_${selectedChat._id}`]: { 
+              prefix, 
+              text, 
+              timestamp: sentMessage.timestamp 
+            }
+          }));
+
+          setNewMessage('');
+          setSelectedFile(null);
+
+          // Emit group message through socket
+          if (socket.current) {
+            socket.current.emit('sendGroupMessage', sentMessage);
+          }
         }
+      } catch (error) {
+        console.error('Error sending group message:', error);
+        Alert.alert('Error', 'Failed to send group message');
       }
-    } catch (error) {
-      console.error('Error sending message:', error);
-      Alert.alert('Error', 'Failed to send message');
+    } else {
+      // Handle individual message
+      try {
+        const token = await AsyncStorage.getItem('jwtToken');
+        const messageData = {
+          senderId: user._id,
+          receiverId: selectedChat._id,
+          text: newMessage.trim(),
+          fileUrl: selectedFile ? selectedFile.uri : null,
+        };
+
+        const response = await fetch(`${API_BASE}/messages`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(messageData),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log('Backend response for sent message:', data);
+          console.log('Backend timestamp:', data.timestamp, 'Type:', typeof data.timestamp);
+          
+          const sentMessage = {
+            ...messageData,
+            timestamp: new Date(),
+          };
+
+          console.log('Created sent message object:', sentMessage);
+
+          setMessages(prev => ({
+            ...prev,
+            [selectedChat._id]: [
+              ...(prev[selectedChat._id] || []),
+              sentMessage,
+            ],
+          }));
+
+          // Update lastMessages state for the selected chat
+          const partner = users.find(u => u._id === selectedChat._id);
+          if (partner) {
+            const prefix = 'You: ';
+            const text = sentMessage.text || (sentMessage.fileUrl ? 'File sent' : '');
+            
+            console.log('Updating lastMessages after sending message:', {
+              chatId: selectedChat._id,
+              prefix,
+              text,
+              timestamp: sentMessage.timestamp
+            });
+            
+            setLastMessages(prev => ({
+              ...prev,
+              [selectedChat._id]: {
+                prefix,
+                text,
+                timestamp: sentMessage.timestamp
+              }
+            }));
+          }
+
+          setNewMessage('');
+          setSelectedFile(null);
+
+          // Emit message through socket
+          if (socket.current) {
+            socket.current.emit('sendMessage', messageData);
+          }
+        }
+      } catch (error) {
+        console.error('Error sending message:', error);
+        Alert.alert('Error', 'Failed to send message');
+      }
     }
   };
 
@@ -420,8 +614,8 @@ export default function StudentChats() {
       const token = await AsyncStorage.getItem('jwtToken');
       const groupData = {
         name: newGroupName.trim(),
-        creatorId: user._id,
-        members: selectedGroupMembers,
+        createdBy: user._id,
+        participants: selectedGroupMembers,
       };
 
       const response = await fetch(`${API_BASE}/api/group-chats`, {
@@ -455,7 +649,7 @@ export default function StudentChats() {
 
     try {
       const token = await AsyncStorage.getItem('jwtToken');
-      const response = await fetch(`${API_BASE}/api/group-chats/${joinGroupCode}/join`, {
+      const response = await fetch(`${API_BASE}/api/group-chats/join/${joinGroupCode}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -642,7 +836,10 @@ export default function StudentChats() {
                         </Text>
                         {lastMessages[chat.partnerId]?.timestamp && (
                           <Text style={{ fontSize: 12, color: '#999', marginTop: 2 }}>
-                            {formatTimestamp(lastMessages[chat.partnerId].timestamp)}
+                            {(() => {
+                              console.log(`Rendering timestamp for chat ${chat.partnerId}:`, lastMessages[chat.partnerId].timestamp);
+                              return formatTimestamp(lastMessages[chat.partnerId].timestamp);
+                            })()}
                           </Text>
                         )}
                       </View>
@@ -699,11 +896,14 @@ export default function StudentChats() {
                         {group.name}
                       </Text>
                       <Text style={{ fontSize: 14, color: '#666' }}>
-                        {lastMessages[`group_${group._id}`]?.text || `${group.members?.length || 0} members`}
+                        {lastMessages[`group_${group._id}`]?.text || `${group.participants?.length || 0} members`}
                       </Text>
                       {lastMessages[`group_${group._id}`]?.timestamp && (
                         <Text style={{ fontSize: 12, color: '#999', marginTop: 2 }}>
-                          {formatTimestamp(lastMessages[`group_${group._id}`].timestamp)}
+                          {(() => {
+                            console.log(`Rendering group timestamp for group ${group._id}:`, lastMessages[`group_${group._id}`].timestamp);
+                            return formatTimestamp(lastMessages[`group_${group._id}`].timestamp);
+                          })()}
                         </Text>
                       )}
                     </View>
@@ -887,7 +1087,7 @@ export default function StudentChats() {
         style={{ flex: 1, padding: 16 }}
         showsVerticalScrollIndicator={false}
       >
-        {messages[selectedChat._id]?.map((message, index) => (
+        {(selectedChat.isGroup ? groupMessages[selectedChat._id] : messages[selectedChat._id])?.map((message, index) => (
           <View
             key={index}
             style={{
@@ -915,12 +1115,12 @@ export default function StudentChats() {
                   </Text>
                 </View>
               ) : (
-                <Text style={{ 
-                  color: message.senderId === user._id ? '#fff' : '#333',
-                  fontSize: 16,
-                }}>
-                  {message.message}
-                </Text>
+                              <Text style={{ 
+                color: message.senderId === user._id ? '#fff' : '#333',
+                fontSize: 16,
+              }}>
+                {selectedChat.isGroup ? message.message : (message.text || message.message)}
+              </Text>
               )}
             </View>
             <Text style={{ 
@@ -929,7 +1129,7 @@ export default function StudentChats() {
               marginTop: 4,
               alignSelf: message.senderId === user._id ? 'flex-end' : 'flex-start',
             }}>
-              {new Date(message.timestamp).toLocaleTimeString()}
+              {message.timestamp ? new Date(message.timestamp).toLocaleTimeString() : ''}
             </Text>
           </View>
         ))}

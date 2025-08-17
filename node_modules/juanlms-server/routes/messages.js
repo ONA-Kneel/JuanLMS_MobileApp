@@ -4,8 +4,30 @@ import Message from '../models/Message.js';
 const router = express.Router();
 
 router.post('/', async (req, res) => {
-  const { senderId, receiverId, message } = req.body;
-  const newMessage = new Message({ senderId, receiverId, message });
+  const { senderId, receiverId, text, message } = req.body;
+  
+  // Handle both 'text' and 'message' fields for compatibility
+  const messageContent = text || message;
+  
+  if (!messageContent) {
+    return res.status(400).json({ error: 'Message content is required' });
+  }
+  
+  const newMessage = new Message({ 
+    senderId, 
+    receiverId, 
+    message: messageContent,
+    timestamp: new Date() // Explicitly set timestamp
+  });
+  
+  console.log('Creating new message:', {
+    senderId,
+    receiverId,
+    message: messageContent,
+    timestamp: newMessage.timestamp,
+    timestampType: typeof newMessage.timestamp
+  });
+  
   await newMessage.save();
   res.status(201).json(newMessage);
 });
@@ -29,6 +51,9 @@ router.get('/recent/:userId', async (req, res) => {
     ]
   }).sort({ timestamp: -1 });
 
+  console.log(`Fetching recent chats for user ${userId}`);
+  console.log(`Found ${messages.length} messages`);
+  
   const chatMap = new Map();
   
   messages.forEach(msg => {
@@ -54,6 +79,15 @@ router.get('/recent/:userId', async (req, res) => {
   })).sort((a, b) => 
     new Date(b.lastMessage.timestamp) - new Date(a.lastMessage.timestamp)
   );
+
+  console.log(`Sending ${recentChats.length} recent chats`);
+  recentChats.forEach(chat => {
+    console.log(`Chat with ${chat.partnerId}:`, {
+      timestamp: chat.lastMessage.timestamp,
+      timestampType: typeof chat.lastMessage.timestamp,
+      message: chat.lastMessage.message
+    });
+  });
 
   res.json(recentChats);
 });

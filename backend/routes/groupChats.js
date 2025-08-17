@@ -75,6 +75,35 @@ router.post('/:groupId/join', async (req, res) => {
   }
 });
 
+// Join a group using join code
+router.post('/join/:joinCode', async (req, res) => {
+  try {
+    const { joinCode } = req.params;
+    const { userId } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ error: 'User ID is required' });
+    }
+
+    const group = await GroupChat.findOne({ joinCode: joinCode });
+    if (!group) {
+      return res.status(404).json({ error: 'Group not found with this join code' });
+    }
+
+    if (group.participants.includes(userId)) {
+      return res.status(400).json({ error: 'User is already a member' });
+    }
+
+    group.participants.push(userId);
+    await group.save();
+
+    res.json(group);
+  } catch (error) {
+    console.error('Error joining group by code:', error);
+    res.status(500).json({ error: 'Failed to join group' });
+  }
+});
+
 // Leave a group
 router.post('/:groupId/leave', async (req, res) => {
   try {

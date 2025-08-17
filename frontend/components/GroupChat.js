@@ -74,7 +74,7 @@ export default function GroupChat() {
   const fetchGroupMembers = async (token) => {
     try {
       const memberPromises = selectedGroup.participants.map(async (participantId) => {
-        const response = await axios.get(`${SOCKET_URL}/users/${participantId}`, {
+        const response = await axios.get(`${SOCKET_URL}/api/users/${participantId}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         return response.data;
