@@ -274,14 +274,34 @@ export default function StudentActs() {
               });
               if (response.ok) {
                 const submissions = await response.json();
-                const studentSubmission = submissions.find(sub => sub.student === user._id);
+                console.log(`Submissions for assignment ${activity.title}:`, submissions);
+                console.log(`Looking for student ID: ${user._id}`);
+                
+                // Check if any submission exists for this student
+                const studentSubmission = submissions.find(sub => {
+                  console.log(`Comparing submission student: ${sub.student} (type: ${typeof sub.student}) with user ID: ${user._id} (type: ${typeof user._id})`);
+                  console.log(`Submission student object:`, sub.student);
+                  console.log(`User object:`, user);
+                  
+                  // Try different ways to compare the IDs
+                  const submissionStudentId = sub.student._id || sub.student;
+                  const userId = user._id;
+                  
+                  console.log(`Comparing: ${submissionStudentId} === ${userId}`);
+                  const isMatch = submissionStudentId === userId || submissionStudentId === userId.toString();
+                  console.log(`Is match: ${isMatch}`);
+                  
+                  return isMatch;
+                });
+                
                 if (studentSubmission) {
                   console.log(`Assignment ${activity.title} is already submitted:`, studentSubmission);
                   return { 
                     ...activity, 
-                    submittedAt: studentSubmission.submittedAt, 
+                    submittedAt: studentSubmission.submittedAt || new Date(), 
                     status: 'submitted',
-                    submissionId: studentSubmission._id
+                    submissionId: studentSubmission._id,
+                    isSubmitted: true
                   };
                 }
               }
@@ -300,9 +320,10 @@ export default function StudentActs() {
                   console.log(`Quiz ${activity.title} is already submitted:`, quizResponse);
                   return { 
                     ...activity, 
-                    submittedAt: quizResponse.submittedAt || quizResponse.createdAt, 
+                    submittedAt: quizResponse.submittedAt || quizResponse.createdAt || new Date(), 
                     status: 'submitted',
-                    submissionId: quizResponse._id
+                    submissionId: quizResponse._id,
+                    isSubmitted: true
                   };
                 }
               }
@@ -310,7 +331,7 @@ export default function StudentActs() {
               console.error('Error checking quiz response status:', error);
             }
           }
-          return activity;
+          return { ...activity, isSubmitted: false };
         })
       );
       
@@ -422,6 +443,41 @@ export default function StudentActs() {
     }
   };
 
+  // Debug function to check submission status manually
+  const debugSubmissionStatus = async () => {
+    if (activities.length === 0) return;
+    
+    const activity = activities[0];
+    console.log('Debugging submission status for:', activity.title);
+    
+    try {
+      const token = await AsyncStorage.getItem('jwtToken');
+      const response = await fetch(`${API_BASE}/assignments/${activity._id}/submissions`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      if (response.ok) {
+        const submissions = await response.json();
+        console.log('All submissions for this assignment:', submissions);
+        console.log('Current user ID:', user._id);
+        
+        const studentSubmission = submissions.find(sub => 
+          sub.student === user._id || sub.student._id === user._id
+        );
+        
+        if (studentSubmission) {
+          console.log('Found student submission:', studentSubmission);
+          console.log('Submitted at:', studentSubmission.submittedAt);
+          console.log('Status:', studentSubmission.status);
+        } else {
+          console.log('No submission found for this student');
+        }
+      }
+    } catch (error) {
+      console.error('Error debugging submission status:', error);
+    }
+  };
+
   // Add this to the navigation listener to refresh when returning from submission
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
@@ -477,7 +533,7 @@ export default function StudentActs() {
     const upcoming = activities.filter(activity => {
       const dueDate = new Date(activity.dueDate);
       // Only show as upcoming if not submitted and due date is in the future
-      return dueDate > now && !activity.submittedAt;
+      return dueDate > now && !activity.isSubmitted;
     });
     console.log('Upcoming activities:', upcoming);
     return upcoming;
@@ -488,7 +544,7 @@ export default function StudentActs() {
     const pastDue = activities.filter(activity => {
       const dueDate = new Date(activity.dueDate);
       // Show as past due if not submitted and due date has passed
-      return dueDate < now && !activity.submittedAt;
+      return dueDate < now && !activity.isSubmitted;
     });
     console.log('Past due activities:', pastDue);
     return pastDue;
@@ -496,8 +552,8 @@ export default function StudentActs() {
 
   const getCompletedActivities = () => {
     const completed = activities.filter(activity => {
-      // Show as completed if submitted (has submittedAt timestamp)
-      return activity.submittedAt || activity.status === 'submitted';
+      // Show as completed if submitted (regardless of due date)
+      return activity.isSubmitted;
     });
     console.log('Completed activities:', completed);
     return completed;
@@ -611,22 +667,20 @@ export default function StudentActs() {
               </Text>
               {activities.length > 0 && (
                 <Text style={{ fontSize: 10, color: '#888', fontFamily: 'monospace', marginTop: 4 }}>
-                  First activity: {activities[0]?.title} - Status: {activities[0]?.status || 'unknown'} - Submitted: {activities[0]?.submittedAt ? 'Yes' : 'No'}
+                  First activity: {activities[0]?.title} - Status: {activities[0]?.status || 'unknown'} - Submitted: {activities[0]?.isSubmitted ? 'Yes' : 'No'} - SubmittedAt: {activities[0]?.submittedAt ? new Date(activities[0].submittedAt).toLocaleString() : 'N/A'}
                 </Text>
               )}
               <TouchableOpacity 
-                style={{ 
-                  backgroundColor: '#00418b', 
-                  padding: 8, 
-                  borderRadius: 4, 
-                  marginTop: 8,
-                  alignItems: 'center'
-                }} 
+                style={{ marginTop: 8, backgroundColor: '#00418b', padding: 8, borderRadius: 4, alignItems: 'center' }}
                 onPress={forceRefresh}
               >
-                <Text style={{ color: 'white', fontSize: 12, fontFamily: 'monospace' }}>
-                  Force Refresh
-                </Text>
+                <Text style={{ color: 'white', fontSize: 12 }}>Force Refresh</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={{ marginTop: 8, backgroundColor: '#ff9800', padding: 8, borderRadius: 4, alignItems: 'center' }}
+                onPress={debugSubmissionStatus}
+              >
+                <Text style={{ color: 'white', fontSize: 12 }}>Debug Submission Status</Text>
               </TouchableOpacity>
             </View>
           </ScrollView>

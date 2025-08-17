@@ -147,28 +147,28 @@ export default function AssignmentDetail() {
       const response = await fetch(`${API_BASE}/assignments/${assignmentId}/submit`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
         },
         body: formData,
       });
 
       if (response.ok) {
         const result = await response.json();
-        setSubmissionStatus(result);
-        setShowSuccessModal(true);
-        setShowSubmitModal(false);
+        console.log('Submission successful:', result);
+        Alert.alert('Success', 'Assignment submitted successfully!');
         
-        // Clear form after successful submission (matching web version)
-        setSelectedFile(null);
-        setSubmissionText('');
-        
-        // Notify parent screens to refresh (for real-time updates)
+        // Call the callback to refresh the parent screen
         if (route.params?.onSubmissionComplete) {
+          console.log('Calling onSubmissionComplete callback...');
           route.params.onSubmissionComplete();
         }
+        
+        // Navigate back
+        navigation.goBack();
       } else {
-        const error = await response.json();
-        Alert.alert('Error', error.message || 'Failed to submit assignment');
+        const errorData = await response.json();
+        console.error('Submission failed:', errorData);
+        Alert.alert('Error', errorData.error || 'Failed to submit assignment');
       }
     } catch (error) {
       console.error('Error submitting assignment:', error);
