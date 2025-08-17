@@ -44,6 +44,7 @@ export default function StudentModule(){
     const [classwork, setClasswork] = useState([]); // Add this state
     const [materials, setMaterials] = useState([]);
     const [materialsLoading, setMaterialsLoading] = useState(true);
+    const [filterType, setFilterType] = useState('all'); // Add filter state
 
     useEffect(() => {
         console.log('DEBUG StudentModule: useEffect classId:', classId);
@@ -59,11 +60,24 @@ export default function StudentModule(){
     const fetchClasswork = async (classId) => {
         try {
             const token = await AsyncStorage.getItem('jwtToken');
-            const res = await axios.get(`https://juanlms-webapp-server.onrender.com/assignments?classID=${classId}`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            setClasswork(res.data);
-            console.log('Fetched classwork (Student):', res.data); // Debug log
+            
+            // Fetch both assignments and quizzes (similar to web version)
+            const [assignmentsRes, quizzesRes] = await Promise.all([
+                axios.get(`https://juanlms-webapp-server.onrender.com/assignments?classID=${classId}`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                }),
+                axios.get(`https://juanlms-webapp-server.onrender.com/api/quizzes?classID=${classId}`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                })
+            ]);
+
+            // Combine assignments and quizzes with type indicators
+            const assignments = assignmentsRes.data.map(item => ({ ...item, type: 'assignment' }));
+            const quizzes = quizzesRes.data.map(item => ({ ...item, type: 'quiz' }));
+            
+            const allClasswork = [...assignments, ...quizzes];
+            setClasswork(allClasswork);
+            console.log('Fetched classwork (Student):', allClasswork); // Debug log
         } catch (err) {
             setClasswork([]);
             console.log('Error fetching classwork (Student):', err);
@@ -242,9 +256,29 @@ export default function StudentModule(){
                     <>
                         {/* Classwork Title Row */}
                         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
-                            <Text style={{ fontFamily: 'Poppins-Bold', fontSize: 18, color: '#222', flex: 1 }}>Classwork</Text>
-                            
+                            <Text style={{ fontFamily: 'Poppins-Bold', fontSize: 18, color: '#222', flex: 1 }}>
+                                {filterType === 'all' ? 'Classwork' : filterType === 'quiz' ? 'Quizzes' : 'Assignments'}
+                            </Text>
                         </View>
+                        
+                        {/* Filter Dropdown */}
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+                            <Text style={{ fontFamily: 'Poppins-Regular', fontSize: 14, color: '#666', marginRight: 8 }}>Filter:</Text>
+                            <TouchableOpacity
+                                style={{ borderWidth: 1, borderColor: '#ccc', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4, backgroundColor: 'white' }}
+                                onPress={() => {
+                                    // Simple filter toggle - in a real app you might want a proper dropdown
+                                    if (filterType === 'all') setFilterType('quiz');
+                                    else if (filterType === 'quiz') setFilterType('assignment');
+                                    else setFilterType('all');
+                                }}
+                            >
+                                <Text style={{ fontFamily: 'Poppins-Regular', fontSize: 14, color: '#333' }}>
+                                    {filterType === 'all' ? 'All' : filterType === 'quiz' ? 'Quiz' : 'Assignment'}
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                        
                         {/* Classwork Content */}
                         {loading ? (
                             <ActivityIndicator />
@@ -252,35 +286,217 @@ export default function StudentModule(){
                             <Text style={{ fontFamily: 'Poppins-Regular', color: '#222', fontSize: 13, marginTop: 10 }}>No classwork assigned yet.</Text>
                         ) : (
                             (() => {
-  // Sort by dueDate ascending
-  const sorted = [...classwork].sort((a, b) => {
-    const aDate = a.dueDate || a.createdAt;
-    const bDate = b.dueDate || b.createdAt;
-    return new Date(aDate) - new Date(bDate);
-  });
-  // Group by dueDate
-  const groups = groupByDate(sorted, item => item.dueDate);
-  return Object.entries(groups).map(([dateKey, items]) => (
-    <View key={dateKey}>
-      <Text style={{ fontFamily: 'Poppins-Bold', fontSize: 16, color: '#222', marginBottom: 8, marginTop: 18 }}>{formatDateHeader(dateKey)}</Text>
-      {items.map(item => (
-        <View key={item._id} style={{ backgroundColor: '#fff', borderRadius: 12, borderWidth: 1, borderColor: '#cfe2ff', padding: 18, marginBottom: 16, flexDirection: 'row', alignItems: 'flex-start', shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, elevation: 1 }}>
-          <View style={{ flex: 1 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
-              <View style={{ backgroundColor: item.type === 'quiz' ? '#cdb4f6' : '#b6f5c3', borderRadius: 6, paddingHorizontal: 10, paddingVertical: 2, marginRight: 8 }}>
-                <Text style={{ color: item.type === 'quiz' ? '#7c3aed' : '#15803d', fontWeight: 'bold', fontSize: 13, fontFamily: 'Poppins-Bold' }}>{item.type === 'quiz' ? 'Quiz' : 'Assignment'}</Text>
-              </View>
-            </View>
-            <Text style={{ fontFamily: 'Poppins-Bold', color: '#222', fontSize: 18, marginBottom: 2 }}>{item.title}</Text>
-            <Text style={{ fontFamily: 'Poppins-Regular', color: '#222', fontSize: 15, marginBottom: 6 }}>{item.description || item.instructions}</Text>
-            {item.dueDate && <Text style={{ fontFamily: 'Poppins-Regular', color: '#888', fontSize: 13, marginBottom: 2 }}>Due: {new Date(item.dueDate).toLocaleString()}</Text>}
-            <Text style={{ fontFamily: 'Poppins-Regular', color: '#888', fontSize: 13 }}>Points: {item.points || 1}</Text>
-          </View>
-        </View>
-      ))}
-    </View>
-  ));
-})()
+                                // Helper function to check if assignment is posted
+                                const isAssignmentPosted = (assignment) => {
+                                    if (!assignment.postAt) return false;
+                                    const now = new Date();
+                                    const postAt = new Date(assignment.postAt);
+                                    return postAt <= now;
+                                };
+
+                                // Filter and combine assignments/quizzes
+                                let allItems = classwork.map(item => ({ 
+                                    ...item, 
+                                    isPosted: isAssignmentPosted(item),
+                                    type: item.type || 'assignment' // Default to assignment if no type
+                                }));
+
+                                // Apply filter
+                                if (filterType !== 'all') {
+                                    allItems = allItems.filter(item => item.type === filterType);
+                                }
+
+                                // Check if there are items after filtering
+                                if (allItems.length === 0) {
+                                    return (
+                                        <Text style={{ fontFamily: 'Poppins-Regular', color: '#666', fontSize: 14, textAlign: 'center', marginTop: 20 }}>
+                                            No {filterType === 'all' ? 'classwork' : filterType === 'quiz' ? 'quizzes' : 'assignments'} found.
+                                        </Text>
+                                    );
+                                }
+
+                                // Separate unposted and posted
+                                const unposted = allItems.filter(item => !item.isPosted);
+                                const posted = allItems.filter(item => item.isPosted);
+
+                                // Group posted by date (descending)
+                                const groupedByDate = {};
+                                posted.forEach(item => {
+                                    const date = new Date(item.createdAt || item.postAt || new Date());
+                                    const dateKey = date.toDateString();
+                                    if (!groupedByDate[dateKey]) groupedByDate[dateKey] = [];
+                                    groupedByDate[dateKey].push(item);
+                                });
+                                const sortedDateKeys = Object.keys(groupedByDate).sort((a, b) => new Date(b) - new Date(a));
+
+                                return (
+                                    <>
+                                        {/* Unposted at the top */}
+                                        {unposted.length > 0 && (
+                                            <View style={{ marginBottom: 24 }}>
+                                                <Text style={{ fontFamily: 'Poppins-Bold', fontSize: 18, color: '#666', marginBottom: 12 }}>Not Yet Posted</Text>
+                                                {unposted.map(item => (
+                                                    <TouchableOpacity
+                                                        key={item._id}
+                                                        style={{
+                                                            backgroundColor: '#f5f5f5',
+                                                            borderRadius: 12,
+                                                            borderWidth: 1,
+                                                            borderColor: '#ddd',
+                                                            padding: 16,
+                                                            marginBottom: 12,
+                                                            opacity: 0.75
+                                                        }}
+                                                        onPress={() => {
+                                                            if (item.type === 'quiz') {
+                                                                navigation.navigate('QuizView', { quizId: item._id });
+                                                            } else {
+                                                                navigation.navigate('AssignmentDetail', { assignmentId: item._id });
+                                                            }
+                                                        }}
+                                                    >
+                                                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                                                            <View style={{ 
+                                                                backgroundColor: item.type === 'quiz' ? '#e9d5ff' : '#dcfce7', 
+                                                                borderRadius: 6, 
+                                                                paddingHorizontal: 10, 
+                                                                paddingVertical: 4, 
+                                                                marginRight: 8 
+                                                            }}>
+                                                                <Text style={{ 
+                                                                    color: item.type === 'quiz' ? '#7c3aed' : '#15803d', 
+                                                                    fontWeight: 'bold', 
+                                                                    fontSize: 12, 
+                                                                    fontFamily: 'Poppins-Bold' 
+                                                                }}>
+                                                                    {item.type === 'quiz' ? 'Quiz' : 'Assignment'}
+                                                                </Text>
+                                                            </View>
+                                                            <View style={{ 
+                                                                backgroundColor: '#6b7280', 
+                                                                borderRadius: 6, 
+                                                                paddingHorizontal: 8, 
+                                                                paddingVertical: 4 
+                                                            }}>
+                                                                <Text style={{ 
+                                                                    color: 'white', 
+                                                                    fontWeight: 'bold', 
+                                                                    fontSize: 11, 
+                                                                    fontFamily: 'Poppins-Bold' 
+                                                                }}>
+                                                                    Not Posted Yet
+                                                                </Text>
+                                                            </View>
+                                                        </View>
+                                                        <Text style={{ fontFamily: 'Poppins-Bold', color: '#666', fontSize: 16, marginBottom: 4 }}>{item.title}</Text>
+                                                        {item.description && (
+                                                            <Text style={{ fontFamily: 'Poppins-Regular', color: '#666', fontSize: 14, marginBottom: 6 }}>{item.description}</Text>
+                                                        )}
+                                                        {item.instructions && (
+                                                            <Text style={{ fontFamily: 'Poppins-Regular', color: '#666', fontSize: 14, marginBottom: 6 }}>{item.instructions}</Text>
+                                                        )}
+                                                        {item.dueDate && (
+                                                            <Text style={{ fontFamily: 'Poppins-Regular', color: '#999', fontSize: 12, marginBottom: 2 }}>
+                                                                Due: {new Date(item.dueDate).toLocaleString()}
+                                                            </Text>
+                                                        )}
+                                                        {item.points && (
+                                                            <Text style={{ fontFamily: 'Poppins-Regular', color: '#999', fontSize: 12, marginBottom: 2 }}>
+                                                                Points: {item.points}
+                                                            </Text>
+                                                        )}
+                                                        {item.postAt && (
+                                                            <Text style={{ fontFamily: 'Poppins-Regular', color: '#3b82f6', fontSize: 12, marginTop: 4 }}>
+                                                                Will be posted: {new Date(item.postAt).toLocaleString()}
+                                                            </Text>
+                                                        )}
+                                                    </TouchableOpacity>
+                                                ))}
+                                            </View>
+                                        )}
+
+                                        {/* Posted grouped by date */}
+                                        {sortedDateKeys.map(dateKey => (
+                                            <View key={dateKey} style={{ marginBottom: 24 }}>
+                                                <Text style={{ 
+                                                    fontFamily: 'Poppins-Bold', 
+                                                    fontSize: 18, 
+                                                    color: '#666', 
+                                                    marginBottom: 12, 
+                                                    marginTop: 8 
+                                                }}>
+                                                    {new Date(dateKey).toLocaleDateString('en-US', {
+                                                        weekday: 'long', 
+                                                        year: 'numeric', 
+                                                        month: 'long', 
+                                                        day: 'numeric'
+                                                    })}
+                                                </Text>
+                                                {groupedByDate[dateKey].map(item => (
+                                                    <TouchableOpacity
+                                                        key={item._id}
+                                                        style={{
+                                                            backgroundColor: 'white',
+                                                            borderRadius: 12,
+                                                            borderWidth: 1,
+                                                            borderColor: '#dbeafe',
+                                                            padding: 16,
+                                                            marginBottom: 12,
+                                                            shadowColor: '#000',
+                                                            shadowOpacity: 0.04,
+                                                            shadowRadius: 4,
+                                                            elevation: 1
+                                                        }}
+                                                        onPress={() => {
+                                                            if (item.type === 'quiz') {
+                                                                navigation.navigate('QuizView', { quizId: item._id });
+                                                            } else {
+                                                                navigation.navigate('AssignmentDetail', { assignmentId: item._id });
+                                                            }
+                                                        }}
+                                                    >
+                                                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                                                            <View style={{ 
+                                                                backgroundColor: item.type === 'quiz' ? '#e9d5ff' : '#dcfce7', 
+                                                                borderRadius: 6, 
+                                                                paddingHorizontal: 10, 
+                                                                paddingVertical: 4, 
+                                                                marginRight: 8 
+                                                            }}>
+                                                                <Text style={{ 
+                                                                    color: item.type === 'quiz' ? '#7c3aed' : '#15803d', 
+                                                                    fontWeight: 'bold', 
+                                                                    fontSize: 12, 
+                                                                    fontFamily: 'Poppins-Bold' 
+                                                                }}>
+                                                                    {item.type === 'quiz' ? 'Quiz' : 'Assignment'}
+                                                                </Text>
+                                                            </View>
+                                                        </View>
+                                                        <Text style={{ fontFamily: 'Poppins-Bold', color: '#222', fontSize: 16, marginBottom: 4 }}>{item.title}</Text>
+                                                        {item.description && (
+                                                            <Text style={{ fontFamily: 'Poppins-Regular', color: '#666', fontSize: 14, marginBottom: 6 }}>{item.description}</Text>
+                                                        )}
+                                                        {item.instructions && (
+                                                            <Text style={{ fontFamily: 'Poppins-Regular', color: '#666', fontSize: 14, marginBottom: 6 }}>{item.instructions}</Text>
+                                                        )}
+                                                        {item.dueDate && (
+                                                            <Text style={{ fontFamily: 'Poppins-Regular', color: '#666', fontSize: 12, marginBottom: 2 }}>
+                                                                Due: {new Date(item.dueDate).toLocaleString()}
+                                                            </Text>
+                                                        )}
+                                                        {item.points && (
+                                                            <Text style={{ fontFamily: 'Poppins-Regular', color: '#666', fontSize: 12, marginBottom: 2 }}>
+                                                                Points: {item.points}
+                                                            </Text>
+                                                        )}
+                                                    </TouchableOpacity>
+                                                ))}
+                                            </View>
+                                        ))}
+                                    </>
+                                );
+                            })()
                         )}
                     </>
                 );
