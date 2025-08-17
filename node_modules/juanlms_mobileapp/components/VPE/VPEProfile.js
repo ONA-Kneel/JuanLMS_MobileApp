@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, TextInput, Alert, Image } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { useContext } from 'react';
-import { UserContext } from '../UserContext';
 import { useNavigation } from '@react-navigation/native';
+import { useUser } from '../UserContext';
 
 export default function VPEProfile() {
-  const { user, setUser } = useContext(UserContext);
+  const { user, setUser } = useUser();
   const navigation = useNavigation();
   const [isEditing, setIsEditing] = useState(false);
   const [editedProfile, setEditedProfile] = useState({
@@ -30,6 +29,21 @@ export default function VPEProfile() {
       });
     }
   }, [user]);
+
+  // Show loading or error state if user is not available
+  if (!user) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Profile</Text>
+          <Icon name="account" size={28} color="#00418b" />
+        </View>
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Loading profile...</Text>
+        </View>
+      </View>
+    );
+  }
 
   const handleSave = async () => {
     if (!editedProfile.firstname.trim() || !editedProfile.lastname.trim() || !editedProfile.email.trim()) {
@@ -532,5 +546,18 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginLeft: 8,
     fontFamily: 'Poppins-SemiBold',
+  },
+  
+  // Loading state styles
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#666',
+    fontFamily: 'Poppins-Regular',
   },
 });

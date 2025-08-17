@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useIsFocused } from '@react-navigation/native';
-import { UserContext } from '../UserContext';
+import { useUser } from '../UserContext';
 
 const ProfileField = ({ label, value, isEditable, onChangeText, placeholder }) => (
   <View style={styles.fieldContainer}>
@@ -31,7 +31,7 @@ const ProfileField = ({ label, value, isEditable, onChangeText, placeholder }) =
 );
 
 export default function PrincipalProfile() {
-  const { user, addAuditLog } = useContext(UserContext);
+  const { user } = useUser();
   const isFocused = useIsFocused();
   const [isEditing, setIsEditing] = useState(false);
   const [profileData, setProfileData] = useState({
@@ -67,15 +67,7 @@ export default function PrincipalProfile() {
       // In a real app, you'd make an API call to update the profile
       // await axios.put(`${API_BASE_URL}/api/users/profile`, profileData);
       
-      // Log the profile update
-      if (addAuditLog) {
-        addAuditLog({
-          action: 'Profile Updated',
-          details: 'Principal profile information modified',
-          timestamp: new Date().toISOString(),
-          userId: user?.id || 'unknown',
-        });
-      }
+      // Note: Audit logging would be implemented here in a real application
 
       setOriginalData({ ...profileData });
       setIsEditing(false);
