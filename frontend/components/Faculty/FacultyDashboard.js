@@ -53,12 +53,17 @@ export default function FacultyDashboard() {
         
         if (academicResponse.ok) {
           const academicData = await academicResponse.json();
+          console.log('Academic year API response:', academicData);
           if (academicData.success && academicData.academicYear) {
             activeYear = academicData.academicYear.year;
             activeTerm = academicData.academicYear.currentTerm;
+            console.log('Using academic year data:', activeYear, activeTerm);
+          } else {
+            console.log('Academic year data not in expected format:', academicData);
           }
         } else {
           console.log('Academic year API not available, using default values');
+          console.log('Response status:', academicResponse.status);
         }
 
         console.log('Active Academic Year:', activeYear, 'Term:', activeTerm);
@@ -66,8 +71,8 @@ export default function FacultyDashboard() {
         // Update academic context for display
         setAcademicContext(`${activeYear} | ${activeTerm}`);
 
-        // Fetch classes for the current active term
-        const response = await fetch(`https://juanlms-webapp-server.onrender.com/api/classes/faculty-classes?academicYear=${activeYear}&term=${activeTerm}`, {
+        // Fetch all classes first (revert to original API call)
+        const response = await fetch(`https://juanlms-webapp-server.onrender.com/api/classes/faculty-classes`, {
           method: 'GET',
           headers: {
             'Accept': 'application/json',
@@ -81,17 +86,26 @@ export default function FacultyDashboard() {
         }
         
         const data = await response.json();
-        console.log('API Response:', data);
+        console.log('Classes API Response:', data);
         
         let allClasses = [];
         if (Array.isArray(data)) {
           allClasses = data;
+          console.log('Classes array length:', allClasses.length);
         } else if (data.success && Array.isArray(data.classes)) {
           allClasses = data.classes;
+          console.log('Classes from success response length:', allClasses.length);
         } else {
+          console.log('Unexpected data format:', data);
           setClasses([]);
           setError(data.error || 'Failed to fetch classes');
           return;
+        }
+        
+        // Log first few classes for debugging
+        if (allClasses.length > 0) {
+          console.log('First class sample:', allClasses[0]);
+          console.log('Class properties:', Object.keys(allClasses[0]));
         }
 
         // Filter classes by active term and status
@@ -105,9 +119,9 @@ export default function FacultyDashboard() {
           
           const isCurrentTerm = classYear === activeYear && classTerm === activeTerm;
           
-          // Check if class is active (not completed/archived)
+          // Check if class is active (not completed/archived) - less strict filtering
           const isActive = !classItem.isCompleted && 
-                          !classItem.status === 'completed' && 
+                          classItem.status !== 'completed' && 
                           !classItem.isArchived &&
                           classItem.status !== 'archived';
           
@@ -116,15 +130,29 @@ export default function FacultyDashboard() {
             term: classTerm,
             isCurrentTerm,
             isActive,
-            status: classItem.status
+            status: classItem.status,
+            isCompleted: classItem.isCompleted,
+            isArchived: classItem.isArchived
           });
           
           return isCurrentTerm && isActive;
         });
 
         console.log('Filtered classes for current term:', filteredClasses.length);
-        setClasses(filteredClasses);
-        setError(null);
+        
+        // If no classes found for current term, show all classes for debugging
+        if (filteredClasses.length === 0) {
+          console.log('No classes found for current term, showing all classes for debugging:');
+          console.log('All classes:', allClasses);
+          console.log('Active Year:', activeYear, 'Active Term:', activeTerm);
+          
+          // Show all classes temporarily for debugging
+          setClasses(allClasses);
+          setError('No classes found for current term. Showing all classes for debugging.');
+        } else {
+          setClasses(filteredClasses);
+          setError(null);
+        }
       } catch (error) {
         console.error('Network error fetching classes:', error);
         setClasses([]);
@@ -298,20 +326,35 @@ export default function FacultyDashboard() {
           </TouchableOpacity>
         </View> */}
         
-        {/* Your Classes */}
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 24, marginBottom: 8 }}>
-          <Text style={{ fontSize: 16, fontWeight: 'bold', fontFamily: 'Poppins-Bold' }}>Your Classes</Text>
-          <TouchableOpacity 
-            onPress={() => navigation.navigate('FClasses')}
-            style={{ 
-              backgroundColor: '#00418b', 
-              paddingHorizontal: 12, 
-              paddingVertical: 6, 
-              borderRadius: 8 
-            }}>
-            <Text style={{ color: '#fff', fontSize: 12, fontFamily: 'Poppins-Bold' }}>View All</Text>
-          </TouchableOpacity>
-        </View>
+                 {/* Your Classes */}
+         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 24, marginBottom: 8 }}>
+           <Text style={{ fontSize: 16, fontWeight: 'bold', fontFamily: 'Poppins-Bold' }}>Your Classes</Text>
+           <View style={{ flexDirection: 'row', gap: 8 }}>
+             <TouchableOpacity 
+               onPress={() => {
+                 console.log('Manual refresh triggered');
+                 fetchClasses();
+               }}
+               style={{ 
+                 backgroundColor: '#ff9800', 
+                 paddingHorizontal: 12, 
+                 paddingVertical: 6, 
+                 borderRadius: 8 
+               }}>
+               <Text style={{ color: '#fff', fontSize: 12, fontFamily: 'Poppins-Bold' }}>Refresh</Text>
+             </TouchableOpacity>
+             <TouchableOpacity 
+               onPress={() => navigation.navigate('FClasses')}
+               style={{ 
+                 backgroundColor: '#00418b', 
+                 paddingHorizontal: 12, 
+                 paddingVertical: 6, 
+                 borderRadius: 8 
+               }}>
+               <Text style={{ color: '#fff', fontSize: 12, fontFamily: 'Poppins-Bold' }}>View All</Text>
+             </TouchableOpacity>
+           </View>
+         </View>
         
         {loading ? (
           <View style={{ alignItems: 'center', padding: 20 }}>
@@ -323,22 +366,36 @@ export default function FacultyDashboard() {
             <Icon name="alert-circle" size={32} color="#ff4444" />
             <Text style={{ marginTop: 10, color: '#ff4444', fontFamily: 'Poppins-Regular' }}>{error}</Text>
           </View>
-        ) : classes.length === 0 ? (
-          <View style={{ alignItems: 'center', padding: 20 }}>
-            <Icon name="book-open-variant" size={32} color="#666" />
-            <Text style={{ marginTop: 10, color: '#666', fontFamily: 'Poppins-Regular' }}>You have no classes yet.</Text>
-            <TouchableOpacity 
-              onPress={createClasses}
-              style={{ 
-                marginTop: 10, 
-                backgroundColor: '#00418b', 
-                paddingHorizontal: 20, 
-                paddingVertical: 10, 
-                borderRadius: 8 
-              }}>
-              <Text style={{ color: '#fff', fontFamily: 'Poppins-Bold' }}>Create Your First Class</Text>
-            </TouchableOpacity>
-          </View>
+                 ) : classes.length === 0 ? (
+           <View style={{ alignItems: 'center', padding: 20 }}>
+             <Icon name="book-open-variant" size={32} color="#666" />
+             <Text style={{ marginTop: 10, color: '#666', fontFamily: 'Poppins-Regular' }}>You have no classes yet.</Text>
+             
+             {/* Debug Info */}
+             <View style={{ marginTop: 16, padding: 16, backgroundColor: '#f0f0f0', borderRadius: 8, width: '100%' }}>
+               <Text style={{ fontSize: 12, color: '#666', fontFamily: 'Poppins-Regular', textAlign: 'center' }}>
+                 Debug Info:
+               </Text>
+               <Text style={{ fontSize: 10, color: '#888', fontFamily: 'Poppins-Regular', textAlign: 'center', marginTop: 4 }}>
+                 Academic Year: {academicContext}
+               </Text>
+               <Text style={{ fontSize: 10, color: '#888', fontFamily: 'Poppins-Regular', textAlign: 'center' }}>
+                 Check console for detailed logs
+               </Text>
+             </View>
+             
+             <TouchableOpacity 
+               onPress={createClasses}
+               style={{ 
+                 marginTop: 10, 
+                 backgroundColor: '#00418b', 
+                 paddingHorizontal: 20, 
+                 paddingVertical: 10, 
+                 borderRadius: 8 
+               }}>
+               <Text style={{ color: '#fff', fontFamily: 'Poppins-Bold' }}>Create Your First Class</Text>
+             </TouchableOpacity>
+           </View>
         ) : (
           <>
             {classes.slice(0, 3).map((course, index) => (
