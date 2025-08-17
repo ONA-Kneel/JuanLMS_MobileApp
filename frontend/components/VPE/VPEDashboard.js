@@ -236,99 +236,93 @@ export default function VPEDashboard() {
             tintColor="#00418b"
           />
         }
+        showsVerticalScrollIndicator={false}
       >
-        {/* Main Content Area - Two Column Layout */}
-        <View style={styles.mainContentContainer}>
-          {/* Left Column - Audit Trail Preview */}
-          <View style={styles.leftColumn}>
-            <View style={styles.tableSection}>
-              <Text style={styles.sectionTitle}>Audit Preview</Text>
-              <View style={styles.tableCard}>
-                <View style={styles.tableHeader}>
-                  <Text style={[styles.tableHeaderText, { flex: 2 }]}>Timestamp</Text>
-                  <Text style={[styles.tableHeaderText, { flex: 1 }]}>User</Text>
-                  <Text style={[styles.tableHeaderText, { flex: 2 }]}>Details</Text>
-                </View>
-                {recentLogs.length > 0 ? (
-                  recentLogs.map((log, index) => (
-                    <View 
-                      key={index} 
-                      style={[
-                        styles.tableRow, 
-                        { backgroundColor: index % 2 === 0 ? '#ffffff' : '#f8f9fa' }
-                      ]}
-                    >
-                      <Text style={[styles.tableCellText, { flex: 2 }]} numberOfLines={1}>
-                        {formatDate(log.timestamp)}
-                      </Text>
-                      <Text style={[styles.tableCellText, { flex: 1 }]} numberOfLines={1}>
-                        {log.userName}
-                      </Text>
-                      <Text style={[styles.tableCellText, { flex: 2 }]} numberOfLines={1}>
-                        {log.action}
-                      </Text>
-                    </View>
-                  ))
-                ) : (
-                  <View style={styles.emptyState}>
-                    <Text style={styles.emptyStateText}>No logs found</Text>
-                  </View>
-                )}
-              </View>
+        {/* Audit Preview Section */}
+        <View style={styles.sectionContainer}>
+          <Text style={styles.sectionTitle}>Audit Preview</Text>
+          <View style={styles.tableCard}>
+            <View style={styles.tableHeader}>
+              <Text style={styles.tableHeaderText}>Timestamp</Text>
+              <Text style={styles.tableHeaderText}>User</Text>
+              <Text style={styles.tableHeaderText}>Details</Text>
             </View>
-          </View>
-
-          {/* Right Column - Mini Academic Calendar */}
-          <View style={styles.rightColumn}>
-            <View style={styles.calendarSection}>
-              <Text style={styles.sectionTitle}>Academic Calendar</Text>
-              <View style={styles.calendarCard}>
-                {/* Calendar Navigation */}
-                <View style={styles.calendarNavigation}>
-                  <TouchableOpacity style={styles.calendarNavButton} onPress={goToToday}>
-                    <Text style={styles.calendarNavButtonText}>today</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.calendarNavButton} onPress={goToPreviousMonth}>
-                    <Text style={styles.calendarNavButtonText}>{'<'}</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.calendarNavButton} onPress={goToNextMonth}>
-                    <Text style={styles.calendarNavButtonText}>{'>'}</Text>
-                  </TouchableOpacity>
-                  <Text style={styles.calendarMonthText}>
-                    {currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+            {recentLogs.length > 0 ? (
+              recentLogs.map((log, index) => (
+                <View 
+                  key={index} 
+                  style={[
+                    styles.tableRow, 
+                    { backgroundColor: index % 2 === 0 ? '#ffffff' : '#f8f9fa' }
+                  ]}
+                >
+                  <Text style={styles.tableCellText} numberOfLines={1}>
+                    {formatDate(log.timestamp)}
+                  </Text>
+                  <Text style={styles.tableCellText} numberOfLines={1}>
+                    {log.userName}
+                  </Text>
+                  <Text style={styles.tableCellText} numberOfLines={1}>
+                    {log.action}
                   </Text>
                 </View>
-
-                {/* Calendar Grid */}
-                <View style={styles.calendarGrid}>
-                  {/* Day Headers */}
-                  {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, index) => (
-                    <View key={index} style={styles.calendarDayHeader}>
-                      <Text style={styles.calendarDayHeaderText}>{day}</Text>
-                    </View>
-                  ))}
-
-                  {/* Calendar Days */}
-                  {calendarDays.map((date, index) => (
-                    <TouchableOpacity
-                      key={index}
-                      style={[
-                        styles.calendarDay,
-                        isToday(date) && styles.calendarDayToday,
-                        !isCurrentMonth(date) && styles.calendarDayOtherMonth
-                      ]}
-                    >
-                      <Text style={[
-                        styles.calendarDayText,
-                        isToday(date) && styles.calendarDayTextToday,
-                        !isCurrentMonth(date) && styles.calendarDayTextOtherMonth
-                      ]}>
-                        {date.getDate()}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
+              ))
+            ) : (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyStateText}>No logs found</Text>
               </View>
+            )}
+          </View>
+        </View>
+
+        {/* Academic Calendar Section */}
+        <View style={styles.sectionContainer}>
+          <Text style={styles.sectionTitle}>Academic Calendar</Text>
+          <View style={styles.calendarCard}>
+            {/* Calendar Navigation */}
+            <View style={styles.calendarNavigation}>
+              <TouchableOpacity style={styles.calendarNavButton} onPress={goToToday}>
+                <Text style={styles.calendarNavButtonText}>today</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.calendarNavButton} onPress={goToPreviousMonth}>
+                <Text style={styles.calendarNavButtonText}>{'<'}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.calendarNavButton} onPress={goToNextMonth}>
+                <Text style={styles.calendarNavButtonText}>{'>'}</Text>
+              </TouchableOpacity>
+              <Text style={styles.calendarMonthText}>
+                {currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+              </Text>
+            </View>
+
+            {/* Calendar Grid */}
+            <View style={styles.calendarGrid}>
+              {/* Day Headers */}
+              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, index) => (
+                <View key={index} style={styles.calendarDayHeader}>
+                  <Text style={styles.calendarDayHeaderText}>{day}</Text>
+                </View>
+              ))}
+
+              {/* Calendar Days */}
+              {calendarDays.map((date, index) => (
+                <TouchableOpacity
+                  key={index}
+                  style={[
+                    styles.calendarDay,
+                    isToday(date) && styles.calendarDayToday,
+                    !isCurrentMonth(date) && styles.calendarDayOtherMonth
+                  ]}
+                >
+                  <Text style={[
+                    styles.calendarDayText,
+                    isToday(date) && styles.calendarDayTextToday,
+                    !isCurrentMonth(date) && styles.calendarDayTextOtherMonth
+                  ]}>
+                    {date.getDate()}
+                  </Text>
+                </TouchableOpacity>
+              ))}
             </View>
           </View>
         </View>
@@ -403,144 +397,143 @@ const styles = {
 
   // Scroll content
   scrollContent: {
-    paddingBottom: 80,
+    paddingBottom: 100,
     paddingHorizontal: 20,
     paddingTop: 10,
   },
 
-  // Table section
-  tableSection: {
-    marginBottom: 20,
+  // Section container
+  sectionContainer: {
+    marginBottom: 24,
   },
+
+  // Section title
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontFamily: 'Poppins-Bold',
     color: '#333',
-    marginBottom: 12,
+    marginBottom: 16,
+    marginLeft: 4,
   },
+
+  // Table section
   tableCard: {
     backgroundColor: '#fff',
-    borderRadius: 12,
+    borderRadius: 16,
     shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
     overflow: 'hidden',
   },
   tableHeader: {
     flexDirection: 'row',
     backgroundColor: '#f8f9fa',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
     borderBottomWidth: 1,
     borderBottomColor: '#e9ecef',
   },
   tableHeaderText: {
+    flex: 1,
     fontSize: 14,
     fontFamily: 'Poppins-SemiBold',
     color: '#495057',
+    textAlign: 'center',
   },
   tableRow: {
     flexDirection: 'row',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
     borderBottomWidth: 1,
     borderBottomColor: '#f1f3f4',
   },
   tableCellText: {
+    flex: 1,
     fontSize: 14,
     fontFamily: 'Poppins-Regular',
     color: '#333',
+    textAlign: 'center',
   },
   emptyState: {
-    padding: 20,
+    padding: 40,
     alignItems: 'center',
   },
   emptyStateText: {
-    fontSize: 14,
+    fontSize: 16,
     fontFamily: 'Poppins-Regular',
     color: '#666',
   },
 
-  // Main content container - Two column layout
-  mainContentContainer: {
-    flexDirection: 'row',
-    marginBottom: 20,
-    gap: 20,
-  },
-  leftColumn: {
-    flex: 2,
-  },
-  rightColumn: {
-    flex: 1,
-  },
-
   // Calendar section
-  calendarSection: {
-    marginBottom: 20,
-  },
   calendarCard: {
     backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 16,
+    padding: 20,
     shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
   },
   calendarNavigation: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
-    gap: 8,
+    marginBottom: 20,
+    gap: 12,
   },
   calendarNavButton: {
     backgroundColor: '#f8f9fa',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
   },
   calendarNavButtonText: {
-    fontSize: 12,
-    fontFamily: 'Poppins-Regular',
+    fontSize: 14,
+    fontFamily: 'Poppins-Medium',
     color: '#666',
   },
   calendarMonthText: {
-    fontSize: 16,
+    fontSize: 18,
     fontFamily: 'Poppins-Bold',
     color: '#333',
     marginLeft: 8,
+    flex: 1,
   },
   calendarGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    justifyContent: 'space-between',
   },
   calendarDayHeader: {
-    width: '14.28%',
-    paddingVertical: 8,
+    width: (width - 80) / 7,
+    paddingVertical: 12,
     alignItems: 'center',
+    marginBottom: 8,
   },
   calendarDayHeaderText: {
-    fontSize: 12,
+    fontSize: 14,
     fontFamily: 'Poppins-SemiBold',
     color: '#666',
   },
   calendarDay: {
-    width: '14.28%',
-    paddingVertical: 8,
+    width: (width - 80) / 7,
+    height: 40,
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: 8,
   },
   calendarDayText: {
-    fontSize: 12,
+    fontSize: 14,
     fontFamily: 'Poppins-Regular',
     color: '#333',
   },
   calendarDayToday: {
     backgroundColor: '#fff3cd',
-    borderRadius: 12,
-    width: 24,
-    height: 24,
+    borderRadius: 20,
+    width: 36,
+    height: 36,
     alignItems: 'center',
     justifyContent: 'center',
   },
