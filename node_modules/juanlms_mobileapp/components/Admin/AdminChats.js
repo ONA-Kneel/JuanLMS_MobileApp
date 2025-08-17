@@ -171,31 +171,21 @@ export default function AdminChats() {
     fetchUsers();
   }, [user?._id]);
 
-  // Fetch recent chats
+  // Initialize recent chats from users (like web version)
   useEffect(() => {
-    const fetchRecentChats = async () => {
-      if (!user?._id) return;
-      
-      try {
-        const token = await AsyncStorage.getItem('jwtToken');
-        const response = await fetch(`${API_BASE}/api/messages/recent/${user._id}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          setRecentChats(Array.isArray(data) ? data : []);
-        }
-      } catch (error) {
-        console.error('Error fetching recent chats:', error);
-      }
-    };
-
-    fetchRecentChats();
-  }, [user?._id]);
+    if (!user?._id || users.length === 0) return;
+    
+    // Create recent chats from users (this is how web version works)
+    const userChats = users.map(userItem => ({
+      _id: userItem._id,
+      partnerId: userItem._id,
+      firstname: userItem.firstname,
+      lastname: userItem.lastname,
+      role: userItem.role
+    }));
+    
+    setRecentChats(userChats);
+  }, [user?._id, users]);
 
   // Fetch user groups
   useEffect(() => {
@@ -377,7 +367,7 @@ export default function AdminChats() {
 
     try {
       const token = await AsyncStorage.getItem('jwtToken');
-      const response = await fetch(`${API_BASE}/api/group-chats/${joinGroupId}/join`, {
+              const response = await fetch(`${API_BASE}/api/group-chats/${joinGroupId}/join`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
