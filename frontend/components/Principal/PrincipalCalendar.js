@@ -11,6 +11,7 @@ import {
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useIsFocused } from '@react-navigation/native';
 import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { formatDate, getCurrentDate, addDays, isSameDay, isSameMonth, isBefore, clone } from '../../utils/dateUtils';
 
 const API_BASE_URL = 'https://juanlms-webapp-server.onrender.com';
@@ -46,6 +47,11 @@ const EventItem = ({ event, onPress }) => (
       <Text style={styles.eventTitle}>{event.title}</Text>
       <Text style={styles.eventTime}>{event.time}</Text>
       <Text style={styles.eventLocation}>{event.location}</Text>
+      {event.type && (
+        <View style={styles.eventTypeBadge}>
+          <Text style={styles.eventTypeText}>{event.type}</Text>
+        </View>
+      )}
     </View>
     <Icon name="chevron-right" size={20} color="#666" />
   </TouchableOpacity>
@@ -58,13 +64,19 @@ export default function PrincipalCalendar() {
   const [events, setEvents] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  
+  // New state variables for enhanced functionality
+  const [academicYear, setAcademicYear] = useState(null);
+  const [currentTerm, setCurrentTerm] = useState(null);
+  const [classDates, setClassDates] = useState([]);
+  const [holidays, setHolidays] = useState([]);
 
   const fetchCalendarEvents = async () => {
     try {
       setIsLoading(true);
       
       // Fetch calendar events from multiple endpoints like the web app does
-      const [classDates, events, holidays] = await Promise.all([
+      const [classDatesRes, eventsRes, holidaysRes] = await Promise.all([
         axios.get(`${API_BASE_URL}/api/class-dates`),
         axios.get(`${API_BASE_URL}/events`),
         axios.get(`https://date.nager.at/api/v3/PublicHolidays/${new Date().getFullYear()}/PH`)
@@ -73,41 +85,46 @@ export default function PrincipalCalendar() {
       let allEvents = [];
       
       // Process class dates
-      if (classDates.data && Array.isArray(classDates.data)) {
-        allEvents = allEvents.concat(classDates.data.map(date => ({
+      if (classDatesRes.data && Array.isArray(classDatesRes.data)) {
+        setClassDates(classDatesRes.data);
+        allEvents = allEvents.concat(classDatesRes.data.map(date => ({
           id: `class-${date._id}`,
           title: 'Class Day',
           date: formatDate(new Date(date.date), 'YYYY-MM-DD'),
           time: 'All Day',
           location: 'All Classrooms',
           color: '#4CAF50',
-          category: 'Academic'
+          category: 'Academic',
+          type: 'class'
         })));
       }
       
       // Process events
-      if (events.data && Array.isArray(events.data)) {
-        allEvents = allEvents.concat(events.data.map(event => ({
+      if (eventsRes.data && Array.isArray(eventsRes.data)) {
+        allEvents = allEvents.concat(eventsRes.data.map(event => ({
           id: `event-${event._id}`,
           title: event.title,
           date: formatDate(new Date(event.date), 'YYYY-MM-DD'),
           time: event.time || 'All Day',
           location: event.location || 'TBD',
           color: event.color || '#2196F3',
-          category: event.category || 'Event'
+          category: event.category || 'Event',
+          type: 'event'
         })));
       }
       
       // Process holidays
-      if (holidays.data && Array.isArray(holidays.data)) {
-        allEvents = allEvents.concat(holidays.data.map(holiday => ({
+      if (holidaysRes.data && Array.isArray(holidaysRes.data)) {
+        setHolidays(holidaysRes.data);
+        allEvents = allEvents.concat(holidaysRes.data.map(holiday => ({
           id: `holiday-${holiday.date}`,
           title: holiday.localName || 'Holiday',
           date: holiday.date,
           time: 'All Day',
           location: 'School Closed',
           color: '#FF9800',
-          category: 'Holiday'
+          category: 'Holiday',
+          type: 'holiday'
         })));
       }
       
@@ -120,33 +137,79 @@ export default function PrincipalCalendar() {
     }
   };
 
+  // Fetch academic year information
+  useEffect(() => {
+    const fetchAcademicYear = async () => {
+      try {
+        const token = await AsyncStorage.getItem('jwtToken');
+        const yearRes = await fetch(`${API_BASE_URL}/api/schoolyears/active`, {
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+        if (yearRes.ok) {
+          const year = await yearRes.json();
+          setAcademicYear(year);
+        }
+      } catch (err) {
+        console.error('Failed to fetch academic year', err);
+      }
+    };
+    fetchAcademicYear();
+  }, []);
+
+  // Fetch active term for the academic year
+  useEffect(() => {
+    const fetchActiveTermForYear = async () => {
+      if (!academicYear) return;
+      try {
+        const schoolYearName = `${academicYear.schoolYearStart}-${academicYear.schoolYearEnd}`;
+        const token = await AsyncStorage.getItem('jwtToken');
+        const res = await fetch(`${API_BASE_URL}/api/terms/schoolyear/${schoolYearName}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const terms = await res.json();
+          const active = terms.find(term => term.status === 'active');
+          setCurrentTerm(active || null);
+        } else {
+          setCurrentTerm(null);
+        }
+      } catch {
+        setCurrentTerm(null);
+      }
+    };
+    fetchActiveTermForYear();
+  }, [academicYear]);
+
   const getMockEvents = () => [
     {
       id: 1,
       title: 'Faculty Meeting',
-              date: formatDate(getCurrentDate(), 'YYYY-MM-DD'),
+      date: formatDate(getCurrentDate(), 'YYYY-MM-DD'),
       time: '9:00 AM - 10:00 AM',
       location: 'Conference Room A',
       color: '#4CAF50',
       category: 'Academic',
+      type: 'meeting'
     },
     {
       id: 2,
       title: 'Student Orientation',
-              date: formatDate(addDays(getCurrentDate(), 2), 'YYYY-MM-DD'),
+      date: formatDate(addDays(getCurrentDate(), 2), 'YYYY-MM-DD'),
       time: '2:00 PM - 4:00 PM',
       location: 'Auditorium',
       color: '#2196F3',
       category: 'Student',
+      type: 'orientation'
     },
     {
       id: 3,
       title: 'Board Meeting',
-              date: formatDate(addDays(getCurrentDate(), 5), 'YYYY-MM-DD'),
+      date: formatDate(addDays(getCurrentDate(), 5), 'YYYY-MM-DD'),
       time: '3:00 PM - 5:00 PM',
       location: 'Board Room',
       color: '#FF9800',
       category: 'Administrative',
+      type: 'meeting'
     },
   ];
 
@@ -183,7 +246,7 @@ export default function PrincipalCalendar() {
   };
 
   const getEventsForDate = (date) => {
-    const dateStr = date.format('YYYY-MM-DD');
+    const dateStr = formatDate(date, 'YYYY-MM-DD');
     return events.filter(event => event.date === dateStr);
   };
 
@@ -208,7 +271,7 @@ export default function PrincipalCalendar() {
   const handleEventPress = (event) => {
     Alert.alert(
       event.title,
-      `Time: ${event.time}\nLocation: ${event.location}\nCategory: ${event.category}`,
+      `Time: ${event.time}\nLocation: ${event.location}\nCategory: ${event.category}\nType: ${event.type}`,
       [{ text: 'OK' }]
     );
   };
@@ -226,6 +289,13 @@ export default function PrincipalCalendar() {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Academic Calendar</Text>
         <Text style={styles.headerSubtitle}>Manage academic events and schedules</Text>
+        {/* Academic Year and Term Info */}
+        <View style={styles.academicInfo}>
+          <Text style={styles.academicText}>
+            {academicYear ? `${academicYear.schoolYearStart}-${academicYear.schoolYearEnd}` : "Loading..."} | 
+            {currentTerm ? ` ${currentTerm.termName}` : " Loading..."}
+          </Text>
+        </View>
       </View>
 
       {/* Month Navigation */}
@@ -233,7 +303,7 @@ export default function PrincipalCalendar() {
         <TouchableOpacity onPress={() => changeMonth(-1)} style={styles.navButton}>
           <Icon name="chevron-left" size={24} color="#00418b" />
         </TouchableOpacity>
-                            <Text style={styles.monthTitle}>{getMonthDisplayName(currentDate)}</Text>
+        <Text style={styles.monthTitle}>{getMonthDisplayName(currentDate)}</Text>
         <TouchableOpacity onPress={() => changeMonth(1)} style={styles.navButton}>
           <Icon name="chevron-right" size={24} color="#00418b" />
         </TouchableOpacity>
@@ -258,7 +328,7 @@ export default function PrincipalCalendar() {
             return (
               <CalendarDay
                 key={index}
-                day={day.date()}
+                day={day.getDate()}
                 isCurrentMonth={isSameMonth(day, currentDate)}
                 isSelected={isSelected}
                 hasEvents={dayEvents.length > 0}
@@ -272,9 +342,9 @@ export default function PrincipalCalendar() {
 
       {/* Selected Date Events */}
       <View style={styles.eventsSection}>
-                            <Text style={styles.eventsSectionTitle}>
-                      Events for {formatDate(selectedDate, 'MMMM D, YYYY')}
-                    </Text>
+        <Text style={styles.eventsSectionTitle}>
+          Events for {formatDate(selectedDate, 'MMMM D, YYYY')}
+        </Text>
         
         {selectedDateEvents.length > 0 ? (
           selectedDateEvents.map(event => (
@@ -306,6 +376,15 @@ export default function PrincipalCalendar() {
   );
 }
 
+// Helper function for month names
+const getMonthName = (monthIndex) => {
+  const months = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+  return months[monthIndex];
+};
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -327,6 +406,18 @@ const styles = StyleSheet.create({
     color: '#e3f2fd',
     marginTop: 4,
     fontFamily: 'Poppins-Regular',
+  },
+  academicInfo: {
+    marginTop: 8,
+    padding: 8,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 6,
+  },
+  academicText: {
+    fontSize: 14,
+    color: '#fff',
+    fontFamily: 'Poppins-Regular',
+    textAlign: 'center',
   },
   monthNavigation: {
     flexDirection: 'row',
@@ -473,6 +564,21 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#999',
     fontFamily: 'Poppins-Regular',
+  },
+  eventTypeBadge: {
+    backgroundColor: '#e3f2fd',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+    alignSelf: 'flex-start',
+    marginTop: 4,
+  },
+  eventTypeText: {
+    fontSize: 10,
+    color: '#1976d2',
+    fontWeight: 'bold',
+    textTransform: 'uppercase',
+    fontFamily: 'Poppins-Bold',
   },
   noEventsContainer: {
     alignItems: 'center',

@@ -1,4 +1,4 @@
-import { Text, TouchableOpacity, View, Image } from 'react-native';
+import { Text, TouchableOpacity, View, Image, Alert } from 'react-native';
 import * as React from 'react';
 import { useState, useEffect } from 'react';
 import { Calendar } from 'react-native-calendars';
@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import StudentCalendarStyle from '../styles/Stud/StudentCalendarStyle';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
 
 const timeToString = (time) => {
   const date = new Date(time);
@@ -52,6 +53,13 @@ export default function StudentCalendar() {
   });
   const [showMonthCalendar, setShowMonthCalendar] = useState(false);
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
+  
+  // New state variables for web integration
+  const [academicYear, setAcademicYear] = useState(null);
+  const [currentTerm, setCurrentTerm] = useState(null);
+  const [classDates, setClassDates] = useState([]);
+  const [assignmentEvents, setAssignmentEvents] = useState([]);
+  const [loadingEvents, setLoadingEvents] = useState(true);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -74,8 +82,160 @@ export default function StudentCalendar() {
     });
   };
 
+  // Fetch academic year information
+  useEffect(() => {
+    const fetchAcademicYear = async () => {
+      try {
+        const token = await AsyncStorage.getItem('jwtToken');
+        const yearRes = await fetch('https://juanlms-webapp-server.onrender.com/api/schoolyears/active', {
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+        if (yearRes.ok) {
+          const year = await yearRes.json();
+          setAcademicYear(year);
+        }
+      } catch (err) {
+        console.error('Failed to fetch academic year', err);
+      }
+    };
+    fetchAcademicYear();
+  }, []);
+
+  // Fetch active term for the academic year
+  useEffect(() => {
+    const fetchActiveTermForYear = async () => {
+      if (!academicYear) return;
+      try {
+        const schoolYearName = `${academicYear.schoolYearStart}-${academicYear.schoolYearEnd}`;
+        const token = await AsyncStorage.getItem('jwtToken');
+        const res = await fetch(`https://juanlms-webapp-server.onrender.com/api/terms/schoolyear/${schoolYearName}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const terms = await res.json();
+          const active = terms.find(term => term.status === 'active');
+          setCurrentTerm(active || null);
+        } else {
+          setCurrentTerm(null);
+        }
+      } catch {
+        setCurrentTerm(null);
+      }
+    };
+    fetchActiveTermForYear();
+  }, [academicYear]);
+
+  // Fetch class dates
+  useEffect(() => {
+    const fetchClassDates = async () => {
+      try {
+        const token = await AsyncStorage.getItem('jwtToken');
+        const res = await fetch('https://juanlms-webapp-server.onrender.com/api/class-dates', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data)) {
+            setClassDates(data);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch class dates', err);
+      }
+    };
+    fetchClassDates();
+  }, []);
+
+  // Fetch assignments/quizzes for student's classes
+  useEffect(() => {
+    const fetchAssignments = async () => {
+      try {
+        const token = await AsyncStorage.getItem('jwtToken');
+        const tokenData = JSON.parse(atob(token.split('.')[1]));
+        const userId = tokenData.userID;
+        
+        const resClasses = await fetch('https://juanlms-webapp-server.onrender.com/classes/my-classes', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const classes = await resClasses.json();
+        
+        let events = [];
+        for (const cls of classes) {
+          const classCode = cls.classID || cls.classCode || cls._id;
+          
+          // Fetch assignments
+          try {
+            const resA = await fetch(`https://juanlms-webapp-server.onrender.com/assignments?classID=${classCode}`, {
+              headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const assignments = await resA.json();
+            if (Array.isArray(assignments)) {
+              assignments.forEach(a => {
+                const entry = a.assignedTo?.find?.(e => e.classID === classCode);
+                if (a.dueDate && entry && Array.isArray(entry.studentIDs) && entry.studentIDs.includes(userId)) {
+                  const due = new Date(a.dueDate);
+                  const start = new Date(due);
+                  start.setHours(0, 0, 0, 0);
+                  events.push({
+                    title: a.title,
+                    subtitle: cls.className || cls.name || 'Class',
+                    start: start.toISOString(),
+                    end: due.toISOString(),
+                    color: '#52c41a',
+                    assignmentId: a._id,
+                    classId: classCode,
+                    type: 'assignment',
+                  });
+                }
+              });
+            }
+          } catch (err) {
+            console.error('Error fetching assignments for class:', classCode, err);
+          }
+          
+          // Fetch quizzes
+          try {
+            const resQ = await fetch(`https://juanlms-webapp-server.onrender.com/api/quizzes?classID=${classCode}`, {
+              headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const quizzes = await resQ.json();
+            if (Array.isArray(quizzes)) {
+              quizzes.forEach(q => {
+                const entry = q.assignedTo?.find?.(e => e.classID === classCode);
+                if (q.dueDate && entry && Array.isArray(entry.studentIDs) && entry.studentIDs.includes(userId)) {
+                  const due = new Date(q.dueDate);
+                  const start = new Date(due);
+                  start.setHours(0, 0, 0, 0);
+                  events.push({
+                    title: q.title,
+                    subtitle: cls.className || cls.name || 'Class',
+                    start: start.toISOString(),
+                    end: due.toISOString(),
+                    color: '#a259e6',
+                    assignmentId: q._id,
+                    classId: classCode,
+                    type: 'quiz',
+                  });
+                }
+              });
+            }
+          } catch (err) {
+            console.error('Error fetching quizzes for class:', classCode, err);
+          }
+        }
+        
+        setAssignmentEvents(events);
+        console.log('Assignment/Quiz events for calendar:', events);
+      } catch (err) {
+        console.error('Error fetching assignments/quizzes:', err);
+      }
+    };
+    fetchAssignments();
+  }, []);
+
   useEffect(() => {
     const fetchAll = async () => {
+      setLoadingEvents(true);
       try {
         let holidays = [];
         for (let year = 2024; year <= 2030; year++) {
@@ -86,7 +246,7 @@ export default function StudentCalendar() {
             holidays = holidays.concat(data);
           } catch (err) {
             console.error(`Error fetching holidays for ${year}:`, err);
-            continue; // Continue with next year even if one fails
+            continue;
           }
         }
 
@@ -102,7 +262,7 @@ export default function StudentCalendar() {
           
           // Process holidays
           holidays.forEach(holiday => {
-            if (!holiday.date) return; // Skip if no date
+            if (!holiday.date) return;
             if (!newItems[holiday.date]) newItems[holiday.date] = [];
             newItems[holiday.date].push({
               name: holiday.localName,
@@ -114,10 +274,10 @@ export default function StudentCalendar() {
 
           // Process events
           eventsData.forEach(event => {
-            if (!event.date) return; // Skip if no date
+            if (!event.date) return;
             try {
               const date = event.date.split('T')[0];
-              if (!date) return; // Skip if date split failed
+              if (!date) return;
               if (!newItems[date]) newItems[date] = [];
               newItems[date].push({
                 name: event.title || 'Untitled Event',
@@ -128,7 +288,47 @@ export default function StudentCalendar() {
               });
             } catch (err) {
               console.error('Error processing event:', err);
-              return; // Skip this event
+              return;
+            }
+          });
+
+          // Process assignment events
+          assignmentEvents.forEach(event => {
+            try {
+              const date = event.start.split('T')[0];
+              if (!date) return;
+              if (!newItems[date]) newItems[date] = [];
+              newItems[date].push({
+                name: event.title,
+                type: event.type,
+                color: event.color,
+                subtitle: event.subtitle,
+                time: event.end ? new Date(event.end).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
+                height: 50,
+                assignmentId: event.assignmentId,
+                classId: event.classId
+              });
+            } catch (err) {
+              console.error('Error processing assignment event:', err);
+              return;
+            }
+          });
+
+          // Process class dates
+          classDates.forEach(date => {
+            try {
+              const dateStr = new Date(date.date).toISOString().split('T')[0];
+              if (!dateStr) return;
+              if (!newItems[dateStr]) newItems[dateStr] = [];
+              newItems[dateStr].push({
+                name: 'Class Day',
+                type: 'class',
+                color: '#93c5fd',
+                height: 50
+              });
+            } catch (err) {
+              console.error('Error processing class date:', err);
+              return;
             }
           });
 
@@ -152,16 +352,42 @@ export default function StudentCalendar() {
       } catch (err) {
         console.error('Failed to fetch holidays or events:', err);
         setItems({});
+      } finally {
+        setLoadingEvents(false);
       }
     };
     fetchAll();
-  }, []);
+  }, [assignmentEvents, classDates]);
 
   const renderEventCard = (item, index) => (
     <View key={index} style={[StudentCalendarStyle.eventCard, { backgroundColor: item.color || '#2196f3' }]}>
       <View style={{ flex: 1 }}>
         <Text style={StudentCalendarStyle.eventTitle}>{item.name}</Text>
+        {item.subtitle && (
+          <Text style={[StudentCalendarStyle.eventTime, { fontSize: 12, opacity: 0.8 }]}>
+            {item.subtitle}
+          </Text>
+        )}
         {item.time && <Text style={StudentCalendarStyle.eventTime}>{item.time}</Text>}
+        {item.type && (
+          <View style={{
+            backgroundColor: 'rgba(255,255,255,0.2)',
+            paddingHorizontal: 8,
+            paddingVertical: 2,
+            borderRadius: 4,
+            alignSelf: 'flex-start',
+            marginTop: 4
+          }}>
+            <Text style={{
+              color: 'white',
+              fontSize: 10,
+              fontWeight: 'bold',
+              textTransform: 'uppercase'
+            }}>
+              {item.type}
+            </Text>
+          </View>
+        )}
       </View>
       <Text style={StudentCalendarStyle.eventStatus}>{item.status || ''}</Text>
     </View>
@@ -212,6 +438,13 @@ export default function StudentCalendar() {
           <View>
             <Text style={StudentCalendarStyle.headerTitle}>Calendar</Text>
             <Text style={StudentCalendarStyle.headerSubtitle}>{formatDateTime(currentDateTime)}</Text>
+            {/* Academic Year and Term Info */}
+            <View style={{ marginTop: 4 }}>
+              <Text style={{ fontSize: 12, color: '#666', fontFamily: 'Poppins-Regular' }}>
+                {academicYear ? `${academicYear.schoolYearStart}-${academicYear.schoolYearEnd}` : "Loading..."} | 
+                {currentTerm ? ` ${currentTerm.termName}` : " Loading..."}
+              </Text>
+            </View>
           </View>
           <TouchableOpacity onPress={() => changeScreen.navigate('SProfile')}>
             <Image 
@@ -303,7 +536,9 @@ export default function StudentCalendar() {
       {/* Upcoming events */}
       <Text style={StudentCalendarStyle.upcomingTitle}>Upcoming events</Text>
       <View style={StudentCalendarStyle.eventsList}>
-        {getEventsForSelectedDate().length === 0 ? (
+        {loadingEvents ? (
+          <Text style={StudentCalendarStyle.noEventsText}>Loading events...</Text>
+        ) : getEventsForSelectedDate().length === 0 ? (
           <Text style={StudentCalendarStyle.noEventsText}>No events</Text>
         ) : (
           getEventsForSelectedDate().map((item, index) => renderEventCard(item, index))

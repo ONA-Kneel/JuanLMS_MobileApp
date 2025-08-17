@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const API_BASE_URL = 'https://juanlms-webapp-server.onrender.com';
 
@@ -10,6 +11,12 @@ export default function VPECalendar() {
   const [events, setEvents] = useState([]);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isLoading, setIsLoading] = useState(false);
+  
+  // New state variables for enhanced functionality
+  const [academicYear, setAcademicYear] = useState(null);
+  const [currentTerm, setCurrentTerm] = useState(null);
+  const [classDates, setClassDates] = useState([]);
+  const [holidays, setHolidays] = useState([]);
 
   useEffect(() => {
     fetchCalendarEvents();
@@ -23,7 +30,7 @@ export default function VPECalendar() {
       const month = currentDate.getMonth() + 1;
       const year = currentDate.getFullYear();
       
-      const [classDates, events, holidays] = await Promise.all([
+      const [classDatesRes, eventsRes, holidaysRes] = await Promise.all([
         axios.get(`${API_BASE_URL}/api/class-dates`),
         axios.get(`${API_BASE_URL}/events`),
         axios.get(`https://date.nager.at/api/v3/PublicHolidays/${year}/PH`)
@@ -32,35 +39,40 @@ export default function VPECalendar() {
       let allEvents = [];
       
       // Process class dates
-      if (classDates.data && Array.isArray(classDates.data)) {
-        allEvents = allEvents.concat(classDates.data.map(date => ({
+      if (classDatesRes.data && Array.isArray(classDatesRes.data)) {
+        setClassDates(classDatesRes.data);
+        allEvents = allEvents.concat(classDatesRes.data.map(date => ({
           id: `class-${date._id}`,
           title: 'Class Day',
           date: new Date(date.date),
           type: 'class',
-          description: 'Regular class day'
+          description: 'Regular class day',
+          color: '#4CAF50'
         })));
       }
       
       // Process events
-      if (events.data && Array.isArray(events.data)) {
-        allEvents = allEvents.concat(events.data.map(event => ({
+      if (eventsRes.data && Array.isArray(eventsRes.data)) {
+        allEvents = allEvents.concat(eventsRes.data.map(event => ({
           id: `event-${event._id}`,
           title: event.title,
           date: new Date(event.date),
           type: 'event',
-          description: event.description || 'Event'
+          description: event.description || 'Event',
+          color: '#2196F3'
         })));
       }
       
       // Process holidays
-      if (holidays.data && Array.isArray(holidays.data)) {
-        allEvents = allEvents.concat(holidays.data.map(holiday => ({
+      if (holidaysRes.data && Array.isArray(holidaysRes.data)) {
+        setHolidays(holidaysRes.data);
+        allEvents = allEvents.concat(holidaysRes.data.map(holiday => ({
           id: `holiday-${holiday.date}`,
           title: holiday.localName || 'Holiday',
           date: new Date(holiday.date),
           type: 'holiday',
-          description: 'Public Holiday'
+          description: 'Public Holiday',
+          color: '#FF9800'
         })));
       }
       
@@ -74,6 +86,49 @@ export default function VPECalendar() {
     }
   };
 
+  // Fetch academic year information
+  useEffect(() => {
+    const fetchAcademicYear = async () => {
+      try {
+        const token = await AsyncStorage.getItem('jwtToken');
+        const yearRes = await fetch(`${API_BASE_URL}/api/schoolyears/active`, {
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+        if (yearRes.ok) {
+          const year = await yearRes.json();
+          setAcademicYear(year);
+        }
+      } catch (err) {
+        console.error('Failed to fetch academic year', err);
+      }
+    };
+    fetchAcademicYear();
+  }, []);
+
+  // Fetch active term for the academic year
+  useEffect(() => {
+    const fetchActiveTermForYear = async () => {
+      if (!academicYear) return;
+      try {
+        const schoolYearName = `${academicYear.schoolYearStart}-${academicYear.schoolYearEnd}`;
+        const token = await AsyncStorage.getItem('jwtToken');
+        const res = await fetch(`${API_BASE_URL}/api/terms/schoolyear/${schoolYearName}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const terms = await res.json();
+          const active = terms.find(term => term.status === 'active');
+          setCurrentTerm(active || null);
+        } else {
+          setCurrentTerm(null);
+        }
+      } catch {
+        setCurrentTerm(null);
+      }
+    };
+    fetchActiveTermForYear();
+  }, [academicYear]);
+
   const getMockEvents = () => {
     const today = new Date();
     return [
@@ -82,28 +137,32 @@ export default function VPECalendar() {
         title: 'Academic Year Start',
         date: new Date(today.getFullYear(), 5, 1), // June 1
         type: 'academic',
-        description: 'Beginning of new academic year'
+        description: 'Beginning of new academic year',
+        color: '#4CAF50'
       },
       {
         id: 2,
         title: 'First Term Start',
         date: new Date(today.getFullYear(), 7, 2), // August 2
         type: 'term',
-        description: 'First term classes begin'
+        description: 'First term classes begin',
+        color: '#2196F3'
       },
       {
         id: 3,
         title: 'First Term End',
         date: new Date(today.getFullYear(), 7, 3), // August 3
         type: 'term',
-        description: 'First term classes end'
+        description: 'First term classes end',
+        color: '#FF9800'
       },
       {
         id: 4,
         title: 'Academic Year End',
         date: new Date(today.getFullYear() + 1, 3, 30), // April 30
         type: 'academic',
-        description: 'End of academic year'
+        description: 'End of academic year',
+        color: '#F44336'
       }
     ];
   };
@@ -168,6 +227,14 @@ export default function VPECalendar() {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Academic Calendar</Text>
         <Icon name="calendar" size={28} color="#00418b" />
+      </View>
+
+      {/* Academic Year and Term Info */}
+      <View style={styles.academicInfo}>
+        <Text style={styles.academicText}>
+          {academicYear ? `${academicYear.schoolYearStart}-${academicYear.schoolYearEnd}` : "Loading..."} | 
+          {currentTerm ? ` ${currentTerm.termName}` : " Loading..."}
+        </Text>
       </View>
 
       {/* Month Navigation */}
@@ -244,16 +311,25 @@ export default function VPECalendar() {
         {selectedDateEvents.length > 0 ? (
           <ScrollView style={styles.eventsList} showsVerticalScrollIndicator={false}>
             {selectedDateEvents.map(event => (
-              <View key={event.id} style={styles.eventCard}>
+              <View key={event.id} style={[styles.eventCard, { borderLeftColor: event.color }]}>
                 <View style={styles.eventHeader}>
                   <Icon 
-                    name={event.type === 'academic' ? 'school' : 'calendar'} 
+                    name={event.type === 'academic' ? 'school' : 
+                          event.type === 'class' ? 'calendar' : 
+                          event.type === 'holiday' ? 'flag' : 'calendar'} 
                     size={20} 
-                    color="#00418b" 
+                    color={event.color} 
                   />
                   <Text style={styles.eventTitle}>{event.title}</Text>
                 </View>
                 <Text style={styles.eventDescription}>{event.description}</Text>
+                {event.type && (
+                  <View style={[styles.eventTypeBadge, { backgroundColor: `${event.color}20` }]}>
+                    <Text style={[styles.eventTypeText, { color: event.color }]}>
+                      {event.type.toUpperCase()}
+                    </Text>
+                  </View>
+                )}
               </View>
             ))}
           </ScrollView>
@@ -278,13 +354,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 24,
+    marginBottom: 16,
   },
   headerTitle: {
     fontSize: 22,
     fontWeight: 'bold',
     color: '#00418b',
     fontFamily: 'Poppins-Bold',
+  },
+  academicInfo: {
+    backgroundColor: '#e3f2fd',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: '#00418b',
+  },
+  academicText: {
+    fontSize: 14,
+    color: '#1976d2',
+    fontFamily: 'Poppins-Regular',
+    textAlign: 'center',
+    fontWeight: '500',
   },
   monthNavigation: {
     flexDirection: 'row',
@@ -397,6 +488,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.04,
     shadowRadius: 4,
     elevation: 1,
+    borderLeftWidth: 4,
   },
   eventHeader: {
     flexDirection: 'row',
@@ -414,6 +506,18 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
     fontFamily: 'Poppins-Regular',
+    marginBottom: 8,
+  },
+  eventTypeBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  eventTypeText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    fontFamily: 'Poppins-Bold',
   },
   noEventsContainer: {
     alignItems: 'center',

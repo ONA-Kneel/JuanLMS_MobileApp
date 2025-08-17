@@ -1,4 +1,4 @@
-import { Text, TouchableOpacity, View, Image } from 'react-native';
+import { Text, TouchableOpacity, View, Image, Alert } from 'react-native';
 import * as React from 'react';
 import { useState, useEffect } from 'react';
 import { Calendar } from 'react-native-calendars';
@@ -52,22 +52,39 @@ export default function FacultyCalendar() {
   });
   const [showMonthCalendar, setShowMonthCalendar] = useState(false);
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
+  
+  // New state variables for enhanced functionality
+  const [academicYear, setAcademicYear] = useState(null);
+  const [currentTerm, setCurrentTerm] = useState(null);
+  const [classDates, setClassDates] = useState([]);
+  const [loadingEvents, setLoadingEvents] = useState(true);
 
   useEffect(() => {
     const fetchAll = async () => {
+      setLoadingEvents(true);
       try {
         let holidays = [];
         for (let year = 2024; year <= 2030; year++) {
-          const res = await fetch(`https://date.nager.at/api/v3/PublicHolidays/${year}/PH`);
-          const data = await res.json();
-          holidays = holidays.concat(data);
+          try {
+            const res = await fetch(`https://date.nager.at/api/v3/PublicHolidays/${year}/PH`);
+            if (res.ok) {
+              const data = await res.json();
+              holidays = holidays.concat(data);
+            }
+          } catch (err) {
+            console.error(`Error fetching holidays for ${year}:`, err);
+            continue;
+          }
         }
+        
         const token = await AsyncStorage.getItem('jwtToken');
         const resEvents = await fetch('https://juanlms-webapp-server.onrender.com/api/events', {
           headers: { Authorization: `Bearer ${token}` }
         });
         const eventsData = await resEvents.json();
         const newItems = {};
+        
+        // Process holidays
         holidays.forEach(holiday => {
           if (!newItems[holiday.date]) newItems[holiday.date] = [];
           newItems[holiday.date].push({
@@ -77,6 +94,8 @@ export default function FacultyCalendar() {
             height: 50
           });
         });
+        
+        // Process events
         eventsData.forEach(event => {
           if (!event.date) return;
           let date = '';
@@ -95,12 +114,98 @@ export default function FacultyCalendar() {
             height: 50
           });
         });
+
+        // Process class dates
+        classDates.forEach(date => {
+          try {
+            const dateStr = new Date(date.date).toISOString().split('T')[0];
+            if (!dateStr) return;
+            if (!newItems[dateStr]) newItems[dateStr] = [];
+            newItems[dateStr].push({
+              name: 'Class Day',
+              type: 'class',
+              color: '#93c5fd',
+              height: 50
+            });
+          } catch (err) {
+            console.error('Error processing class date:', err);
+            return;
+          }
+        });
+        
         setItems(newItems);
       } catch (err) {
         console.error('Failed to fetch holidays or events:', err);
+        setItems({});
+      } finally {
+        setLoadingEvents(false);
       }
     };
     fetchAll();
+  }, [classDates]);
+
+  // Fetch academic year information
+  useEffect(() => {
+    const fetchAcademicYear = async () => {
+      try {
+        const token = await AsyncStorage.getItem('jwtToken');
+        const yearRes = await fetch('https://juanlms-webapp-server.onrender.com/api/schoolyears/active', {
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+        if (yearRes.ok) {
+          const year = await yearRes.json();
+          setAcademicYear(year);
+        }
+      } catch (err) {
+        console.error('Failed to fetch academic year', err);
+      }
+    };
+    fetchAcademicYear();
+  }, []);
+
+  // Fetch active term for the academic year
+  useEffect(() => {
+    const fetchActiveTermForYear = async () => {
+      if (!academicYear) return;
+      try {
+        const schoolYearName = `${academicYear.schoolYearStart}-${academicYear.schoolYearEnd}`;
+        const token = await AsyncStorage.getItem('jwtToken');
+        const res = await fetch(`https://juanlms-webapp-server.onrender.com/api/terms/schoolyear/${schoolYearName}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const terms = await res.json();
+          const active = terms.find(term => term.status === 'active');
+          setCurrentTerm(active || null);
+        } else {
+          setCurrentTerm(null);
+        }
+      } catch {
+        setCurrentTerm(null);
+      }
+    };
+    fetchActiveTermForYear();
+  }, [academicYear]);
+
+  // Fetch class dates
+  useEffect(() => {
+    const fetchClassDates = async () => {
+      try {
+        const token = await AsyncStorage.getItem('jwtToken');
+        const res = await fetch('https://juanlms-webapp-server.onrender.com/api/class-dates', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data)) {
+            setClassDates(data);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch class dates', err);
+      }
+    };
+    fetchClassDates();
   }, []);
 
   useEffect(() => {
@@ -129,6 +234,25 @@ export default function FacultyCalendar() {
       <View style={{ flex: 1 }}>
         <Text style={FacultyCalendarStyle.eventTitle}>{item.name}</Text>
         {item.time && <Text style={FacultyCalendarStyle.eventTime}>{item.time}</Text>}
+        {item.type && (
+          <View style={{
+            backgroundColor: 'rgba(255,255,255,0.2)',
+            paddingHorizontal: 8,
+            paddingVertical: 2,
+            borderRadius: 4,
+            alignSelf: 'flex-start',
+            marginTop: 4
+          }}>
+            <Text style={{
+              color: 'white',
+              fontSize: 10,
+              fontWeight: 'bold',
+              textTransform: 'uppercase'
+            }}>
+              {item.type}
+            </Text>
+          </View>
+        )}
       </View>
       <Text style={FacultyCalendarStyle.eventStatus}>{item.status || ''}</Text>
     </View>
@@ -179,6 +303,13 @@ export default function FacultyCalendar() {
           <View>
             <Text style={FacultyCalendarStyle.headerTitle}>Calendar</Text>
             <Text style={FacultyCalendarStyle.headerSubtitle}>{formatDateTime(currentDateTime)}</Text>
+            {/* Academic Year and Term Info */}
+            <View style={{ marginTop: 4 }}>
+              <Text style={{ fontSize: 12, color: '#666', fontFamily: 'Poppins-Regular' }}>
+                {academicYear ? `${academicYear.schoolYearStart}-${academicYear.schoolYearEnd}` : "Loading..."} | 
+                {currentTerm ? ` ${currentTerm.termName}` : " Loading..."}
+              </Text>
+            </View>
           </View>
           <TouchableOpacity onPress={() => changeScreen.navigate('FProfile')}>
             <Image 
@@ -269,7 +400,9 @@ export default function FacultyCalendar() {
       {/* Upcoming events */}
       <Text style={FacultyCalendarStyle.upcomingTitle}>Upcoming events</Text>
       <View style={FacultyCalendarStyle.eventsList}>
-        {getEventsForSelectedDate().length === 0 ? (
+        {loadingEvents ? (
+          <Text style={FacultyCalendarStyle.noEventsText}>Loading events...</Text>
+        ) : getEventsForSelectedDate().length === 0 ? (
           <Text style={FacultyCalendarStyle.noEventsText}>No events</Text>
         ) : (
           getEventsForSelectedDate().map((item, index) => renderEventCard(item, index))
