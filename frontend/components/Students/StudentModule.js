@@ -48,6 +48,7 @@ export default function StudentModule(){
     const [filterType, setFilterType] = useState('all'); // Add filter state
     const [selectedFile, setSelectedFile] = useState(null);
     const [showFileViewer, setShowFileViewer] = useState(false);
+    const [imageLoading, setImageLoading] = useState(false);
 
     useEffect(() => {
         console.log('DEBUG StudentModule: useEffect classId:', classId);
@@ -218,8 +219,11 @@ export default function StudentModule(){
     };
 
     const handleFilePress = (file) => {
+        console.log('File pressed:', file);
         if (isImageFile(file.fileName)) {
             // Open image in viewer modal
+            console.log('Opening image viewer for:', file.fileName);
+            console.log('Image URL:', file.fileUrl);
             setSelectedFile(file);
             setShowFileViewer(true);
         } else if (isVideoFile(file.fileName)) {
@@ -247,9 +251,16 @@ export default function StudentModule(){
     };
 
     const closeFileViewer = () => {
+        console.log('Closing file viewer');
         setShowFileViewer(false);
         setSelectedFile(null);
+        setImageLoading(false);
     };
+
+    // Debug modal state changes
+    useEffect(() => {
+        console.log('Modal state changed:', { showFileViewer, selectedFile: selectedFile?.fileName });
+    }, [showFileViewer, selectedFile]);
 
     //navigation
     const changeScreen = useNavigation();
@@ -914,7 +925,13 @@ export default function StudentModule(){
                 visible={showFileViewer}
                 transparent
                 animationType="fade"
-                onRequestClose={closeFileViewer}
+                onRequestClose={() => {
+                    if (!imageLoading) {
+                        closeFileViewer();
+                    } else {
+                        console.log('Preventing modal close while image is loading');
+                    }
+                }}
             >
                 <View style={styles.modalOverlay}>
                     <View style={styles.fileViewerModal}>
@@ -931,15 +948,49 @@ export default function StudentModule(){
                         {/* File Content */}
                         <View style={styles.fileContent}>
                             {selectedFile && isImageFile(selectedFile.fileName) && (
-                                <Image
-                                    source={{ uri: selectedFile.fileUrl }}
-                                    style={styles.imageViewer}
-                                    resizeMode="contain"
-                                    onError={() => {
-                                        Alert.alert('Error', 'Unable to load image');
-                                        closeFileViewer();
-                                    }}
-                                />
+                                <>
+                                    {imageLoading && (
+                                        <View style={styles.loadingContainer}>
+                                            <ActivityIndicator size="large" color="#00418b" />
+                                            <Text style={styles.loadingText}>Loading image...</Text>
+                                        </View>
+                                    )}
+                                    <Image
+                                        source={{ 
+                                            uri: selectedFile.fileUrl,
+                                            // Add fallback for failed images
+                                            cache: 'force-cache'
+                                        }}
+                                        style={[
+                                            styles.imageViewer,
+                                            imageLoading && { opacity: 0 }
+                                        ]}
+                                        resizeMode="contain"
+                                        onLoadStart={() => {
+                                            console.log('Image loading started');
+                                            setImageLoading(true);
+                                        }}
+                                        onLoad={() => {
+                                            console.log('Image loaded successfully');
+                                            setImageLoading(false);
+                                        }}
+                                        onError={(error) => {
+                                            console.error('Image loading error:', error);
+                                            setImageLoading(false);
+                                            Alert.alert(
+                                                'Image Error', 
+                                                'Unable to load image. Please check the image URL or try again.',
+                                                [
+                                                    { text: 'OK', style: 'default' }
+                                                ]
+                                            );
+                                        }}
+                                        onLoadEnd={() => {
+                                            console.log('Image loading ended');
+                                            setImageLoading(false);
+                                        }}
+                                    />
+                                </>
                             )}
                         </View>
                         
@@ -1010,6 +1061,23 @@ const styles = {
         width: '100%',
         height: 300,
         borderRadius: 8,
+    },
+    loadingContainer: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: 'rgba(0,0,0,0.7)',
+        borderRadius: 8,
+    },
+    loadingText: {
+        color: 'white',
+        marginTop: 10,
+        fontSize: 14,
+        fontWeight: 'bold',
     },
     fileActions: {
         flexDirection: 'row',
