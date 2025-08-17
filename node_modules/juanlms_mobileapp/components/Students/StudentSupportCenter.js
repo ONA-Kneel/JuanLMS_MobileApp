@@ -134,7 +134,7 @@ export default function StudentSupportCenter() {
         { text: 'OK', onPress: () => {
           setSubject('');
           setContent('');
-          setView('main');
+          setView('myTickets');
         }}
       ]);
       
