@@ -152,16 +152,16 @@ const StudentGrades = () => {
   };
 
   const formatDateTime = (date) => {
-    return date.toLocaleString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: true
-    });
+        return date.toLocaleString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: true
+        });
   };
 
   const getGradeColor = (grade) => {
@@ -245,16 +245,16 @@ const StudentGrades = () => {
     );
   }
 
-  return (
-    <View style={StudentGradesStyle.container}>
-      {/* Blue background */}
-      <View style={StudentGradesStyle.blueHeaderBackground} />
+        return (
+            <View style={StudentGradesStyle.container}>
+                {/* Blue background */}
+                <View style={StudentGradesStyle.blueHeaderBackground} />
       
-      {/* White card header */}
-      <View style={StudentGradesStyle.whiteHeaderCard}>
+                {/* White card header */}
+                <View style={StudentGradesStyle.whiteHeaderCard}>
         <View style={styles.headerContent}>
-          <View>
-            <Text style={StudentGradesStyle.headerTitle}>Grades</Text>
+                        <View>
+                            <Text style={StudentGradesStyle.headerTitle}>Grades</Text>
             <Text style={StudentGradesStyle.headerSubtitle}>
               {formatDateTime(currentDateTime)}
             </Text>
@@ -263,17 +263,17 @@ const StudentGrades = () => {
                 {academicYear} - {currentTerm} Term
               </Text>
             )}
-          </View>
+                        </View>
           
           <TouchableOpacity onPress={() => navigation.navigate('SProfile')}>
-            <Image 
-              source={require('../../assets/profile-icon (2).png')} 
+                            <Image 
+                                source={require('../../assets/profile-icon (2).png')} 
               style={styles.profileImage}
-              resizeMode="cover"
-            />
-          </TouchableOpacity>
-        </View>
-      </View>
+                                resizeMode="cover"
+                            />
+                        </TouchableOpacity>
+                    </View>
+                </View>
 
       {/* Term Selector */}
       <View style={styles.termSelector}>
@@ -358,13 +358,13 @@ const StudentGrades = () => {
                   {grades.filter(g => g.remarks === 'Failed').length}
                 </Text>
               </View>
-            </View>
-          </ScrollView>
+                        </View>
+                    </ScrollView>
         ) : (
           renderEmptyState()
         )}
-      </View>
-    </View>
+                </View>
+            </View>
   );
 };
 

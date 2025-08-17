@@ -37,91 +37,91 @@ export default function StudentClasses() {
     try {
       setLoading(true);
       setError(null);
-      const token = await AsyncStorage.getItem('jwtToken');
+        const token = await AsyncStorage.getItem('jwtToken');
       
       if (!token) {
         throw new Error('No authentication token found');
       }
 
-      console.log('Fetching classes for student:', user._id);
-      
+        console.log('Fetching classes for student:', user._id);
+        
       const response = await fetch(`${API_BASE}/api/classes`, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      console.log('API Response from /classes:', data);
-      
-      let allClasses = [];
-      if (data.success && Array.isArray(data.classes)) {
-        allClasses = data.classes;
-      } else if (Array.isArray(data)) {
-        allClasses = data;
-      } else {
-        throw new Error('Invalid response structure');
-      }
-      
-      console.log('Total classes fetched:', allClasses.length);
-      
-      // Filter classes where the student is a member
-      const userClasses = allClasses.filter(classItem => {
-        if (!classItem || !classItem.members) {
-          console.log('Class has no members array:', classItem?.className || classItem?.classID);
-          return false;
-        }
-        
-        console.log('Checking class:', classItem.className || classItem?.classID);
-        console.log('Class members:', classItem.members);
-        console.log('User ID:', user._id);
-        
-        // Try multiple matching strategies
-        const isMember = classItem.members.some(member => {
-          const memberId = typeof member === 'object' ? member.toString() : member;
-          const userId = user._id.toString();
-          
-          // Strategy 1: Direct ID match
-          if (memberId === userId) {
-            console.log('Direct ID match found');
-            return true;
-          }
-          
-          // Strategy 2: Check if user has a studentCode property that matches
-          if (user.studentCode && memberId === user.studentCode) {
-            console.log('Student code match found');
-            return true;
-          }
-          
-          // Strategy 3: Check if user has an id property that matches
-          if (user.id && memberId === user.id) {
-            console.log('User ID match found');
-            return true;
-          }
-          
-          // Strategy 4: Check if member is a student code pattern (starts with 'S')
-          if (memberId.startsWith('S') && user.studentCode && memberId === user.studentCode) {
-            console.log('Student code pattern match found');
-            return true;
-          }
-          
-          return false;
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
         });
         
-        if (isMember) {
-          console.log('User is member of class:', classItem.className || classItem?.classID);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
         }
         
-        return isMember;
-      });
-      
+        const data = await response.json();
+        console.log('API Response from /classes:', data);
+        
+        let allClasses = [];
+        if (data.success && Array.isArray(data.classes)) {
+          allClasses = data.classes;
+        } else if (Array.isArray(data)) {
+          allClasses = data;
+        } else {
+          throw new Error('Invalid response structure');
+        }
+        
+        console.log('Total classes fetched:', allClasses.length);
+        
+        // Filter classes where the student is a member
+        const userClasses = allClasses.filter(classItem => {
+          if (!classItem || !classItem.members) {
+            console.log('Class has no members array:', classItem?.className || classItem?.classID);
+            return false;
+          }
+          
+        console.log('Checking class:', classItem.className || classItem?.classID);
+          console.log('Class members:', classItem.members);
+          console.log('User ID:', user._id);
+          
+          // Try multiple matching strategies
+          const isMember = classItem.members.some(member => {
+            const memberId = typeof member === 'object' ? member.toString() : member;
+            const userId = user._id.toString();
+            
+            // Strategy 1: Direct ID match
+            if (memberId === userId) {
+              console.log('Direct ID match found');
+              return true;
+            }
+            
+            // Strategy 2: Check if user has a studentCode property that matches
+            if (user.studentCode && memberId === user.studentCode) {
+              console.log('Student code match found');
+              return true;
+            }
+            
+            // Strategy 3: Check if user has an id property that matches
+            if (user.id && memberId === user.id) {
+              console.log('User ID match found');
+              return true;
+            }
+            
+            // Strategy 4: Check if member is a student code pattern (starts with 'S')
+            if (memberId.startsWith('S') && user.studentCode && memberId === user.studentCode) {
+              console.log('Student code pattern match found');
+              return true;
+            }
+            
+            return false;
+          });
+          
+          if (isMember) {
+          console.log('User is member of class:', classItem.className || classItem?.classID);
+          }
+          
+          return isMember;
+        });
+        
       console.log('User classes:', userClasses);
       setClasses(userClasses);
       
@@ -184,7 +184,7 @@ export default function StudentClasses() {
       }
       
       setClassStats(stats);
-    } catch (error) {
+      } catch (error) {
       console.error('Error fetching class stats:', error);
     }
   };
@@ -249,7 +249,7 @@ export default function StudentClasses() {
     const classId = classItem._id || classItem.classID;
     const stats = classStats[classId] || { lessons: 0, assignments: 0, announcements: 0 };
 
-    return (
+  return (
       <TouchableOpacity
         key={index}
         style={styles.classCard}
@@ -261,7 +261,7 @@ export default function StudentClasses() {
             <Text style={styles.classCode}>{classItem.classCode || classItem.subjectCode}</Text>
             <Text style={styles.facultyName}>
               {classItem.facultyName || 'Faculty TBD'}
-            </Text>
+          </Text>
           </View>
           
           <View style={[styles.statusBadge, { backgroundColor: status.color }]}>
@@ -274,9 +274,9 @@ export default function StudentClasses() {
             <MaterialIcons name="schedule" size={16} color="#666" />
             <Text style={styles.detailText}>
               {formatDate(classItem.startDate)} - {formatDate(classItem.endDate)}
-            </Text>
-          </View>
-          
+        </Text>
+      </View>
+
           {classItem.schedule && (
             <View style={styles.detailRow}>
               <MaterialIcons name="access-time" size={16} color="#666" />
@@ -336,14 +336,14 @@ export default function StudentClasses() {
       <Text style={styles.emptyTitle}>No Classes Found</Text>
       <Text style={styles.emptyText}>
         You are not enrolled in any classes yet. Please contact your administrator.
-      </Text>
+        </Text>
     </View>
   );
 
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#00418b" />
+            <ActivityIndicator size="large" color="#00418b" />
         <Text style={styles.loadingText}>Loading classes...</Text>
       </View>
     );
@@ -420,20 +420,20 @@ export default function StudentClasses() {
                     <Text style={styles.modalDetailLabel}>Schedule:</Text>
                     <Text style={styles.modalDetailValue}>
                       {selectedClass.schedule || 'Not specified'}
-                    </Text>
-                  </View>
+            </Text>
+          </View>
                   <View style={styles.modalDetailRow}>
                     <Text style={styles.modalDetailLabel}>Room:</Text>
                     <Text style={styles.modalDetailValue}>
                       {selectedClass.room || 'Not specified'}
-                    </Text>
-                  </View>
+            </Text>
+          </View>
                   <View style={styles.modalDetailRow}>
                     <Text style={styles.modalDetailLabel}>Duration:</Text>
                     <Text style={styles.modalDetailValue}>
                       {formatDate(selectedClass.startDate)} - {formatDate(selectedClass.endDate)}
-                    </Text>
-                  </View>
+            </Text>
+          </View>
                 </View>
 
                 <View style={styles.modalActions}>
@@ -445,7 +445,7 @@ export default function StudentClasses() {
                     <Text style={styles.modalActionButtonText}>View Content</Text>
                   </TouchableOpacity>
                   
-                  <TouchableOpacity
+              <TouchableOpacity 
                     style={styles.modalActionButton}
                     onPress={() => navigateToClassModule(selectedClass)}
                   >
@@ -490,33 +490,33 @@ const styles = {
   classCard: {
     backgroundColor: 'white',
     borderRadius: 12,
-    padding: 20,
+                  padding: 20,
     marginBottom: 16,
     elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 4,
   },
   classHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 16,
+                  marginBottom: 16,
   },
   classInfo: {
     flex: 1,
     marginRight: 12,
   },
   className: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
+                      fontSize: 18, 
+                      fontWeight: 'bold', 
+                      color: '#333',
     marginBottom: 4,
   },
   classCode: {
-    fontSize: 14,
-    color: '#666',
+                      fontSize: 14, 
+                      color: '#666',
     marginBottom: 4,
   },
   facultyName: {
@@ -534,7 +534,7 @@ const styles = {
   statusText: {
     color: 'white',
     fontSize: 12,
-    fontWeight: 'bold',
+            fontWeight: 'bold', 
   },
   classDetails: {
     marginBottom: 16,
@@ -557,7 +557,7 @@ const styles = {
     borderTopColor: '#f0f0f0',
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
-    marginBottom: 16,
+            marginBottom: 16, 
   },
   statItem: {
     alignItems: 'center',
@@ -632,7 +632,7 @@ const styles = {
     fontSize: 20,
     fontWeight: 'bold',
     color: '#666',
-    marginTop: 16,
+              marginTop: 16, 
     marginBottom: 8,
   },
   emptyText: {
@@ -697,7 +697,7 @@ const styles = {
   },
   modalDetailLabel: {
     fontSize: 14,
-    color: '#666',
+              color: '#666', 
     fontWeight: '500',
   },
   modalDetailValue: {
@@ -720,7 +720,7 @@ const styles = {
   },
   modalActionButtonText: {
     color: 'white',
-    fontSize: 16,
+              fontSize: 16,
     fontWeight: 'bold',
     marginLeft: 8,
   },

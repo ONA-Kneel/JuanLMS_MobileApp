@@ -1,725 +1,722 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, TextInput, Alert, Modal } from 'react-native';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import axios from 'axios';
-import { useContext } from 'react';
-import { UserContext } from '../UserContext';
-
-const API_BASE_URL = 'https://juanlms-webapp-server.onrender.com';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, Alert, ActivityIndicator } from 'react-native';
+import { MaterialIcons, Feather, Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function VPESupportCenter() {
-  const { user } = useContext(UserContext);
-  const [tickets, setTickets] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [activeTab, setActiveTab] = useState('all'); // 'all', 'open', 'closed'
-  const [searchQuery, setSearchQuery] = useState('');
-  
-  // New ticket form
+  const [view, setView] = useState('main'); // main | new | myTickets
+  const [currentDateTime, setCurrentDateTime] = useState(new Date());
   const [newTicket, setNewTicket] = useState({
-    title: '',
-    description: '',
-    priority: 'medium',
-    category: 'general'
+    number: generateTicketNumber(),
+    subject: '',
+    content: '',
   });
+  const [userTickets, setUserTickets] = useState([]);
+  const [ticketsLoading, setTicketsLoading] = useState(false);
+  const [ticketsError, setTicketsError] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedUserTicket, setSelectedUserTicket] = useState(null);
+  const [showAllTickets, setShowAllTickets] = useState(false);
+  const [sortOrder, setSortOrder] = useState('newest');
+  const [activeFilter, setActiveFilter] = useState('all');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [user, setUser] = useState(null);
+  const navigation = useNavigation();
+
+  // Generate ticket number function
+  function generateTicketNumber() {
+    let num = '';
+    for (let i = 0; i < 12; i++) {
+      num += Math.floor(Math.random() * 10);
+    }
+    return `SJDD${num}`;
+  }
 
   useEffect(() => {
-    fetchTickets();
+    const timer = setInterval(() => {
+      setCurrentDateTime(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
   }, []);
 
-  const fetchTickets = async () => {
-    try {
-      setIsLoading(true);
-      
-      // Fetch support tickets from backend
-      const response = await axios.get(`${API_BASE_URL}/api/tickets`);
-      
-      if (response.data && Array.isArray(response.data)) {
-        setTickets(response.data);
-      } else {
-        // Use mock data for now
-        setTickets(getMockTickets());
+  useEffect(() => {
+    const getUserData = async () => {
+      try {
+        const userData = await AsyncStorage.getItem('user');
+        if (userData) {
+          setUser(JSON.parse(userData));
+        }
+      } catch (error) {
+        console.error('Error getting user data:', error);
       }
-    } catch (error) {
-      console.error('Error fetching tickets:', error);
-      // Use mock data for now
-      setTickets(getMockTickets());
+    };
+    getUserData();
+  }, []);
+
+  useEffect(() => {
+    if (view === 'myTickets') {
+      fetchUserTickets();
+    }
+  }, [view, activeFilter]);
+
+  const fetchUserTickets = async () => {
+    setTicketsLoading(true);
+    setTicketsError('');
+    try {
+      const user = JSON.parse(await AsyncStorage.getItem('user') || '{}');
+      const token = await AsyncStorage.getItem('jwtToken');
+      
+      if (!user._id) {
+        setTicketsError('User ID not found. Please log in again.');
+        return;
+      }
+
+      const response = await fetch(`https://juanlms-webapp-server.onrender.com/api/tickets/user/${user._id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const tickets = await response.json();
+      setUserTickets(Array.isArray(tickets) ? tickets : []);
+    } catch (err) {
+      console.error('Error fetching user tickets:', err);
+      setUserTickets([]);
+      if (err.response) {
+        setTicketsError('Failed to fetch tickets');
+      } else if (err.request) {
+        setTicketsError('Network error. Please check your connection and try again.');
+      } else {
+        setTicketsError('Failed to fetch tickets. Please try again.');
+      }
     } finally {
-      setIsLoading(false);
+      setTicketsLoading(false);
     }
   };
 
-  const getMockTickets = () => [
-    {
-      _id: '1',
-      title: 'Faculty Development Program Request',
-      description: 'Request for additional faculty development programs and training sessions.',
-      status: 'open',
-      priority: 'high',
-      category: 'faculty',
-      createdBy: 'John Smith',
-      createdAt: new Date(Date.now() - 86400000), // 1 day ago
-      assignedTo: 'VPE Office'
-    },
-    {
-      _id: '2',
-      title: 'Academic Calendar Update',
-      description: 'Need to update academic calendar for next semester.',
-      status: 'in-progress',
-      priority: 'medium',
-      category: 'academic',
-      createdBy: 'Maria Garcia',
-      createdAt: new Date(Date.now() - 172800000), // 2 days ago
-      assignedTo: 'VPE Office'
-    },
-    {
-      _id: '3',
-      title: 'Student Support Services Enhancement',
-      description: 'Proposal to enhance student support services and counseling.',
-      status: 'closed',
-      priority: 'low',
-      category: 'student',
-      createdBy: 'David Johnson',
-      createdAt: new Date(Date.now() - 604800000), // 1 week ago
-      assignedTo: 'VPE Office'
-    }
-  ];
+  const filteredTickets = userTickets.filter(ticket => {
+    const matchesSearch = ticket.subject?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         ticket.number?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesFilter = activeFilter === 'all' || ticket.status === activeFilter;
+    return matchesSearch && matchesFilter;
+  });
 
-  const createTicket = async () => {
-    if (!newTicket.title.trim() || !newTicket.description.trim()) {
-      Alert.alert('Error', 'Please fill in all required fields');
+  const sortedTickets = [...filteredTickets].sort((a, b) => {
+    if (sortOrder === 'newest') {
+      return new Date(b.createdAt) - new Date(a.createdAt);
+    } else {
+      return new Date(a.createdAt) - new Date(b.createdAt);
+    }
+  });
+
+  const mostRecentTicket = sortedTickets[0];
+
+  const getStatusInfo = (status) => {
+    switch (status) {
+      case 'new':
+        return {
+          icon: 'schedule',
+          bgColor: '#e3f2fd',
+          color: '#1976d2',
+          label: 'New'
+        };
+      case 'opened':
+        return {
+          icon: 'chat',
+          bgColor: '#fff3e0',
+          color: '#f57c00',
+          label: 'Opened'
+        };
+      case 'closed':
+        return {
+          icon: 'check-circle',
+          color: '#388e3c',
+          label: 'Closed'
+        };
+      default:
+        return {
+          icon: 'description',
+          bgColor: '#f5f5f5',
+          color: '#666',
+          label: status
+        };
+    }
+  };
+
+  const getTicketCounts = () => {
+    const counts = { all: userTickets.length, new: 0, opened: 0, closed: 0 };
+    userTickets.forEach(ticket => {
+      if (counts[ticket.status] !== undefined) {
+        counts[ticket.status]++;
+      }
+    });
+    return counts;
+  };
+
+  const ticketCounts = getTicketCounts();
+
+  const handleSubmit = async () => {
+    if (!newTicket.subject.trim() || !newTicket.content.trim()) {
+      setError('Please fill in all required fields');
       return;
     }
 
     try {
-      const ticketData = {
-        ...newTicket,
-        createdBy: user?.firstname + ' ' + user?.lastname,
-        status: 'open',
-        createdAt: new Date(),
-        assignedTo: 'VPE Office'
-      };
-
-      // Create ticket via API
-      const response = await axios.post(`${API_BASE_URL}/api/tickets`, ticketData);
+      setLoading(true);
+      setError('');
       
-      if (response.data) {
-        setTickets([response.data, ...tickets]);
-        setShowCreateModal(false);
-        setNewTicket({ title: '', description: '', priority: 'medium', category: 'general' });
-        Alert.alert('Success', 'Support ticket created successfully');
+      const token = await AsyncStorage.getItem('jwtToken');
+      const user = JSON.parse(await AsyncStorage.getItem('user') || '{}');
+      
+      if (!user._id) {
+        setError('User ID not found. Please log in again.');
+        return;
       }
-    } catch (error) {
-      console.error('Error creating ticket:', error);
-      Alert.alert('Error', 'Failed to create support ticket');
-    }
-  };
-
-  const updateTicketStatus = async (ticketId, newStatus) => {
-    try {
-      // Update ticket status via API
-      const response = await axios.put(`${API_BASE_URL}/api/tickets/${ticketId}`, { status: newStatus });
       
-      if (response.data) {
-        setTickets(tickets.map(ticket => 
-          ticket._id === ticketId ? { ...ticket, status: newStatus } : ticket
-        ));
-        Alert.alert('Success', 'Ticket status updated successfully');
+      const response = await fetch('https://juanlms-webapp-server.onrender.com/api/tickets', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          subject: newTicket.subject,
+          description: newTicket.content,
+          userId: user._id,
+          number: newTicket.number,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to create ticket: ${response.status}`);
       }
+
+      // Reset form and show success
+      setNewTicket({ number: generateTicketNumber(), subject: '', content: '' });
+      setView('main');
+      Alert.alert('Success', 'Ticket submitted successfully!');
+      
     } catch (error) {
-      console.error('Error updating ticket:', error);
-      Alert.alert('Error', 'Failed to update ticket status');
+      console.error('Submit error:', error);
+      setError('Failed to submit ticket. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const getPriorityColor = (priority) => {
-    switch (priority) {
-      case 'high': return '#ff6b6b';
-      case 'medium': return '#ffa726';
-      case 'low': return '#66bb6a';
-      default: return '#666';
-    }
+  const getRoleWelcomeMessage = () => {
+    return `Hello, ${user?.firstname || 'VPE'}!`;
   };
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'open': return '#ff6b6b';
-      case 'in-progress': return '#ffa726';
-      case 'closed': return '#66bb6a';
-      default: return '#666';
-    }
+  const formatDateTime = (date) => {
+    return date.toLocaleString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true,
+    });
   };
-
-  const filteredTickets = tickets.filter(ticket => {
-    const matchesTab = activeTab === 'all' || ticket.status === activeTab;
-    const matchesSearch = ticket.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         ticket.description.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesTab && matchesSearch;
-  });
-
-  const renderTicket = (ticket) => (
-    <View key={ticket._id} style={styles.ticketCard}>
-      <View style={styles.ticketHeader}>
-        <View style={styles.ticketInfo}>
-          <Text style={styles.ticketTitle}>{ticket.title}</Text>
-          <View style={styles.ticketMeta}>
-            <View style={[styles.priorityBadge, { backgroundColor: getPriorityColor(ticket.priority) }]}>
-              <Text style={styles.priorityText}>{ticket.priority}</Text>
-            </View>
-            <View style={[styles.statusBadge, { backgroundColor: getStatusColor(ticket.status) }]}>
-              <Text style={styles.statusText}>{ticket.status}</Text>
-            </View>
-            <Text style={styles.ticketCategory}>{ticket.category}</Text>
-          </View>
-        </View>
-        <View style={styles.ticketActions}>
-          {ticket.status === 'open' && (
-            <TouchableOpacity 
-              style={styles.actionButton}
-              onPress={() => updateTicketStatus(ticket._id, 'in-progress')}
-            >
-              <Icon name="play" size={16} color="#00418b" />
-            </TouchableOpacity>
-          )}
-          {ticket.status === 'in-progress' && (
-            <TouchableOpacity 
-              style={styles.actionButton}
-              onPress={() => updateTicketStatus(ticket._id, 'closed')}
-            >
-              <Icon name="check" size={16} color="#00418b" />
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
-      
-      <Text style={styles.ticketDescription}>{ticket.description}</Text>
-      
-      <View style={styles.ticketFooter}>
-        <Text style={styles.ticketCreator}>By: {ticket.createdBy}</Text>
-        <Text style={styles.ticketDate}>
-          {new Date(ticket.createdAt).toLocaleDateString()}
-        </Text>
-        <Text style={styles.ticketAssigned}>Assigned to: {ticket.assignedTo}</Text>
-      </View>
-    </View>
-  );
 
   return (
-    <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Support Center</Text>
-        <Icon name="help-circle" size={28} color="#00418b" />
-      </View>
-
-      {/* Search Bar */}
-      <View style={styles.searchContainer}>
-        <View style={styles.searchBar}>
-          <Icon name="magnify" size={20} color="#666" style={styles.searchIcon} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search tickets..."
-            placeholderTextColor="#999"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
+    <View style={{ flex: 1, backgroundColor: '#f6f7fb' }}>
+      {/* Blue background */}
+      <View style={{ position: 'absolute', left: 0, right: 0, top: 0, height: 140, backgroundColor: '#00418b', borderBottomLeftRadius: 40, borderBottomRightRadius: 40, zIndex: 0 }} />
+      
+      <ScrollView contentContainerStyle={{ paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
+        {/* White card header */}
+        <View style={{
+          backgroundColor: '#fff',
+          borderRadius: 32,
+          marginTop: 48,
+          marginBottom: 32,
+          marginHorizontal: 24,
+          paddingVertical: 28,
+          paddingHorizontal: 28,
+          shadowColor: '#000',
+          shadowOpacity: 0.08,
+          shadowRadius: 10,
+          shadowOffset: { width: 0, height: 4 },
+          elevation: 4,
+          zIndex: 1,
+        }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 28, fontWeight: 'bold', color: '#00418b', marginBottom: 8 }}>
+                Support Center
+              </Text>
+              <Text style={{ fontSize: 16, color: '#666', fontFamily: 'Poppins-Regular' }}>
+                {formatDateTime(currentDateTime)}
+              </Text>
+            </View>
+            <TouchableOpacity onPress={() => navigation.navigate('VPEProfile')}>
+              <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#e3f2fd', justifyContent: 'center', alignItems: 'center' }}>
+                <MaterialIcons name="person" size={24} color="#00418b" />
+              </View>
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
 
-      {/* Tab Navigation */}
-      <View style={styles.tabContainer}>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'all' && styles.activeTab]}
-          onPress={() => setActiveTab('all')}
-        >
-          <Text style={[styles.tabText, activeTab === 'all' && styles.activeTabText]}>
-            All ({tickets.length})
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'open' && styles.activeTab]}
-          onPress={() => setActiveTab('open')}
-        >
-          <Text style={[styles.tabText, activeTab === 'open' && styles.activeTabText]}>
-            Open ({tickets.filter(t => t.status === 'open').length})
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'closed' && styles.activeTab]}
-          onPress={() => setActiveTab('closed')}
-        >
-          <Text style={[styles.tabText, activeTab === 'closed' && styles.activeTabText]}>
-            Closed ({tickets.filter(t => t.status === 'closed').length})
-          </Text>
-        </TouchableOpacity>
-      </View>
+        {/* Main view: two buttons */}
+        {view === 'main' && (
+          <View style={{ marginHorizontal: 24 }}>
+            <View style={{ marginBottom: 32 }}>
+              <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#333', marginBottom: 8, fontFamily: 'Poppins-Bold' }}>
+                {getRoleWelcomeMessage()}
+              </Text>
+              <Text style={{ fontSize: 16, color: '#666', fontFamily: 'Poppins-Regular' }}>
+                How can we help you today?
+              </Text>
+            </View>
+            
+            <View style={{ gap: 16 }}>
+              <TouchableOpacity
+                style={{
+                  backgroundColor: '#fff',
+                  borderRadius: 20,
+                  paddingVertical: 20,
+                  paddingHorizontal: 24,
+                  alignItems: 'center',
+                  shadowColor: '#000',
+                  shadowOpacity: 0.05,
+                  shadowRadius: 10,
+                  elevation: 3,
+                  borderWidth: 1,
+                  borderColor: '#e0e0e0',
+                }}
+                onPress={() => setView('myTickets')}
+              >
+                <MaterialIcons name="list-alt" size={32} color="#9575cd" style={{ marginBottom: 12 }} />
+                <Text style={{ fontSize: 18, fontWeight: '600', color: '#333', fontFamily: 'Poppins-Medium' }}>
+                  View My Tickets
+                </Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={{
+                  backgroundColor: '#fff',
+                  borderRadius: 20,
+                  paddingVertical: 20,
+                  paddingHorizontal: 24,
+                  alignItems: 'center',
+                  shadowColor: '#000',
+                  shadowOpacity: 0.05,
+                  shadowRadius: 10,
+                  elevation: 3,
+                  borderWidth: 1,
+                  borderColor: '#e0e0e0',
+                }}
+                onPress={() => setView('new')}
+              >
+                <MaterialIcons name="add-circle" size={32} color="#9575cd" style={{ marginBottom: 12 }} />
+                <Text style={{ fontSize: 18, fontWeight: '600', color: '#333', fontFamily: 'Poppins-Medium' }}>
+                  New Request
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
 
-      {/* Create Ticket Button */}
-      <TouchableOpacity 
-        style={styles.createButton}
-        onPress={() => setShowCreateModal(true)}
-      >
-        <Icon name="plus" size={20} color="#fff" />
-        <Text style={styles.createButtonText}>Create New Ticket</Text>
-      </TouchableOpacity>
+        {/* My Tickets view */}
+        {view === 'myTickets' && (
+          <View style={{ marginHorizontal: 24 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+              <View>
+                <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#333', fontFamily: 'Poppins-Bold' }}>
+                  {getRoleWelcomeMessage()}
+                </Text>
+                <Text style={{ fontSize: 18, fontWeight: '600', color: '#666', fontFamily: 'Poppins-Medium' }}>
+                  My Tickets
+                </Text>
+                <Text style={{ fontSize: 16, color: '#888', marginTop: 4, fontFamily: 'Poppins-Regular' }}>
+                  {!showAllTickets ? 'View all your tickets' : 'All your tickets'}
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => setView('main')}>
+                <MaterialIcons name="arrow-back" size={24} color="#666" />
+              </TouchableOpacity>
+            </View>
+            
+            {/* Filter Tabs */}
+            <View style={{ flexDirection: 'row', backgroundColor: '#fff', borderRadius: 16, padding: 4, marginBottom: 20, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5, elevation: 2 }}>
+              {[
+                { key: 'all', label: `All (${ticketCounts.all})` },
+                { key: 'new', label: `New (${ticketCounts.new})` },
+                { key: 'opened', label: `Opened (${ticketCounts.opened})` },
+                { key: 'closed', label: `Closed (${ticketCounts.closed})` }
+              ].map(filter => (
+                <TouchableOpacity
+                  key={filter.key}
+                  style={{
+                    flex: 1,
+                    paddingVertical: 12,
+                    paddingHorizontal: 16,
+                    borderRadius: 12,
+                    backgroundColor: activeFilter === filter.key ? '#9575cd' : 'transparent',
+                    alignItems: 'center',
+                  }}
+                  onPress={() => setActiveFilter(filter.key)}
+                >
+                  <Text style={{
+                    fontSize: 14,
+                    fontWeight: '600',
+                    color: activeFilter === filter.key ? '#fff' : '#666',
+                    fontFamily: 'Poppins-Medium',
+                  }}>
+                    {filter.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
 
-      {/* Tickets List */}
-      <ScrollView style={styles.ticketsContainer} showsVerticalScrollIndicator={false}>
-        {filteredTickets.length > 0 ? (
-          filteredTickets.map(renderTicket)
-        ) : (
-          <View style={styles.emptyContainer}>
-            <Icon name="ticket-confirmation" size={48} color="#ccc" />
-            <Text style={styles.emptyText}>
-              {searchQuery ? 'No tickets found matching your search.' : 'No tickets available.'}
-            </Text>
+            {/* Search Bar */}
+            <View style={{ marginBottom: 20 }}>
+              <View style={{ position: 'relative' }}>
+                <Feather name="search" size={20} color="#999" style={{ position: 'absolute', left: 16, top: 18, zIndex: 1 }} />
+                <TextInput
+                  style={{
+                    backgroundColor: '#fff',
+                    borderRadius: 16,
+                    paddingVertical: 16,
+                    paddingHorizontal: 48,
+                    fontSize: 16,
+                    fontFamily: 'Poppins-Regular',
+                    shadowColor: '#000',
+                    shadowOpacity: 0.05,
+                    shadowRadius: 5,
+                    elevation: 2,
+                  }}
+                  placeholder="Search tickets by title or number..."
+                  value={searchTerm}
+                  onChangeText={setSearchTerm}
+                />
+              </View>
+            </View>
+
+            {/* Sort Controls - Only show when viewing all tickets */}
+            {showAllTickets && (
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                  <Text style={{ fontSize: 14, color: '#666', fontFamily: 'Poppins-Regular' }}>Sort by:</Text>
+                  <View style={{ backgroundColor: '#fff', borderRadius: 8, borderWidth: 1, borderColor: '#ddd' }}>
+                    <TouchableOpacity
+                      style={{
+                        paddingHorizontal: 12,
+                        paddingVertical: 8,
+                        backgroundColor: sortOrder === 'newest' ? '#9575cd' : 'transparent',
+                        borderRadius: 8,
+                      }}
+                      onPress={() => setSortOrder('newest')}
+                    >
+                      <Text style={{
+                        fontSize: 12,
+                        color: sortOrder === 'newest' ? '#fff' : '#666',
+                        fontFamily: 'Poppins-Medium',
+                      }}>
+                        Newest First
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                  <View style={{ backgroundColor: '#fff', borderRadius: 8, borderWidth: 1, borderColor: '#ddd' }}>
+                    <TouchableOpacity
+                      style={{
+                        paddingHorizontal: 12,
+                        paddingVertical: 8,
+                        backgroundColor: sortOrder === 'oldest' ? '#9575cd' : 'transparent',
+                        borderRadius: 8,
+                      }}
+                      onPress={() => setSortOrder('oldest')}
+                    >
+                      <Text style={{
+                        fontSize: 12,
+                        color: sortOrder === 'oldest' ? '#fff' : '#666',
+                        fontFamily: 'Poppins-Medium',
+                      }}>
+                        Oldest First
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+                <TouchableOpacity
+                  style={{ paddingVertical: 8, paddingHorizontal: 16 }}
+                  onPress={() => setShowAllTickets(false)}
+                >
+                  <Text style={{ fontSize: 14, color: '#9575cd', textDecorationLine: 'underline', fontFamily: 'Poppins-Medium' }}>
+                    Show Summary
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* Tickets List */}
+            <View style={{ flex: 1 }}>
+              {ticketsLoading ? (
+                <View style={{ alignItems: 'center', padding: 40 }}>
+                  <ActivityIndicator size="large" color="#9575cd" />
+                  <Text style={{ marginTop: 16, color: '#666', fontFamily: 'Poppins-Regular' }}>
+                    Loading your tickets...
+                  </Text>
+                </View>
+              ) : ticketsError ? (
+                <View style={{ alignItems: 'center', padding: 40 }}>
+                  <Text style={{ color: '#e74c3c', fontFamily: 'Poppins-Regular' }}>{ticketsError}</Text>
+                </View>
+              ) : !showAllTickets && mostRecentTicket ? (
+                // Show most recent ticket with option to view all
+                <View style={{ gap: 16 }}>
+                  <View style={{ alignItems: 'center', marginBottom: 16 }}>
+                    <Text style={{ fontSize: 16, color: '#666', fontFamily: 'Poppins-Regular' }}>
+                      Your most recent ticket:
+                    </Text>
+                  </View>
+                  
+                  <TouchableOpacity
+                    style={{
+                      backgroundColor: '#fff',
+                      borderRadius: 16,
+                      padding: 20,
+                      borderWidth: 2,
+                      borderColor: selectedUserTicket === mostRecentTicket._id ? '#9575cd' : 'transparent',
+                      shadowColor: '#000',
+                      shadowOpacity: 0.05,
+                      shadowRadius: 10,
+                      elevation: 3,
+                    }}
+                    onPress={() => setSelectedUserTicket(selectedUserTicket === mostRecentTicket._id ? null : mostRecentTicket._id)}
+                  >
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                      <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#333', flex: 1, fontFamily: 'Poppins-Bold' }}>
+                        {mostRecentTicket.subject}
+                      </Text>
+                      <View style={{
+                        paddingHorizontal: 12,
+                        paddingVertical: 6,
+                        borderRadius: 20,
+                        backgroundColor: getStatusInfo(mostRecentTicket.status).bgColor || '#f5f5f5',
+                      }}>
+                        <Text style={{
+                          fontSize: 12,
+                          fontWeight: '600',
+                          color: getStatusInfo(mostRecentTicket.status).color,
+                          fontFamily: 'Poppins-Medium',
+                          textTransform: 'capitalize',
+                        }}>
+                          {mostRecentTicket.status}
+                        </Text>
+                      </View>
+                    </View>
+                    
+                    <Text style={{ fontSize: 14, color: '#666', marginBottom: 8, fontFamily: 'Poppins-Regular' }}>
+                      #{mostRecentTicket.number}
+                    </Text>
+                    <Text style={{ fontSize: 14, color: '#888', fontFamily: 'Poppins-Regular' }}>
+                      {new Date(mostRecentTicket.createdAt).toLocaleDateString()}
+                    </Text>
+                    
+                    {/* Expanded ticket details */}
+                    {selectedUserTicket === mostRecentTicket._id && (
+                      <View style={{ marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: '#eee' }}>
+                        <Text style={{ fontSize: 16, color: '#333', marginBottom: 12, lineHeight: 24, fontFamily: 'Poppins-Regular' }}>
+                          {mostRecentTicket.description}
+                        </Text>
+                        {mostRecentTicket.messages && mostRecentTicket.messages.length > 1 && (
+                          <Text style={{ fontSize: 14, color: '#666', fontFamily: 'Poppins-Regular' }}>
+                            {mostRecentTicket.messages.length - 1} response{mostRecentTicket.messages.length > 2 ? 's' : ''} from support
+                          </Text>
+                        )}
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                  
+                  {/* View All Tickets Button */}
+                  <TouchableOpacity
+                    style={{
+                      backgroundColor: '#fff',
+                      borderRadius: 16,
+                      paddingVertical: 16,
+                      paddingHorizontal: 24,
+                      alignItems: 'center',
+                      shadowColor: '#000',
+                      shadowOpacity: 0.05,
+                      shadowRadius: 10,
+                      elevation: 3,
+                      borderWidth: 1,
+                      borderColor: '#e0e0e0',
+                    }}
+                    onPress={() => setShowAllTickets(true)}
+                  >
+                    <Text style={{ fontSize: 16, fontWeight: '600', color: '#333', fontFamily: 'Poppins-Medium' }}>
+                      View All Tickets ({userTickets.length})
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                // Show all tickets
+                <View style={{ gap: 16 }}>
+                  {sortedTickets.map(ticket => {
+                    const statusInfo = getStatusInfo(ticket.status);
+                    return (
+                      <TouchableOpacity
+                        key={ticket._id}
+                        style={{
+                          backgroundColor: '#fff',
+                          borderRadius: 16,
+                          padding: 20,
+                          borderWidth: 2,
+                          borderColor: selectedUserTicket === ticket._id ? '#9575cd' : 'transparent',
+                          shadowColor: '#000',
+                          shadowOpacity: 0.05,
+                          shadowRadius: 10,
+                          elevation: 3,
+                        }}
+                        onPress={() => setSelectedUserTicket(selectedUserTicket === ticket._id ? null : ticket._id)}
+                      >
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                          <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#333', flex: 1, fontFamily: 'Poppins-Bold' }}>
+                            {ticket.subject}
+                          </Text>
+                          <View style={{
+                            paddingHorizontal: 12,
+                            paddingVertical: 6,
+                            borderRadius: 20,
+                            backgroundColor: statusInfo.bgColor || '#f5f5f5',
+                          }}>
+                            <Text style={{
+                              fontSize: 12,
+                              fontWeight: '600',
+                              color: statusInfo.color,
+                              fontFamily: 'Poppins-Medium',
+                              textTransform: 'capitalize',
+                            }}>
+                              {ticket.status}
+                            </Text>
+                          </View>
+                        </View>
+                        
+                        <Text style={{ fontSize: 14, color: '#666', marginBottom: 8, fontFamily: 'Poppins-Regular' }}>
+                          #{ticket.number}
+                        </Text>
+                        <Text style={{ fontSize: 14, color: '#888', fontFamily: 'Poppins-Regular' }}>
+                          {new Date(ticket.createdAt).toLocaleDateString()}
+                        </Text>
+                        
+                        {/* Expanded ticket details */}
+                        {selectedUserTicket === ticket._id && (
+                          <View style={{ marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: '#eee' }}>
+                            <Text style={{ fontSize: 16, color: '#333', marginBottom: 12, lineHeight: 24, fontFamily: 'Poppins-Regular' }}>
+                              {ticket.description}
+                            </Text>
+                            {ticket.messages && ticket.messages.length > 1 && (
+                              <Text style={{ fontSize: 14, color: '#666', fontFamily: 'Poppins-Regular' }}>
+                                {ticket.messages.length - 1} response{ticket.messages.length > 2 ? 's' : ''} from support
+                              </Text>
+                            )}
+                          </View>
+                        )}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )}
+            </View>
+          </View>
+        )}
+
+        {/* New Ticket view */}
+        {view === 'new' && (
+          <View style={{ marginHorizontal: 24 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+              <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#333', fontFamily: 'Poppins-Bold' }}>
+                New Support Request
+              </Text>
+              <TouchableOpacity onPress={() => setView('main')}>
+                <MaterialIcons name="arrow-back" size={24} color="#666" />
+              </TouchableOpacity>
+            </View>
+            
+            <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 24, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 }}>
+              <Text style={{ fontSize: 16, fontWeight: '600', color: '#333', marginBottom: 8, fontFamily: 'Poppins-Medium' }}>
+                Ticket Number: {newTicket.number}
+              </Text>
+              
+              <Text style={{ fontSize: 16, fontWeight: '600', color: '#333', marginBottom: 8, marginTop: 20, fontFamily: 'Poppins-Medium' }}>
+                Subject:
+              </Text>
+              <TextInput
+                style={{
+                  borderWidth: 1,
+                  borderColor: '#ddd',
+                  borderRadius: 8,
+                  padding: 12,
+                  fontSize: 16,
+                  fontFamily: 'Poppins-Regular',
+                  marginBottom: 20,
+                }}
+                placeholder="Enter subject..."
+                value={newTicket.subject}
+                onChangeText={(text) => setNewTicket({ ...newTicket, subject: text })}
+              />
+              
+              <Text style={{ fontSize: 16, fontWeight: '600', color: '#333', marginBottom: 8, fontFamily: 'Poppins-Medium' }}>
+                Description:
+              </Text>
+              <TextInput
+                style={{
+                  borderWidth: 1,
+                  borderColor: '#ddd',
+                  borderRadius: 8,
+                  padding: 12,
+                  fontSize: 16,
+                  fontFamily: 'Poppins-Regular',
+                  minHeight: 120,
+                  textAlignVertical: 'top',
+                  marginBottom: 24,
+                }}
+                placeholder="Describe your issue or request..."
+                value={newTicket.content}
+                onChangeText={(text) => setNewTicket({ ...newTicket, content: text })}
+                multiline
+              />
+              
+              {error ? (
+                <Text style={{ color: '#e74c3c', marginBottom: 16, fontFamily: 'Poppins-Regular' }}>
+                  {error}
+                </Text>
+              ) : null}
+              
+              <TouchableOpacity
+                style={{
+                  backgroundColor: '#9575cd',
+                  borderRadius: 12,
+                  paddingVertical: 16,
+                  alignItems: 'center',
+                  opacity: loading ? 0.7 : 1,
+                }}
+                onPress={handleSubmit}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={{ color: '#fff', fontSize: 18, fontWeight: '600', fontFamily: 'Poppins-Medium' }}>
+                    Submit Ticket
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
         )}
       </ScrollView>
-
-      {/* Create Ticket Modal */}
-      <Modal
-        visible={showCreateModal}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setShowCreateModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Create Support Ticket</Text>
-              <TouchableOpacity onPress={() => setShowCreateModal(false)}>
-                <Icon name="close" size={24} color="#666" />
-              </TouchableOpacity>
-            </View>
-
-            <TextInput
-              style={styles.input}
-              placeholder="Ticket Title"
-              value={newTicket.title}
-              onChangeText={(text) => setNewTicket({...newTicket, title: text})}
-            />
-
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              placeholder="Description"
-              value={newTicket.description}
-              onChangeText={(text) => setNewTicket({...newTicket, description: text})}
-              multiline
-              numberOfLines={4}
-            />
-
-            <View style={styles.formRow}>
-              <View style={styles.formField}>
-                <Text style={styles.label}>Priority</Text>
-                <View style={styles.pickerContainer}>
-                  {['low', 'medium', 'high'].map(priority => (
-                    <TouchableOpacity
-                      key={priority}
-                      style={[
-                        styles.priorityOption,
-                        newTicket.priority === priority && styles.selectedPriority
-                      ]}
-                      onPress={() => setNewTicket({...newTicket, priority})}
-                    >
-                      <Text style={[
-                        styles.priorityOptionText,
-                        newTicket.priority === priority && styles.selectedPriorityText
-                      ]}>
-                        {priority}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-
-              <View style={styles.formField}>
-                <Text style={styles.label}>Category</Text>
-                <View style={styles.pickerContainer}>
-                  {['general', 'academic', 'faculty', 'student', 'technical'].map(category => (
-                    <TouchableOpacity
-                      key={category}
-                      style={[
-                        styles.categoryOption,
-                        newTicket.category === category && styles.selectedCategory
-                      ]}
-                      onPress={() => setNewTicket({...newTicket, category})}
-                    >
-                      <Text style={[
-                        styles.categoryOptionText,
-                        newTicket.category === category && styles.selectedCategoryText
-                      ]}>
-                        {category}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-            </View>
-
-            <View style={styles.modalActions}>
-              <TouchableOpacity 
-                style={styles.cancelButton}
-                onPress={() => setShowCreateModal(false)}
-              >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={styles.submitButton}
-                onPress={createTicket}
-              >
-                <Text style={styles.submitButtonText}>Create Ticket</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f7f9fa',
-    padding: 16,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 24,
-  },
-  headerTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#00418b',
-    fontFamily: 'Poppins-Bold',
-  },
-  searchContainer: {
-    marginBottom: 20,
-  },
-  searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  searchIcon: {
-    marginRight: 8,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 16,
-    color: '#333',
-    fontFamily: 'Poppins-Regular',
-    paddingVertical: 8,
-  },
-  tabContainer: {
-    flexDirection: 'row',
-    marginBottom: 20,
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 4,
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: 12,
-    alignItems: 'center',
-    borderRadius: 8,
-  },
-  activeTab: {
-    backgroundColor: '#00418b',
-  },
-  tabText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#666',
-    fontFamily: 'Poppins-SemiBold',
-  },
-  activeTabText: {
-    color: '#fff',
-  },
-  createButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#00418b',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 8,
-    marginBottom: 20,
-    alignSelf: 'flex-start',
-  },
-  createButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-    marginLeft: 8,
-    fontFamily: 'Poppins-SemiBold',
-  },
-  ticketsContainer: {
-    flex: 1,
-  },
-  ticketCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  ticketHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 12,
-  },
-  ticketInfo: {
-    flex: 1,
-  },
-  ticketTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 8,
-    fontFamily: 'Poppins-SemiBold',
-  },
-  ticketMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-  },
-  priorityBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginRight: 8,
-    marginBottom: 4,
-  },
-  priorityText: {
-    color: '#fff',
-    fontSize: 10,
-    fontWeight: 'bold',
-    fontFamily: 'Poppins-Bold',
-    textTransform: 'uppercase',
-  },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginRight: 8,
-    marginBottom: 4,
-  },
-  statusText: {
-    color: '#fff',
-    fontSize: 10,
-    fontWeight: 'bold',
-    fontFamily: 'Poppins-Bold',
-    textTransform: 'uppercase',
-  },
-  ticketCategory: {
-    fontSize: 12,
-    color: '#666',
-    fontFamily: 'Poppins-Regular',
-    textTransform: 'capitalize',
-  },
-  ticketActions: {
-    flexDirection: 'row',
-  },
-  actionButton: {
-    padding: 8,
-    marginLeft: 8,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 8,
-  },
-  ticketDescription: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 12,
-    fontFamily: 'Poppins-Regular',
-    lineHeight: 20,
-  },
-  ticketFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
-  },
-  ticketCreator: {
-    fontSize: 12,
-    color: '#666',
-    fontFamily: 'Poppins-Regular',
-  },
-  ticketDate: {
-    fontSize: 12,
-    color: '#999',
-    fontFamily: 'Poppins-Regular',
-  },
-  ticketAssigned: {
-    fontSize: 12,
-    color: '#00418b',
-    fontFamily: 'Poppins-Medium',
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 40,
-  },
-  emptyText: {
-    fontSize: 14,
-    color: '#999',
-    textAlign: 'center',
-    marginTop: 12,
-    fontFamily: 'Poppins-Regular',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContent: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 20,
-    width: '90%',
-    maxHeight: '80%',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    fontFamily: 'Poppins-Bold',
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-    fontSize: 16,
-    fontFamily: 'Poppins-Regular',
-  },
-  textArea: {
-    height: 100,
-    textAlignVertical: 'top',
-  },
-  formRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-  },
-  formField: {
-    flex: 1,
-    marginHorizontal: 4,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
-    fontFamily: 'Poppins-SemiBold',
-  },
-  pickerContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  priorityOption: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginRight: 4,
-    marginBottom: 4,
-    backgroundColor: '#f0f0f0',
-  },
-  selectedPriority: {
-    backgroundColor: '#00418b',
-  },
-  priorityOptionText: {
-    fontSize: 12,
-    color: '#666',
-    fontFamily: 'Poppins-Regular',
-    textTransform: 'capitalize',
-  },
-  selectedPriorityText: {
-    color: '#fff',
-  },
-  categoryOption: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginRight: 4,
-    marginBottom: 4,
-    backgroundColor: '#f0f0f0',
-  },
-  selectedCategory: {
-    backgroundColor: '#00418b',
-  },
-  categoryOptionText: {
-    fontSize: 12,
-    color: '#666',
-    fontFamily: 'Poppins-Regular',
-    textTransform: 'capitalize',
-  },
-  selectedCategoryText: {
-    color: '#fff',
-  },
-  modalActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  cancelButton: {
-    flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-    marginRight: 8,
-    alignItems: 'center',
-  },
-  cancelButtonText: {
-    color: '#666',
-    fontSize: 16,
-    fontWeight: '600',
-    fontFamily: 'Poppins-SemiBold',
-  },
-  submitButton: {
-    flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    backgroundColor: '#00418b',
-    alignItems: 'center',
-  },
-  submitButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-    fontFamily: 'Poppins-SemiBold',
-  },
-});

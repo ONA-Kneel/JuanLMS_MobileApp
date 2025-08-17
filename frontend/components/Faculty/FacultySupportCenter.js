@@ -1,396 +1,722 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, TouchableOpacity, TextInput, ScrollView, Modal, Animated, Easing, Platform, Dimensions, FlatList } from 'react-native';
-import { MaterialIcons } from '@expo/vector-icons';
-import StudentSupportStyle from '../styles/Stud/StudentSupportStyle';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, Alert, ActivityIndicator } from 'react-native';
+import { MaterialIcons, Feather, Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { useUser } from '../UserContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const commonQuestions = [
-  { question: 'How do I reset my password?', answer: 'Go to settings and select "Reset Password".' },
-  { question: 'How do I contact support?', answer: 'You can submit a ticket here or email support@juanlms.com.' },
-  { question: 'How do I manage my classes?', answer: 'Go to the Classes section in your dashboard.' },
-  { question: 'How do I update my profile?', answer: 'Go to your profile and tap the edit button.' },
-  { question: 'How do I create a new module?', answer: 'Go to the Modules section and click "Create New Module".' },
-  { question: "Why can't I see my students?", answer: 'Students are visible only after they join your class.' },
-  { question: 'How do I grade assignments?', answer: 'Go to the Activities tab, select the assignment, and use the grading interface.' },
-];
-
-function generateTicketNumber() {
-  const randomNum = Math.floor(1000000000 + Math.random() * 9000000000); // 10 digits
-  return `FJDD${randomNum}`;
-}
-
-const QA_HEIGHT = 90; // Height of each Q&A item in the scroll view
-
-const TABS = [
-  { key: 'opened', label: 'Opened Tickets' },
-  { key: 'closed', label: 'Closed Tickets' },
-];
-
 export default function FacultySupportCenter() {
+  const [view, setView] = useState('main'); // main | new | myTickets
+  const [currentDateTime, setCurrentDateTime] = useState(new Date());
+  const [newTicket, setNewTicket] = useState({
+    number: generateTicketNumber(),
+    subject: '',
+    content: '',
+  });
+  const [userTickets, setUserTickets] = useState([]);
+  const [ticketsLoading, setTicketsLoading] = useState(false);
+  const [ticketsError, setTicketsError] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedUserTicket, setSelectedUserTicket] = useState(null);
+  const [showAllTickets, setShowAllTickets] = useState(false);
+  const [sortOrder, setSortOrder] = useState('newest');
+  const [activeFilter, setActiveFilter] = useState('all');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [user, setUser] = useState(null);
   const navigation = useNavigation();
-  const { user } = useUser();
-  const [ticket, setTicket] = useState('');
-  const [showDropdown, setShowDropdown] = useState(false);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [ticketNumber, setTicketNumber] = useState('');
-  const scrollY = useRef(new Animated.Value(0)).current;
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [isPaused, setIsPaused] = useState(false);
-  const [overlayIndex, setOverlayIndex] = useState(null); // For overlay Q&A
-  const timerRef = useRef();
-  const resumeTimeout = useRef();
-  const [activeTicketInput, setActiveTicketInput] = useState('');
-  const [ticketLookupModal, setTicketLookupModal] = useState({ visible: false, found: false, ticket: null });
-  const [subject, setSubject] = useState('');
-  const [activeTab, setActiveTab] = useState('opened');
-  const [tickets, setTickets] = useState([]);
-  const [selectedTicket, setSelectedTicket] = useState(null);
-  const [searching, setSearching] = useState(false);
 
-  const handleSendTicket = () => {
-    const newTicketNumber = generateTicketNumber();
-    setTicketNumber(newTicketNumber);
-    setModalVisible(true);
-    setTicket('');
-  };
-
-  const handleCheckTicket = async () => {
-    setSearching(true);
-    const ticketNumber = activeTicketInput.trim();
-    if (!ticketNumber) return;
-    const token = await AsyncStorage.getItem('jwtToken');
-    const res = await fetch(`https://juanlms-webapp-server.onrender.com/api/tickets/number/${ticketNumber}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    if (res.ok) {
-      const ticket = await res.json();
-      setTicketLookupModal({ visible: true, found: true, ticket });
-    } else {
-      setTicketLookupModal({ visible: true, found: false });
+  // Generate ticket number function
+  function generateTicketNumber() {
+    let num = '';
+    for (let i = 0; i < 12; i++) {
+      num += Math.floor(Math.random() * 10);
     }
-    setSearching(false);
-  };
+    return `SJDD${num}`;
+  }
 
   useEffect(() => {
-    fetchTickets();
-  }, [activeTab]);
+    const timer = setInterval(() => {
+      setCurrentDateTime(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
-  const fetchTickets = async () => {
-    if (!user || !user._id) return;
-    const token = await AsyncStorage.getItem('jwtToken');
-    const res = await fetch(`https://juanlms-webapp-server.onrender.com/api/tickets/user/${user._id}`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    const data = await res.json();
-    setTickets(data.filter(t => t.status === activeTab));
-  };
-
-  // Auto-scroll animation
   useEffect(() => {
-    if (overlayIndex !== null) return; // Pause if overlay is open
-    let isMounted = true;
-    function scrollToNext() {
-      if (!isMounted || isPaused) return;
-      const nextIndex = (currentIndex + 1) % commonQuestions.length;
-      Animated.timing(scrollY, {
-        toValue: nextIndex * QA_HEIGHT,
-        duration: 600,
-        easing: Easing.inOut(Easing.ease),
-        useNativeDriver: true,
-      }).start(() => {
-        setCurrentIndex(nextIndex);
-        if (!isPaused && isMounted) {
-          timerRef.current = setTimeout(scrollToNext, 2000);
+    const getUserData = async () => {
+      try {
+        const userData = await AsyncStorage.getItem('user');
+        if (userData) {
+          setUser(JSON.parse(userData));
         }
-      });
-    }
-    timerRef.current = setTimeout(scrollToNext, 2000);
-    return () => {
-      isMounted = false;
-      clearTimeout(timerRef.current);
+      } catch (error) {
+        console.error('Error getting user data:', error);
+      }
     };
-  }, [isPaused, overlayIndex, currentIndex]);
+    getUserData();
+  }, []);
 
-  const handleSelectQuestion = (idx) => {
-    setOverlayIndex(idx);
-    setIsPaused(true);
-    setShowDropdown(false);
-    if (resumeTimeout.current) clearTimeout(resumeTimeout.current);
-    resumeTimeout.current = setTimeout(() => {
-      setOverlayIndex(null);
-      setIsPaused(false);
-    }, 30000);
+  useEffect(() => {
+    if (view === 'myTickets') {
+      fetchUserTickets();
+    }
+  }, [view, activeFilter]);
+
+  const fetchUserTickets = async () => {
+    setTicketsLoading(true);
+    setTicketsError('');
+    try {
+      const user = JSON.parse(await AsyncStorage.getItem('user') || '{}');
+      const token = await AsyncStorage.getItem('jwtToken');
+      
+      if (!user._id) {
+        setTicketsError('User ID not found. Please log in again.');
+        return;
+      }
+
+      const response = await fetch(`https://juanlms-webapp-server.onrender.com/api/tickets/user/${user._id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const tickets = await response.json();
+      setUserTickets(Array.isArray(tickets) ? tickets : []);
+    } catch (err) {
+      console.error('Error fetching user tickets:', err);
+      setUserTickets([]);
+      if (err.response) {
+        setTicketsError('Failed to fetch tickets');
+      } else if (err.request) {
+        setTicketsError('Network error. Please check your connection and try again.');
+      } else {
+        setTicketsError('Failed to fetch tickets. Please try again.');
+      }
+    } finally {
+      setTicketsLoading(false);
+    }
   };
 
-  const handleCloseOverlay = () => {
-    setOverlayIndex(null);
-    setIsPaused(false);
-    if (resumeTimeout.current) clearTimeout(resumeTimeout.current);
+  const filteredTickets = userTickets.filter(ticket => {
+    const matchesSearch = ticket.subject?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         ticket.number?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesFilter = activeFilter === 'all' || ticket.status === activeFilter;
+    return matchesSearch && matchesFilter;
+  });
+
+  const sortedTickets = [...filteredTickets].sort((a, b) => {
+    if (sortOrder === 'newest') {
+      return new Date(b.createdAt) - new Date(a.createdAt);
+    } else {
+      return new Date(a.createdAt) - new Date(b.createdAt);
+    }
+  });
+
+  const mostRecentTicket = sortedTickets[0];
+
+  const getStatusInfo = (status) => {
+    switch (status) {
+      case 'new':
+        return {
+          icon: 'schedule',
+          bgColor: '#e3f2fd',
+          color: '#1976d2',
+          label: 'New'
+        };
+      case 'opened':
+        return {
+          icon: 'chat',
+          bgColor: '#fff3e0',
+          color: '#f57c00',
+          label: 'Opened'
+        };
+      case 'closed':
+        return {
+          icon: 'check-circle',
+          color: '#388e3c',
+          label: 'Closed'
+        };
+      default:
+        return {
+          icon: 'description',
+          bgColor: '#f5f5f5',
+          color: '#666',
+          label: status
+        };
+    }
   };
 
-  const handlePause = () => setIsPaused(true);
-  const handleResume = () => { if (overlayIndex === null) setIsPaused(false); };
+  const getTicketCounts = () => {
+    const counts = { all: userTickets.length, new: 0, opened: 0, closed: 0 };
+    userTickets.forEach(ticket => {
+      if (counts[ticket.status] !== undefined) {
+        counts[ticket.status]++;
+      }
+    });
+    return counts;
+  };
 
-  const answerBoxProps = Platform.OS === 'web'
-    ? { onMouseEnter: handlePause, onMouseLeave: handleResume }
-    : { onPressIn: handlePause, onPressOut: handleResume };
+  const ticketCounts = getTicketCounts();
+
+  const handleSubmit = async () => {
+    if (!newTicket.subject.trim() || !newTicket.content.trim()) {
+      setError('Please fill in all required fields');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError('');
+      
+      const token = await AsyncStorage.getItem('jwtToken');
+      const user = JSON.parse(await AsyncStorage.getItem('user') || '{}');
+      
+      if (!user._id) {
+        setError('User ID not found. Please log in again.');
+        return;
+      }
+      
+      const response = await fetch('https://juanlms-webapp-server.onrender.com/api/tickets', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          subject: newTicket.subject,
+          description: newTicket.content,
+          userId: user._id,
+          number: newTicket.number,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to create ticket: ${response.status}`);
+      }
+
+      // Reset form and show success
+      setNewTicket({ number: generateTicketNumber(), subject: '', content: '' });
+      setView('main');
+      Alert.alert('Success', 'Ticket submitted successfully!');
+      
+    } catch (error) {
+      console.error('Submit error:', error);
+      setError('Failed to submit ticket. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getRoleWelcomeMessage = () => {
+    return `Hello, ${user?.firstname || 'Faculty'}!`;
+  };
+
+  const formatDateTime = (date) => {
+    return date.toLocaleString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true,
+    });
+  };
 
   return (
-    <ScrollView contentContainerStyle={{ flexGrow: 1 }} style={{ backgroundColor: '#f2f2f2' }}>
-      {/* Header */}
-      <View style={StudentSupportStyle.topBackground}>
-        <TouchableOpacity style={StudentSupportStyle.backBtn} onPress={() => navigation.goBack()}>
-          <MaterialIcons name="arrow-back" size={28} color="#fff" />
-        </TouchableOpacity>
-        <Text style={StudentSupportStyle.headerTitle}>Support Center</Text>
-      </View>
-      {/* Submit a Ticket */}
-      <View style={[StudentSupportStyle.ticketCard, { position: 'relative' }]}> 
-        <Text style={StudentSupportStyle.ticketTitle}>How can we help you today?</Text>
-        <Text style={StudentSupportStyle.ticketSubtitle}>Submit a Ticket</Text>
-        <TextInput
-          style={StudentSupportStyle.ticketInput}
-          placeholder="Subject"
-          placeholderTextColor="#666"
-          value={subject}
-          onChangeText={setSubject}
-        />
-        <TextInput
-          style={StudentSupportStyle.ticketInput}
-          placeholder="Type your concern here"
-          placeholderTextColor="#666"
-          value={ticket}
-          onChangeText={setTicket}
-          multiline
-        />
-        {/* Paperclip button at bottom left of card */}
-        <TouchableOpacity
-          style={{ position: 'absolute', left: 12, bottom: 12, zIndex: 2 }}
-          onPress={() => {}} // No upload, just a button
-        >
-          <MaterialIcons name="attach-file" size={24} color="#1976d2" />
-        </TouchableOpacity>
-        <TouchableOpacity style={StudentSupportStyle.sendBtn} onPress={async () => {
-          if (!subject.trim() || !ticket.trim()) return;
-          const userId = user?._id;
-          const res = await fetch('https://juanlms-webapp-server.onrender.com/api/tickets', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId, subject, description: ticket })
-          });
-          const data = await res.json();
-          setSubject('');
-          setTicket('');
-          setTicketNumber(data.number || data._id || '');
-          setModalVisible(true);
-          fetchTickets();
+    <View style={{ flex: 1, backgroundColor: '#f6f7fb' }}>
+      {/* Blue background */}
+      <View style={{ position: 'absolute', left: 0, right: 0, top: 0, height: 140, backgroundColor: '#00418b', borderBottomLeftRadius: 40, borderBottomRightRadius: 40, zIndex: 0 }} />
+      
+      <ScrollView contentContainerStyle={{ paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
+        {/* White card header */}
+        <View style={{
+          backgroundColor: '#fff',
+          borderRadius: 32,
+          marginTop: 48,
+          marginBottom: 32,
+          marginHorizontal: 24,
+          paddingVertical: 28,
+          paddingHorizontal: 28,
+          shadowColor: '#000',
+          shadowOpacity: 0.08,
+          shadowRadius: 10,
+          shadowOffset: { width: 0, height: 4 },
+          elevation: 4,
+          zIndex: 1,
         }}>
-          <MaterialIcons name="send" size={24} color="#00418b" />
-        </TouchableOpacity>
-      </View>
-
-      {/* Active Ticket Lookup Section */}
-      <View style={[StudentSupportStyle.ticketCard, { marginTop: 10, marginBottom: 18 }]}> 
-        <Text style={{ fontWeight: 'bold', color: '#222', fontSize: 16, textAlign: 'center', marginBottom: 2 }}>
-          Have an active ticket?
-        </Text>
-        <Text style={{ fontSize: 13, color: '#888', textAlign: 'center', marginBottom: 10 }}>
-          Enter ticket number here
-        </Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
-          <TextInput
-            style={{
-              flex: 1,
-              borderWidth: 1,
-              borderColor: '#1976d2',
-              borderRadius: 8,
-              padding: 10,
-              backgroundColor: '#fff',
-              marginRight: 8,
-              fontSize: 15,
-            }}
-            placeholder="FJDDxxxxxxxxxx"
-            placeholderTextColor="#aaa"
-            value={activeTicketInput}
-            onChangeText={setActiveTicketInput}
-            autoCapitalize="characters"
-          />
-          <TouchableOpacity
-            style={{ backgroundColor: '#00418b', borderRadius: 8, padding: 10 }}
-            onPress={handleCheckTicket}
-          >
-            <MaterialIcons name="search" size={22} color="#fff" />
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* Modal for ticket lookup result */}
-      <Modal
-        visible={ticketLookupModal.visible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setTicketLookupModal({ visible: false })}
-      >
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.3)' }}>
-          <View style={{ backgroundColor: '#fff', borderRadius: 16, padding: 24, alignItems: 'center', minWidth: 260 }}>
-            {ticketLookupModal.found ? (
-              <>
-                <MaterialIcons name="confirmation-number" size={40} color="#1976d2" style={{ marginBottom: 10 }} />
-                <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 8 }}>Ticket Found</Text>
-                <Text style={{ fontSize: 16, marginBottom: 4 }}>Ticket Number:</Text>
-                <Text style={{ fontSize: 16, color: '#1976d2', fontWeight: 'bold', marginBottom: 8 }}>{ticketLookupModal.ticket?.number}</Text>
-                <Text style={{ fontSize: 15, marginBottom: 4 }}>Status: <Text style={{ fontWeight: 'bold', color: ticketLookupModal.ticket?.status === 'Active' ? '#388e3c' : '#888' }}>{ticketLookupModal.ticket?.status}</Text></Text>
-                <Text style={{ fontSize: 15, marginBottom: 8, textAlign: 'center' }}>{ticketLookupModal.ticket?.content}</Text>
-              </>
-            ) : (
-              <>
-                <MaterialIcons name="error-outline" size={40} color="#d32f2f" style={{ marginBottom: 10 }} />
-                <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 8 }}>Ticket is not found</Text>
-              </>
-            )}
-            <TouchableOpacity onPress={() => setTicketLookupModal({ visible: false })} style={{ backgroundColor: '#1976d2', borderRadius: 8, paddingVertical: 8, paddingHorizontal: 24, marginTop: 10 }}>
-              <Text style={{ color: '#fff', fontWeight: 'bold' }}>OK</Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 28, fontWeight: 'bold', color: '#00418b', marginBottom: 8 }}>
+                Support Center
+              </Text>
+              <Text style={{ fontSize: 16, color: '#666', fontFamily: 'Poppins-Regular' }}>
+                {formatDateTime(currentDateTime)}
+              </Text>
+            </View>
+            <TouchableOpacity onPress={() => navigation.navigate('FProfile')}>
+              <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#e3f2fd', justifyContent: 'center', alignItems: 'center' }}>
+                <MaterialIcons name="person" size={24} color="#00418b" />
+              </View>
             </TouchableOpacity>
           </View>
         </View>
-      </Modal>
 
-      {/* Modal for ticket submission */}
-      <Modal
-        visible={modalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setModalVisible(false)}
-      >
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.3)' }}>
-          <View style={{ backgroundColor: '#fff', borderRadius: 16, padding: 24, alignItems: 'center', minWidth: 260 }}>
-            <MaterialIcons name="check-circle" size={48} color="#1976d2" style={{ marginBottom: 10 }} />
-            <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 8 }}>Ticket has been submitted</Text>
-            <Text style={{ fontSize: 16, marginBottom: 8 }}>Ticket number:</Text>
-            <Text style={{ fontSize: 18, color: '#1976d2', fontWeight: 'bold', marginBottom: 16 }}>{ticketNumber}</Text>
-            <TouchableOpacity onPress={() => setModalVisible(false)} style={{ backgroundColor: '#1976d2', borderRadius: 8, paddingVertical: 8, paddingHorizontal: 24 }}>
-              <Text style={{ color: '#fff', fontWeight: 'bold' }}>OK</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Common Questions */}
-      <Text style={StudentSupportStyle.commonTitle}>Common Questions</Text>
-      {/* Auto-scroll Q&A animation box at the top */}
-      <View style={{ height: QA_HEIGHT, overflow: 'hidden', marginHorizontal: 16, marginBottom: 16, borderWidth: 1, borderColor: '#1976d2', borderRadius: 10, backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center', position: 'relative' }} {...answerBoxProps}>
-        <Animated.View style={{ position: 'absolute', width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center', transform: [{ translateY: 0 }] }}>
-          <Text style={{ fontWeight: 'bold', color: '#00418b', marginBottom: 4, fontSize: 16, textAlign: 'center' }}>
-            {commonQuestions[currentIndex].question}
-          </Text>
-          <Text style={{ color: '#666', fontSize: 15, textAlign: 'center' }}>
-            {commonQuestions[currentIndex].answer}
-          </Text>
-        </Animated.View>
-      </View>
-      {/* Dropdown and static Q&A below the animation box */}
-      <View style={{ marginHorizontal: 16, marginBottom: 30 }}>
-          <TouchableOpacity
-            style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            width: '100%',
-            paddingHorizontal: 16,
-            paddingVertical: 10,
-            borderWidth: 1,
-            borderColor: '#1976d2',
-            borderRadius: 10,
-            backgroundColor: '#fff',
-            marginBottom: 8,
-          }}
-          onPress={() => setShowDropdown(!showDropdown)}
-          activeOpacity={0.8}
-        >
-          <Text style={{ color: '#666', fontWeight: 'bold', fontSize: 15 }}>
-            {overlayIndex !== null ? commonQuestions[overlayIndex].question : 'Select a Question'}
-          </Text>
-          <MaterialIcons name={showDropdown ? 'arrow-drop-up' : 'arrow-drop-down'} size={24} color="#00418b" />
-        </TouchableOpacity>
-        {showDropdown && (
-          <View style={{
-            position: 'absolute',
-            top: 48,
-            left: 0,
-            right: 0,
-              backgroundColor: '#fff',
-              borderRadius: 10,
-              borderWidth: 1,
-              borderColor: '#1976d2',
-            zIndex: 10,
-            shadowColor: '#000',
-            shadowOpacity: 0.08,
-            shadowRadius: 8,
-            elevation: 4,
-            maxHeight: QA_HEIGHT * 3,
-            overflow: 'scroll',
-          }}>
-            {commonQuestions.map((q, idx) => (
+        {/* Main view: two buttons */}
+        {view === 'main' && (
+          <View style={{ marginHorizontal: 24 }}>
+            <View style={{ marginBottom: 32 }}>
+              <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#333', marginBottom: 8, fontFamily: 'Poppins-Bold' }}>
+                {getRoleWelcomeMessage()}
+              </Text>
+              <Text style={{ fontSize: 16, color: '#666', fontFamily: 'Poppins-Regular' }}>
+                How can we help you today?
+              </Text>
+            </View>
+            
+            <View style={{ gap: 16 }}>
               <TouchableOpacity
-                key={idx}
-                style={{ padding: 12, borderBottomWidth: idx !== commonQuestions.length - 1 ? 1 : 0, borderBottomColor: '#eee' }}
-                onPress={() => { setOverlayIndex(idx); setShowDropdown(false); }}
+                style={{
+                  backgroundColor: '#fff',
+                  borderRadius: 20,
+                  paddingVertical: 20,
+                  paddingHorizontal: 24,
+                  alignItems: 'center',
+                  shadowColor: '#000',
+                  shadowOpacity: 0.05,
+                  shadowRadius: 10,
+                  elevation: 3,
+                  borderWidth: 1,
+                  borderColor: '#e0e0e0',
+                }}
+                onPress={() => setView('myTickets')}
               >
-                <Text style={{ color: '#222', fontSize: 15 }}>{q.question}</Text>
-          </TouchableOpacity>
-        ))}
+                <MaterialIcons name="list-alt" size={32} color="#9575cd" style={{ marginBottom: 12 }} />
+                <Text style={{ fontSize: 18, fontWeight: '600', color: '#333', fontFamily: 'Poppins-Medium' }}>
+                  View My Tickets
+                </Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={{
+                  backgroundColor: '#fff',
+                  borderRadius: 20,
+                  paddingVertical: 20,
+                  paddingHorizontal: 24,
+                  alignItems: 'center',
+                  shadowColor: '#000',
+                  shadowOpacity: 0.05,
+                  shadowRadius: 10,
+                  elevation: 3,
+                  borderWidth: 1,
+                  borderColor: '#e0e0e0',
+                }}
+                onPress={() => setView('new')}
+              >
+                <MaterialIcons name="add-circle" size={32} color="#9575cd" style={{ marginBottom: 12 }} />
+                <Text style={{ fontSize: 18, fontWeight: '600', color: '#333', fontFamily: 'Poppins-Medium' }}>
+                  New Request
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
         )}
-        {/* Show answer card below dropdown if a question is selected */}
-        {overlayIndex !== null && (
-          <View style={{
-            marginTop: 8,
-            backgroundColor: '#fff',
-            borderRadius: 10,
-            borderWidth: 1,
-            borderColor: '#1976d2',
-            padding: 16,
-            shadowColor: '#000',
-            shadowOpacity: 0.08,
-            shadowRadius: 8,
-            elevation: 2,
-          }}>
-            <Text style={{ fontWeight: 'bold', color: '#00418b', marginBottom: 4, fontSize: 16, textAlign: 'center' }}>{commonQuestions[overlayIndex].question}</Text>
-            <Text style={{ color: '#666', fontSize: 15, textAlign: 'center' }}>{commonQuestions[overlayIndex].answer}</Text>
-            <TouchableOpacity
-              onPress={() => setOverlayIndex(null)}
-              style={{ position: 'absolute', top: 8, right: 8, backgroundColor: '#00418b', borderRadius: 12, padding: 4, zIndex: 30 }}
-            >
-              <MaterialIcons name="close" size={20} color="#fff" />
-            </TouchableOpacity>
-          </View>
-        )}
-      </View>
 
-      {/* Ticket List */}
-      {tickets && tickets.length > 0 && (
-        <View style={{ marginHorizontal: 16, marginBottom: 16 }}>
-          {tickets.map((ticket, idx) => (
-            <TouchableOpacity
-              key={ticket._id || idx}
-              style={{
-                backgroundColor: '#fff',
-                borderRadius: 10,
-                padding: 16,
-                marginBottom: 8,
-                borderWidth: 1,
-                borderColor: '#1976d2',
-              }}
-              onPress={() => {/* handle ticket select if needed */}}
-            >
-              <Text style={{ fontWeight: 'bold', color: '#00418b', fontSize: 16 }}>{ticket.subject}</Text>
-              <Text style={{ color: '#888', fontSize: 14 }}>{ticket.description}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
-    </ScrollView>
+        {/* My Tickets view */}
+        {view === 'myTickets' && (
+          <View style={{ marginHorizontal: 24 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+              <View>
+                <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#333', fontFamily: 'Poppins-Bold' }}>
+                  {getRoleWelcomeMessage()}
+                </Text>
+                <Text style={{ fontSize: 18, fontWeight: '600', color: '#666', fontFamily: 'Poppins-Medium' }}>
+                  My Tickets
+                </Text>
+                <Text style={{ fontSize: 16, color: '#888', marginTop: 4, fontFamily: 'Poppins-Regular' }}>
+                  {!showAllTickets ? 'View all your tickets' : 'All your tickets'}
+                </Text>
+              </View>
+              <TouchableOpacity onPress={() => setView('main')}>
+                <MaterialIcons name="arrow-back" size={24} color="#666" />
+              </TouchableOpacity>
+            </View>
+            
+            {/* Filter Tabs */}
+            <View style={{ flexDirection: 'row', backgroundColor: '#fff', borderRadius: 16, padding: 4, marginBottom: 20, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5, elevation: 2 }}>
+              {[
+                { key: 'all', label: `All (${ticketCounts.all})` },
+                { key: 'new', label: `New (${ticketCounts.new})` },
+                { key: 'opened', label: `Opened (${ticketCounts.opened})` },
+                { key: 'closed', label: `Closed (${ticketCounts.closed})` }
+              ].map(filter => (
+                <TouchableOpacity
+                  key={filter.key}
+                  style={{
+                    flex: 1,
+                    paddingVertical: 12,
+                    paddingHorizontal: 16,
+                    borderRadius: 12,
+                    backgroundColor: activeFilter === filter.key ? '#9575cd' : 'transparent',
+                    alignItems: 'center',
+                  }}
+                  onPress={() => setActiveFilter(filter.key)}
+                >
+                  <Text style={{
+                    fontSize: 14,
+                    fontWeight: '600',
+                    color: activeFilter === filter.key ? '#fff' : '#666',
+                    fontFamily: 'Poppins-Medium',
+                  }}>
+                    {filter.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* Search Bar */}
+            <View style={{ marginBottom: 20 }}>
+              <View style={{ position: 'relative' }}>
+                <Feather name="search" size={20} color="#999" style={{ position: 'absolute', left: 16, top: 18, zIndex: 1 }} />
+                <TextInput
+                  style={{
+                    backgroundColor: '#fff',
+                    borderRadius: 16,
+                    paddingVertical: 16,
+                    paddingHorizontal: 48,
+                    fontSize: 16,
+                    fontFamily: 'Poppins-Regular',
+                    shadowColor: '#000',
+                    shadowOpacity: 0.05,
+                    shadowRadius: 5,
+                    elevation: 2,
+                  }}
+                  placeholder="Search tickets by title or number..."
+                  value={searchTerm}
+                  onChangeText={setSearchTerm}
+                />
+              </View>
+            </View>
+
+            {/* Sort Controls - Only show when viewing all tickets */}
+            {showAllTickets && (
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                  <Text style={{ fontSize: 14, color: '#666', fontFamily: 'Poppins-Regular' }}>Sort by:</Text>
+                  <View style={{ backgroundColor: '#fff', borderRadius: 8, borderWidth: 1, borderColor: '#ddd' }}>
+                    <TouchableOpacity
+                      style={{
+                        paddingHorizontal: 12,
+                        paddingVertical: 8,
+                        backgroundColor: sortOrder === 'newest' ? '#9575cd' : 'transparent',
+                        borderRadius: 8,
+                      }}
+                      onPress={() => setSortOrder('newest')}
+                    >
+                      <Text style={{
+                        fontSize: 12,
+                        color: sortOrder === 'newest' ? '#fff' : '#666',
+                        fontFamily: 'Poppins-Medium',
+                      }}>
+                        Newest First
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                  <View style={{ backgroundColor: '#fff', borderRadius: 8, borderWidth: 1, borderColor: '#ddd' }}>
+                    <TouchableOpacity
+                      style={{
+                        paddingHorizontal: 12,
+                        paddingVertical: 8,
+                        backgroundColor: sortOrder === 'oldest' ? '#9575cd' : 'transparent',
+                        borderRadius: 8,
+                      }}
+                      onPress={() => setSortOrder('oldest')}
+                    >
+                      <Text style={{
+                        fontSize: 12,
+                        color: sortOrder === 'oldest' ? '#fff' : '#666',
+                        fontFamily: 'Poppins-Medium',
+                      }}>
+                        Oldest First
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+                <TouchableOpacity
+                  style={{ paddingVertical: 8, paddingHorizontal: 16 }}
+                  onPress={() => setShowAllTickets(false)}
+                >
+                  <Text style={{ fontSize: 14, color: '#9575cd', textDecorationLine: 'underline', fontFamily: 'Poppins-Medium' }}>
+                    Show Summary
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {/* Tickets List */}
+            <View style={{ flex: 1 }}>
+              {ticketsLoading ? (
+                <View style={{ alignItems: 'center', padding: 40 }}>
+                  <ActivityIndicator size="large" color="#9575cd" />
+                  <Text style={{ marginTop: 16, color: '#666', fontFamily: 'Poppins-Regular' }}>
+                    Loading your tickets...
+                  </Text>
+                </View>
+              ) : ticketsError ? (
+                <View style={{ alignItems: 'center', padding: 40 }}>
+                  <Text style={{ color: '#e74c3c', fontFamily: 'Poppins-Regular' }}>{ticketsError}</Text>
+                </View>
+              ) : !showAllTickets && mostRecentTicket ? (
+                // Show most recent ticket with option to view all
+                <View style={{ gap: 16 }}>
+                  <View style={{ alignItems: 'center', marginBottom: 16 }}>
+                    <Text style={{ fontSize: 16, color: '#666', fontFamily: 'Poppins-Regular' }}>
+                      Your most recent ticket:
+                    </Text>
+                  </View>
+                  
+                  <TouchableOpacity
+                    style={{
+                      backgroundColor: '#fff',
+                      borderRadius: 16,
+                      padding: 20,
+                      borderWidth: 2,
+                      borderColor: selectedUserTicket === mostRecentTicket._id ? '#9575cd' : 'transparent',
+                      shadowColor: '#000',
+                      shadowOpacity: 0.05,
+                      shadowRadius: 10,
+                      elevation: 3,
+                    }}
+                    onPress={() => setSelectedUserTicket(selectedUserTicket === mostRecentTicket._id ? null : mostRecentTicket._id)}
+                  >
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                      <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#333', flex: 1, fontFamily: 'Poppins-Bold' }}>
+                        {mostRecentTicket.subject}
+                      </Text>
+                      <View style={{
+                        paddingHorizontal: 12,
+                        paddingVertical: 6,
+                        borderRadius: 20,
+                        backgroundColor: getStatusInfo(mostRecentTicket.status).bgColor || '#f5f5f5',
+                      }}>
+                        <Text style={{
+                          fontSize: 12,
+                          fontWeight: '600',
+                          color: getStatusInfo(mostRecentTicket.status).color,
+                          fontFamily: 'Poppins-Medium',
+                          textTransform: 'capitalize',
+                        }}>
+                          {mostRecentTicket.status}
+                        </Text>
+                      </View>
+                    </View>
+                    
+                    <Text style={{ fontSize: 14, color: '#666', marginBottom: 8, fontFamily: 'Poppins-Regular' }}>
+                      #{mostRecentTicket.number}
+                    </Text>
+                    <Text style={{ fontSize: 14, color: '#888', fontFamily: 'Poppins-Regular' }}>
+                      {new Date(mostRecentTicket.createdAt).toLocaleDateString()}
+                    </Text>
+                    
+                    {/* Expanded ticket details */}
+                    {selectedUserTicket === mostRecentTicket._id && (
+                      <View style={{ marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: '#eee' }}>
+                        <Text style={{ fontSize: 16, color: '#333', marginBottom: 12, lineHeight: 24, fontFamily: 'Poppins-Regular' }}>
+                          {mostRecentTicket.description}
+                        </Text>
+                        {mostRecentTicket.messages && mostRecentTicket.messages.length > 1 && (
+                          <Text style={{ fontSize: 14, color: '#666', fontFamily: 'Poppins-Regular' }}>
+                            {mostRecentTicket.messages.length - 1} response{mostRecentTicket.messages.length > 2 ? 's' : ''} from support
+                          </Text>
+                        )}
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                  
+                  {/* View All Tickets Button */}
+                  <TouchableOpacity
+                    style={{
+                      backgroundColor: '#fff',
+                      borderRadius: 16,
+                      paddingVertical: 16,
+                      paddingHorizontal: 24,
+                      alignItems: 'center',
+                      shadowColor: '#000',
+                      shadowOpacity: 0.05,
+                      shadowRadius: 10,
+                      elevation: 3,
+                      borderWidth: 1,
+                      borderColor: '#e0e0e0',
+                    }}
+                    onPress={() => setShowAllTickets(true)}
+                  >
+                    <Text style={{ fontSize: 16, fontWeight: '600', color: '#333', fontFamily: 'Poppins-Medium' }}>
+                      View All Tickets ({userTickets.length})
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                // Show all tickets
+                <View style={{ gap: 16 }}>
+                  {sortedTickets.map(ticket => {
+                    const statusInfo = getStatusInfo(ticket.status);
+                    return (
+                      <TouchableOpacity
+                        key={ticket._id}
+                        style={{
+                          backgroundColor: '#fff',
+                          borderRadius: 16,
+                          padding: 20,
+                          borderWidth: 2,
+                          borderColor: selectedUserTicket === ticket._id ? '#9575cd' : 'transparent',
+                          shadowColor: '#000',
+                          shadowOpacity: 0.05,
+                          shadowRadius: 10,
+                          elevation: 3,
+                        }}
+                        onPress={() => setSelectedUserTicket(selectedUserTicket === ticket._id ? null : ticket._id)}
+                      >
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                          <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#333', flex: 1, fontFamily: 'Poppins-Bold' }}>
+                            {ticket.subject}
+                          </Text>
+                          <View style={{
+                            paddingHorizontal: 12,
+                            paddingVertical: 6,
+                            borderRadius: 20,
+                            backgroundColor: statusInfo.bgColor || '#f5f5f5',
+                          }}>
+                            <Text style={{
+                              fontSize: 12,
+                              fontWeight: '600',
+                              color: statusInfo.color,
+                              fontFamily: 'Poppins-Medium',
+                              textTransform: 'capitalize',
+                            }}>
+                              {ticket.status}
+                            </Text>
+                          </View>
+                        </View>
+                        
+                        <Text style={{ fontSize: 14, color: '#666', marginBottom: 8, fontFamily: 'Poppins-Regular' }}>
+                          #{ticket.number}
+                        </Text>
+                        <Text style={{ fontSize: 14, color: '#888', fontFamily: 'Poppins-Regular' }}>
+                          {new Date(ticket.createdAt).toLocaleDateString()}
+                        </Text>
+                        
+                        {/* Expanded ticket details */}
+                        {selectedUserTicket === ticket._id && (
+                          <View style={{ marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: '#eee' }}>
+                            <Text style={{ fontSize: 16, color: '#333', marginBottom: 12, lineHeight: 24, fontFamily: 'Poppins-Regular' }}>
+                              {ticket.description}
+                            </Text>
+                            {ticket.messages && ticket.messages.length > 1 && (
+                              <Text style={{ fontSize: 14, color: '#666', fontFamily: 'Poppins-Regular' }}>
+                                {ticket.messages.length - 1} response{ticket.messages.length > 2 ? 's' : ''} from support
+                              </Text>
+                            )}
+                          </View>
+                        )}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )}
+            </View>
+          </View>
+        )}
+
+        {/* New Ticket view */}
+        {view === 'new' && (
+          <View style={{ marginHorizontal: 24 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+              <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#333', fontFamily: 'Poppins-Bold' }}>
+                New Support Request
+              </Text>
+              <TouchableOpacity onPress={() => setView('main')}>
+                <MaterialIcons name="arrow-back" size={24} color="#666" />
+              </TouchableOpacity>
+            </View>
+            
+            <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 24, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 }}>
+              <Text style={{ fontSize: 16, fontWeight: '600', color: '#333', marginBottom: 8, fontFamily: 'Poppins-Medium' }}>
+                Ticket Number: {newTicket.number}
+              </Text>
+              
+              <Text style={{ fontSize: 16, fontWeight: '600', color: '#333', marginBottom: 8, marginTop: 20, fontFamily: 'Poppins-Medium' }}>
+                Subject:
+              </Text>
+              <TextInput
+                style={{
+                  borderWidth: 1,
+                  borderColor: '#ddd',
+                  borderRadius: 8,
+                  padding: 12,
+                  fontSize: 16,
+                  fontFamily: 'Poppins-Regular',
+                  marginBottom: 20,
+                }}
+                placeholder="Enter subject..."
+                value={newTicket.subject}
+                onChangeText={(text) => setNewTicket({ ...newTicket, subject: text })}
+              />
+              
+              <Text style={{ fontSize: 16, fontWeight: '600', color: '#333', marginBottom: 8, fontFamily: 'Poppins-Medium' }}>
+                Description:
+              </Text>
+              <TextInput
+                style={{
+                  borderWidth: 1,
+                  borderColor: '#ddd',
+                  borderRadius: 8,
+                  padding: 12,
+                  fontSize: 16,
+                  fontFamily: 'Poppins-Regular',
+                  minHeight: 120,
+                  textAlignVertical: 'top',
+                  marginBottom: 24,
+                }}
+                placeholder="Describe your issue or request..."
+                value={newTicket.content}
+                onChangeText={(text) => setNewTicket({ ...newTicket, content: text })}
+                multiline
+              />
+              
+              {error ? (
+                <Text style={{ color: '#e74c3c', marginBottom: 16, fontFamily: 'Poppins-Regular' }}>
+                  {error}
+                </Text>
+              ) : null}
+              
+              <TouchableOpacity
+                style={{
+                  backgroundColor: '#9575cd',
+                  borderRadius: 12,
+                  paddingVertical: 16,
+                  alignItems: 'center',
+                  opacity: loading ? 0.7 : 1,
+                }}
+                onPress={handleSubmit}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={{ color: '#fff', fontSize: 18, fontWeight: '600', fontFamily: 'Poppins-Medium' }}>
+                    Submit Ticket
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+      </ScrollView>
+    </View>
   );
 }

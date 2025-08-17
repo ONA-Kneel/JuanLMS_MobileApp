@@ -77,7 +77,7 @@ function Upcoming({ activities, onActivityPress }) {
             <View style={styles.activityStatus}>
               <View style={[styles.statusDot, { backgroundColor: '#FF9800' }]} />
               <Text style={styles.statusText}>Upcoming</Text>
-            </View>
+          </View>
             
             {activity.attachments && activity.attachments.length > 0 && (
               <View style={styles.attachmentsInfo}>
@@ -87,7 +87,7 @@ function Upcoming({ activities, onActivityPress }) {
                 </Text>
               </View>
             )}
-          </View>
+        </View>
         </TouchableOpacity>
       ))}
     </ScrollView>
@@ -154,7 +154,7 @@ function PastDue({ activities, onActivityPress }) {
             <View style={styles.latePenalty}>
               <Text style={styles.latePenaltyText}>Late penalty may apply</Text>
             </View>
-          </View>
+    </View>
         </TouchableOpacity>
       ))}
     </ScrollView>
@@ -164,16 +164,16 @@ function PastDue({ activities, onActivityPress }) {
 // Completed Activities Component
 function Completed({ activities, onActivityPress }) {
   if (activities.length === 0) {
-    return (
+  return (
       <View style={styles.emptyTabContainer}>
         <MaterialCommunityIcons name="check-circle" size={64} color="#ccc" />
         <Text style={styles.emptyTabTitle}>No Completed Activities</Text>
         <Text style={styles.emptyTabText}>
           Complete some assignments to see them here.
         </Text>
-      </View>
+    </View>
     );
-  }
+}
 
   return (
     <ScrollView style={styles.tabContainer} showsVerticalScrollIndicator={false}>
@@ -410,7 +410,7 @@ export default function StudentActs() {
         <Text style={styles.headerSubtitle}>
           {formatDateTime(currentDateTime)}
         </Text>
-      </View>
+          </View>
 
       {/* Tab Navigation */}
       <View style={styles.tabContainer}>
