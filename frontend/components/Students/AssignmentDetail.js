@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   Alert,
   Modal,
+  TextInput,
   Dimensions,
   Linking,
 } from 'react-native';
@@ -28,6 +29,7 @@ export default function AssignmentDetail() {
   const [assignmentData, setAssignmentData] = useState(assignment || null);
   const [loading, setLoading] = useState(!assignment);
   const [submitting, setSubmitting] = useState(false);
+  const [submissionText, setSubmissionText] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -115,8 +117,8 @@ export default function AssignmentDetail() {
   };
 
   const handleSubmit = async () => {
-    if (!selectedFile) {
-      Alert.alert('Error', 'Please attach a file for submission');
+    if (!selectedFile && !submissionText) {
+      Alert.alert('Error', 'Please attach a file or enter text for submission');
       return;
     }
 
@@ -134,6 +136,10 @@ export default function AssignmentDetail() {
           type: selectedFile.mimeType || 'application/octet-stream',
           name: selectedFile.name,
         });
+      }
+
+      if (submissionText) {
+        formData.append('textSubmission', submissionText);
       }
 
       const response = await fetch(`${API_BASE}/assignments/${assignmentId}/submit`, {
@@ -289,7 +295,7 @@ export default function AssignmentDetail() {
             <Text style={styles.submissionTitle}>Submit Your Work</Text>
             
             <View style={styles.fileSection}>
-              <Text style={{ fontSize: 14, fontWeight: '500', color: '#333', marginBottom: 8 }}>Attach File (Required)</Text>
+              <Text style={{ fontSize: 14, fontWeight: '500', color: '#333', marginBottom: 8 }}>Attach File (Optional)</Text>
               
               {selectedFile ? (
                 <View style={styles.selectedFileContainer}>
@@ -305,6 +311,18 @@ export default function AssignmentDetail() {
                   <Text style={styles.filePickerText}>Choose File</Text>
                 </TouchableOpacity>
               )}
+            </View>
+
+            <View style={styles.textSubmissionSection}>
+              <Text style={{ fontSize: 14, fontWeight: '500', color: '#333', marginBottom: 8 }}>Enter Text Submission (Optional)</Text>
+              <TextInput
+                style={styles.textSubmissionInput}
+                multiline
+                numberOfLines={4}
+                placeholder="Write your submission here..."
+                value={submissionText}
+                onChangeText={setSubmissionText}
+              />
             </View>
 
             <TouchableOpacity
@@ -628,6 +646,19 @@ const styles = {
   },
   removeFileButton: {
     padding: 4,
+  },
+  textSubmissionSection: {
+    marginBottom: 20,
+  },
+  textSubmissionInput: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 14,
+    color: '#333',
+    minHeight: 80,
+    textAlignVertical: 'top',
   },
   submitButton: {
     backgroundColor: '#00418b',

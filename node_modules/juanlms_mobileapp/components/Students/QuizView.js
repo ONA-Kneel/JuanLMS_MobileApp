@@ -10,6 +10,7 @@ import {
   TextInput,
   FlatList,
   Dimensions,
+  AppState,
 } from 'react-native';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -34,6 +35,12 @@ export default function QuizView() {
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [showResultsModal, setShowResultsModal] = useState(false);
   const [quizResult, setQuizResult] = useState(null);
+  const [violationCount, setViolationCount] = useState(0);
+  const [violationEvents, setViolationEvents] = useState([]);
+  const [questionTimes, setQuestionTimes] = useState([]);
+  const [questionStartTime, setQuestionStartTime] = useState(Date.now());
+  const [showUnansweredModal, setShowUnansweredModal] = useState(false);
+  const [unansweredQuestions, setUnansweredQuestions] = useState([]);
 
   useEffect(() => {
     fetchQuiz();
@@ -45,7 +52,7 @@ export default function QuizView() {
         setTimeLeft(prev => {
           if (prev <= 1) {
             clearInterval(timer);
-            handleSubmitQuiz();
+            forceSubmitQuiz(); // Use force submit when timer expires
             return 0;
           }
           return prev - 1;
@@ -55,6 +62,41 @@ export default function QuizView() {
       return () => clearInterval(timer);
     }
   }, [quiz]);
+
+  // Monitor app state changes (similar to web version's focus/blur monitoring)
+  useEffect(() => {
+    const handleAppStateChange = (nextAppState) => {
+      if (nextAppState === 'background' || nextAppState === 'inactive') {
+        // Record violation event
+        setViolationEvents(prev => [...prev, { 
+          question: currentQuestionIndex + 1, 
+          time: new Date().toISOString() 
+        }]);
+        setViolationCount(prev => prev + 1);
+        Alert.alert('Warning', 'You have left the quiz. Your teacher will be notified.');
+      }
+    };
+
+    // Subscribe to app state changes
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    
+    return () => {
+      subscription?.remove();
+    };
+  }, [currentQuestionIndex]);
+
+  // Track question timing
+  useEffect(() => {
+    const startTime = Date.now();
+    return () => {
+      const timeSpent = Math.floor((Date.now() - startTime) / 1000);
+      setQuestionTimes(prev => {
+        const newTimes = [...prev];
+        newTimes[currentQuestionIndex] = (newTimes[currentQuestionIndex] || 0) + timeSpent;
+        return newTimes;
+      });
+    };
+  }, [currentQuestionIndex]);
 
   const fetchQuiz = async () => {
     try {
@@ -83,6 +125,24 @@ export default function QuizView() {
         // Set time limit if exists
         if (quizData.timeLimit && quizData.timeLimit > 0) {
           setTimeLeft(quizData.timeLimit * 60); // Convert minutes to seconds
+        }
+
+        // Check if student has already submitted this quiz (similar to web version)
+        try {
+          const responseRes = await fetch(`${API_BASE}/api/quizzes/${quizId}/response/${user._id}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          
+          if (responseRes.ok) {
+            const responseData = await responseRes.json();
+            if (responseData && responseData._id) {
+              // Student has already submitted
+              setQuizResult(responseData);
+              setShowResultsModal(true);
+            }
+          }
+        } catch (responseError) {
+          console.log('Error checking quiz response:', responseError);
         }
       } else {
         Alert.alert('Error', 'Failed to load quiz');
@@ -126,41 +186,91 @@ export default function QuizView() {
       setSubmitting(true);
       const token = await AsyncStorage.getItem('jwtToken');
       
-      // Format answers to match the QuizResponse model
-      const formattedAnswers = Object.keys(answers).map(index => {
+      // Check for unanswered questions (similar to web version)
+      const unanswered = [];
+      Object.keys(answers).forEach(index => {
         const questionIndex = parseInt(index);
         const question = quiz.questions[questionIndex];
-        return {
-          questionId: question._id || questionIndex, // Use question ID if available, fallback to index
-          answer: answers[index]
-        };
+        const answer = answers[index];
+        
+        if (!answer || (Array.isArray(answer) && answer.length === 0) || answer === '') {
+          unanswered.push(questionIndex + 1);
+        }
       });
-
-      const response = await fetch(`${API_BASE}/api/quizzes/${quizId}/submit`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          studentId: user._id,
-          answers: formattedAnswers
-        })
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        setQuizResult(result);
-        setShowResultsModal(true);
-      } else {
-        const error = await response.json();
-        Alert.alert('Error', error.message || 'Failed to submit quiz');
+      
+      if (unanswered.length > 0) {
+        setUnansweredQuestions(unanswered);
+        setShowUnansweredModal(true);
+        setSubmitting(false);
+        return;
       }
+      
+      await submitQuiz();
     } catch (error) {
       console.error('Error submitting quiz:', error);
       Alert.alert('Error', 'Failed to submit quiz');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  // Force submit when timer expires (ignores unanswered questions)
+  const forceSubmitQuiz = async () => {
+    try {
+      setSubmitting(true);
+      await submitQuiz();
+    } catch (error) {
+      console.error('Error force submitting quiz:', error);
+      Alert.alert('Error', 'Failed to submit quiz');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Common submission logic
+  const submitQuiz = async () => {
+    // Record time for current question before submitting
+    const currentTime = Date.now();
+    const timeSpent = Math.floor((currentTime - questionStartTime) / 1000);
+    setQuestionTimes(prev => {
+      const newTimes = [...prev];
+      newTimes[currentQuestionIndex] = (newTimes[currentQuestionIndex] || 0) + timeSpent;
+      return newTimes;
+    });
+    
+    // Format answers to match the QuizResponse model
+    const formattedAnswers = Object.keys(answers).map(index => {
+      const questionIndex = parseInt(index);
+      const question = quiz.questions[questionIndex];
+      return {
+        questionId: question._id || questionIndex, // Use question ID if available, fallback to index
+        answer: answers[index]
+      };
+    });
+
+    const token = await AsyncStorage.getItem('jwtToken');
+    const response = await fetch(`${API_BASE}/api/quizzes/${quizId}/submit`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        studentId: user._id,
+        answers: formattedAnswers,
+        violationCount: violationCount,
+        violationEvents: violationEvents,
+        questionTimes: questionTimes
+      })
+    });
+
+    if (response.ok) {
+      const result = await response.json();
+      setQuizResult(result);
+      setShowResultsModal(true);
+    } else {
+      const error = await response.json();
+      Alert.alert('Error', error.message || 'Failed to submit quiz');
     }
   };
 
@@ -287,6 +397,23 @@ export default function QuizView() {
     }
   };
 
+  const isAvailable = () => {
+    if (!quiz) return false;
+    const now = new Date();
+    
+    // Check if quiz is open
+    if (quiz.timing?.open && new Date(quiz.timing.open) > now) {
+      return false;
+    }
+    
+    // Check if quiz is closed
+    if (quiz.timing?.close && new Date(quiz.timing.close) < now) {
+      return false;
+    }
+    
+    return true;
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -300,6 +427,57 @@ export default function QuizView() {
     return (
       <View style={styles.errorContainer}>
         <Text style={styles.errorText}>Quiz not found</Text>
+      </View>
+    );
+  }
+
+  // Check quiz availability
+  if (!isAvailable()) {
+    const openTime = quiz.timing?.open ? new Date(quiz.timing.open) : null;
+    const closeTime = quiz.timing?.close ? new Date(quiz.timing.close) : null;
+    
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <MaterialIcons name="arrow-back" size={24} color="white" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Quiz Not Available</Text>
+        </View>
+        
+        <View style={styles.contentContainer}>
+          <View style={styles.infoCard}>
+            <Text style={styles.quizTitle}>{quiz.title}</Text>
+            <Text style={styles.quizDescription}>
+              This quiz is not available at this time.
+            </Text>
+            
+            {openTime && (
+              <View style={styles.timeInfo}>
+                <Text style={styles.timeLabel}>Opens:</Text>
+                <Text style={styles.timeValue}>
+                  {openTime.toLocaleString()}
+                </Text>
+              </View>
+            )}
+            
+            {closeTime && (
+              <View style={styles.timeInfo}>
+                <Text style={styles.timeLabel}>Closes:</Text>
+                <Text style={styles.timeValue}>
+                  {closeTime.toLocaleString()}
+                </Text>
+              </View>
+            )}
+            
+            <TouchableOpacity
+              style={styles.backButtonContainer}
+              onPress={() => navigation.goBack()}
+            >
+              <Text style={styles.backButtonText}>Back to Activities</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </View>
     );
   }
@@ -403,6 +581,44 @@ export default function QuizView() {
                 }}
               >
                 <Text style={styles.modalButtonText}>Submit</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Unanswered Questions Warning Modal */}
+      <Modal
+        visible={showUnansweredModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowUnansweredModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modal}>
+            <Text style={styles.modalTitle}>Unanswered Questions</Text>
+            <Text style={styles.modalText}>
+              You have unanswered questions: {unansweredQuestions.join(', ')}
+            </Text>
+            <Text style={styles.modalText}>
+              Are you sure you want to submit with unanswered questions?
+            </Text>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={styles.modalButtonCancel}
+                onPress={() => setShowUnansweredModal(false)}
+              >
+                <Text style={styles.modalButtonText}>Go Back</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalButtonSubmit}
+                onPress={() => {
+                  setShowUnansweredModal(false);
+                  // Submit anyway
+                  forceSubmitQuiz();
+                }}
+              >
+                <Text style={styles.modalButtonText}>Submit Anyway</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -777,5 +993,59 @@ const styles = {
   errorText: {
     fontSize: 18,
     color: '#666',
+  },
+  infoCard: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 24,
+    margin: 20,
+    alignItems: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  quizTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  quizDescription: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 22,
+  },
+  timeInfo: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginBottom: 16,
+  },
+  timeLabel: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
+  },
+  timeValue: {
+    fontSize: 14,
+    color: '#333',
+    fontWeight: 'bold',
+  },
+  backButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  backButtonContainer: {
+    backgroundColor: '#00418b',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginTop: 20,
   },
 };

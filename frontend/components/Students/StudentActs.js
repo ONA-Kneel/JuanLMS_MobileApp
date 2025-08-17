@@ -267,59 +267,80 @@ export default function StudentActs() {
 
       let allActivities = [];
 
-      // First, get the user's classes
-      const classesResponse = await fetch(`${API_BASE}/api/classes`, {
+      // First, get the user's enrolled classes (similar to web version)
+      const classesResponse = await fetch(`${API_BASE}/classes/my-classes`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
       if (classesResponse.ok) {
-        const classesData = await classesResponse.json();
-        const userClasses = classesData.success ? classesData.classes : classesData;
+        const classes = await classesResponse.json();
+        console.log('Student classes received:', classes);
         
-        if (Array.isArray(userClasses) && userClasses.length > 0) {
-          // Fetch assignments for each class
-          for (const classObj of userClasses) {
+        if (Array.isArray(classes) && classes.length > 0) {
+          // Fetch assignments and quizzes for each class (similar to web version)
+          for (const cls of classes) {
+            const classCode = cls.classID || cls.classCode || cls._id;
+            console.log('Fetching activities for class:', classCode, cls.className);
+            
             try {
-              const assignmentsResponse = await fetch(`${API_BASE}/assignments?classID=${classObj.classID}`, {
+              // Fetch assignments for this class
+              const assignmentsResponse = await fetch(`${API_BASE}/assignments?classID=${classCode}`, {
                 headers: { Authorization: `Bearer ${token}` }
               });
 
               if (assignmentsResponse.ok) {
                 const assignments = await assignmentsResponse.json();
-                const classAssignments = assignments.map(assignment => ({
-                  ...assignment,
-                  type: 'assignment',
-                  dueDate: assignment.dueDate,
-                  points: assignment.points || 0,
-                  className: classObj.className || 'Unknown Class'
-                }));
-                allActivities = [...allActivities, ...classAssignments];
+                console.log(`Assignments for class ${classCode}:`, assignments);
+                
+                if (Array.isArray(assignments)) {
+                  // Filter assignments assigned to this student (similar to web version)
+                  const studentAssignments = assignments.filter(assignment => {
+                    const entry = assignment.assignedTo?.find?.(e => e.classID === classCode);
+                    return entry && Array.isArray(entry.studentIDs) && entry.studentIDs.includes(user.userID);
+                  });
+                  
+                  // Add class info to assignments
+                  const assignmentsWithInfo = studentAssignments.map(assignment => ({
+                    ...assignment,
+                    type: 'assignment',
+                    className: cls.className || cls.name || 'Unknown Class',
+                    classCode: cls.classCode || cls.classID || 'N/A'
+                  }));
+                  
+                  allActivities.push(...assignmentsWithInfo);
+                }
               }
-            } catch (err) {
-              console.log(`Error fetching assignments for class ${classObj.classID}:`, err);
-            }
-          }
-
-          // Fetch quizzes for each class
-          for (const classObj of userClasses) {
-            try {
-              const quizzesResponse = await fetch(`${API_BASE}/api/quizzes?classID=${classObj.classID}`, {
+              
+              // Fetch quizzes for this class
+              const quizzesResponse = await fetch(`${API_BASE}/api/quizzes?classID=${classCode}`, {
                 headers: { Authorization: `Bearer ${token}` }
               });
 
               if (quizzesResponse.ok) {
                 const quizzes = await quizzesResponse.json();
-                const classQuizzes = quizzes.map(quiz => ({
-                  ...quiz,
-                  type: 'quiz',
-                  dueDate: quiz.endDate || quiz.dueDate,
-                  points: quiz.points || 0,
-                  className: classObj.className || 'Unknown Class'
-                }));
-                allActivities = [...allActivities, ...classQuizzes];
+                console.log(`Quizzes for class ${classCode}:`, quizzes);
+                
+                if (Array.isArray(quizzes)) {
+                  // Filter quizzes assigned to this student (similar to web version)
+                  const studentQuizzes = quizzes.filter(quiz => {
+                    const entry = quiz.assignedTo?.find?.(e => e.classID === classCode);
+                    return entry && Array.isArray(entry.studentIDs) && entry.studentIDs.includes(user.userID);
+                  });
+                  
+                  // Add class info to quizzes
+                  const quizzesWithInfo = studentQuizzes.map(quiz => ({
+                    ...quiz,
+                    type: 'quiz',
+                    dueDate: quiz.endDate || quiz.dueDate,
+                    className: cls.className || cls.name || 'Unknown Class',
+                    classCode: cls.classCode || cls.classID || 'N/A'
+                  }));
+                  
+                  allActivities.push(...quizzesWithInfo);
+                }
               }
             } catch (err) {
-              console.log(`Error fetching quizzes for class ${classObj.classID}:`, err);
+              console.log(`Error fetching activities for class ${classCode}:`, err);
             }
           }
         }
