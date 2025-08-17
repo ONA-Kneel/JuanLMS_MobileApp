@@ -276,7 +276,13 @@ export default function StudentActs() {
                 const submissions = await response.json();
                 const studentSubmission = submissions.find(sub => sub.student === user._id);
                 if (studentSubmission) {
-                  return { ...activity, submittedAt: studentSubmission.submittedAt, status: 'submitted' };
+                  console.log(`Assignment ${activity.title} is already submitted:`, studentSubmission);
+                  return { 
+                    ...activity, 
+                    submittedAt: studentSubmission.submittedAt, 
+                    status: 'submitted',
+                    submissionId: studentSubmission._id
+                  };
                 }
               }
             } catch (error) {
@@ -291,7 +297,13 @@ export default function StudentActs() {
               if (response.ok) {
                 const quizResponse = await response.json();
                 if (quizResponse) {
-                  return { ...activity, submittedAt: quizResponse.submittedAt, status: 'submitted' };
+                  console.log(`Quiz ${activity.title} is already submitted:`, quizResponse);
+                  return { 
+                    ...activity, 
+                    submittedAt: quizResponse.submittedAt || quizResponse.createdAt, 
+                    status: 'submitted',
+                    submissionId: quizResponse._id
+                  };
                 }
               }
             } catch (error) {
@@ -301,6 +313,8 @@ export default function StudentActs() {
           return activity;
         })
       );
+      
+      console.log('Activities with submission status:', updatedActivities);
       return updatedActivities;
     } catch (error) {
       console.error('Error checking submission statuses:', error);
@@ -393,7 +407,19 @@ export default function StudentActs() {
 
   // Force refresh activities (called when returning from submission screens)
   const refreshActivities = () => {
+    console.log('Refreshing activities...');
     fetchActivities();
+  };
+
+  // Force complete refresh with submission status checking
+  const forceRefresh = async () => {
+    console.log('Force refreshing activities with submission status...');
+    setRefreshing(true);
+    try {
+      await fetchActivities();
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   // Add this to the navigation listener to refresh when returning from submission
@@ -418,10 +444,17 @@ export default function StudentActs() {
       navigation.navigate('QuizView', { quizId: activity._id });
     } else {
       // Navigate to assignment detail or submission
+      console.log('Navigating to AssignmentDetail with callback:', refreshActivities);
       navigation.navigate('AssignmentDetail', { 
         assignmentId: activity._id,
         assignment: activity,
-        onSubmissionComplete: refreshActivities // Pass refresh callback
+        onSubmissionComplete: () => {
+          console.log('Submission completed, refreshing activities...');
+          // Force immediate refresh
+          setTimeout(() => {
+            refreshActivities();
+          }, 100);
+        }
       });
     }
   };
@@ -505,7 +538,13 @@ export default function StudentActs() {
         <Text style={styles.headerSubtitle}>
           {formatDateTime(currentDateTime)}
         </Text>
-          </View>
+        <TouchableOpacity 
+          style={styles.refreshButton} 
+          onPress={refreshActivities}
+        >
+          <MaterialIcons name="refresh" size={24} color="white" />
+        </TouchableOpacity>
+      </View>
 
       {/* Tab Navigation */}
       <View style={styles.tabContainer}>
@@ -562,6 +601,34 @@ export default function StudentActs() {
             showsVerticalScrollIndicator={false}
           >
             {renderTabContent()}
+            {/* Debug section - remove in production */}
+            <View style={{ marginTop: 20, padding: 10, backgroundColor: '#f0f0f0', borderRadius: 8 }}>
+              <Text style={{ fontSize: 12, color: '#666', fontFamily: 'monospace' }}>
+                Debug: Check console for activities data
+              </Text>
+              <Text style={{ fontSize: 10, color: '#888', fontFamily: 'monospace', marginTop: 4 }}>
+                Total: {activities.length} | Upcoming: {upcomingCount} | Past Due: {pastDueCount} | Completed: {completedCount}
+              </Text>
+              {activities.length > 0 && (
+                <Text style={{ fontSize: 10, color: '#888', fontFamily: 'monospace', marginTop: 4 }}>
+                  First activity: {activities[0]?.title} - Status: {activities[0]?.status || 'unknown'} - Submitted: {activities[0]?.submittedAt ? 'Yes' : 'No'}
+                </Text>
+              )}
+              <TouchableOpacity 
+                style={{ 
+                  backgroundColor: '#00418b', 
+                  padding: 8, 
+                  borderRadius: 4, 
+                  marginTop: 8,
+                  alignItems: 'center'
+                }} 
+                onPress={forceRefresh}
+              >
+                <Text style={{ color: 'white', fontSize: 12, fontFamily: 'monospace' }}>
+                  Force Refresh
+                </Text>
+              </TouchableOpacity>
+            </View>
           </ScrollView>
         )}
       </View>
@@ -656,6 +723,9 @@ const styles = {
     paddingTop: 50,
     paddingBottom: 20,
     paddingHorizontal: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   headerTitle: {
     color: 'white',
@@ -666,6 +736,9 @@ const styles = {
   headerSubtitle: {
     color: 'rgba(255, 255, 255, 0.8)',
     fontSize: 16,
+  },
+  refreshButton: {
+    padding: 8,
   },
   tabContainer: {
     backgroundColor: 'white',

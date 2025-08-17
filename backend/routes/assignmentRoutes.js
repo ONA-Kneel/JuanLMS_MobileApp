@@ -367,7 +367,14 @@ router.post('/:id/submit', /*authenticateToken,*/ upload.array('files', 5), asyn
       submission.status = 'turned-in';
       await submission.save();
     } else {
-      submission = new Submission({ assignment, student: studentId, files, context });
+      submission = new Submission({ 
+        assignment, 
+        student: studentId, 
+        files, 
+        context,
+        submittedAt: new Date(),
+        status: 'turned-in'
+      });
       await submission.save();
     }
     res.json(submission);
