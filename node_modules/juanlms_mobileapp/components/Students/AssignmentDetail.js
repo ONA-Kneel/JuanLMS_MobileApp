@@ -7,7 +7,6 @@ import {
   ActivityIndicator,
   Alert,
   Modal,
-  TextInput,
   Dimensions,
   Linking,
 } from 'react-native';
@@ -29,7 +28,6 @@ export default function AssignmentDetail() {
   const [assignmentData, setAssignmentData] = useState(assignment || null);
   const [loading, setLoading] = useState(!assignment);
   const [submitting, setSubmitting] = useState(false);
-  const [submissionText, setSubmissionText] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -73,13 +71,17 @@ export default function AssignmentDetail() {
     try {
       const token = await AsyncStorage.getItem('jwtToken');
       
-      const response = await fetch(`${API_BASE}/api/submissions/student/${user._id}/assignment/${assignmentId}`, {
+      const response = await fetch(`${API_BASE}/assignments/${assignmentId}/submissions`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
       if (response.ok) {
-        const submission = await response.json();
-        setSubmissionStatus(submission);
+        const submissions = await response.json();
+        // Find the submission for this student
+        const studentSubmission = submissions.find(sub => sub.student === user._id);
+        if (studentSubmission) {
+          setSubmissionStatus(studentSubmission);
+        }
       }
     } catch (error) {
       console.error('Error checking submission status:', error);
@@ -113,8 +115,8 @@ export default function AssignmentDetail() {
   };
 
   const handleSubmit = async () => {
-    if (!submissionText.trim() && !selectedFile) {
-      Alert.alert('Error', 'Please provide a submission text or file');
+    if (!selectedFile) {
+      Alert.alert('Error', 'Please attach a file for submission');
       return;
     }
 
@@ -124,23 +126,20 @@ export default function AssignmentDetail() {
       
       // Create form data for file upload
       const formData = new FormData();
-      formData.append('assignmentId', assignmentId);
       formData.append('studentId', user._id);
-      formData.append('submissionText', submissionText);
       
       if (selectedFile) {
-        formData.append('file', {
+        formData.append('files', {
           uri: selectedFile.uri,
           type: selectedFile.mimeType || 'application/octet-stream',
           name: selectedFile.name,
         });
       }
 
-      const response = await fetch(`${API_BASE}/api/submissions`, {
+      const response = await fetch(`${API_BASE}/assignments/${assignmentId}/submit`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'multipart/form-data',
         },
         body: formData,
       });
@@ -289,21 +288,8 @@ export default function AssignmentDetail() {
           <View style={styles.submissionCard}>
             <Text style={styles.submissionTitle}>Submit Your Work</Text>
             
-            <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>Submission Text</Text>
-              <TextInput
-                style={styles.textInput}
-                placeholder="Enter your submission text here..."
-                value={submissionText}
-                onChangeText={setSubmissionText}
-                multiline
-                numberOfLines={6}
-                textAlignVertical="top"
-              />
-            </View>
-
             <View style={styles.fileSection}>
-              <Text style={styles.inputLabel}>Attach File (Optional)</Text>
+              <Text style={{ fontSize: 14, fontWeight: '500', color: '#333', marginBottom: 8 }}>Attach File (Required)</Text>
               
               {selectedFile ? (
                 <View style={styles.selectedFileContainer}>
@@ -603,24 +589,6 @@ const styles = {
     fontWeight: 'bold',
     color: '#333',
     marginBottom: 20,
-  },
-  inputContainer: {
-    marginBottom: 20,
-  },
-  inputLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#333',
-    marginBottom: 8,
-  },
-  textInput: {
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-    borderRadius: 8,
-    padding: 16,
-    fontSize: 16,
-    minHeight: 120,
-    textAlignVertical: 'top',
   },
   fileSection: {
     marginBottom: 20,

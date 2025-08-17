@@ -126,17 +126,25 @@ export default function QuizView() {
       setSubmitting(true);
       const token = await AsyncStorage.getItem('jwtToken');
       
-      const response = await fetch(`${API_BASE}/api/quiz-responses`, {
+      // Format answers to match the QuizResponse model
+      const formattedAnswers = Object.keys(answers).map(index => {
+        const questionIndex = parseInt(index);
+        const question = quiz.questions[questionIndex];
+        return {
+          questionId: question._id || questionIndex, // Use question ID if available, fallback to index
+          answer: answers[index]
+        };
+      });
+
+      const response = await fetch(`${API_BASE}/api/quizzes/${quizId}/submit`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`
         },
         body: JSON.stringify({
-          quizId: quizId,
           studentId: user._id,
-          answers: answers,
-          timeSpent: quiz.timeLimit ? (quiz.timeLimit * 60 - timeLeft) : 0
+          answers: formattedAnswers
         })
       });
 
