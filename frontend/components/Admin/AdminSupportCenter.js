@@ -160,136 +160,74 @@ export default function AdminSupportCenter() {
           continue;
         }
         
-        // Try to fetch user details from multiple endpoints
-        let userFound = false;
-        
-        // First, try to get all users at once for efficiency
+        // Use the same approach as the web version
         try {
-          const response1 = await fetch('https://juanlms-webapp-server.onrender.com/users', {
+          const response = await fetch('https://juanlms-webapp-server.onrender.com/users', {
             headers: {
               'Authorization': `Bearer ${token}`,
               'Content-Type': 'application/json',
             },
           });
           
-          if (response1.ok) {
-            const allUsers = await response1.json();
-            const users = Array.isArray(allUsers) ? allUsers : [];
+          if (response.ok) {
+            const allUsers = await response.json();
+            // Handle the same data structure as web version
+            const users = Array.isArray(allUsers) ? allUsers : allUsers.users || [];
             console.log('Users from /users endpoint:', users.length);
             
-            // Create a map for quick lookup
+            // Create a map for quick lookup - map by both _id and userID like web version
             const userMap = {};
             users.forEach(user => {
               if (user._id) {
-                userMap[user._id] = user;
-              }
-            });
-            
-            const user = userMap[userId];
-            if (user) {
-              console.log('Found user in /users:', user);
-              userDetailsMap[ticket._id] = {
-                name: `${user.firstname || ''} ${user.lastname || ''}`.trim() || 'Unknown User',
-                role: user.role || 'Unknown'
-              };
-              userFound = true;
-            }
-          }
-        } catch (error) {
-          console.log('Error with /users endpoint:', error);
-        }
-        
-        // If not found, try /api/users endpoint
-        if (!userFound) {
-          try {
-            const response1b = await fetch('https://juanlms-webapp-server.onrender.com/api/users', {
-              headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json',
-              },
-            });
-            
-            if (response1b.ok) {
-              const allUsers = await response1b.json();
-              const users = Array.isArray(allUsers) ? allUsers : [];
-              console.log('Users from /api/users endpoint:', users.length);
-              
-              // Create a map for quick lookup
-              const userMap = {};
-              users.forEach(user => {
-                if (user._id) {
-                  userMap[user._id] = user;
-                }
-              });
-              
-              const user = userMap[userId];
-              if (user) {
-                console.log('Found user in /api/users:', user);
-                userDetailsMap[ticket._id] = {
+                userMap[user._id] = {
                   name: `${user.firstname || ''} ${user.lastname || ''}`.trim() || 'Unknown User',
                   role: user.role || 'Unknown'
                 };
-                userFound = true;
               }
-            }
-          } catch (error) {
-            console.log('Error with /api/users endpoint:', error);
-          }
-        }
-        
-        // If not found, try individual user endpoints
-        if (!userFound) {
-          // Endpoint 2: /api/users
-          try {
-            const response2 = await fetch(`https://juanlms-webapp-server.onrender.com/api/users/${userId}`, {
-              headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json',
-              },
+              // Also map by userID (string identifier) as fallback - this is key!
+              if (user.userID) {
+                userMap[user.userID] = {
+                  name: `${user.firstname || ''} ${user.lastname || ''}`.trim() || 'Unknown User',
+                  role: user.role || 'Unknown'
+                };
+              }
             });
             
-            if (response2.ok) {
-              const user = await response2.json();
-              console.log('Found user in /api/users:', user);
-              userDetailsMap[ticket._id] = {
-                name: `${user.firstname || ''} ${user.lastname || ''}`.trim() || 'Unknown User',
-                role: user.role || 'Unknown'
-              };
-              userFound = true;
-            }
-          } catch (error) {
-            console.log('Error with /api/users endpoint:', error);
-          }
-        }
-        
-        if (!userFound) {
-          // Endpoint 3: /api/user
-          try {
-            const response3 = await fetch(`https://juanlms-webapp-server.onrender.com/api/user/${userId}`, {
-              headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json',
-              },
-            });
+            console.log('User map created:', userMap);
+            console.log('Looking for userId:', userId);
+            console.log('Available keys in userMap:', Object.keys(userMap));
             
-            if (response3.ok) {
-              const user = await response3.json();
-              console.log('Found user in /api/user:', user);
-              userDetailsMap[ticket._id] = {
-                name: `${user.firstname || ''} ${user.lastname || ''}`.trim() || 'Unknown User',
-                role: user.role || 'Unknown'
-              };
-              userFound = true;
+            // Try to find user by userId (MongoDB ObjectId) first
+            let userDetails = userMap[userId];
+            console.log('User found by userId:', userDetails);
+            
+            // If not found by ObjectId, try by userID (string identifier)
+            if (!userDetails) {
+              userDetails = userMap[userId];
+              console.log('User found by userID fallback:', userDetails);
             }
-          } catch (error) {
-            console.log('Error with /api/user endpoint:', error);
+            
+            if (userDetails) {
+              console.log('Found user in /users:', userDetails);
+              userDetailsMap[ticket._id] = userDetails;
+            } else {
+              console.log('User not found for ID:', userId);
+              userDetailsMap[ticket._id] = {
+                name: 'User Not Found',
+                role: 'Unknown'
+              };
+            }
+          } else {
+            console.log('Failed to fetch users, status:', response.status);
+            userDetailsMap[ticket._id] = {
+              name: 'Failed to Load Users',
+              role: 'Unknown'
+            };
           }
-        }
-        
-        if (!userFound) {
-          console.log('User not found in any endpoint for ID:', userId);
+        } catch (error) {
+          console.log('Error fetching users:', error);
           userDetailsMap[ticket._id] = {
-            name: 'User Not Found',
+            name: 'Error Loading Users',
             role: 'Unknown'
           };
         }
@@ -611,10 +549,7 @@ export default function AdminSupportCenter() {
                         <Text style={{ fontSize: 12, color: '#666', fontFamily: 'Poppins-Regular' }}>
                           #{ticket.number}
                         </Text>
-                        {/* Debug: Show raw ticket data */}
-                        <Text style={{ fontSize: 10, color: '#999', fontFamily: 'Poppins-Regular' }}>
-                          Debug: userId={ticket.userId || 'none'}, userID={ticket.userID || 'none'}, user_id={ticket.user_id || 'none'}
-                        </Text>
+
                       </View>
                       <View style={{
                         paddingHorizontal: 12,
@@ -736,27 +671,7 @@ export default function AdminSupportCenter() {
             </Text>
           </View>
 
-          {/* Debug Section - Remove this after fixing the issue */}
-          <View style={{ backgroundColor: '#fff3cd', borderRadius: 16, padding: 20, marginBottom: 20, borderLeftWidth: 4, borderLeftColor: '#ffc107' }}>
-            <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#856404', marginBottom: 8, fontFamily: 'Poppins-Bold' }}>
-              🐛 Debug Information
-            </Text>
-            <Text style={{ fontSize: 12, color: '#856404', marginBottom: 4, fontFamily: 'Poppins-Regular' }}>
-              Ticket ID: {selectedTicket._id}
-            </Text>
-            <Text style={{ fontSize: 12, color: '#856404', marginBottom: 4, fontFamily: 'Poppins-Regular' }}>
-              User ID fields: userId={selectedTicket.userId || 'none'}, userID={selectedTicket.userID || 'none'}, user_id={selectedTicket.user_id || 'none'}
-            </Text>
-            <Text style={{ fontSize: 12, color: '#856404', marginBottom: 4, fontFamily: 'Poppins-Regular' }}>
-              Has user object: {selectedTicket.user ? 'Yes' : 'No'}
-            </Text>
-            <Text style={{ fontSize: 12, color: '#856404', marginBottom: 4, fontFamily: 'Poppins-Regular' }}>
-              Has userDetails: {selectedTicket.userDetails ? 'Yes' : 'No'}
-            </Text>
-            <Text style={{ fontSize: 12, color: '#856404', fontFamily: 'Poppins-Regular' }}>
-              All ticket keys: {Object.keys(selectedTicket).join(', ')}
-            </Text>
-          </View>
+
 
           {/* Messages Section */}
           <View style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20, marginBottom: 20, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 }}>
