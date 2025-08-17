@@ -75,9 +75,9 @@ export default function VPESupportCenter() {
       filteredTickets.sort((a, b) => {
         if (sortBy === 'newest') {
           return new Date(b.createdAt || b.timestamp) - new Date(a.createdAt || a.timestamp);
-        } else {
+      } else {
           return new Date(a.createdAt || a.timestamp) - new Date(b.createdAt || b.timestamp);
-        }
+      }
       });
       
       setTickets(filteredTickets);
@@ -201,7 +201,7 @@ export default function VPESupportCenter() {
             elevation: 4,
             zIndex: 1,
           }}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
               <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: 28, fontWeight: 'bold', color: '#00418b', marginBottom: 8 }}>
                   Support Center
@@ -210,14 +210,21 @@ export default function VPESupportCenter() {
                   {formatDateTime(currentDateTime)}
                 </Text>
               </View>
-              <TouchableOpacity onPress={() => navigation.navigate('VPEProfile')}>
-                <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#e3f2fd', justifyContent: 'center', alignItems: 'center' }}>
-                  <MaterialIcons name="person" size={24} color="#00418b" />
-                </View>
-              </TouchableOpacity>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <TouchableOpacity onPress={() => navigation.goBack()}>
+                  <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#e3f2fd', justifyContent: 'center', alignItems: 'center' }}>
+                    <MaterialIcons name="arrow-back" size={24} color="#00418b" />
+                  </View>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => navigation.navigate('VPEProfile')}>
+                  <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#e3f2fd', justifyContent: 'center', alignItems: 'center' }}>
+                    <MaterialIcons name="person" size={24} color="#00418b" />
+                  </View>
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
-
+      </View>
+      
           {/* Welcome Section */}
           <View style={{ marginHorizontal: 24, marginBottom: 24 }}>
             <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 24, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 }}>
@@ -226,14 +233,14 @@ export default function VPESupportCenter() {
               </Text>
               <Text style={{ fontSize: 16, color: '#666', lineHeight: 24, fontFamily: 'Poppins-Regular' }}>
                 Need assistance with academic matters or technical support? We're here to help you excel.
-              </Text>
-            </View>
-          </View>
+        </Text>
+        </View>
+      </View>
 
           {/* Quick Actions */}
           <View style={{ marginHorizontal: 24, marginBottom: 24 }}>
             <View style={{ flexDirection: 'row', gap: 16 }}>
-              <TouchableOpacity
+        <TouchableOpacity
                 style={{
                   flex: 1,
                   backgroundColor: '#9575cd',
@@ -250,10 +257,10 @@ export default function VPESupportCenter() {
                 <MaterialIcons name="add-circle" size={32} color="#fff" style={{ marginBottom: 8 }} />
                 <Text style={{ fontSize: 16, fontWeight: '600', color: '#fff', fontFamily: 'Poppins-Medium' }}>
                   New Ticket
-                </Text>
-              </TouchableOpacity>
+          </Text>
+        </TouchableOpacity>
               
-              <TouchableOpacity
+        <TouchableOpacity
                 style={{
                   flex: 1,
                   backgroundColor: '#fff',
@@ -272,8 +279,8 @@ export default function VPESupportCenter() {
                 <MaterialIcons name="list-alt" size={32} color="#9575cd" style={{ marginBottom: 8 }} />
                 <Text style={{ fontSize: 16, fontWeight: '600', color: '#9575cd', fontFamily: 'Poppins-Medium' }}>
                   My Tickets
-                </Text>
-              </TouchableOpacity>
+          </Text>
+        </TouchableOpacity>
             </View>
           </View>
 
@@ -288,18 +295,18 @@ export default function VPESupportCenter() {
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                     <Text style={{ fontSize: 14, color: '#9575cd', marginRight: 4, fontFamily: 'Poppins-Medium' }}>
                       View All
-                    </Text>
+          </Text>
                     <MaterialIcons name="arrow-forward" size={16} color="#9575cd" />
                   </View>
-                </TouchableOpacity>
-              </View>
-              
+        </TouchableOpacity>
+      </View>
+
               <Text style={{ fontSize: 14, color: '#666', fontFamily: 'Poppins-Regular' }}>
                 Check your ticket status and get updates on ongoing support requests.
-              </Text>
-            </View>
+            </Text>
           </View>
-        </ScrollView>
+          </View>
+      </ScrollView>
       </View>
     );
   }
@@ -320,12 +327,12 @@ export default function VPESupportCenter() {
           <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
             <TouchableOpacity onPress={() => setView('main')} style={{ marginRight: 16 }}>
               <MaterialIcons name="arrow-back" size={24} color="#fff" />
-            </TouchableOpacity>
+              </TouchableOpacity>
             <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#fff', fontFamily: 'Poppins-Bold' }}>
               Submit New Ticket
             </Text>
           </View>
-        </View>
+            </View>
 
         <ScrollView style={{ flex: 1, padding: 24 }} showsVerticalScrollIndicator={false}>
           <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 24, marginBottom: 24, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 }}>
@@ -379,7 +386,7 @@ export default function VPESupportCenter() {
             </Text>
           </View>
 
-          <TouchableOpacity
+                    <TouchableOpacity
             style={{
               backgroundColor: submitting ? '#ccc' : '#9575cd',
               borderRadius: 16,
@@ -398,7 +405,7 @@ export default function VPESupportCenter() {
             ) : (
               <Text style={{ fontSize: 18, fontWeight: '600', color: '#fff', fontFamily: 'Poppins-Medium' }}>
                 Submit Ticket
-              </Text>
+                      </Text>
             )}
           </TouchableOpacity>
         </ScrollView>
@@ -422,19 +429,19 @@ export default function VPESupportCenter() {
           <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
             <TouchableOpacity onPress={() => setView('main')} style={{ marginRight: 16 }}>
               <MaterialIcons name="arrow-back" size={24} color="#fff" />
-            </TouchableOpacity>
+                    </TouchableOpacity>
             <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#fff', fontFamily: 'Poppins-Bold' }}>
               My Tickets
             </Text>
-          </View>
-        </View>
+                </View>
+              </View>
 
         <ScrollView style={{ flex: 1, padding: 24 }} showsVerticalScrollIndicator={false}>
           {/* Filter Tabs */}
           <View style={{ marginBottom: 24 }}>
             <View style={{ flexDirection: 'row', backgroundColor: '#fff', borderRadius: 16, padding: 4, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5, elevation: 2 }}>
               {['all', 'new', 'opened', 'closed'].map((tab) => (
-                <TouchableOpacity
+                    <TouchableOpacity
                   key={tab}
                   style={{
                     flex: 1,
@@ -454,11 +461,11 @@ export default function VPESupportCenter() {
                     textTransform: 'capitalize',
                   }}>
                     {tab}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+              </View>
             </View>
-          </View>
 
           {/* Sort Options */}
           <View style={{ marginBottom: 24 }}>
@@ -467,7 +474,7 @@ export default function VPESupportCenter() {
                 Sort By
               </Text>
               <View style={{ flexDirection: 'row', gap: 12 }}>
-                <TouchableOpacity
+              <TouchableOpacity 
                   style={{
                     paddingVertical: 10,
                     paddingHorizontal: 20,
@@ -484,8 +491,8 @@ export default function VPESupportCenter() {
                   }}>
                     Newest First
                   </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
+              </TouchableOpacity>
+              <TouchableOpacity 
                   style={{
                     paddingVertical: 10,
                     paddingHorizontal: 20,
@@ -502,10 +509,10 @@ export default function VPESupportCenter() {
                   }}>
                     Oldest First
                   </Text>
-                </TouchableOpacity>
-              </View>
+              </TouchableOpacity>
             </View>
           </View>
+        </View>
 
           {/* Search Bar */}
           <View style={{ marginBottom: 24 }}>
@@ -513,13 +520,13 @@ export default function VPESupportCenter() {
               <Feather name="search" size={20} color="#999" style={{ position: 'absolute', left: 16, top: 18, zIndex: 1 }} />
               <TextInput
                 style={{
-                  backgroundColor: '#fff',
+    backgroundColor: '#fff',
                   borderRadius: 16,
                   paddingVertical: 16,
                   paddingHorizontal: 48,
-                  fontSize: 16,
-                  fontFamily: 'Poppins-Regular',
-                  shadowColor: '#000',
+    fontSize: 16,
+    fontFamily: 'Poppins-Regular',
+    shadowColor: '#000',
                   shadowOpacity: 0.05,
                   shadowRadius: 5,
                   elevation: 2,
@@ -561,9 +568,9 @@ export default function VPESupportCenter() {
                   <View
                     key={ticket._id}
                     style={{
-                      backgroundColor: '#fff',
-                      borderRadius: 16,
-                      padding: 20,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 20,
                       shadowColor: '#000',
                       shadowOpacity: 0.05,
                       shadowRadius: 10,
@@ -590,10 +597,10 @@ export default function VPESupportCenter() {
                       }}>
                         <Text style={{
                           fontSize: 12,
-                          fontWeight: '600',
+    fontWeight: '600',
                           color: getStatusColor(ticket.status),
                           fontFamily: 'Poppins-Medium',
-                          textTransform: 'capitalize',
+    textTransform: 'capitalize',
                         }}>
                           {ticket.status}
                         </Text>

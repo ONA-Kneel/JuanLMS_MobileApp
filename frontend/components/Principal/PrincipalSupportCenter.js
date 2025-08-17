@@ -75,9 +75,9 @@ export default function PrincipalSupportCenter() {
       filteredTickets.sort((a, b) => {
         if (sortBy === 'newest') {
           return new Date(b.createdAt || b.timestamp) - new Date(a.createdAt || a.timestamp);
-        } else {
+      } else {
           return new Date(a.createdAt || a.timestamp) - new Date(b.createdAt || b.timestamp);
-        }
+      }
       });
       
       setTickets(filteredTickets);
@@ -210,14 +210,21 @@ export default function PrincipalSupportCenter() {
                   {formatDateTime(currentDateTime)}
                 </Text>
               </View>
-              <TouchableOpacity onPress={() => navigation.navigate('PProfile')}>
-                <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#e3f2fd', justifyContent: 'center', alignItems: 'center' }}>
-                  <MaterialIcons name="person" size={24} color="#00418b" />
-                </View>
-              </TouchableOpacity>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <TouchableOpacity onPress={() => navigation.goBack()}>
+                  <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#e3f2fd', justifyContent: 'center', alignItems: 'center' }}>
+                    <MaterialIcons name="arrow-back" size={24} color="#00418b" />
+                  </View>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => navigation.navigate('PProfile')}>
+                  <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#e3f2fd', justifyContent: 'center', alignItems: 'center' }}>
+                    <MaterialIcons name="person" size={24} color="#00418b" />
+                  </View>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
-
+          
           {/* Welcome Section */}
           <View style={{ marginHorizontal: 24, marginBottom: 24 }}>
             <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 24, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 }}>
@@ -226,14 +233,14 @@ export default function PrincipalSupportCenter() {
               </Text>
               <Text style={{ fontSize: 16, color: '#666', lineHeight: 24, fontFamily: 'Poppins-Regular' }}>
                 Need assistance with administrative matters or technical support? We're here to help you lead effectively.
-              </Text>
+                    </Text>
+              </View>
             </View>
-          </View>
-
+            
           {/* Quick Actions */}
           <View style={{ marginHorizontal: 24, marginBottom: 24 }}>
             <View style={{ flexDirection: 'row', gap: 16 }}>
-              <TouchableOpacity
+                  <TouchableOpacity
                 style={{
                   flex: 1,
                   backgroundColor: '#9575cd',
@@ -250,8 +257,8 @@ export default function PrincipalSupportCenter() {
                 <MaterialIcons name="add-circle" size={32} color="#fff" style={{ marginBottom: 8 }} />
                 <Text style={{ fontSize: 16, fontWeight: '600', color: '#fff', fontFamily: 'Poppins-Medium' }}>
                   New Ticket
-                </Text>
-              </TouchableOpacity>
+                    </Text>
+                  </TouchableOpacity>
               
               <TouchableOpacity
                 style={{
@@ -273,9 +280,9 @@ export default function PrincipalSupportCenter() {
                 <Text style={{ fontSize: 16, fontWeight: '600', color: '#9575cd', fontFamily: 'Poppins-Medium' }}>
                   My Tickets
                 </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+          </TouchableOpacity>
+        </View>
+      </View>
 
           {/* Recent Ticket Summary */}
           <View style={{ marginHorizontal: 24 }}>
@@ -291,22 +298,22 @@ export default function PrincipalSupportCenter() {
                     </Text>
                     <MaterialIcons name="arrow-forward" size={16} color="#9575cd" />
                   </View>
-                </TouchableOpacity>
-              </View>
-              
+            </TouchableOpacity>
+          </View>
+          
               <Text style={{ fontSize: 14, color: '#666', fontFamily: 'Poppins-Regular' }}>
                 Check your ticket status and get updates on ongoing support requests.
-              </Text>
-            </View>
+                </Text>
           </View>
+        </View>
         </ScrollView>
       </View>
-    );
+  );
   }
 
   // New Ticket View
   if (view === 'new') {
-    return (
+  return (
       <View style={{ flex: 1, backgroundColor: '#f6f7fb' }}>
         {/* Header with back button */}
         <View style={{ 
@@ -350,13 +357,13 @@ export default function PrincipalSupportCenter() {
             <Text style={{ fontSize: 12, color: '#999', marginTop: 8, textAlign: 'right', fontFamily: 'Poppins-Regular' }}>
               {subject.length}/100
             </Text>
-          </View>
+      </View>
 
           <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 24, marginBottom: 32, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 }}>
             <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#333', marginBottom: 12, fontFamily: 'Poppins-Bold' }}>
               Description
             </Text>
-            <TextInput
+          <TextInput
               style={{
                 borderWidth: 1,
                 borderColor: '#ddd',
@@ -426,16 +433,16 @@ export default function PrincipalSupportCenter() {
             <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#fff', fontFamily: 'Poppins-Bold' }}>
               My Tickets
             </Text>
-          </View>
         </View>
+      </View>
 
         <ScrollView style={{ flex: 1, padding: 24 }} showsVerticalScrollIndicator={false}>
           {/* Filter Tabs */}
           <View style={{ marginBottom: 24 }}>
             <View style={{ flexDirection: 'row', backgroundColor: '#fff', borderRadius: 16, padding: 4, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5, elevation: 2 }}>
               {['all', 'new', 'opened', 'closed'].map((tab) => (
-                <TouchableOpacity
-                  key={tab}
+          <TouchableOpacity
+            key={tab}
                   style={{
                     flex: 1,
                     paddingVertical: 12,
@@ -444,8 +451,8 @@ export default function PrincipalSupportCenter() {
                     backgroundColor: activeTab === tab ? '#9575cd' : 'transparent',
                     alignItems: 'center',
                   }}
-                  onPress={() => setActiveTab(tab)}
-                >
+            onPress={() => setActiveTab(tab)}
+          >
                   <Text style={{
                     fontSize: 14,
                     fontWeight: '600',
@@ -454,11 +461,11 @@ export default function PrincipalSupportCenter() {
                     textTransform: 'capitalize',
                   }}>
                     {tab}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+            </Text>
+          </TouchableOpacity>
+        ))}
             </View>
-          </View>
+      </View>
 
           {/* Sort Options */}
           <View style={{ marginBottom: 24 }}>
@@ -485,7 +492,7 @@ export default function PrincipalSupportCenter() {
                     Newest First
                   </Text>
                 </TouchableOpacity>
-                <TouchableOpacity
+      <TouchableOpacity
                   style={{
                     paddingVertical: 10,
                     paddingHorizontal: 20,
@@ -502,7 +509,7 @@ export default function PrincipalSupportCenter() {
                   }}>
                     Oldest First
                   </Text>
-                </TouchableOpacity>
+      </TouchableOpacity>
               </View>
             </View>
           </View>
@@ -531,7 +538,7 @@ export default function PrincipalSupportCenter() {
             </View>
           </View>
 
-          {/* Tickets List */}
+      {/* Tickets List */}
           {loading ? (
             <View style={{ alignItems: 'center', padding: 40 }}>
               <ActivityIndicator size="large" color="#9575cd" />
@@ -596,10 +603,10 @@ export default function PrincipalSupportCenter() {
                           textTransform: 'capitalize',
                         }}>
                           {ticket.status}
-                        </Text>
-                      </View>
-                    </View>
-                    
+              </Text>
+            </View>
+      </View>
+
                     <Text style={{ fontSize: 14, color: '#666', lineHeight: 20, fontFamily: 'Poppins-Regular' }} numberOfLines={3}>
                       {ticket.description}
                     </Text>
@@ -608,9 +615,9 @@ export default function PrincipalSupportCenter() {
             </View>
           )}
         </ScrollView>
-      </View>
-    );
-  }
+    </View>
+  );
+}
 
   return null;
 }

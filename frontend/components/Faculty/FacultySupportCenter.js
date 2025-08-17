@@ -100,7 +100,7 @@ export default function FacultySupportCenter() {
     try {
       setSubmitting(true);
       
-      const token = await AsyncStorage.getItem('jwtToken');
+    const token = await AsyncStorage.getItem('jwtToken');
       const user = JSON.parse(await AsyncStorage.getItem('user') || '{}');
       const userId = user._id || await AsyncStorage.getItem('userID');
       
@@ -210,13 +210,20 @@ export default function FacultySupportCenter() {
                   {formatDateTime(currentDateTime)}
                 </Text>
               </View>
-              <TouchableOpacity onPress={() => navigation.navigate('FProfile')}>
-                <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#e3f2fd', justifyContent: 'center', alignItems: 'center' }}>
-                  <MaterialIcons name="person" size={24} color="#00418b" />
-                </View>
-              </TouchableOpacity>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <TouchableOpacity onPress={() => navigation.goBack()}>
+                  <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#e3f2fd', justifyContent: 'center', alignItems: 'center' }}>
+                    <MaterialIcons name="arrow-back" size={24} color="#00418b" />
+                  </View>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => navigation.navigate('FProfile')}>
+                  <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#e3f2fd', justifyContent: 'center', alignItems: 'center' }}>
+                    <MaterialIcons name="person" size={24} color="#00418b" />
+                  </View>
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
+      </View>
 
           {/* Welcome Section */}
           <View style={{ marginHorizontal: 24, marginBottom: 24 }}>
@@ -226,7 +233,7 @@ export default function FacultySupportCenter() {
               </Text>
               <Text style={{ fontSize: 16, color: '#666', lineHeight: 24, fontFamily: 'Poppins-Regular' }}>
                 Need technical support or have questions? We're here to help you get back to teaching quickly.
-              </Text>
+        </Text>
             </View>
           </View>
 
@@ -250,13 +257,13 @@ export default function FacultySupportCenter() {
                 <MaterialIcons name="add-circle" size={32} color="#fff" style={{ marginBottom: 8 }} />
                 <Text style={{ fontSize: 16, fontWeight: '600', color: '#fff', fontFamily: 'Poppins-Medium' }}>
                   New Ticket
-                </Text>
+        </Text>
               </TouchableOpacity>
               
               <TouchableOpacity
-                style={{
-                  flex: 1,
-                  backgroundColor: '#fff',
+            style={{
+              flex: 1,
+              backgroundColor: '#fff',
                   borderRadius: 16,
                   paddingVertical: 20,
                   alignItems: 'center',
@@ -273,9 +280,9 @@ export default function FacultySupportCenter() {
                 <Text style={{ fontSize: 16, fontWeight: '600', color: '#9575cd', fontFamily: 'Poppins-Medium' }}>
                   My Tickets
                 </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+          </TouchableOpacity>
+        </View>
+      </View>
 
           {/* Recent Ticket Summary */}
           <View style={{ marginHorizontal: 24 }}>
@@ -291,8 +298,8 @@ export default function FacultySupportCenter() {
                     </Text>
                     <MaterialIcons name="arrow-forward" size={16} color="#9575cd" />
                   </View>
-                </TouchableOpacity>
-              </View>
+            </TouchableOpacity>
+          </View>
               
               <Text style={{ fontSize: 14, color: '#666', fontFamily: 'Poppins-Regular' }}>
                 Check your ticket status and get updates on ongoing support requests.
@@ -300,7 +307,7 @@ export default function FacultySupportCenter() {
             </View>
           </View>
         </ScrollView>
-      </View>
+        </View>
     );
   }
 
@@ -355,7 +362,7 @@ export default function FacultySupportCenter() {
           <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 24, marginBottom: 32, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 }}>
             <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#333', marginBottom: 12, fontFamily: 'Poppins-Bold' }}>
               Description
-            </Text>
+          </Text>
             <TextInput
               style={{
                 borderWidth: 1,
@@ -376,15 +383,15 @@ export default function FacultySupportCenter() {
             />
             <Text style={{ fontSize: 12, color: '#999', marginTop: 8, textAlign: 'right', fontFamily: 'Poppins-Regular' }}>
               {content.length}/500
-            </Text>
-          </View>
+          </Text>
+      </View>
 
           <TouchableOpacity
             style={{
               backgroundColor: submitting ? '#ccc' : '#9575cd',
               borderRadius: 16,
               paddingVertical: 18,
-              alignItems: 'center',
+            alignItems: 'center',
               shadowColor: '#000',
               shadowOpacity: 0.1,
               shadowRadius: 8,
@@ -398,9 +405,9 @@ export default function FacultySupportCenter() {
             ) : (
               <Text style={{ fontSize: 18, fontWeight: '600', color: '#fff', fontFamily: 'Poppins-Medium' }}>
                 Submit Ticket
-              </Text>
+          </Text>
             )}
-          </TouchableOpacity>
+        </TouchableOpacity>
         </ScrollView>
       </View>
     );
@@ -411,7 +418,7 @@ export default function FacultySupportCenter() {
     return (
       <View style={{ flex: 1, backgroundColor: '#f6f7fb' }}>
         {/* Header with back button */}
-        <View style={{ 
+          <View style={{
           backgroundColor: '#00418b', 
           paddingTop: 48, 
           paddingBottom: 20, 
@@ -434,7 +441,7 @@ export default function FacultySupportCenter() {
           <View style={{ marginBottom: 24 }}>
             <View style={{ flexDirection: 'row', backgroundColor: '#fff', borderRadius: 16, padding: 4, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5, elevation: 2 }}>
               {['all', 'new', 'opened', 'closed'].map((tab) => (
-                <TouchableOpacity
+              <TouchableOpacity
                   key={tab}
                   style={{
                     flex: 1,
@@ -455,9 +462,9 @@ export default function FacultySupportCenter() {
                   }}>
                     {tab}
                   </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+          </TouchableOpacity>
+        ))}
+          </View>
           </View>
 
           {/* Sort Options */}
@@ -485,7 +492,7 @@ export default function FacultySupportCenter() {
                     Newest First
                   </Text>
                 </TouchableOpacity>
-                <TouchableOpacity
+            <TouchableOpacity
                   style={{
                     paddingVertical: 10,
                     paddingHorizontal: 20,
@@ -502,8 +509,8 @@ export default function FacultySupportCenter() {
                   }}>
                     Oldest First
                   </Text>
-                </TouchableOpacity>
-              </View>
+            </TouchableOpacity>
+          </View>
             </View>
           </View>
 
@@ -529,7 +536,7 @@ export default function FacultySupportCenter() {
                 onChangeText={setSearch}
               />
             </View>
-          </View>
+      </View>
 
           {/* Tickets List */}
           {loading ? (
@@ -560,8 +567,8 @@ export default function FacultySupportCenter() {
                 .map((ticket) => (
                   <View
                     key={ticket._id}
-                    style={{
-                      backgroundColor: '#fff',
+              style={{
+                backgroundColor: '#fff',
                       borderRadius: 16,
                       padding: 20,
                       shadowColor: '#000',
@@ -604,12 +611,12 @@ export default function FacultySupportCenter() {
                       {ticket.description}
                     </Text>
                   </View>
-                ))}
-            </View>
-          )}
-        </ScrollView>
+          ))}
+        </View>
+      )}
+    </ScrollView>
       </View>
-    );
+  );
   }
 
   return null;

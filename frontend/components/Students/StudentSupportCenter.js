@@ -179,7 +179,7 @@ export default function StudentSupportCenter() {
 
   // Main View
   if (view === 'main') {
-    return (
+  return (
       <View style={{ flex: 1, backgroundColor: '#f6f7fb' }}>
         {/* Blue background */}
         <View style={{ position: 'absolute', left: 0, right: 0, top: 0, height: 140, backgroundColor: '#00418b', borderBottomLeftRadius: 40, borderBottomRightRadius: 40, zIndex: 0 }} />
@@ -210,13 +210,20 @@ export default function StudentSupportCenter() {
                   {formatDateTime(currentDateTime)}
                 </Text>
               </View>
-              <TouchableOpacity onPress={() => navigation.navigate('SProfile')}>
-                <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#e3f2fd', justifyContent: 'center', alignItems: 'center' }}>
-                  <MaterialIcons name="person" size={24} color="#00418b" />
-                </View>
-              </TouchableOpacity>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <TouchableOpacity onPress={() => navigation.goBack()}>
+                  <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#e3f2fd', justifyContent: 'center', alignItems: 'center' }}>
+                    <MaterialIcons name="arrow-back" size={24} color="#00418b" />
+                  </View>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => navigation.navigate('SProfile')}>
+                  <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#e3f2fd', justifyContent: 'center', alignItems: 'center' }}>
+                    <MaterialIcons name="person" size={24} color="#00418b" />
+                  </View>
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
+      </View>
 
           {/* Welcome Section */}
           <View style={{ marginHorizontal: 24, marginBottom: 24 }}>
@@ -226,7 +233,7 @@ export default function StudentSupportCenter() {
               </Text>
               <Text style={{ fontSize: 16, color: '#666', lineHeight: 24, fontFamily: 'Poppins-Regular' }}>
                 Need help with your studies or technical issues? We're here to support your learning journey.
-              </Text>
+        </Text>
             </View>
           </View>
 
@@ -250,13 +257,13 @@ export default function StudentSupportCenter() {
                 <MaterialIcons name="add-circle" size={32} color="#fff" style={{ marginBottom: 8 }} />
                 <Text style={{ fontSize: 16, fontWeight: '600', color: '#fff', fontFamily: 'Poppins-Medium' }}>
                   New Ticket
-                </Text>
+        </Text>
               </TouchableOpacity>
               
               <TouchableOpacity
-                style={{
-                  flex: 1,
-                  backgroundColor: '#fff',
+            style={{
+              flex: 1,
+              backgroundColor: '#fff',
                   borderRadius: 16,
                   paddingVertical: 20,
                   alignItems: 'center',
@@ -273,9 +280,9 @@ export default function StudentSupportCenter() {
                 <Text style={{ fontSize: 16, fontWeight: '600', color: '#9575cd', fontFamily: 'Poppins-Medium' }}>
                   My Tickets
                 </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+          </TouchableOpacity>
+        </View>
+      </View>
 
           {/* Recent Ticket Summary */}
           <View style={{ marginHorizontal: 24 }}>
@@ -291,8 +298,8 @@ export default function StudentSupportCenter() {
                     </Text>
                     <MaterialIcons name="arrow-forward" size={16} color="#9575cd" />
                   </View>
-                </TouchableOpacity>
-              </View>
+            </TouchableOpacity>
+          </View>
               
               <Text style={{ fontSize: 14, color: '#666', fontFamily: 'Poppins-Regular' }}>
                 Check your ticket status and get updates on ongoing support requests.
@@ -300,7 +307,7 @@ export default function StudentSupportCenter() {
             </View>
           </View>
         </ScrollView>
-      </View>
+        </View>
     );
   }
 
@@ -355,7 +362,7 @@ export default function StudentSupportCenter() {
           <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 24, marginBottom: 32, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 }}>
             <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#333', marginBottom: 12, fontFamily: 'Poppins-Bold' }}>
               Description
-            </Text>
+          </Text>
             <TextInput
               style={{
                 borderWidth: 1,
@@ -376,15 +383,15 @@ export default function StudentSupportCenter() {
             />
             <Text style={{ fontSize: 12, color: '#999', marginTop: 8, textAlign: 'right', fontFamily: 'Poppins-Regular' }}>
               {content.length}/500
-            </Text>
-          </View>
+          </Text>
+      </View>
 
-          <TouchableOpacity
-            style={{
+        <TouchableOpacity
+          style={{
               backgroundColor: submitting ? '#ccc' : '#9575cd',
               borderRadius: 16,
               paddingVertical: 18,
-              alignItems: 'center',
+            alignItems: 'center',
               shadowColor: '#000',
               shadowOpacity: 0.1,
               shadowRadius: 8,
@@ -398,9 +405,9 @@ export default function StudentSupportCenter() {
             ) : (
               <Text style={{ fontSize: 18, fontWeight: '600', color: '#fff', fontFamily: 'Poppins-Medium' }}>
                 Submit Ticket
-              </Text>
+          </Text>
             )}
-          </TouchableOpacity>
+        </TouchableOpacity>
         </ScrollView>
       </View>
     );
@@ -411,7 +418,7 @@ export default function StudentSupportCenter() {
     return (
       <View style={{ flex: 1, backgroundColor: '#f6f7fb' }}>
         {/* Header with back button */}
-        <View style={{ 
+          <View style={{
           backgroundColor: '#00418b', 
           paddingTop: 48, 
           paddingBottom: 20, 
@@ -434,7 +441,7 @@ export default function StudentSupportCenter() {
           <View style={{ marginBottom: 24 }}>
             <View style={{ flexDirection: 'row', backgroundColor: '#fff', borderRadius: 16, padding: 4, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5, elevation: 2 }}>
               {['all', 'new', 'opened', 'closed'].map((tab) => (
-                <TouchableOpacity
+              <TouchableOpacity
                   key={tab}
                   style={{
                     flex: 1,
@@ -455,9 +462,9 @@ export default function StudentSupportCenter() {
                   }}>
                     {tab}
                   </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+              </TouchableOpacity>
+            ))}
+          </View>
           </View>
 
           {/* Sort Options */}
@@ -485,7 +492,7 @@ export default function StudentSupportCenter() {
                     Newest First
                   </Text>
                 </TouchableOpacity>
-                <TouchableOpacity
+            <TouchableOpacity
                   style={{
                     paddingVertical: 10,
                     paddingHorizontal: 20,
@@ -502,7 +509,7 @@ export default function StudentSupportCenter() {
                   }}>
                     Oldest First
                   </Text>
-                </TouchableOpacity>
+            </TouchableOpacity>
               </View>
             </View>
           </View>
@@ -605,11 +612,11 @@ export default function StudentSupportCenter() {
                     </Text>
                   </View>
                 ))}
-            </View>
-          )}
+          </View>
+        )}
         </ScrollView>
       </View>
-    );
+  );
   }
 
   return null;

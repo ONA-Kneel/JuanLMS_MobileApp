@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, Alert, ActivityIndicator, RefreshControl } from 'react-native';
 import { MaterialIcons, Feather, Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -38,6 +38,15 @@ export default function AdminSupportCenter() {
   useEffect(() => {
     fetchTickets();
   }, [activeTab]);
+
+  useEffect(() => {
+    if (tickets.length > 0 && !selectedTicket) {
+      setSelectedTicket(tickets[0]);
+    }
+    if (tickets.length === 0) {
+      setSelectedTicket(null);
+    }
+  }, [tickets]);
 
   const fetchTickets = async () => {
     try {
@@ -277,58 +286,79 @@ export default function AdminSupportCenter() {
 
   // Ticket List View
   if (view === 'list') {
-    return (
-      <View style={{ flex: 1, backgroundColor: '#f6f7fb' }}>
-        {/* Blue background */}
-        <View style={{ position: 'absolute', left: 0, right: 0, top: 0, height: 140, backgroundColor: '#00418b', borderBottomLeftRadius: 40, borderBottomRightRadius: 40, zIndex: 0 }} />
+  return (
+    <View style={{ flex: 1, backgroundColor: '#f6f7fb' }}>
+      {/* Blue background */}
+      <View style={{ position: 'absolute', left: 0, right: 0, top: 0, height: 140, backgroundColor: '#00418b', borderBottomLeftRadius: 40, borderBottomRightRadius: 40, zIndex: 0 }} />
         
-        <ScrollView contentContainerStyle={{ paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
-          {/* White card header */}
-          <View style={{
-            backgroundColor: '#fff',
-            borderRadius: 32,
-            marginTop: 48,
-            marginBottom: 32,
-            marginHorizontal: 24,
-            paddingVertical: 28,
-            paddingHorizontal: 28,
-            shadowColor: '#000',
-            shadowOpacity: 0.08,
-            shadowRadius: 10,
-            shadowOffset: { width: 0, height: 4 },
-            elevation: 4,
-            zIndex: 1,
-          }}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        <ScrollView 
+          contentContainerStyle={{ paddingBottom: 32 }} 
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={loading}
+              onRefresh={fetchTickets}
+              colors={['#9575cd']}
+              tintColor="#9575cd"
+            />
+          }
+        >
+        {/* White card header */}
+        <View style={{
+          backgroundColor: '#fff',
+          borderRadius: 32,
+          marginTop: 48,
+          marginBottom: 32,
+          marginHorizontal: 24,
+          paddingVertical: 28,
+          paddingHorizontal: 28,
+          shadowColor: '#000',
+          shadowOpacity: 0.08,
+          shadowRadius: 10,
+          shadowOffset: { width: 0, height: 4 },
+          elevation: 4,
+          zIndex: 1,
+        }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
               <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: 28, fontWeight: 'bold', color: '#00418b', marginBottom: 8 }}>
                   Support Center
+                </Text>
+                <Text style={{ fontSize: 14, color: '#666', fontFamily: 'Poppins-Regular' }}>
+                  {ticketCounts.all} total tickets
                 </Text>
                 <Text style={{ fontSize: 16, color: '#666', fontFamily: 'Poppins-Regular' }}>
                   {formatDateTime(currentDateTime)}
                 </Text>
               </View>
-              <TouchableOpacity onPress={() => navigation.navigate('AProfile')}>
-                <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#e3f2fd', justifyContent: 'center', alignItems: 'center' }}>
-                  <MaterialIcons name="person" size={24} color="#00418b" />
-                </View>
-              </TouchableOpacity>
-            </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <TouchableOpacity onPress={() => navigation.goBack()}>
+                  <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#e3f2fd', justifyContent: 'center', alignItems: 'center' }}>
+                    <MaterialIcons name="arrow-back" size={24} color="#00418b" />
+                  </View>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => navigation.navigate('AProfile')}>
+                  <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#e3f2fd', justifyContent: 'center', alignItems: 'center' }}>
+                    <MaterialIcons name="person" size={24} color="#00418b" />
+                  </View>
+                </TouchableOpacity>
+              </View>
           </View>
+        </View>
 
           {/* Filter Tabs */}
           <View style={{ marginHorizontal: 24, marginBottom: 24 }}>
             <View style={{ flexDirection: 'row', backgroundColor: '#fff', borderRadius: 16, padding: 4, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5, elevation: 2 }}>
               {TABS.map((tab) => (
-                <TouchableOpacity
-                  key={tab.key}
-                  style={{
+            <TouchableOpacity
+              key={tab.key}
+              style={{
                     flex: 1,
                     paddingVertical: 12,
                     paddingHorizontal: 16,
-                    borderRadius: 12,
+                borderRadius: 12,
                     backgroundColor: activeTab === tab.key ? '#9575cd' : 'transparent',
-                    alignItems: 'center',
+                alignItems: 'center',
                   }}
                   onPress={() => setActiveTab(tab.key)}
                 >
@@ -340,34 +370,34 @@ export default function AdminSupportCenter() {
                   }}>
                     {tab.label} ({ticketCounts[tab.key] || 0})
                   </Text>
-                </TouchableOpacity>
-              ))}
+            </TouchableOpacity>
+          ))}
             </View>
-          </View>
+        </View>
 
-          {/* Search Bar */}
+        {/* Search Bar */}
           <View style={{ marginHorizontal: 24, marginBottom: 24 }}>
             <View style={{ position: 'relative' }}>
               <Feather name="search" size={20} color="#999" style={{ position: 'absolute', left: 16, top: 18, zIndex: 1 }} />
-              <TextInput
-                style={{
-                  backgroundColor: '#fff',
+          <TextInput
+            style={{
+              backgroundColor: '#fff',
                   borderRadius: 16,
                   paddingVertical: 16,
                   paddingHorizontal: 48,
                   fontSize: 16,
                   fontFamily: 'Poppins-Regular',
-                  shadowColor: '#000',
+              shadowColor: '#000',
                   shadowOpacity: 0.05,
                   shadowRadius: 5,
-                  elevation: 2,
-                }}
+              elevation: 2,
+            }}
                 placeholder="Search tickets by title or number..."
-                value={search}
-                onChangeText={setSearch}
-              />
+            value={search}
+            onChangeText={setSearch}
+          />
             </View>
-          </View>
+        </View>
 
           {/* Tickets List */}
           <View style={{ marginHorizontal: 24 }}>
@@ -386,21 +416,29 @@ export default function AdminSupportCenter() {
               <View style={{ alignItems: 'center', padding: 40 }}>
                 <MaterialIcons name="support-agent" size={64} color="#ddd" />
                 <Text style={{ fontSize: 18, color: '#999', marginTop: 16, fontFamily: 'Poppins-Regular' }}>
-                  No tickets found
+                  {search ? 'No tickets match your search' : 'No tickets found'}
                 </Text>
-              </View>
-            ) : (
+                {search && (
+                    <TouchableOpacity
+                    onPress={() => setSearch('')}
+                    style={{ marginTop: 16, paddingHorizontal: 20, paddingVertical: 8, backgroundColor: '#9575cd', borderRadius: 8 }}
+                    >
+                    <Text style={{ color: '#fff', fontFamily: 'Poppins-Medium' }}>Clear Search</Text>
+                    </TouchableOpacity>
+            )}
+          </View>
+        ) : (
               <View style={{ gap: 16 }}>
                 {filteredTickets.map((ticket) => (
                   <TouchableOpacity
                     key={ticket._id}
                     style={{
-                      backgroundColor: '#fff',
-                      borderRadius: 16,
-                      padding: 20,
-                      shadowColor: '#000',
+            backgroundColor: '#fff',
+            borderRadius: 16,
+            padding: 20,
+            shadowColor: '#000',
                       shadowOpacity: 0.05,
-                      shadowRadius: 10,
+            shadowRadius: 10,
                       elevation: 3,
                       borderWidth: 2,
                       borderColor: 'transparent',
@@ -451,6 +489,32 @@ export default function AdminSupportCenter() {
             )}
           </View>
         </ScrollView>
+        
+        {/* Floating Action Button for Future Use */}
+                  <TouchableOpacity
+          style={{
+            position: 'absolute',
+            bottom: 24,
+            right: 24,
+            width: 56,
+            height: 56,
+            borderRadius: 28,
+            backgroundColor: '#9575cd',
+            justifyContent: 'center',
+            alignItems: 'center',
+            shadowColor: '#000',
+            shadowOpacity: 0.25,
+            shadowRadius: 8,
+            shadowOffset: { width: 0, height: 4 },
+            elevation: 8,
+          }}
+          onPress={() => {
+            // Future: Add new ticket functionality
+            Alert.alert('Info', 'New ticket creation coming soon!');
+          }}
+        >
+          <MaterialIcons name="add" size={24} color="#fff" />
+        </TouchableOpacity>
       </View>
     );
   }
@@ -471,14 +535,25 @@ export default function AdminSupportCenter() {
           <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
             <TouchableOpacity onPress={() => setView('list')} style={{ marginRight: 16 }}>
               <MaterialIcons name="arrow-back" size={24} color="#fff" />
-            </TouchableOpacity>
+                  </TouchableOpacity>
             <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#fff', fontFamily: 'Poppins-Bold' }}>
               Ticket Details
             </Text>
           </View>
         </View>
 
-        <ScrollView style={{ flex: 1, padding: 24 }} showsVerticalScrollIndicator={false}>
+        <ScrollView 
+          style={{ flex: 1, padding: 24 }} 
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={loading}
+              onRefresh={fetchTickets}
+              colors={['#9575cd']}
+              tintColor="#9575cd"
+            />
+          }
+        >
           {/* Ticket Info Card */}
           <View style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20, marginBottom: 20, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 }}>
             <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#333', marginBottom: 12, fontFamily: 'Poppins-Bold' }}>
@@ -531,8 +606,8 @@ export default function AdminSupportCenter() {
               <Text style={{ color: '#666', fontStyle: 'italic', fontFamily: 'Poppins-Regular' }}>
                 No messages yet
               </Text>
-            )}
-          </View>
+              )}
+            </View>
 
           {/* Reply Section */}
           <View style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20, marginBottom: 20, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 }}>
@@ -552,7 +627,7 @@ export default function AdminSupportCenter() {
               </Text>
             ) : null}
             
-            <TextInput
+              <TextInput
               style={{
                 borderWidth: 1,
                 borderColor: '#ddd',
@@ -565,8 +640,8 @@ export default function AdminSupportCenter() {
                 marginBottom: 16,
               }}
               placeholder="Type your reply..."
-              value={reply}
-              onChangeText={setReply}
+                value={reply}
+                onChangeText={setReply}
               multiline
             />
             
@@ -634,9 +709,32 @@ export default function AdminSupportCenter() {
               )}
             </View>
           </View>
-        </ScrollView>
-      </View>
-    );
+      </ScrollView>
+        
+        {/* Floating Action Button to go back to list */}
+        <TouchableOpacity
+          style={{
+            position: 'absolute',
+            bottom: 24,
+            right: 24,
+            width: 56,
+            height: 56,
+            borderRadius: 28,
+            backgroundColor: '#9575cd',
+            justifyContent: 'center',
+            alignItems: 'center',
+            shadowColor: '#000',
+            shadowOpacity: 0.25,
+            shadowRadius: 8,
+            shadowOffset: { width: 0, height: 4 },
+            elevation: 8,
+          }}
+          onPress={() => setView('list')}
+        >
+          <MaterialIcons name="list" size={24} color="#fff" />
+        </TouchableOpacity>
+    </View>
+  );
   }
 
   return null;
