@@ -258,8 +258,12 @@ export default function AdminChats() {
         if (response.ok) {
           const recentChatsData = await response.json();
           
-          // Update recentChats with actual chat data
-          setRecentChats(recentChatsData);
+          // Update recentChats with actual chat data and add _id field for UI compatibility
+          const recentChatsWithId = recentChatsData.map(chat => ({
+            ...chat,
+            _id: chat.partnerId // Add _id field for UI compatibility
+          }));
+          setRecentChats(recentChatsWithId);
           
           // Populate lastMessages with timestamp information
           const lastMessagesWithTimestamps = {};
