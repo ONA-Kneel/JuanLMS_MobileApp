@@ -1,16 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  RefreshControl,
-  Alert,
-  Image,
-  Dimensions,
-  ActivityIndicator,
-} from 'react-native';
+import { Text, TouchableOpacity, View, Image, Alert, ScrollView, Dimensions, ActivityIndicator, RefreshControl } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../UserContext';
@@ -399,33 +388,38 @@ export default function PrincipalDashboard() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = {
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#f3f3f3',
   },
+  
+  // Blue background
   blueBackground: {
     position: 'absolute',
-    top: 0,
     left: 0,
     right: 0,
-    height: width * 0.4, // Adjust height as needed
+    top: 0,
+    height: 160,
     backgroundColor: '#00418b',
-    borderBottomLeftRadius: 50,
-    borderBottomRightRadius: 50,
-    zIndex: -1,
+    borderBottomLeftRadius: 40,
+    borderBottomRightRadius: 40,
+    zIndex: 0,
   },
+
+  // Header styles
   headerCard: {
     backgroundColor: '#fff',
-    borderRadius: 20,
-    padding: 20,
+    borderRadius: 18,
+    marginTop: 20,
     marginHorizontal: 20,
-    marginTop: -50, // Adjust to position it correctly
-    elevation: 5,
+    marginBottom: 10,
+    padding: 18,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.06,
     shadowRadius: 8,
+    elevation: 2,
+    zIndex: 1,
   },
   headerContent: {
     flexDirection: 'row',
@@ -433,127 +427,136 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   greetingText: {
+    fontFamily: 'Poppins-Bold',
     fontSize: 20,
-    color: '#333',
-    fontFamily: 'Poppins-Regular',
+    color: '#00418b',
   },
   userName: {
-    fontSize: 20,
     fontWeight: 'bold',
-    color: '#00418b',
-    fontFamily: 'Poppins-Bold',
-  },
-  academicContext: {
-    fontSize: 14,
-    color: '#666',
-    fontFamily: 'Poppins-Regular',
-    marginTop: 4,
   },
   dateText: {
-    fontSize: 16,
-    color: '#00418b',
-    fontFamily: 'Poppins-Bold',
-    marginTop: 8,
+    fontFamily: 'Poppins-Regular',
+    color: '#888',
+    fontSize: 13,
+    marginTop: 2,
+  },
+  academicContext: {
+    fontFamily: 'Poppins-Regular',
+    color: '#666',
+    fontSize: 14,
+    marginTop: 4,
   },
   profileImage: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
   },
+
+  // Scroll content
   scrollContent: {
-    paddingBottom: 20, // Add some padding at the bottom
+    paddingBottom: 100,
+    paddingHorizontal: 20,
+    paddingTop: 10,
   },
+
+  // Section container
   sectionContainer: {
-    backgroundColor: '#fff',
-    borderRadius: 15,
-    padding: 20,
-    marginHorizontal: 20,
-    marginBottom: 20,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    marginBottom: 24,
   },
+
+  // Section title
   sectionTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontFamily: 'Poppins-Bold',
     color: '#333',
     marginBottom: 16,
-    fontFamily: 'Poppins-Bold',
+    marginLeft: 4,
   },
+
+  // Table section
   tableCard: {
-    borderRadius: 10,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
     overflow: 'hidden',
   },
   tableHeader: {
     flexDirection: 'row',
-    backgroundColor: '#f0f0f0',
-    padding: 12,
+    backgroundColor: '#f8f9fa',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    borderBottomColor: '#e9ecef',
   },
   tableHeaderText: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#333',
     flex: 1,
+    fontSize: 14,
+    fontFamily: 'Poppins-SemiBold',
+    color: '#495057',
     textAlign: 'center',
-    fontFamily: 'Poppins-Bold',
   },
   tableRow: {
     flexDirection: 'row',
-    padding: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: '#f1f3f4',
   },
   tableCellText: {
-    fontSize: 14,
-    color: '#333',
     flex: 1,
-    textAlign: 'center',
+    fontSize: 14,
     fontFamily: 'Poppins-Regular',
+    color: '#333',
+    textAlign: 'center',
   },
   emptyState: {
-    padding: 20,
+    padding: 40,
     alignItems: 'center',
   },
   emptyStateText: {
     fontSize: 16,
-    color: '#666',
     fontFamily: 'Poppins-Regular',
+    color: '#666',
   },
+
+  // Calendar section
   calendarCard: {
     backgroundColor: '#fff',
-    borderRadius: 15,
+    borderRadius: 16,
     padding: 20,
-    elevation: 3,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
   },
   calendarNavigation: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 15,
+    marginBottom: 20,
+    gap: 12,
   },
   calendarNavButton: {
-    padding: 10,
+    backgroundColor: '#f8f9fa',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
     borderRadius: 8,
-    backgroundColor: '#e0e0e0',
+    borderWidth: 1,
+    borderColor: '#e9ecef',
   },
   calendarNavButtonText: {
-    fontSize: 16,
-    color: '#333',
-    fontFamily: 'Poppins-Regular',
+    fontSize: 14,
+    fontFamily: 'Poppins-Medium',
+    color: '#666',
   },
   calendarMonthText: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
     fontFamily: 'Poppins-Bold',
+    color: '#333',
+    marginLeft: 8,
+    flex: 1,
   },
   calendarGrid: {
     flexDirection: 'row',
@@ -561,39 +564,46 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   calendarDayHeader: {
-    width: width * 0.142, // 7 days
+    width: (width - 80) / 7,
+    paddingVertical: 12,
     alignItems: 'center',
     marginBottom: 8,
   },
   calendarDayHeaderText: {
-    fontSize: 12,
+    fontSize: 14,
+    fontFamily: 'Poppins-SemiBold',
     color: '#666',
-    fontFamily: 'Poppins-Regular',
   },
   calendarDay: {
-    width: width * 0.142, // 7 days
-    height: width * 0.142, // 7 days
-    borderRadius: 15,
-    justifyContent: 'center',
+    width: (width - 80) / 7,
+    height: 40,
     alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 8,
   },
-  calendarDayToday: {
-    backgroundColor: '#00418b',
-    borderWidth: 2,
-    borderColor: '#fff',
-  },
   calendarDayText: {
-    fontSize: 16,
-    color: '#333',
+    fontSize: 14,
     fontFamily: 'Poppins-Regular',
+    color: '#333',
+  },
+  calendarDayToday: {
+    backgroundColor: '#fff3cd',
+    borderRadius: 20,
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   calendarDayTextToday: {
-    color: '#fff',
+    color: '#856404',
+    fontFamily: 'Poppins-SemiBold',
+  },
+  calendarDayOtherMonth: {
+    opacity: 0.3,
   },
   calendarDayTextOtherMonth: {
-    color: '#ccc',
+    color: '#999',
   },
-});
+};
 
 
