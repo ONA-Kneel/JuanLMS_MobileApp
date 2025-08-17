@@ -1,424 +1,917 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, TextInput, Alert } from 'react-native';
+// VPEChats.js - Mobile version matching web VPE_Chats.jsx
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  ScrollView,
+  TextInput,
+  Image,
+  Alert,
+  Modal,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  Dimensions
+} from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import axios from 'axios';
-import { useContext } from 'react';
-import { UserContext } from '../UserContext';
+import { useUser } from '../UserContext';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { MaterialIcons, Ionicons, Feather } from '@expo/vector-icons';
+import * as DocumentPicker from 'expo-document-picker';
+import io from 'socket.io-client';
 
-const API_BASE_URL = 'https://juanlms-webapp-server.onrender.com';
+const API_BASE = 'https://juanlms-webapp-server.onrender.com';
+const SOCKET_URL = 'https://juanlms-webapp-server.onrender.com';
 
 export default function VPEChats() {
   const navigation = useNavigation();
-  const { user } = useContext(UserContext);
+  const { user } = useUser();
+  
+  // Chat states
+  const [selectedChat, setSelectedChat] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
   const [users, setUsers] = useState([]);
+  const [messages, setMessages] = useState({});
+  const [newMessage, setNewMessage] = useState('');
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [lastMessages, setLastMessages] = useState({});
+  const [recentChats, setRecentChats] = useState([]);
+  
+  // Group chat states
   const [groups, setGroups] = useState([]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState('users'); // 'users' or 'groups'
+  const [groupMessages, setGroupMessages] = useState({});
+  const [showCreateGroupModal, setShowCreateGroupModal] = useState(false);
+  const [showJoinGroupModal, setShowJoinGroupModal] = useState(false);
+  const [newGroupName, setNewGroupName] = useState('');
+  const [selectedGroupMembers, setSelectedGroupMembers] = useState([]);
+  const [joinGroupCode, setJoinGroupCode] = useState('');
+  const [isGroupChat, setIsGroupChat] = useState(false);
+  const [showGroupMenu, setShowGroupMenu] = useState(false);
+  
+  // User management
+  const [memberSearchTerm, setMemberSearchTerm] = useState('');
+  const [showLeaveGroupModal, setShowLeaveGroupModal] = useState(false);
+  const [groupToLeave, setGroupToLeave] = useState(null);
+  const [showCreatorLeaveError, setShowCreatorLeaveError] = useState(false);
+  const [showMembersModal, setShowMembersModal] = useState(false);
+  const [memberToRemove, setMemberToRemove] = useState(null);
+  const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
+  const [showNewChatModal, setShowNewChatModal] = useState(false);
+  const [userSearchTerm, setUserSearchTerm] = useState('');
+  
+  // UI states
+  const [loading, setLoading] = useState(false);
+  
+  const messagesEndRef = useRef(null);
+  const socket = useRef(null);
+  const scrollViewRef = useRef(null);
 
+  // Initialize socket connection
   useEffect(() => {
-    if (user) {
-      fetchUsers();
-      fetchGroups();
-    }
-  }, [user]);
+    if (!user?._id) return;
 
-  const fetchUsers = async () => {
-    try {
-      setIsLoading(true);
-      
-      // Fetch users for chat (faculty, admin, principal roles)
-      const response = await axios.get(`${API_BASE_URL}/users`);
-      
-      if (response.data && Array.isArray(response.data)) {
-        // Filter users by role (VPE can chat with faculty, admin, principal)
-        const allowedRoles = ['faculty', 'admin', 'principal'];
-        const filteredUsers = response.data.filter(user => 
-          allowedRoles.includes(user.role?.toLowerCase())
-        );
-        setUsers(filteredUsers);
+    socket.current = io(SOCKET_URL, {
+      transports: ['websocket'],
+      reconnectionAttempts: 5,
+      timeout: 10000,
+    });
+
+    socket.current.emit('addUser', user._id);
+
+    socket.current.on('getMessage', (data) => {
+      const incomingMessage = {
+        senderId: data.senderId,
+        receiverId: user._id,
+        message: data.text,
+        fileUrl: data.fileUrl || null,
+        timestamp: new Date(),
+      };
+
+      setMessages((prev) => {
+        const newMessages = {
+          ...prev,
+          [incomingMessage.senderId]: [
+            ...(prev[incomingMessage.senderId] || []),
+            incomingMessage,
+          ],
+        };
+        return newMessages;
+      });
+
+      // Update last message for this chat
+      const chat = recentChats.find(c => c._id === incomingMessage.senderId);
+      if (chat) {
+        const prefix = incomingMessage.senderId === user._id 
+          ? 'You: ' 
+          : `${chat.lastname}, ${chat.firstname}: `;
+        const text = incomingMessage.message 
+          ? incomingMessage.message 
+          : (incomingMessage.fileUrl ? 'File sent' : '');
+        setLastMessages(prev => ({
+          ...prev,
+          [chat._id]: { prefix, text }
+        }));
       }
-    } catch (error) {
-      console.error('Error fetching users:', error);
-      // Use mock data for now
-      setUsers(getMockUsers());
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    });
 
-  const fetchGroups = async () => {
-    try {
-      if (user?._id) {
-        const response = await axios.get(`${API_BASE_URL}/api/group-chats/user/${user._id}`);
+    // Group chat message handling
+    socket.current.on('getGroupMessage', (data) => {
+      const incomingGroupMessage = {
+        senderId: data.senderId,
+        groupId: data.groupId,
+        message: data.text,
+        fileUrl: data.fileUrl || null,
+        senderName: data.senderName || 'Unknown',
+        timestamp: new Date(),
+      };
+
+      setGroupMessages((prev) => {
+        const newGroupMessages = {
+          ...prev,
+          [incomingGroupMessage.groupId]: [
+            ...(prev[incomingGroupMessage.groupId] || []),
+            incomingGroupMessage,
+          ],
+        };
+        return newGroupMessages;
+      });
+    });
+
+    return () => {
+      if (socket.current) {
+        socket.current.disconnect();
+      }
+    };
+  }, [user?._id, recentChats]);
+
+  // Fetch users
+  useEffect(() => {
+    const fetchUsers = async () => {
+      if (!user?._id) return;
+      
+      try {
+        setLoading(true);
+        const token = await AsyncStorage.getItem('jwtToken');
+        const response = await fetch(`${API_BASE}/users`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
         
-        if (response.data && Array.isArray(response.data)) {
-          setGroups(response.data);
+        if (response.ok) {
+          const data = await response.json();
+          const userArray = Array.isArray(data) ? data : data.users || [];
+          setUsers(userArray);
+        }
+      } catch (error) {
+        console.error('Error fetching users:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUsers();
+  }, [user?._id]);
+
+  // Fetch recent chats
+  useEffect(() => {
+    const fetchRecentChats = async () => {
+      if (!user?._id) return;
+      
+      try {
+        const token = await AsyncStorage.getItem('jwtToken');
+        const response = await fetch(`${API_BASE}/api/messages/recent/${user._id}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          setRecentChats(Array.isArray(data) ? data : []);
+        }
+      } catch (error) {
+        console.error('Error fetching recent chats:', error);
+      }
+    };
+
+    fetchRecentChats();
+  }, [user?._id]);
+
+  // Fetch user groups
+  useEffect(() => {
+    const fetchUserGroups = async () => {
+      if (!user?._id) return;
+      
+      try {
+        const token = await AsyncStorage.getItem('jwtToken');
+        const response = await fetch(`${API_BASE}/api/group-chats/user/${user._id}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          setGroups(Array.isArray(data) ? data : []);
+        }
+      } catch (error) {
+        console.error('Error fetching user groups:', error);
+      }
+    };
+
+    fetchUserGroups();
+  }, [user?._id]);
+
+  // Fetch messages for selected chat
+  useEffect(() => {
+    const fetchMessages = async () => {
+      if (!selectedChat || !user?._id) return;
+      
+      try {
+        const token = await AsyncStorage.getItem('jwtToken');
+        const response = await fetch(`${API_BASE}/messages/${user._id}/${selectedChat._id}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          setMessages(prev => ({
+            ...prev,
+            [selectedChat._id]: data
+          }));
+        }
+      } catch (error) {
+        console.error('Error fetching messages:', error);
+      }
+    };
+
+    fetchMessages();
+  }, [selectedChat, user?._id]);
+
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollToEnd({ animated: true });
+    }
+  }, [messages, selectedChat]);
+
+  const sendMessage = async () => {
+    if (!newMessage.trim() && !selectedFile) return;
+    if (!selectedChat || !user?._id) return;
+
+    try {
+      const token = await AsyncStorage.getItem('jwtToken');
+      const messageData = {
+        senderId: user._id,
+        receiverId: selectedChat._id,
+        text: newMessage.trim(),
+        fileUrl: selectedFile ? selectedFile.uri : null,
+      };
+
+      const response = await fetch(`${API_BASE}/messages`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(messageData),
+      });
+
+      if (response.ok) {
+        const sentMessage = {
+          ...messageData,
+          timestamp: new Date(),
+        };
+
+        setMessages(prev => ({
+          ...prev,
+          [selectedChat._id]: [
+            ...(prev[selectedChat._id] || []),
+            sentMessage,
+          ],
+        }));
+
+        setNewMessage('');
+        setSelectedFile(null);
+
+        // Emit message through socket
+        if (socket.current) {
+          socket.current.emit('sendMessage', messageData);
         }
       }
     } catch (error) {
-      console.error('Error fetching groups:', error);
-      // Use mock data for now
-      setGroups(getMockGroups());
+      console.error('Error sending message:', error);
+      Alert.alert('Error', 'Failed to send message');
     }
   };
 
-  const getMockUsers = () => [
-    {
-      _id: '1',
-      firstname: 'John',
-      lastname: 'Smith',
-      role: 'faculty',
-      email: 'john.smith@juanlms.edu'
-    },
-    {
-      _id: '2',
-      firstname: 'Maria',
-      lastname: 'Garcia',
-      role: 'admin',
-      email: 'maria.garcia@juanlms.edu'
-    },
-    {
-      _id: '3',
-      firstname: 'David',
-      lastname: 'Johnson',
-      role: 'principal',
-      email: 'david.johnson@juanlms.edu'
+  const pickDocument = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: '*/*',
+        copyToCacheDirectory: true,
+      });
+
+      if (!result.canceled) {
+        setSelectedFile(result.assets[0]);
+      }
+    } catch (error) {
+      console.error('Error picking document:', error);
     }
-  ];
+  };
 
-  const getMockGroups = () => [
-    {
-      _id: '1',
-      name: 'Academic Leadership',
-      description: 'Group for academic leadership discussions',
-      participants: ['1', '2', '3']
-    },
-    {
-      _id: '2',
-      name: 'Faculty Development',
-      description: 'Group for faculty development initiatives',
-      participants: ['1', '2']
+  const startNewChat = (selectedUser) => {
+    setSelectedChat(selectedUser);
+    setShowNewChatModal(false);
+    setUserSearchTerm('');
+  };
+
+  const createGroup = async () => {
+    if (!newGroupName.trim() || selectedGroupMembers.length === 0) {
+      Alert.alert('Error', 'Please fill in group name and select participants');
+      return;
     }
-  ];
 
-  const startChat = (selectedUser) => {
-    navigation.navigate('UnifiedChat', { selectedUser });
+    try {
+      const token = await AsyncStorage.getItem('jwtToken');
+      const groupData = {
+        name: newGroupName.trim(),
+        creatorId: user._id,
+        members: selectedGroupMembers,
+      };
+
+      const response = await fetch(`${API_BASE}/api/group-chats`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(groupData),
+      });
+
+      if (response.ok) {
+        const newGroup = await response.json();
+        setGroups(prev => [...prev, newGroup]);
+        setShowCreateGroupModal(false);
+        setNewGroupName('');
+        setSelectedGroupMembers([]);
+        Alert.alert('Success', 'Group created successfully!');
+      }
+    } catch (error) {
+      console.error('Error creating group:', error);
+      Alert.alert('Error', 'Failed to create group');
+    }
   };
 
-  const openGroupChat = (group) => {
-    navigation.navigate('UnifiedChat', { selectedGroup: group });
+  const joinGroup = async () => {
+    if (!joinGroupCode.trim()) {
+      Alert.alert('Error', 'Please enter a group code');
+      return;
+    }
+
+    try {
+      const token = await AsyncStorage.getItem('jwtToken');
+      const response = await fetch(`${API_BASE}/api/group-chats/${joinGroupCode}/join`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ userId: user._id }),
+      });
+
+      if (response.ok) {
+        const joinedGroup = await response.json();
+        setGroups(prev => [...prev, joinedGroup]);
+        setShowJoinGroupModal(false);
+        setJoinGroupCode('');
+        Alert.alert('Success', 'Joined group successfully!');
+      }
+    } catch (error) {
+      console.error('Error joining group:', error);
+      Alert.alert('Error', 'Failed to join group');
+    }
   };
 
-  const createGroup = () => {
-    navigation.navigate('GroupManagement');
-  };
-
-  const filteredUsers = users.filter(user => {
-    const fullName = `${user.firstname} ${user.lastname}`.toLowerCase();
-    const role = user.role?.toLowerCase() || '';
-    const query = searchQuery.toLowerCase();
-    return fullName.includes(query) || role.includes(query);
-  });
-
-  const filteredGroups = groups.filter(group => {
-    const name = group.name?.toLowerCase() || '';
-    const description = group.description?.toLowerCase() || '';
-    const query = searchQuery.toLowerCase();
-    return name.includes(query) || description.includes(query);
-  });
-
-  const renderUserItem = ({ item }) => (
-    <TouchableOpacity style={styles.userCard} onPress={() => startChat(item)}>
-      <View style={styles.userAvatar}>
-        <Icon name="account-circle" size={40} color="#00418b" />
-      </View>
-      <View style={styles.userInfo}>
-        <Text style={styles.userName}>{item.firstname} {item.lastname}</Text>
-        <Text style={styles.userRole}>{item.role}</Text>
-        <Text style={styles.userEmail}>{item.email}</Text>
-      </View>
-      <Icon name="chat" size={24} color="#00418b" />
-    </TouchableOpacity>
+  const filteredUsers = users.filter(u => 
+    u._id !== user?._id && 
+    ['students', 'faculty', 'admin', 'principal', 'vpe'].includes(u.role?.toLowerCase()) &&
+    `${u.firstname} ${u.lastname}`.toLowerCase().includes(userSearchTerm.toLowerCase())
   );
 
-  const renderGroupItem = ({ item }) => (
-    <TouchableOpacity style={styles.groupCard} onPress={() => openGroupChat(item)}>
-      <View style={styles.groupAvatar}>
-        <Icon name="account-group" size={40} color="#00418b" />
-      </View>
-      <View style={styles.groupInfo}>
-        <Text style={styles.groupName}>{item.name}</Text>
-        <Text style={styles.groupDescription}>{item.description}</Text>
-        <Text style={styles.groupParticipants}>{item.participants?.length || 0} participants</Text>
-      </View>
-      <Icon name="chat" size={24} color="#00418b" />
-    </TouchableOpacity>
-  );
+  const filteredRecentChats = recentChats.filter(chat => {
+    const partner = users.find(u => u._id === chat.partnerId);
+    if (!partner) return false;
+    return `${partner.firstname} ${partner.lastname}`.toLowerCase().includes(searchTerm.toLowerCase());
+  });
 
+  if (!user?._id) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color="#00418b" />
+      </View>
+    );
+  }
+
+  // Chat List View
+  if (!selectedChat) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#f6f7fb' }}>
+        {/* Header */}
+        <View style={{ 
+          backgroundColor: '#00418b', 
+          paddingTop: 48, 
+          paddingBottom: 20, 
+          paddingHorizontal: 24,
+          borderBottomLeftRadius: 20,
+          borderBottomRightRadius: 20,
+        }}>
+          <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#fff', marginBottom: 8 }}>
+            Chats
+          </Text>
+          <Text style={{ fontSize: 14, color: '#e3f2fd' }}>
+            Connect with faculty and staff
+          </Text>
+        </View>
+
+        <ScrollView style={{ flex: 1, padding: 24 }} showsVerticalScrollIndicator={false}>
+          {/* Search Bar */}
+          <View style={{ marginBottom: 24 }}>
+            <View style={{ position: 'relative' }}>
+              <Feather name="search" size={20} color="#999" style={{ position: 'absolute', left: 16, top: 18, zIndex: 1 }} />
+              <TextInput
+                style={{
+                  backgroundColor: '#fff',
+                  borderRadius: 16,
+                  paddingVertical: 16,
+                  paddingHorizontal: 48,
+                  fontSize: 16,
+                  fontFamily: 'Poppins-Regular',
+                  shadowColor: '#000',
+                  shadowOpacity: 0.05,
+                  shadowRadius: 5,
+                  elevation: 2,
+                }}
+                placeholder="Search chats..."
+                value={searchTerm}
+                onChangeText={setSearchTerm}
+              />
+            </View>
+          </View>
+
+          {/* Action Buttons */}
+          <View style={{ flexDirection: 'row', gap: 12, marginBottom: 24 }}>
+            <TouchableOpacity
+              style={{
+                flex: 1,
+                backgroundColor: '#9575cd',
+                borderRadius: 16,
+                paddingVertical: 16,
+                alignItems: 'center',
+                flexDirection: 'row',
+                justifyContent: 'center',
+                gap: 8,
+              }}
+              onPress={() => setShowNewChatModal(true)}
+            >
+              <MaterialIcons name="chat" size={20} color="#fff" />
+              <Text style={{ color: '#fff', fontWeight: '600', fontSize: 16 }}>
+                New Chat
+              </Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={{
+                flex: 1,
+                backgroundColor: '#fff',
+                borderRadius: 16,
+                paddingVertical: 16,
+                alignItems: 'center',
+                flexDirection: 'row',
+                justifyContent: 'center',
+                gap: 8,
+                borderWidth: 2,
+                borderColor: '#9575cd',
+              }}
+              onPress={() => setShowCreateGroupModal(true)}
+            >
+              <MaterialIcons name="group-add" size={20} color="#9575cd" />
+              <Text style={{ color: '#9575cd', fontWeight: '600', fontSize: 16 }}>
+                Create Group
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Recent Chats */}
+          <View style={{ marginBottom: 24 }}>
+            <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#333', marginBottom: 16 }}>
+              Recent Chats
+            </Text>
+            {filteredRecentChats.length === 0 ? (
+              <View style={{ alignItems: 'center', padding: 40 }}>
+                <MaterialIcons name="chat-bubble-outline" size={64} color="#ddd" />
+                <Text style={{ fontSize: 16, color: '#999', marginTop: 16 }}>
+                  No recent chats
+                </Text>
+              </View>
+            ) : (
+              <View style={{ gap: 12 }}>
+                {filteredRecentChats.map((chat) => {
+                  const partner = users.find(u => u._id === chat.partnerId);
+                  if (!partner) return null;
+                  
+                  return (
+                    <TouchableOpacity
+                      key={chat._id}
+                      style={{
+                        backgroundColor: '#fff',
+                        borderRadius: 16,
+                        padding: 16,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 12,
+                        shadowColor: '#000',
+                        shadowOpacity: 0.05,
+                        shadowRadius: 5,
+                        elevation: 2,
+                      }}
+                      onPress={() => setSelectedChat(partner)}
+                    >
+                      <View style={{
+                        width: 48,
+                        height: 48,
+                        borderRadius: 24,
+                        backgroundColor: '#e3f2fd',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                      }}>
+                        <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#00418b' }}>
+                          {partner.firstname?.[0]}{partner.lastname?.[0]}
+                        </Text>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 16, fontWeight: '600', color: '#333', marginBottom: 4 }}>
+                          {partner.firstname} {partner.lastname}
+                        </Text>
+                        <Text style={{ fontSize: 14, color: '#666' }}>
+                          {lastMessages[chat._id]?.text || 'Start a conversation...'}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
+          </View>
+
+          {/* User Groups */}
+          <View style={{ marginBottom: 24 }}>
+            <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#333', marginBottom: 16 }}>
+              Groups
+            </Text>
+            {groups.length === 0 ? (
+              <View style={{ alignItems: 'center', padding: 40 }}>
+                <MaterialIcons name="group" size={64} color="#ddd" />
+                <Text style={{ fontSize: 16, color: '#999', marginTop: 16 }}>
+                  No groups yet
+                </Text>
+              </View>
+            ) : (
+              <View style={{ gap: 12 }}>
+                {groups.map((group) => (
+                  <TouchableOpacity
+                    key={group._id}
+                    style={{
+                      backgroundColor: '#fff',
+                      borderRadius: 16,
+                      padding: 16,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 12,
+                      shadowColor: '#000',
+                      shadowOpacity: 0.05,
+                      shadowRadius: 5,
+                      elevation: 2,
+                    }}
+                    onPress={() => setSelectedChat({ ...group, isGroup: true })}
+                  >
+                    <View style={{
+                      width: 48,
+                      height: 48,
+                      borderRadius: 24,
+                      backgroundColor: '#fff3e0',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                    }}>
+                      <MaterialIcons name="group" size={24} color="#f57c00" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 16, fontWeight: '600', color: '#333', marginBottom: 4 }}>
+                        {group.name}
+                      </Text>
+                      <Text style={{ fontSize: 14, color: '#666' }}>
+                        {group.members?.length || 0} members
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </View>
+        </ScrollView>
+
+        {/* New Chat Modal */}
+        <Modal
+          visible={showNewChatModal}
+          animationType="slide"
+          transparent={true}
+          onRequestClose={() => setShowNewChatModal(false)}
+        >
+          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
+            <View style={{ 
+              backgroundColor: '#fff', 
+              borderTopLeftRadius: 20, 
+              borderTopRightRadius: 20,
+              padding: 24,
+              maxHeight: '80%'
+            }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+                <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#333' }}>
+                  New Chat
+                </Text>
+                <TouchableOpacity onPress={() => setShowNewChatModal(false)}>
+                  <MaterialIcons name="close" size={24} color="#666" />
+                </TouchableOpacity>
+              </View>
+              
+              <TextInput
+                style={{
+                  borderWidth: 1,
+                  borderColor: '#ddd',
+                  borderRadius: 12,
+                  padding: 16,
+                  fontSize: 16,
+                  marginBottom: 24,
+                }}
+                placeholder="Search users..."
+                value={userSearchTerm}
+                onChangeText={setUserSearchTerm}
+              />
+              
+              <ScrollView style={{ maxHeight: 400 }}>
+                {filteredUsers.map((userItem) => (
+                  <TouchableOpacity
+                    key={userItem._id}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      padding: 16,
+                      borderBottomWidth: 1,
+                      borderBottomColor: '#f0f0f0',
+                    }}
+                    onPress={() => startNewChat(userItem)}
+                  >
+                    <View style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: 20,
+                      backgroundColor: '#e3f2fd',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      marginRight: 12,
+                    }}>
+                      <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#00418b' }}>
+                        {userItem.firstname?.[0]}{userItem.lastname?.[0]}
+                      </Text>
+                    </View>
+                    <View>
+                      <Text style={{ fontSize: 16, fontWeight: '600', color: '#333' }}>
+                        {userItem.firstname} {userItem.lastname}
+                      </Text>
+                      <Text style={{ fontSize: 14, color: '#666' }}>
+                        {userItem.role}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Create Group Modal */}
+        <Modal
+          visible={showCreateGroupModal}
+          animationType="slide"
+          transparent={true}
+          onRequestClose={() => setShowCreateGroupModal(false)}
+        >
+          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
+            <View style={{ 
+              backgroundColor: '#fff', 
+              borderTopLeftRadius: 20, 
+              borderTopRightRadius: 20,
+              padding: 24,
+              maxHeight: '80%'
+            }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+                <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#333' }}>
+                  Create Group
+                </Text>
+                <TouchableOpacity onPress={() => setShowCreateGroupModal(false)}>
+                  <MaterialIcons name="close" size={24} color="#666" />
+                </TouchableOpacity>
+              </View>
+              
+              <TextInput
+                style={{
+                  borderWidth: 1,
+                  borderColor: '#ddd',
+                  borderRadius: 12,
+                  padding: 16,
+                  fontSize: 16,
+                  marginBottom: 24,
+                }}
+                placeholder="Group name"
+                value={newGroupName}
+                onChangeText={setNewGroupName}
+              />
+              
+              <TouchableOpacity
+                style={{
+                  backgroundColor: '#9575cd',
+                  borderRadius: 12,
+                  padding: 16,
+                  alignItems: 'center',
+                }}
+                onPress={createGroup}
+              >
+                <Text style={{ color: '#fff', fontWeight: '600', fontSize: 16 }}>
+                  Create Group
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      </View>
+    );
+  }
+
+  // Chat View
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView 
+      style={{ flex: 1 }} 
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
       {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Chats</Text>
-        <Icon name="chat" size={28} color="#00418b" />
-      </View>
-
-      {/* Search Bar */}
-      <View style={styles.searchContainer}>
-        <View style={styles.searchBar}>
-          <Icon name="magnify" size={20} color="#666" style={styles.searchIcon} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search users or groups..."
-            placeholderTextColor="#999"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
+      <View style={{ 
+        backgroundColor: '#00418b', 
+        paddingTop: 48, 
+        paddingBottom: 16, 
+        paddingHorizontal: 24,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 16,
+      }}>
+        <TouchableOpacity onPress={() => setSelectedChat(null)}>
+          <MaterialIcons name="arrow-back" size={24} color="#fff" />
+        </TouchableOpacity>
+        
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#fff' }}>
+            {selectedChat.isGroup ? selectedChat.name : `${selectedChat.firstname} ${selectedChat.lastname}`}
+          </Text>
+          <Text style={{ fontSize: 14, color: '#e3f2fd' }}>
+            {selectedChat.isGroup ? 'Group Chat' : selectedChat.role}
+          </Text>
         </View>
       </View>
 
-      {/* Tab Navigation */}
-      <View style={styles.tabContainer}>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'users' && styles.activeTab]}
-          onPress={() => setActiveTab('users')}
-        >
-          <Text style={[styles.tabText, activeTab === 'users' && styles.activeTabText]}>
-            Users ({filteredUsers.length})
-          </Text>
+      {/* Messages */}
+      <ScrollView 
+        ref={scrollViewRef}
+        style={{ flex: 1, padding: 16 }}
+        showsVerticalScrollIndicator={false}
+      >
+        {messages[selectedChat._id]?.map((message, index) => (
+          <View
+            key={index}
+            style={{
+              alignSelf: message.senderId === user._id ? 'flex-end' : 'flex-start',
+              marginBottom: 16,
+              maxWidth: '80%',
+            }}
+          >
+            <View style={{
+              backgroundColor: message.senderId === user._id ? '#9575cd' : '#f0f0f0',
+              padding: 12,
+              borderRadius: 16,
+              borderBottomLeftRadius: message.senderId === user._id ? 16 : 4,
+              borderBottomRightRadius: message.senderId === user._id ? 4 : 16,
+            }}>
+              {message.fileUrl ? (
+                <View style={{ alignItems: 'center' }}>
+                  <MaterialIcons name="attach-file" size={24} color={message.senderId === user._id ? '#fff' : '#666'} />
+                  <Text style={{ 
+                    color: message.senderId === user._id ? '#fff' : '#666',
+                    fontSize: 12,
+                    marginTop: 4,
+                  }}>
+                    File attached
+                  </Text>
+                </View>
+              ) : (
+                <Text style={{ 
+                  color: message.senderId === user._id ? '#fff' : '#333',
+                  fontSize: 16,
+                }}>
+                  {message.message}
+                </Text>
+              )}
+            </View>
+            <Text style={{ 
+              fontSize: 12, 
+              color: '#999', 
+              marginTop: 4,
+              alignSelf: message.senderId === user._id ? 'flex-end' : 'flex-start',
+            }}>
+              {new Date(message.timestamp).toLocaleTimeString()}
+            </Text>
+          </View>
+        ))}
+        <View ref={messagesEndRef} />
+      </ScrollView>
+
+      {/* Message Input */}
+      <View style={{
+        backgroundColor: '#fff',
+        padding: 16,
+        borderTopWidth: 1,
+        borderTopColor: '#f0f0f0',
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+      }}>
+        <TouchableOpacity onPress={pickDocument}>
+          <MaterialIcons name="attach-file" size={24} color="#9575cd" />
         </TouchableOpacity>
+        
+        <TextInput
+          style={{
+            flex: 1,
+            borderWidth: 1,
+            borderColor: '#ddd',
+            borderRadius: 20,
+            paddingHorizontal: 16,
+            paddingVertical: 12,
+            fontSize: 16,
+          }}
+          placeholder="Type a message..."
+          value={newMessage}
+          onChangeText={setNewMessage}
+          multiline
+        />
+        
         <TouchableOpacity
-          style={[styles.tab, activeTab === 'groups' && styles.activeTab]}
-          onPress={() => setActiveTab('groups')}
+          style={{
+            backgroundColor: '#9575cd',
+            borderRadius: 20,
+            padding: 12,
+          }}
+          onPress={sendMessage}
         >
-          <Text style={[styles.tabText, activeTab === 'groups' && styles.activeTabText]}>
-            Groups ({filteredGroups.length})
-          </Text>
+          <MaterialIcons name="send" size={20} color="#fff" />
         </TouchableOpacity>
       </View>
 
-      {/* Create Group Button */}
-      {activeTab === 'groups' && (
-        <TouchableOpacity style={styles.createGroupButton} onPress={createGroup}>
-          <Icon name="plus" size={20} color="#fff" />
-          <Text style={styles.createGroupText}>Create New Group</Text>
-        </TouchableOpacity>
+      {/* File Preview */}
+      {selectedFile && (
+        <View style={{
+          backgroundColor: '#fff',
+          padding: 16,
+          borderTopWidth: 1,
+          borderTopColor: '#f0f0f0',
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 12,
+        }}>
+          <MaterialIcons name="attach-file" size={20} color="#9575cd" />
+          <Text style={{ flex: 1, fontSize: 14, color: '#666' }}>
+            {selectedFile.name}
+          </Text>
+          <TouchableOpacity onPress={() => setSelectedFile(null)}>
+            <MaterialIcons name="close" size={20} color="#f44336" />
+          </TouchableOpacity>
+        </View>
       )}
-
-      {/* Content */}
-      {activeTab === 'users' ? (
-        <FlatList
-          data={filteredUsers}
-          keyExtractor={item => item._id}
-          renderItem={renderUserItem}
-          showsVerticalScrollIndicator={false}
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Icon name="account-search" size={48} color="#ccc" />
-              <Text style={styles.emptyText}>
-                {searchQuery ? 'No users found matching your search.' : 'No users available for chat.'}
-              </Text>
-            </View>
-          }
-        />
-      ) : (
-        <FlatList
-          data={filteredGroups}
-          keyExtractor={item => item._id}
-          renderItem={renderGroupItem}
-          showsVerticalScrollIndicator={false}
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Icon name="account-group" size={48} color="#ccc" />
-              <Text style={styles.emptyText}>
-                {searchQuery ? 'No groups found matching your search.' : 'No groups available.'}
-              </Text>
-            </View>
-          }
-        />
-      )}
-    </View>
+    </KeyboardAvoidingView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f7f9fa',
-    padding: 16,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 24,
-  },
-  headerTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#00418b',
-    fontFamily: 'Poppins-Bold',
-  },
-  searchContainer: {
-    marginBottom: 20,
-  },
-  searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  searchIcon: {
-    marginRight: 8,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 16,
-    color: '#333',
-    fontFamily: 'Poppins-Regular',
-    paddingVertical: 8,
-  },
-  tabContainer: {
-    flexDirection: 'row',
-    marginBottom: 20,
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 4,
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: 12,
-    alignItems: 'center',
-    borderRadius: 8,
-  },
-  activeTab: {
-    backgroundColor: '#00418b',
-  },
-  tabText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#666',
-    fontFamily: 'Poppins-SemiBold',
-  },
-  activeTabText: {
-    color: '#fff',
-  },
-  createGroupButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#00418b',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 8,
-    marginBottom: 20,
-    alignSelf: 'flex-start',
-  },
-  createGroupText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-    marginLeft: 8,
-    fontFamily: 'Poppins-SemiBold',
-  },
-  userCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  userAvatar: {
-    marginRight: 16,
-  },
-  userInfo: {
-    flex: 1,
-  },
-  userName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 4,
-    fontFamily: 'Poppins-SemiBold',
-  },
-  userRole: {
-    fontSize: 14,
-    color: '#00418b',
-    marginBottom: 2,
-    fontFamily: 'Poppins-Medium',
-    textTransform: 'capitalize',
-  },
-  userEmail: {
-    fontSize: 12,
-    color: '#666',
-    fontFamily: 'Poppins-Regular',
-  },
-  groupCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  groupAvatar: {
-    marginRight: 16,
-  },
-  groupInfo: {
-    flex: 1,
-  },
-  groupName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 4,
-    fontFamily: 'Poppins-SemiBold',
-  },
-  groupDescription: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 2,
-    fontFamily: 'Poppins-Regular',
-  },
-  groupParticipants: {
-    fontSize: 12,
-    color: '#00418b',
-    fontFamily: 'Poppins-Medium',
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 40,
-  },
-  emptyText: {
-    fontSize: 14,
-    color: '#999',
-    textAlign: 'center',
-    marginTop: 12,
-    fontFamily: 'Poppins-Regular',
-  },
-});
