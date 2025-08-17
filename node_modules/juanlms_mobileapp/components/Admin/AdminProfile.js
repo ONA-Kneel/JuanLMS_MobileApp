@@ -10,7 +10,7 @@ import profileService from '../../services/profileService';
 import { updateUser } from '../UserContext';
 import * as ImagePicker from 'expo-image-picker';
 
-const API_URL = 'http://localhost:5000';
+const API_URL = 'https://juanlms-webapp-server.onrender.com';
 
 
 export default function AdminProfile() {

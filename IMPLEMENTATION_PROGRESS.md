@@ -4,7 +4,7 @@
 
 ### **Issues Fixed:**
 1. **API URL Mismatches** ✅
-   - Updated all components from `https://juanlms-webapp-server.onrender.com` to `http://localhost:5000`
+   - Updated all components from `https://juanlms-webapp-server.onrender.com` to `https://juanlms-webapp-server.onrender.com`
    - Fixed AdminChats, AdminSupportCenter, AdminCalendar, AdminAuditTrail, VPEAuditTrail
    - Updated adminService base URL
 

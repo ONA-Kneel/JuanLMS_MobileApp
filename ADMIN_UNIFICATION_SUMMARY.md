@@ -28,17 +28,17 @@ Successfully unified the data logic between the **web app** and **mobile app** f
 - **Fixed**: Response structure from direct array to `{logs: [...]}`
 
 #### ✅ Updated AdminCalendar.js
-- **Before**: Used `http://localhost:5000/api/events` (localhost)
+- **Before**: Used `https://juanlms-webapp-server.onrender.com/api/events` (localhost)
 - **After**: Uses `https://juanlms-webapp-server.onrender.com/events`
 - **Added**: Integration with holidays API (`https://date.nager.at/api/v3/PublicHolidays/`)
 
 #### ✅ Updated AdminChats.js
-- **Before**: Used `http://localhost:5000` (localhost)
+- **Before**: Used `https://juanlms-webapp-server.onrender.com` (localhost)
 - **After**: Uses `https://juanlms-webapp-server.onrender.com`
 - **Fixed**: Removed "director" role, replaced with "principal"
 
 #### ✅ Updated AdminSupportCenter.js
-- **Before**: Used `http://localhost:5000` (localhost)
+- **Before**: Used `https://juanlms-webapp-server.onrender.com` (localhost)
 - **After**: Uses `https://juanlms-webapp-server.onrender.com`
 
 ### 2. Role System Updates
@@ -78,7 +78,7 @@ Successfully unified the data logic between the **web app** and **mobile app** f
 ### 4. Base URL Updates
 
 #### ✅ All Components Updated
-- **Before**: `http://localhost:5000` (development)
+- **Before**: `https://juanlms-webapp-server.onrender.com` (development)
 - **After**: `https://juanlms-webapp-server.onrender.com` (production web app)
 
 ### 5. Components Updated

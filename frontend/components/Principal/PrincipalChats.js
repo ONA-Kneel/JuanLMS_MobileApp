@@ -14,7 +14,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useIsFocused } from '@react-navigation/native';
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:5000';
+const API_BASE_URL = 'https://juanlms-webapp-server.onrender.com';
 
 const UserItem = ({ user, onPress }) => (
   <TouchableOpacity style={styles.userItem} onPress={onPress}>

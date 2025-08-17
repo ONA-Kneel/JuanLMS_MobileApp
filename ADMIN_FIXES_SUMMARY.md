@@ -29,7 +29,7 @@ This document summarizes the fixes applied to resolve various issues in the Admi
 **Problem**: Audit trail components were using incorrect API endpoints and localhost URLs.
 
 **Solution**:
-- Updated API_BASE_URL from `http://localhost:5000` to `https://juanlms-webapp-server.onrender.com`
+- Updated API_BASE_URL from `https://juanlms-webapp-server.onrender.com` to `https://juanlms-webapp-server.onrender.com`
 - Fixed API endpoint paths (removed duplicate `/api` prefix)
 - Applied fixes to both `VPEAuditTrail.js` and `AdminAuditTrail.js`
 

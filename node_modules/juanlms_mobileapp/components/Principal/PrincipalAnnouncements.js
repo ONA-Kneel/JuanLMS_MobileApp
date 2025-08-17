@@ -15,7 +15,7 @@ import { useIsFocused } from '@react-navigation/native';
 import axios from 'axios';
 import { formatDate } from '../../utils/dateUtils';
 
-const API_BASE_URL = 'http://localhost:5000';
+const API_BASE_URL = 'https://juanlms-webapp-server.onrender.com';
 
 const AnnouncementItem = ({ announcement, onPress, onToggleStatus }) => (
   <TouchableOpacity style={styles.announcementItem} onPress={onPress}>

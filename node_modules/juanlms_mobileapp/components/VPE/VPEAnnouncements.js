@@ -6,7 +6,7 @@ import { useContext } from 'react';
 import { UserContext } from '../UserContext';
 import { formatDate } from '../../utils/dateUtils';
 
-const API_BASE_URL = 'http://localhost:5000';
+const API_BASE_URL = 'https://juanlms-webapp-server.onrender.com';
 
 export default function VPEAnnouncements() {
   const { user } = useContext(UserContext);
