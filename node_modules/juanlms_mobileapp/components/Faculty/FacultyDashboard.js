@@ -497,3 +497,60 @@ export default function FacultyDashboard() {
     </View>
   );
 }
+                    <Icon name="book-open-page-variant" size={48} color="#00418b" />
+                  )}
+                </View>
+                {/* Class Info */}
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ 
+                      fontSize: 18, 
+                      fontWeight: 'bold', 
+                      color: '#333',
+                      fontFamily: 'Poppins-Bold',
+                      marginBottom: 4
+                    }}>
+                      {course.className || course.name}
+                    </Text>
+                    <Text style={{ 
+                      fontSize: 14, 
+                      color: '#666',
+                      fontFamily: 'Poppins-Regular',
+                      marginBottom: 8
+                    }}>
+                      {course.classCode || course.code}
+                    </Text>
+                    <Text style={{ 
+                      fontSize: 12, 
+                      color: '#888',
+                      fontFamily: 'Poppins-Regular'
+                    }}>
+                      {course.members ? course.members.length : 0} Students
+                    </Text>
+                  </View>
+                  <Icon name="chevron-right" size={24} color="#00418b" />
+                </View>
+              </TouchableOpacity>
+                
+            ))}
+            {classes.length > 3 && (
+              <TouchableOpacity 
+                onPress={() => navigation.navigate('FClasses')}
+                style={{ 
+                  alignItems: 'center', 
+                  padding: 16, 
+                  backgroundColor: '#f0f0f0', 
+                  borderRadius: 12, 
+                  marginTop: 8 
+                }}>
+                <Text style={{ color: '#00418b', fontFamily: 'Poppins-Bold' }}>
+                  View {classes.length - 3} more classes
+                </Text>
+              </TouchableOpacity>
+            )}
+          </>
+        )}
+      </ScrollView>
+    </View>
+  );
+}

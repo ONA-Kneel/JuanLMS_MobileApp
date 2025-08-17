@@ -558,3 +558,12 @@ const AdminDashStyle = StyleSheet.create({
 });
 
 export default AdminDashStyle;
+    fontSize: 14,
+    fontFamily: 'Poppins-Medium',
+    color: '#222',
+    marginTop: 8,
+    textAlign: 'center',
+  },
+});
+
+export default AdminDashStyle;

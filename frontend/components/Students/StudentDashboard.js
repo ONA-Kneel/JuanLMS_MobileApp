@@ -418,3 +418,38 @@ export default function StudentDashboard() {
     </View>
   );
 } 
+                </Text>
+                <Text style={{
+                  fontSize: 12,
+                  color: '#888',
+                  fontFamily: 'Poppins-Regular'
+                }}>
+                  {course.members ? course.members.length : 0} Students
+                </Text>
+              </View>
+              <Icon name="chevron-right" size={24} color="#00418b" />
+            </View>
+          </TouchableOpacity>
+        ))}
+
+        {classes.length > 3 && (
+          <TouchableOpacity
+            onPress={() => changeScreen.navigate('SClasses')}
+            style={{
+              alignItems: 'center',
+              padding: 16,
+              backgroundColor: '#f0f0f0',
+              borderRadius: 12,
+              marginTop: 8
+            }}>
+            <Text style={{ color: '#00418b', fontFamily: 'Poppins-Bold' }}>
+              View {classes.length - 3} more classes
+            </Text>
+          </TouchableOpacity>
+        )}
+
+
+      </ScrollView>
+    </View>
+  );
+} 

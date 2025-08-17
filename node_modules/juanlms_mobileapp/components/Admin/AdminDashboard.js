@@ -507,3 +507,74 @@ export default function AdminDashboard() {
     </View>
   );
 }
+              <Text style={[AdminDashStyle.tableHeaderText, { flex: 2 }]}>Time</Text>
+            </View>
+            {recentLogs.length > 0 ? (
+              recentLogs.map((log, index) => (
+                <View 
+                  key={index} 
+                  style={[
+                    AdminDashStyle.tableRow, 
+                    { backgroundColor: index % 2 === 0 ? '#ffffff' : '#f8f9fa' }
+                  ]}
+                >
+                  <Text style={[AdminDashStyle.tableCellText, { flex: 2 }]} numberOfLines={1}>
+                    {log.userName}
+                  </Text>
+                  <Text style={[AdminDashStyle.tableCellText, { flex: 1 }]} numberOfLines={1}>
+                    {log.action}
+                  </Text>
+                  <Text style={[AdminDashStyle.tableCellText, { flex: 2 }]} numberOfLines={1}>
+                    {formatDate(log.timestamp)}
+                  </Text>
+                </View>
+              ))
+            ) : (
+              <View style={AdminDashStyle.emptyState}>
+                <Text style={AdminDashStyle.emptyStateText}>No recent activities found</Text>
+              </View>
+            )}
+          </View>
+        </View>
+
+        {/* Quick Actions */}
+        <View style={AdminDashStyle.quickActionsSection}>
+          <Text style={AdminDashStyle.sectionTitle}>Quick Actions</Text>
+          <View style={AdminDashStyle.quickActionsGrid}>
+            <TouchableOpacity 
+              style={AdminDashStyle.quickActionCard}
+              onPress={() => navigateToScreen('ACalendar')}
+            >
+              <Icon name="calendar" size={32} color="#00418b" />
+              <Text style={AdminDashStyle.quickActionText}>Calendar</Text>
+                </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={AdminDashStyle.quickActionCard}
+              onPress={() => navigateToScreen('AChat')}
+            >
+              <Icon name="chat" size={32} color="#00418b" />
+              <Text style={AdminDashStyle.quickActionText}>Chats</Text>
+                </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={AdminDashStyle.quickActionCard}
+              onPress={() => navigateToScreen('AAuditTrail')}
+            >
+              <Icon name="history" size={32} color="#00418b" />
+              <Text style={AdminDashStyle.quickActionText}>Audit Trail</Text>
+                </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={AdminDashStyle.quickActionCard}
+              onPress={() => navigateToScreen('ASupportCenter')}
+            >
+              <Icon name="help-circle" size={32} color="#00418b" />
+              <Text style={AdminDashStyle.quickActionText}>Support</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </ScrollView>
+    </View>
+  );
+}

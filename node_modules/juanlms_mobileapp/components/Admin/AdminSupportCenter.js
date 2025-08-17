@@ -433,8 +433,8 @@ export default function AdminSupportCenter() {
               <TouchableOpacity onPress={() => navigation.navigate('AProfile')}>
                 <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#e3f2fd', justifyContent: 'center', alignItems: 'center' }}>
                   <MaterialIcons name="person" size={24} color="#00418b" />
-                </View>
-              </TouchableOpacity>
+            </View>
+            </TouchableOpacity>
           </View>
         </View>
 

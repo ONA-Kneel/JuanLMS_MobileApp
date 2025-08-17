@@ -217,7 +217,7 @@ export default function PrincipalSupportCenter() {
                   <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#e3f2fd', justifyContent: 'center', alignItems: 'center' }}>
                     <MaterialIcons name="person" size={24} color="#00418b" />
                   </View>
-                </TouchableOpacity>
+            </TouchableOpacity>
               </View>
             </View>
           </View>

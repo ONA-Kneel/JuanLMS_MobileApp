@@ -43,7 +43,7 @@ export default function GroupChat() {
 
     (async () => {
       const token = await AsyncStorage.getItem('jwtToken');
-      axios.get(`${SOCKET_URL}/api/group-chats/${selectedGroup._id}/messages?userId=${user._id}`, {
+      axios.get(`${SOCKET_URL}/group-chats/${selectedGroup._id}/messages?userId=${user._id}`, {
         headers: { Authorization: `Bearer ${token}` }
       })
         .then(res => setMessages(res.data))
@@ -103,7 +103,7 @@ export default function GroupChat() {
     // Save to database
     try {
       const token = await AsyncStorage.getItem('jwtToken');
-      await axios.post(`${SOCKET_URL}/api/group-chats/${selectedGroup._id}/messages`, {
+              await axios.post(`${SOCKET_URL}/group-chats/${selectedGroup._id}/messages`, {
         senderId: user._id,
         message: input,
       }, {
@@ -123,7 +123,7 @@ export default function GroupChat() {
   const handleLeaveGroup = async () => {
     try {
       const token = await AsyncStorage.getItem('jwtToken');
-      await axios.post(`${SOCKET_URL}/api/group-chats/${selectedGroup._id}/leave`, {
+              await axios.post(`${SOCKET_URL}/group-chats/${selectedGroup._id}/leave`, {
         userId: user._id,
       }, {
         headers: { Authorization: `Bearer ${token}` }
@@ -147,7 +147,7 @@ export default function GroupChat() {
   const handleRemoveMember = async (memberId) => {
     try {
       const token = await AsyncStorage.getItem('jwtToken');
-      await axios.post(`${SOCKET_URL}/api/group-chats/${selectedGroup._id}/remove-member`, {
+              await axios.post(`${SOCKET_URL}/group-chats/${selectedGroup._id}/remove-member`, {
         userId: user._id,
         memberId: memberId,
       }, {

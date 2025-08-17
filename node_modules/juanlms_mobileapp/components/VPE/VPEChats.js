@@ -198,7 +198,7 @@ export default function VPEChats() {
       
       try {
         const token = await AsyncStorage.getItem('jwtToken');
-        const response = await fetch(`${API_BASE}/api/group-chats/user/${user._id}`, {
+        const response = await fetch(`${API_BASE}/group-chats/user/${user._id}`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
@@ -338,7 +338,7 @@ export default function VPEChats() {
         members: selectedGroupMembers,
       };
 
-      const response = await fetch(`${API_BASE}/api/group-chats`, {
+      const response = await fetch(`${API_BASE}/group-chats`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -369,7 +369,7 @@ export default function VPEChats() {
 
     try {
       const token = await AsyncStorage.getItem('jwtToken');
-      const response = await fetch(`${API_BASE}/api/group-chats/${joinGroupCode}/join`, {
+      const response = await fetch(`${API_BASE}/group-chats/${joinGroupCode}/join`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -706,7 +706,7 @@ export default function VPEChats() {
         >
           <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
             <View style={{ 
-              backgroundColor: '#fff', 
+              backgroundColor: '#fff',
               borderTopLeftRadius: 20, 
               borderTopRightRadius: 20,
               padding: 24,
@@ -763,7 +763,7 @@ export default function VPEChats() {
     >
       {/* Header */}
       <View style={{ 
-        backgroundColor: '#00418b', 
+        backgroundColor: '#00418b',
         paddingTop: 48, 
         paddingBottom: 16, 
         paddingHorizontal: 24,

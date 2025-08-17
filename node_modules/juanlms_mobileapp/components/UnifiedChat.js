@@ -93,7 +93,7 @@ export default function UnifiedChat() {
 
     if (isGroupChat) {
       // Fetch group messages
-      axios.get(`${SOCKET_URL}/api/group-chats/${selectedGroup._id}/messages?userId=${user._id}`)
+      axios.get(`${SOCKET_URL}/group-chats/${selectedGroup._id}/messages?userId=${user._id}`)
         .then(res => setMessages(res.data))
         .catch((err) => {
           console.log('Error fetching group messages:', err);
@@ -177,8 +177,8 @@ export default function UnifiedChat() {
 
   const fetchUserGroups = async () => {
     try {
-      console.log('Fetching user groups from:', `${SOCKET_URL}/api/group-chats/user/${user._id}`);
-      const response = await axios.get(`${SOCKET_URL}/api/group-chats/user/${user._id}`);
+              console.log('Fetching user groups from:', `${SOCKET_URL}/group-chats/user/${user._id}`);
+        const response = await axios.get(`${SOCKET_URL}/group-chats/user/${user._id}`);
       console.log('User groups response:', response.data);
       setUserGroups(response.data);
     } catch (error) {
@@ -222,7 +222,7 @@ export default function UnifiedChat() {
 
       // Save to database
       try {
-        await axios.post(`${SOCKET_URL}/api/group-chats/${selectedGroup._id}/messages`, {
+        await axios.post(`${SOCKET_URL}/group-chats/${selectedGroup._id}/messages`, {
           senderId: user._id,
           message: input,
         });
@@ -302,7 +302,7 @@ export default function UnifiedChat() {
     }
 
     try {
-      const response = await axios.post(`${SOCKET_URL}/api/group-chats`, {
+              const response = await axios.post(`${SOCKET_URL}/group-chats`, {
         name: groupName.trim(),
         description: groupDescription.trim(),
         createdBy: user._id,
@@ -332,7 +332,7 @@ export default function UnifiedChat() {
     }
 
     try {
-      await axios.post(`${SOCKET_URL}/api/group-chats/${joinGroupId}/join`, {
+              await axios.post(`${SOCKET_URL}/group-chats/${joinGroupId}/join`, {
         userId: user._id
       });
 
@@ -358,7 +358,7 @@ export default function UnifiedChat() {
 
   const handleLeaveGroup = async () => {
     try {
-      await axios.post(`${SOCKET_URL}/api/group-chats/${selectedGroup._id}/leave`, {
+              await axios.post(`${SOCKET_URL}/group-chats/${selectedGroup._id}/leave`, {
         userId: user._id,
       });
 
@@ -379,7 +379,7 @@ export default function UnifiedChat() {
 
   const handleRemoveMember = async (memberId) => {
     try {
-      await axios.post(`${SOCKET_URL}/api/group-chats/${selectedGroup._id}/remove-member`, {
+              await axios.post(`${SOCKET_URL}/group-chats/${selectedGroup._id}/remove-member`, {
         userId: user._id,
         memberId: memberId,
       });

@@ -212,12 +212,12 @@ export default function FacultySupportCenter() {
                   <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#e3f2fd', justifyContent: 'center', alignItems: 'center' }}>
                     <MaterialIcons name="arrow-back" size={24} color="#00418b" />
                   </View>
-                </TouchableOpacity>
+        </TouchableOpacity>
                 <TouchableOpacity onPress={() => navigation.navigate('FProfile')}>
                   <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#e3f2fd', justifyContent: 'center', alignItems: 'center' }}>
                     <MaterialIcons name="person" size={24} color="#00418b" />
-                  </View>
-                </TouchableOpacity>
+      </View>
+        </TouchableOpacity>
               </View>
             </View>
       </View>
@@ -395,6 +395,230 @@ export default function FacultySupportCenter() {
               elevation: 3,
             }}
             onPress={handleSubmitTicket}
+            disabled={submitting}
+          >
+            {submitting ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Text style={{ fontSize: 18, fontWeight: '600', color: '#fff', fontFamily: 'Poppins-Medium' }}>
+                Submit Ticket
+          </Text>
+            )}
+        </TouchableOpacity>
+        </ScrollView>
+      </View>
+    );
+  }
+
+  // My Tickets View
+  if (view === 'myTickets') {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#f6f7fb' }}>
+        {/* Header with back button */}
+          <View style={{
+          backgroundColor: '#00418b', 
+          paddingTop: 48, 
+          paddingBottom: 20, 
+          paddingHorizontal: 24,
+          borderBottomLeftRadius: 20,
+          borderBottomRightRadius: 20,
+        }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+            <TouchableOpacity onPress={() => setView('main')} style={{ marginRight: 16 }}>
+              <MaterialIcons name="arrow-back" size={24} color="#fff" />
+            </TouchableOpacity>
+            <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#fff', fontFamily: 'Poppins-Bold' }}>
+              My Tickets
+            </Text>
+          </View>
+        </View>
+
+        <ScrollView style={{ flex: 1, padding: 24 }} showsVerticalScrollIndicator={false}>
+          {/* Filter Tabs */}
+          <View style={{ marginBottom: 24 }}>
+            <View style={{ flexDirection: 'row', backgroundColor: '#fff', borderRadius: 16, padding: 4, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5, elevation: 2 }}>
+              {['all', 'new', 'opened', 'closed'].map((tab) => (
+              <TouchableOpacity
+                  key={tab}
+                  style={{
+                    flex: 1,
+                    paddingVertical: 12,
+                    paddingHorizontal: 16,
+                    borderRadius: 12,
+                    backgroundColor: activeTab === tab ? '#9575cd' : 'transparent',
+                    alignItems: 'center',
+                  }}
+                  onPress={() => setActiveTab(tab)}
+                >
+                  <Text style={{
+                    fontSize: 14,
+                    fontWeight: '600',
+                    color: activeTab === tab ? '#fff' : '#666',
+                    fontFamily: 'Poppins-Medium',
+                    textTransform: 'capitalize',
+                  }}>
+                    {tab}
+                  </Text>
+          </TouchableOpacity>
+        ))}
+          </View>
+          </View>
+
+          {/* Sort Options */}
+          <View style={{ marginBottom: 24 }}>
+            <View style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5, elevation: 2 }}>
+              <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#333', marginBottom: 12, fontFamily: 'Poppins-Bold' }}>
+                Sort By
+              </Text>
+              <View style={{ flexDirection: 'row', gap: 12 }}>
+                <TouchableOpacity
+                  style={{
+                    paddingVertical: 10,
+                    paddingHorizontal: 20,
+                    borderRadius: 20,
+                    backgroundColor: sortBy === 'newest' ? '#9575cd' : '#f0f0f0',
+                  }}
+                  onPress={() => setSortBy('newest')}
+                >
+                  <Text style={{
+                    fontSize: 14,
+                    fontWeight: '600',
+                    color: sortBy === 'newest' ? '#fff' : '#666',
+                    fontFamily: 'Poppins-Medium',
+                  }}>
+                    Newest First
+                  </Text>
+                </TouchableOpacity>
+            <TouchableOpacity
+                  style={{
+                    paddingVertical: 10,
+                    paddingHorizontal: 20,
+                    borderRadius: 20,
+                    backgroundColor: sortBy === 'oldest' ? '#9575cd' : '#f0f0f0',
+                  }}
+                  onPress={() => setSortBy('oldest')}
+                >
+                  <Text style={{
+                    fontSize: 14,
+                    fontWeight: '600',
+                    color: sortBy === 'oldest' ? '#fff' : '#666',
+                    fontFamily: 'Poppins-Medium',
+                  }}>
+                    Oldest First
+                  </Text>
+            </TouchableOpacity>
+          </View>
+            </View>
+          </View>
+
+          {/* Search Bar */}
+          <View style={{ marginBottom: 24 }}>
+            <View style={{ position: 'relative' }}>
+              <Feather name="search" size={20} color="#999" style={{ position: 'absolute', left: 16, top: 18, zIndex: 1 }} />
+              <TextInput
+                style={{
+                  backgroundColor: '#fff',
+                  borderRadius: 16,
+                  paddingVertical: 16,
+                  paddingHorizontal: 48,
+                  fontSize: 16,
+                  fontFamily: 'Poppins-Regular',
+                  shadowColor: '#000',
+                  shadowOpacity: 0.05,
+                  shadowRadius: 5,
+                  elevation: 2,
+                }}
+                placeholder="Search tickets by subject or number..."
+                value={search}
+                onChangeText={setSearch}
+              />
+            </View>
+      </View>
+
+          {/* Tickets List */}
+          {loading ? (
+            <View style={{ alignItems: 'center', padding: 40 }}>
+              <ActivityIndicator size="large" color="#9575cd" />
+              <Text style={{ marginTop: 16, color: '#666', fontFamily: 'Poppins-Regular' }}>
+                Loading tickets...
+              </Text>
+            </View>
+          ) : error ? (
+            <View style={{ alignItems: 'center', padding: 40 }}>
+              <Text style={{ color: '#e74c3c', fontFamily: 'Poppins-Regular' }}>{error}</Text>
+            </View>
+          ) : tickets.length === 0 ? (
+            <View style={{ alignItems: 'center', padding: 40 }}>
+              <MaterialIcons name="support-agent" size={64} color="#ddd" />
+              <Text style={{ fontSize: 18, color: '#999', marginTop: 16, fontFamily: 'Poppins-Regular' }}>
+                No tickets found
+              </Text>
+            </View>
+          ) : (
+            <View style={{ gap: 16 }}>
+              {tickets
+                .filter(ticket => 
+                  ticket.subject?.toLowerCase().includes(search.toLowerCase()) ||
+                  ticket.number?.toLowerCase().includes(search.toLowerCase())
+                )
+                .map((ticket) => (
+                  <View
+                    key={ticket._id}
+              style={{
+                backgroundColor: '#fff',
+                      borderRadius: 16,
+                      padding: 20,
+                      shadowColor: '#000',
+                      shadowOpacity: 0.05,
+                      shadowRadius: 10,
+                      elevation: 3,
+                    }}
+                  >
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#333', marginBottom: 4, fontFamily: 'Poppins-Bold' }}>
+                          {ticket.subject}
+                        </Text>
+                        <Text style={{ fontSize: 12, color: '#666', marginBottom: 4, fontFamily: 'Poppins-Regular' }}>
+                          #{ticket.number}
+                        </Text>
+                        <Text style={{ fontSize: 12, color: '#666', fontFamily: 'Poppins-Regular' }}>
+                          {new Date(ticket.createdAt || ticket.timestamp).toLocaleDateString()}
+                        </Text>
+                      </View>
+                      <View style={{
+                        paddingHorizontal: 12,
+                        paddingVertical: 6,
+                        borderRadius: 20,
+                        backgroundColor: getStatusBgColor(ticket.status),
+                      }}>
+                        <Text style={{
+                          fontSize: 12,
+                          fontWeight: '600',
+                          color: getStatusColor(ticket.status),
+                          fontFamily: 'Poppins-Medium',
+                          textTransform: 'capitalize',
+                        }}>
+                          {ticket.status}
+                        </Text>
+                      </View>
+                    </View>
+                    
+                    <Text style={{ fontSize: 14, color: '#666', lineHeight: 20, fontFamily: 'Poppins-Regular' }} numberOfLines={3}>
+                      {ticket.description}
+                    </Text>
+                  </View>
+          ))}
+        </View>
+      )}
+    </ScrollView>
+      </View>
+  );
+  }
+
+  return null;
+}
+
             disabled={submitting}
           >
             {submitting ? (

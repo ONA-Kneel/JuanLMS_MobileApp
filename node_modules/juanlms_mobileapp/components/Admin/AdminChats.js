@@ -194,7 +194,7 @@ export default function AdminChats() {
       
       try {
         const token = await AsyncStorage.getItem('jwtToken');
-        const response = await fetch(`${API_BASE}/api/group-chats/user/${user._id}`, {
+        const response = await fetch(`${API_BASE}/group-chats/user/${user._id}`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
@@ -335,7 +335,7 @@ export default function AdminChats() {
         members: selectedParticipants,
       };
 
-      const response = await fetch(`${API_BASE}/api/group-chats`, {
+      const response = await fetch(`${API_BASE}/group-chats`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -367,7 +367,7 @@ export default function AdminChats() {
 
     try {
       const token = await AsyncStorage.getItem('jwtToken');
-              const response = await fetch(`${API_BASE}/api/group-chats/${joinGroupId}/join`, {
+              const response = await fetch(`${API_BASE}/group-chats/${joinGroupId}/join`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -410,11 +410,11 @@ export default function AdminChats() {
 
   // Chat List View
   if (!selectedChat) {
-    return (
+  return (
       <View style={{ flex: 1, backgroundColor: '#f6f7fb' }}>
         {/* Header */}
         <View style={{ 
-          backgroundColor: '#00418b', 
+                backgroundColor: '#00418b', 
           paddingTop: 48, 
           paddingBottom: 20, 
           paddingHorizontal: 24,
@@ -427,14 +427,14 @@ export default function AdminChats() {
           <Text style={{ fontSize: 14, color: '#e3f2fd' }}>
             Connect with your team members
           </Text>
-        </View>
+          </View>
 
         <ScrollView style={{ flex: 1, padding: 24 }} showsVerticalScrollIndicator={false}>
-          {/* Search Bar */}
+      {/* Search Bar */}
           <View style={{ marginBottom: 24 }}>
             <View style={{ position: 'relative' }}>
               <Feather name="search" size={20} color="#999" style={{ position: 'absolute', left: 16, top: 18, zIndex: 1 }} />
-              <TextInput
+      <TextInput
                 style={{
                   backgroundColor: '#fff',
                   borderRadius: 16,
@@ -448,15 +448,15 @@ export default function AdminChats() {
                   elevation: 2,
                 }}
                 placeholder="Search chats..."
-                value={searchTerm}
-                onChangeText={setSearchTerm}
+        value={searchTerm}
+        onChangeText={setSearchTerm}
               />
             </View>
           </View>
 
           {/* Action Buttons */}
           <View style={{ flexDirection: 'row', gap: 12, marginBottom: 24 }}>
-            <TouchableOpacity
+                <TouchableOpacity
               style={{
                 flex: 1,
                 backgroundColor: '#9575cd',
@@ -476,13 +476,13 @@ export default function AdminChats() {
             </TouchableOpacity>
             
             <TouchableOpacity
-              style={{
+                  style={{ 
                 flex: 1,
                 backgroundColor: '#fff',
                 borderRadius: 16,
                 paddingVertical: 16,
                 alignItems: 'center',
-                flexDirection: 'row',
+                    flexDirection: 'row',
                 justifyContent: 'center',
                 gap: 8,
                 borderWidth: 2,
@@ -494,8 +494,8 @@ export default function AdminChats() {
               <Text style={{ color: '#9575cd', fontWeight: '600', fontSize: 16 }}>
                 Create Group
               </Text>
-            </TouchableOpacity>
-          </View>
+                </TouchableOpacity>
+              </View>
 
           {/* Recent Chats */}
           <View style={{ marginBottom: 24 }}>
@@ -508,31 +508,31 @@ export default function AdminChats() {
                 <Text style={{ fontSize: 16, color: '#999', marginTop: 16 }}>
                   No recent chats
                 </Text>
-              </View>
+        </View>
             ) : (
               <View style={{ gap: 12 }}>
                 {filteredRecentChats.map((chat) => {
                   const partner = users.find(u => u._id === chat.partnerId);
-                  if (!partner) return null;
-                  
-                  return (
-                    <TouchableOpacity
+            if (!partner) return null;
+            
+            return (
+              <TouchableOpacity
                       key={chat._id}
-                      style={{
+                style={{ 
                         backgroundColor: '#fff',
                         borderRadius: 16,
                         padding: 16,
-                        flexDirection: 'row',
-                        alignItems: 'center',
+                  flexDirection: 'row',
+                  alignItems: 'center',
                         gap: 12,
                         shadowColor: '#000',
                         shadowOpacity: 0.05,
                         shadowRadius: 5,
-                        elevation: 2,
+                  elevation: 2,
                       }}
                       onPress={() => setSelectedChat(partner)}
                     >
-                      <View style={{
+                      <View style={{ 
                         width: 48,
                         height: 48,
                         borderRadius: 24,
@@ -550,11 +550,11 @@ export default function AdminChats() {
                         </Text>
                         <Text style={{ fontSize: 14, color: '#666' }}>
                           {lastMessages[chat._id]?.text || 'Start a conversation...'}
-                        </Text>
-                      </View>
-                    </TouchableOpacity>
-                  );
-                })}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
               </View>
             )}
           </View>
@@ -574,19 +574,19 @@ export default function AdminChats() {
             ) : (
               <View style={{ gap: 12 }}>
                 {userGroups.map((group) => (
-                  <TouchableOpacity
+            <TouchableOpacity
                     key={group._id}
-                    style={{
+              style={{ 
                       backgroundColor: '#fff',
                       borderRadius: 16,
                       padding: 16,
-                      flexDirection: 'row',
-                      alignItems: 'center',
+                flexDirection: 'row',
+                alignItems: 'center',
                       gap: 12,
                       shadowColor: '#000',
                       shadowOpacity: 0.05,
                       shadowRadius: 5,
-                      elevation: 2,
+                elevation: 2,
                     }}
                     onPress={() => setSelectedChat({ ...group, isGroup: true })}
                   >
@@ -666,32 +666,32 @@ export default function AdminChats() {
                     }}
                     onPress={() => startNewChat(userItem)}
                   >
-                    <View style={{
-                      width: 40,
-                      height: 40,
-                      borderRadius: 20,
+              <View style={{ 
+                width: 40, 
+                height: 40, 
+                borderRadius: 20, 
                       backgroundColor: '#e3f2fd',
                       justifyContent: 'center',
                       alignItems: 'center',
-                      marginRight: 12,
-                    }}>
+                marginRight: 12,
+              }}>
                       <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#00418b' }}>
                         {userItem.firstname?.[0]}{userItem.lastname?.[0]}
-                      </Text>
-                    </View>
+                </Text>
+              </View>
                     <View>
                       <Text style={{ fontSize: 16, fontWeight: '600', color: '#333' }}>
                         {userItem.firstname} {userItem.lastname}
                       </Text>
                       <Text style={{ fontSize: 14, color: '#666' }}>
                         {userItem.role}
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-          </View>
+                  </Text>
+              </View>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+    </View>
         </Modal>
 
         {/* Create Group Modal */}

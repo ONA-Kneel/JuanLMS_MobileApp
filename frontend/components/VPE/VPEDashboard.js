@@ -386,3 +386,49 @@ const styles = StyleSheet.create({
 });
 
 
+
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  activityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  activityInfo: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  activityUser: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#333',
+    fontFamily: 'Poppins-SemiBold',
+  },
+  activityRole: {
+    fontSize: 12,
+    color: '#666',
+    fontFamily: 'Poppins-Regular',
+  },
+  activityTime: {
+    fontSize: 12,
+    color: '#999',
+    fontFamily: 'Poppins-Regular',
+  },
+  noActivityText: {
+    fontSize: 14,
+    color: '#999',
+    textAlign: 'center',
+    fontStyle: 'italic',
+    fontFamily: 'Poppins-Regular',
+  },
+});
+
+

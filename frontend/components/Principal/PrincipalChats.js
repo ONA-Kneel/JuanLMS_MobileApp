@@ -198,7 +198,7 @@ export default function PrincipalChats() {
       
       try {
         const token = await AsyncStorage.getItem('jwtToken');
-        const response = await fetch(`${API_BASE}/api/group-chats/user/${user._id}`, {
+        const response = await fetch(`${API_BASE}/group-chats/user/${user._id}`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
@@ -338,7 +338,7 @@ export default function PrincipalChats() {
         members: selectedGroupMembers,
       };
 
-      const response = await fetch(`${API_BASE}/api/group-chats`, {
+      const response = await fetch(`${API_BASE}/group-chats`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -369,7 +369,7 @@ export default function PrincipalChats() {
 
     try {
       const token = await AsyncStorage.getItem('jwtToken');
-      const response = await fetch(`${API_BASE}/api/group-chats/${joinGroupCode}/join`, {
+      const response = await fetch(`${API_BASE}/group-chats/${joinGroupCode}/join`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -828,8 +828,8 @@ export default function PrincipalChats() {
               )}
             </View>
             <Text style={{ 
-              fontSize: 12, 
-              color: '#999', 
+              fontSize: 12,
+              color: '#999',
               marginTop: 4,
               alignSelf: message.senderId === user._id ? 'flex-end' : 'flex-start',
             }}>

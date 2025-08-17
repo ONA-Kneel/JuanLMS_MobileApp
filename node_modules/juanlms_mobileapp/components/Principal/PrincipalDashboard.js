@@ -449,3 +449,49 @@ const styles = StyleSheet.create({
 });
 
 
+
+    textAlign: 'center',
+    fontFamily: 'Poppins-Bold',
+  },
+  actionDescription: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 4,
+    textAlign: 'center',
+    fontFamily: 'Poppins-Regular',
+  },
+  recentContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+  },
+  recentItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  recentText: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  recentUser: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    fontFamily: 'Poppins-SemiBold',
+  },
+  recentRole: {
+    fontSize: 12,
+    color: '#666',
+    fontFamily: 'Poppins-Regular',
+  },
+  recentTime: {
+    fontSize: 12,
+    color: '#999',
+    fontFamily: 'Poppins-Regular',
+  },
+});
+
+

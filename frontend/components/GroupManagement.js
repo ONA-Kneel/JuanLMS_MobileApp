@@ -58,7 +58,7 @@ export default function GroupManagement() {
 
     try {
       const token = await AsyncStorage.getItem('jwtToken');
-      const response = await axios.post(`${SOCKET_URL}/api/group-chats`, {
+      const response = await axios.post(`${SOCKET_URL}/group-chats`, {
         name: groupName.trim(),
         createdBy: user._id,
         participants: selectedMembers
@@ -83,7 +83,7 @@ export default function GroupManagement() {
 
     try {
       const token = await AsyncStorage.getItem('jwtToken');
-      await axios.post(`${SOCKET_URL}/api/group-chats/${joinCode}/join`, {
+              await axios.post(`${SOCKET_URL}/group-chats/${joinCode}/join`, {
         userId: user._id
       }, {
         headers: { Authorization: `Bearer ${token}` }

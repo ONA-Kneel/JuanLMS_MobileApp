@@ -275,3 +275,90 @@ class AdminService {
 }
 
 export default new AdminService(); 
+
+      return {
+        schoolYear: Math.round(schoolYearProgress),
+        term: Math.round(termProgress)
+      };
+    } catch (error) {
+      console.error('Error fetching academic progress:', error);
+      return { schoolYear: 0, term: 0 };
+    }
+  }
+
+  // Get academic calendar events
+  async getAcademicCalendar(month, year) {
+    try {
+      const params = new URLSearchParams();
+      if (month !== undefined) params.append('month', month);
+      if (year !== undefined) params.append('year', year);
+      
+      // Get class dates and events
+      const classDates = await this.makeRequest('/api/class-dates');
+      const events = await this.makeRequest('/events');
+      
+      // Get holidays from external API
+      const holidaysRes = await fetch(`https://date.nager.at/api/v3/PublicHolidays/${year || new Date().getFullYear()}/PH`);
+      const holidays = await holidaysRes.json();
+      
+      return {
+        classDates: classDates || [],
+        events: events || [],
+        holidays: holidays || []
+      };
+    } catch (error) {
+      console.error('Error fetching academic calendar:', error);
+      return { classDates: [], events: [], holidays: [] };
+    }
+  }
+
+  // Create audit log entry
+  async createAuditLog(auditData) {
+    return this.makeRequest('/audit-log', {
+      method: 'POST',
+      body: JSON.stringify(auditData),
+    });
+  }
+
+  // Get dashboard summary (combines multiple endpoints like web app)
+  async getDashboardSummary() {
+    try {
+      const [userStats, recentLogins, auditPreview, activeUsers, academicProgress] = await Promise.all([
+        this.getUserStats(),
+        this.getRecentLogins(5),
+        this.getAuditPreview(5),
+        this.getActiveUsersToday(),
+        this.getAcademicProgress()
+      ]);
+
+             return {
+         userStats,
+         recentLogins: recentLogins || [],
+         auditPreview: auditPreview?.logs || [],
+         activeUsers,
+         academicProgress
+       };
+    } catch (error) {
+      console.error('Error fetching dashboard summary:', error);
+      throw error;
+    }
+  }
+
+  // Refresh dashboard data
+  async refreshDashboard() {
+    try {
+      const data = await this.getDashboardSummary();
+      return {
+        success: true,
+        data,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message,
+      };
+    }
+  }
+}
+
+export default new AdminService(); 

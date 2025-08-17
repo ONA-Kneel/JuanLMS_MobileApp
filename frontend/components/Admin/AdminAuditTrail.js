@@ -428,3 +428,68 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins-Medium',
   },
 }); 
+    marginRight: 8 
+  },
+  time: { 
+    fontSize: 13, 
+    color: '#888',
+    fontFamily: 'Poppins-Regular',
+    marginLeft: 'auto' 
+  },
+  detailsRow: {
+    marginTop: 4,
+    paddingTop: 4,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+  },
+  details: {
+    fontSize: 12,
+    color: '#666',
+    fontFamily: 'Poppins-Regular',
+    fontStyle: 'italic',
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 40,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#888',
+    fontFamily: 'Poppins-Regular',
+    textAlign: 'center',
+    marginTop: 12,
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: '#999',
+    fontFamily: 'Poppins-Regular',
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  errorContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#ff6b6b',
+    fontFamily: 'Poppins-Regular',
+    textAlign: 'center',
+    marginTop: 12,
+    marginBottom: 20,
+  },
+  retryButton: {
+    backgroundColor: '#00418b',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontFamily: 'Poppins-Medium',
+  },
+}); 

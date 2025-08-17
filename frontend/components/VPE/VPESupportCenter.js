@@ -206,22 +206,22 @@ export default function VPESupportCenter() {
                 <Text style={{ fontSize: 16, color: '#666', fontFamily: 'Poppins-Regular' }}>
                   {formatDateTime(currentDateTime)}
                 </Text>
-              </View>
+            </View>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                 <TouchableOpacity onPress={() => navigation.goBack()}>
                   <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#e3f2fd', justifyContent: 'center', alignItems: 'center' }}>
                     <MaterialIcons name="arrow-back" size={24} color="#00418b" />
-                  </View>
+            </View>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => navigation.navigate('VPEProfile')}>
                   <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#e3f2fd', justifyContent: 'center', alignItems: 'center' }}>
                     <MaterialIcons name="person" size={24} color="#00418b" />
-                  </View>
-                </TouchableOpacity>
-              </View>
-            </View>
+        </View>
+            </TouchableOpacity>
       </View>
-      
+    </View>
+      </View>
+
           {/* Welcome Section */}
           <View style={{ marginHorizontal: 24, marginBottom: 24 }}>
             <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 24, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 }}>

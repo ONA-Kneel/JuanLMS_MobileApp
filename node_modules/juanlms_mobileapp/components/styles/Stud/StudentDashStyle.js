@@ -116,3 +116,9 @@ const StudentDashStyle = StyleSheet.create({
 });
 
 export default StudentDashStyle;
+        color: '#222',
+        fontFamily: 'Poppins-Bold',
+    },
+});
+
+export default StudentDashStyle;
