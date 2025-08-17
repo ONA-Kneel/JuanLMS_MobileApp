@@ -76,16 +76,18 @@ const AdminDashStyle = StyleSheet.create({
   // Summary cards
   summaryCardsContainer: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'space-between',
     marginBottom: 20,
   },
   summaryCard: {
     backgroundColor: '#fff',
     borderRadius: 12,
-    padding: 16,
+    padding: 12,
     alignItems: 'center',
-    flex: 1,
-    marginHorizontal: 4,
+    width: (width - 60) / 3, // 3 cards per row with margins
+    marginBottom: 12,
+    marginHorizontal: 2,
     shadowColor: '#000',
     shadowOpacity: 0.04,
     shadowRadius: 4,

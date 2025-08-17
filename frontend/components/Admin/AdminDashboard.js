@@ -15,7 +15,7 @@ export default function AdminDashboard() {
   const { user } = useUser();
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
   const [recentLogs, setRecentLogs] = useState([]);
-  const [userStats, setUserStats] = useState({ admin: 0, faculty: 0, student: 0 });
+     const [userStats, setUserStats] = useState({ admin: 0, faculty: 0, student: 0, vpe: 0, principal: 0 });
   const [schoolYearProgress, setSchoolYearProgress] = useState(0);
   const [termProgress, setTermProgress] = useState(0);
   const [lastLogins, setLastLogins] = useState([]);
@@ -65,7 +65,7 @@ export default function AdminDashboard() {
         setError('Failed to load dashboard data');
         
                  // Fallback to mock data if all else fails
-         setUserStats({ admin: 1, faculty: 8, student: 17 });
+         setUserStats({ admin: 1, faculty: 8, student: 17, vpe: 1, principal: 1 });
          setLastLogins([
            { userName: 'Rochelle Borre', role: 'students' },
            { userName: 'Niel Nathan Borre', role: 'faculty' },
@@ -304,24 +304,36 @@ export default function AdminDashboard() {
           />
         }
       >
-        {/* Summary Cards */}
-        <View style={AdminDashStyle.summaryCardsContainer}>
-          <View style={AdminDashStyle.summaryCard}>
-            <Icon name="account-cog" size={24} color="#00418b" />
-            <Text style={AdminDashStyle.summaryNumber}>{userStats.admin}</Text>
-            <Text style={AdminDashStyle.summaryLabel}>Admins</Text>
-          </View>
-          <View style={AdminDashStyle.summaryCard}>
-            <Icon name="account-tie" size={24} color="#00418b" />
-            <Text style={AdminDashStyle.summaryNumber}>{userStats.faculty}</Text>
-            <Text style={AdminDashStyle.summaryLabel}>Faculty</Text>
-          </View>
-          <View style={AdminDashStyle.summaryCard}>
-            <Icon name="school" size={24} color="#00418b" />
-            <Text style={AdminDashStyle.summaryNumber}>{userStats.student}</Text>
-            <Text style={AdminDashStyle.summaryLabel}>Students</Text>
-          </View>
-        </View>
+                 {/* Summary Cards */}
+         <View style={AdminDashStyle.summaryCardsContainer}>
+           {/* First Row - 3 cards */}
+           <View style={AdminDashStyle.summaryCard}>
+             <Icon name="account-cog" size={24} color="#00418b" />
+             <Text style={AdminDashStyle.summaryNumber}>{userStats.admin}</Text>
+             <Text style={AdminDashStyle.summaryLabel}>Admins</Text>
+           </View>
+           <View style={AdminDashStyle.summaryCard}>
+             <Icon name="account-tie" size={24} color="#00418b" />
+             <Text style={AdminDashStyle.summaryNumber}>{userStats.faculty}</Text>
+             <Text style={AdminDashStyle.summaryLabel}>Faculty</Text>
+           </View>
+           <View style={AdminDashStyle.summaryCard}>
+             <Icon name="school" size={24} color="#00418b" />
+             <Text style={AdminDashStyle.summaryNumber}>{userStats.student}</Text>
+             <Text style={AdminDashStyle.summaryLabel}>Students</Text>
+           </View>
+           {/* Second Row - 2 cards */}
+           <View style={AdminDashStyle.summaryCard}>
+             <Icon name="account-star" size={24} color="#00418b" />
+             <Text style={AdminDashStyle.summaryNumber}>{userStats.vpe || 0}</Text>
+             <Text style={AdminDashStyle.summaryLabel}>VPE</Text>
+           </View>
+           <View style={AdminDashStyle.summaryCard}>
+             <Icon name="account-tie-woman" size={24} color="#00418b" />
+             <Text style={AdminDashStyle.summaryNumber}>{userStats.principal || 0}</Text>
+             <Text style={AdminDashStyle.summaryLabel}>Principal</Text>
+           </View>
+         </View>
 
         {/* Progress Bars */}
         <View style={AdminDashStyle.progressSection}>

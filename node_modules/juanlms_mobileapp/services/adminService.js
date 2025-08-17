@@ -41,10 +41,24 @@ class AdminService {
     }
   }
 
-  // Get user statistics (matches web app /user-counts endpoint)
-  async getUserStats() {
-    return this.makeRequest('/user-counts');
-  }
+     // Get user statistics (matches web app /user-counts endpoint)
+   async getUserStats() {
+     try {
+       const response = await this.makeRequest('/user-counts');
+       // Ensure all role counts are included with fallbacks
+       return {
+         admin: response?.admin || 0,
+         faculty: response?.faculty || 0,
+         student: response?.student || 0,
+         vpe: response?.vpe || 0,
+         principal: response?.principal || 0
+       };
+     } catch (error) {
+       console.error('Error fetching user stats:', error);
+       // Return default values if API fails
+       return { admin: 0, faculty: 0, student: 0, vpe: 0, principal: 0 };
+     }
+   }
 
      // Get recent login history from audit logs
    async getRecentLogins(limit = 10) {
