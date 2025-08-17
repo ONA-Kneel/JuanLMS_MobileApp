@@ -221,9 +221,18 @@ export default function StudentModule(){
     const handleFilePress = (file) => {
         console.log('File pressed:', file);
         if (isImageFile(file.fileName)) {
-            // Open image in viewer modal
+            // Validate image URL before opening
+            if (!file.fileUrl || file.fileUrl.trim() === '') {
+                Alert.alert('Error', 'Invalid image URL');
+                return;
+            }
+            
+            // Test if the image URL is accessible
             console.log('Opening image viewer for:', file.fileName);
             console.log('Image URL:', file.fileUrl);
+            
+            // Set loading state first
+            setImageLoading(true);
             setSelectedFile(file);
             setShowFileViewer(true);
         } else if (isVideoFile(file.fileName)) {
@@ -256,6 +265,22 @@ export default function StudentModule(){
         setSelectedFile(null);
         setImageLoading(false);
     };
+
+    // Add timeout for image loading to prevent stuck states
+    useEffect(() => {
+        let timeoutId;
+        if (imageLoading && showFileViewer) {
+            timeoutId = setTimeout(() => {
+                console.log('Image loading timeout - setting error state');
+                setImageLoading(false);
+                setSelectedFile(prev => ({ ...prev, error: true }));
+            }, 15000); // 15 second timeout
+        }
+        
+        return () => {
+            if (timeoutId) clearTimeout(timeoutId);
+        };
+    }, [imageLoading, showFileViewer]);
 
     // Debug modal state changes
     useEffect(() => {
@@ -926,12 +951,16 @@ export default function StudentModule(){
                 transparent
                 animationType="fade"
                 onRequestClose={() => {
-                    if (!imageLoading) {
+                    // Only allow closing if not loading and no critical errors
+                    if (!imageLoading && !selectedFile?.error) {
                         closeFileViewer();
-                    } else {
+                    } else if (imageLoading) {
                         console.log('Preventing modal close while image is loading');
+                    } else if (selectedFile?.error) {
+                        console.log('Preventing modal close while showing error state');
                     }
                 }}
+                statusBarTranslucent={true}
             >
                 <View style={styles.modalOverlay}>
                     <View style={styles.fileViewerModal}>
@@ -955,41 +984,63 @@ export default function StudentModule(){
                                             <Text style={styles.loadingText}>Loading image...</Text>
                                         </View>
                                     )}
-                                    <Image
-                                        source={{ 
-                                            uri: selectedFile.fileUrl,
-                                            // Add fallback for failed images
-                                            cache: 'force-cache'
-                                        }}
-                                        style={[
-                                            styles.imageViewer,
-                                            imageLoading && { opacity: 0 }
-                                        ]}
-                                        resizeMode="contain"
-                                        onLoadStart={() => {
-                                            console.log('Image loading started');
-                                            setImageLoading(true);
-                                        }}
-                                        onLoad={() => {
-                                            console.log('Image loaded successfully');
-                                            setImageLoading(false);
-                                        }}
-                                        onError={(error) => {
-                                            console.error('Image loading error:', error);
-                                            setImageLoading(false);
-                                            Alert.alert(
-                                                'Image Error', 
-                                                'Unable to load image. Please check the image URL or try again.',
-                                                [
-                                                    { text: 'OK', style: 'default' }
-                                                ]
-                                            );
-                                        }}
-                                        onLoadEnd={() => {
-                                            console.log('Image loading ended');
-                                            setImageLoading(false);
-                                        }}
-                                    />
+                                    
+                                    {/* Error state */}
+                                    {!imageLoading && selectedFile?.error && (
+                                        <View style={styles.errorContainer}>
+                                            <MaterialIcons name="error-outline" size={48} color="#f44336" />
+                                            <Text style={styles.errorText}>Failed to load image</Text>
+                                            <Text style={styles.errorSubtext}>The image could not be displayed</Text>
+                                            <TouchableOpacity
+                                                style={styles.retryButton}
+                                                onPress={() => {
+                                                    setImageLoading(true);
+                                                    setSelectedFile(prev => ({ ...prev, error: false }));
+                                                }}
+                                            >
+                                                <Text style={styles.retryButtonText}>Retry</Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                    )}
+                                    
+                                    {/* Image display */}
+                                    {!imageLoading && !selectedFile?.error && (
+                                        <Image
+                                            source={{ 
+                                                uri: selectedFile.fileUrl,
+                                                cache: 'reload', // Force reload to avoid cache issues
+                                                headers: {
+                                                    'Cache-Control': 'no-cache'
+                                                }
+                                            }}
+                                            style={styles.imageViewer}
+                                            resizeMode="contain"
+                                            onLoadStart={() => {
+                                                console.log('Image loading started for:', selectedFile.fileName);
+                                                console.log('Image URL:', selectedFile.fileUrl);
+                                                setImageLoading(true);
+                                            }}
+                                            onLoad={() => {
+                                                console.log('Image loaded successfully for:', selectedFile.fileName);
+                                                setImageLoading(false);
+                                            }}
+                                            onError={(error) => {
+                                                console.error('Image loading error for:', selectedFile.fileName);
+                                                console.error('Error details:', error);
+                                                console.error('Image URL was:', selectedFile.fileUrl);
+                                                setImageLoading(false);
+                                                // Set error state instead of closing modal
+                                                setSelectedFile(prev => ({ ...prev, error: true }));
+                                            }}
+                                            onLoadEnd={() => {
+                                                console.log('Image loading ended for:', selectedFile.fileName);
+                                                // Only set loading to false if no error occurred
+                                                if (!selectedFile?.error) {
+                                                    setImageLoading(false);
+                                                }
+                                            }}
+                                        />
+                                    )}
                                 </>
                             )}
                         </View>
@@ -1077,6 +1128,36 @@ const styles = {
         color: 'white',
         marginTop: 10,
         fontSize: 14,
+        fontWeight: 'bold',
+    },
+    errorContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 20,
+    },
+    errorText: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#f44336',
+        marginTop: 10,
+    },
+    errorSubtext: {
+        fontSize: 14,
+        color: '#666',
+        marginTop: 5,
+        textAlign: 'center',
+    },
+    retryButton: {
+        backgroundColor: '#00418b',
+        paddingVertical: 10,
+        paddingHorizontal: 20,
+        borderRadius: 8,
+        marginTop: 20,
+    },
+    retryButtonText: {
+        color: 'white',
+        fontSize: 16,
         fontWeight: 'bold',
     },
     fileActions: {
