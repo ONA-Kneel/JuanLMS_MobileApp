@@ -329,7 +329,7 @@ export default function AdminDashboard() {
              <Text style={AdminDashStyle.summaryLabel}>VPE</Text>
            </View>
            <View style={AdminDashStyle.summaryCard}>
-             <Icon name="account-tie-woman" size={24} color="#00418b" />
+             <Icon name="account-tie" size={24} color="#00418b" />
              <Text style={AdminDashStyle.summaryNumber}>{userStats.principal || 0}</Text>
              <Text style={AdminDashStyle.summaryLabel}>Principal</Text>
            </View>
