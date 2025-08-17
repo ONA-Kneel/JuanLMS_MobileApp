@@ -130,13 +130,10 @@ export default function FacultySupportCenter() {
         throw new Error(`Failed to submit ticket: ${response.status}`);
       }
 
-      Alert.alert('Success', 'Ticket submitted successfully!', [
-        { text: 'OK', onPress: () => {
-          setSubject('');
-          setContent('');
-          setView('myTickets');
-        }}
-      ]);
+      // Clear form and redirect to My Tickets immediately
+      setSubject('');
+      setContent('');
+      setView('myTickets');
       
     } catch (error) {
       console.error('Submit ticket error:', error);
