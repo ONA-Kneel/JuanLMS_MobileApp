@@ -13,10 +13,6 @@ export default function VPEDashboard() {
   const { user } = useUser();
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
   const [recentLogs, setRecentLogs] = useState([]);
-  const [userStats, setUserStats] = useState({ admin: 0, faculty: 0, student: 0, vpe: 0, principal: 0 });
-  const [schoolYearProgress, setSchoolYearProgress] = useState(0);
-  const [termProgress, setTermProgress] = useState(0);
-  const [lastLogins, setLastLogins] = useState([]);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [calendarDays, setCalendarDays] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -41,34 +37,8 @@ export default function VPEDashboard() {
         setLoading(true);
         setError(null);
         
-        // Fetch user stats
-        const token = await AsyncStorage.getItem('jwtToken');
-        const userStatsResponse = await fetch('https://juanlms-webapp-server.onrender.com/api/users/stats', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
-
-        if (userStatsResponse.ok) {
-          const userStatsData = await userStatsResponse.json();
-          setUserStats(userStatsData);
-        }
-
-        // Fetch recent logins
-        const recentLoginsResponse = await fetch('https://juanlms-webapp-server.onrender.com/audit-logs/last-10', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
-
-        if (recentLoginsResponse.ok) {
-          const recentLoginsData = await recentLoginsResponse.json();
-          setLastLogins(recentLoginsData.data.lastLogins || []);
-        }
-
         // Fetch audit logs
+        const token = await AsyncStorage.getItem('jwtToken');
         const auditResponse = await fetch('https://juanlms-webapp-server.onrender.com/audit-logs?page=1&limit=5', {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -96,22 +66,11 @@ export default function VPEDashboard() {
           setAcademicContext(`${academicData.data.academicYear || '2025-2026'} | ${academicData.data.currentTerm || 'Term 1'}`);
         }
 
-        // Calculate progress (mock data for now)
-        setSchoolYearProgress(18);
-        setTermProgress(100);
-
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
         setError('Failed to load dashboard data');
         
         // Fallback to mock data
-        setUserStats({ admin: 1, faculty: 8, student: 17, vpe: 1, principal: 1 });
-        setLastLogins([
-          { userName: 'Rochelle Borre', role: 'students' },
-          { userName: 'Niel Nathan Borre', role: 'faculty' },
-          { userName: 'Roman Cyril Panganiban', role: 'principal' },
-          { userName: 'hatdog asd', role: 'students' },
-        ]);
         setRecentLogs([
           { timestamp: '2025-08-03T12:43:56', userName: 'Will Bianca', action: 'Login' },
           { timestamp: '2025-07-22T00:06:11', userName: 'Rochelle Borre', action: 'Login' },
@@ -119,8 +78,6 @@ export default function VPEDashboard() {
           { timestamp: '2025-07-13T01:59:20', userName: 'Roman Cyril Panganiban', action: 'Login' },
           { timestamp: '2025-07-05T19:04:07', userName: 'hatdog asd', action: 'Login' },
         ]);
-        setSchoolYearProgress(18);
-        setTermProgress(100);
       } finally {
         setLoading(false);
       }
@@ -280,101 +237,6 @@ export default function VPEDashboard() {
           />
         }
       >
-        {/* Summary Cards */}
-        <View style={styles.summaryCardsContainer}>
-          {/* First Row - 3 cards */}
-          <View style={styles.summaryCard}>
-            <Icon name="account-cog" size={24} color="#00418b" />
-            <Text style={styles.summaryNumber}>{userStats.admin}</Text>
-            <Text style={styles.summaryLabel}>Admins</Text>
-          </View>
-          <View style={styles.summaryCard}>
-            <Icon name="account-tie" size={24} color="#00418b" />
-            <Text style={styles.summaryNumber}>{userStats.faculty}</Text>
-            <Text style={styles.summaryLabel}>Faculty</Text>
-          </View>
-          <View style={styles.summaryCard}>
-            <Icon name="school" size={24} color="#00418b" />
-            <Text style={styles.summaryNumber}>{userStats.student}</Text>
-            <Text style={styles.summaryLabel}>Students</Text>
-          </View>
-          {/* Second Row - 2 cards */}
-          <View style={styles.summaryCard}>
-            <Icon name="account-star" size={24} color="#00418b" />
-            <Text style={styles.summaryNumber}>{userStats.vpe || 0}</Text>
-            <Text style={styles.summaryLabel}>VPE</Text>
-          </View>
-          <View style={styles.summaryCard}>
-            <Icon name="account-tie" size={24} color="#00418b" />
-            <Text style={styles.summaryNumber}>{userStats.principal || 0}</Text>
-            <Text style={styles.summaryLabel}>Principal</Text>
-          </View>
-        </View>
-
-        {/* Progress Bars */}
-        <View style={styles.progressSection}>
-          <Text style={styles.sectionTitle}>Progress Tracking</Text>
-          
-          <View style={styles.progressCard}>
-            <Text style={styles.progressTitle}>School Year Progress</Text>
-            <View style={styles.progressBarContainer}>
-              <View style={[styles.progressBar, { backgroundColor: '#e0e0e0' }]}>
-                <View style={[styles.progressFill, { width: `${schoolYearProgress}%`, backgroundColor: '#8B5CF6' }]} />
-              </View>
-              <Text style={styles.progressText}>{schoolYearProgress}%</Text>
-            </View>
-            <Text style={styles.progressSubtext}>
-              Estimating from June 1, 2025 to April 30, 2026
-            </Text>
-          </View>
-
-          <View style={styles.progressCard}>
-            <Text style={styles.progressTitle}>Term Progress</Text>
-            <View style={styles.progressBarContainer}>
-              <View style={[styles.progressBar, { backgroundColor: '#e0e0e0' }]}>
-                <View style={[styles.progressFill, { width: `${termProgress}%`, backgroundColor: '#10B981' }]} />
-              </View>
-              <Text style={styles.progressText}>{termProgress}%</Text>
-            </View>
-            <Text style={styles.progressSubtext}>
-              Current term progress
-            </Text>
-          </View>
-        </View>
-
-        {/* Recent Logins Table */}
-        <View style={styles.tableSection}>
-          <Text style={styles.sectionTitle}>Recent Logins</Text>
-          <View style={styles.tableCard}>
-            <View style={styles.tableHeader}>
-              <Text style={[styles.tableHeaderText, { flex: 3 }]}>User</Text>
-              <Text style={[styles.tableHeaderText, { flex: 2 }]}>Role</Text>
-            </View>
-            {lastLogins.length > 0 ? (
-              lastLogins.map((login, index) => (
-                <View 
-                  key={index} 
-                  style={[
-                    styles.tableRow,
-                    { backgroundColor: index % 2 === 0 ? '#ffffff' : '#f8f9fa' }
-                  ]}
-                >
-                  <Text style={[styles.tableCellText, { flex: 3 }]} numberOfLines={1}>
-                    {login.userName}
-                  </Text>
-                  <Text style={[styles.tableCellText, { flex: 2 }]} numberOfLines={1}>
-                    {login.role}
-                  </Text>
-                </View>
-              ))
-            ) : (
-              <View style={styles.emptyState}>
-                <Text style={styles.emptyStateText}>No recent logins found</Text>
-              </View>
-            )}
-          </View>
-        </View>
-
         {/* Main Content Area - Two Column Layout */}
         <View style={styles.mainContentContainer}>
           {/* Left Column - Audit Trail Preview */}
@@ -470,44 +332,6 @@ export default function VPEDashboard() {
             </View>
           </View>
         </View>
-
-        {/* Quick Actions */}
-        <View style={styles.quickActionsSection}>
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
-          <View style={styles.quickActionsGrid}>
-            <TouchableOpacity 
-              style={styles.quickActionCard}
-              onPress={() => navigateToScreen('VPECalendar')}
-            >
-              <Icon name="calendar" size={32} color="#00418b" />
-              <Text style={styles.quickActionText}>Calendar</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={styles.quickActionCard}
-              onPress={() => navigateToScreen('VPEChats')}
-            >
-              <Icon name="chat" size={32} color="#00418b" />
-              <Text style={styles.quickActionText}>Chats</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={styles.quickActionCard}
-              onPress={() => navigateToScreen('VPEAuditTrail')}
-            >
-              <Icon name="history" size={32} color="#00418b" />
-              <Text style={styles.quickActionText}>Audit Trail</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={styles.quickActionCard}
-              onPress={() => navigateToScreen('VPESupportCenter')}
-            >
-              <Icon name="help-circle" size={32} color="#00418b" />
-              <Text style={styles.quickActionText}>Support</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
       </ScrollView>
     </View>
   );
@@ -584,42 +408,8 @@ const styles = {
     paddingTop: 10,
   },
 
-  // Summary cards
-  summaryCardsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-  },
-  summaryCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 12,
-    alignItems: 'center',
-    width: (width - 60) / 3, // 3 cards per row with margins
-    marginBottom: 12,
-    marginHorizontal: 2,
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  summaryNumber: {
-    fontSize: 24,
-    fontFamily: 'Poppins-Bold',
-    color: '#00418b',
-    marginTop: 8,
-    marginBottom: 4,
-  },
-  summaryLabel: {
-    fontSize: 12,
-    fontFamily: 'Poppins-Regular',
-    color: '#666',
-    textAlign: 'center',
-  },
-
-  // Progress section
-  progressSection: {
+  // Table section
+  tableSection: {
     marginBottom: 20,
   },
   sectionTitle: {
@@ -627,53 +417,6 @@ const styles = {
     fontFamily: 'Poppins-Bold',
     color: '#333',
     marginBottom: 12,
-  },
-  progressCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  progressTitle: {
-    fontSize: 16,
-    fontFamily: 'Poppins-SemiBold',
-    color: '#333',
-    marginBottom: 8,
-  },
-  progressBarContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  progressBar: {
-    flex: 1,
-    height: 8,
-    borderRadius: 4,
-    marginRight: 12,
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 4,
-  },
-  progressText: {
-    fontSize: 14,
-    fontFamily: 'Poppins-SemiBold',
-    color: '#00418b',
-    minWidth: 40,
-  },
-  progressSubtext: {
-    fontSize: 12,
-    fontFamily: 'Poppins-Regular',
-    color: '#666',
-  },
-
-  // Table section
-  tableSection: {
-    marginBottom: 20,
   },
   tableCard: {
     backgroundColor: '#fff',
@@ -810,35 +553,6 @@ const styles = {
   },
   calendarDayTextOtherMonth: {
     color: '#999',
-  },
-
-  // Quick actions
-  quickActionsSection: {
-    marginBottom: 20,
-  },
-  quickActionsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  quickActionCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    width: (width - 60) / 4, // 4 cards per row
-    marginBottom: 12,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  quickActionText: {
-    fontSize: 12,
-    fontFamily: 'Poppins-Medium',
-    color: '#00418b',
-    marginTop: 8,
-    textAlign: 'center',
   },
 };
 
