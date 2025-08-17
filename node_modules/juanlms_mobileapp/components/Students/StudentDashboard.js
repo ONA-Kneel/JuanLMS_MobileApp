@@ -141,10 +141,8 @@ export default function StudentDashboard() {
       }
       setError(null);
       
-      // Calculate completion percentage based on completed property if it exists
-      const completedCount = userClasses.filter(c => c.completed).length;
-      const totalCount = userClasses.length;
-      setCompletedClassesPercent(totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0);
+      // No completion percentage needed for active classes
+      setCompletedClassesPercent(0);
     } catch (error) {
       console.error('Network error fetching classes:', error);
       setClasses([]);
@@ -178,18 +176,17 @@ export default function StudentDashboard() {
         
         if (data.success) {
           setAssignmentsToday(data.assignments);
-          const completed = data.assignments.filter(a => a.completed).length;
-          setAssignmentsCompletedToday(completed);
-          setCompletedAssignmentsPercent(data.assignments.length === 0 ? 100 : Math.round((completed / data.assignments.length) * 100));
+          setAssignmentsCompletedToday(0);
+          setCompletedAssignmentsPercent(0);
         } else {
           setAssignmentsToday([]);
           setAssignmentsCompletedToday(0);
-          setCompletedAssignmentsPercent(100);
+          setCompletedAssignmentsPercent(0);
         }
       } catch (error) {
         setAssignmentsToday([]);
         setAssignmentsCompletedToday(0);
-        setCompletedAssignmentsPercent(100);
+        setCompletedAssignmentsPercent(0);
       }
     };
     
@@ -234,11 +231,19 @@ export default function StudentDashboard() {
             <Text style={StudentDashboardStyle.headerSubtitle}>{formatDateTime(currentDateTime)}</Text>
           </View>
           <TouchableOpacity onPress={() => changeScreen.navigate('SProfile')}>
-            <Image 
-              source={require('../../assets/profile-icon (2).png')} 
-              style={{ width: 36, height: 36, borderRadius: 18 }}
-              resizeMode="cover"
-            />
+            {user?.profilePicture ? (
+              <Image 
+                source={{ uri: user.profilePicture }} 
+                style={{ width: 36, height: 36, borderRadius: 18 }}
+                resizeMode="cover"
+              />
+            ) : (
+              <Image 
+                source={require('../../assets/profile-icon (2).png')} 
+                style={{ width: 36, height: 36, borderRadius: 18 }}
+                resizeMode="cover"
+              />
+            )}
           </TouchableOpacity>
         </View>
       </View>
@@ -254,13 +259,13 @@ export default function StudentDashboard() {
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 }}>
           <View style={{ flex: 1, backgroundColor: '#00418b', borderRadius: 16, alignItems: 'center', padding: 16, marginRight: 8, elevation: 2 }}>
             <Icon name="book" size={32} color="#fff" style={{ marginBottom: 8 }} />
-            <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 20, fontFamily: 'Poppins-Bold' }}>{completedClassesPercent}%</Text>
-            <Text style={{ color: '#fff', fontSize: 12, textAlign: 'center', fontFamily: 'Poppins-Regular' }}>Completed Classes</Text>
+            <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 20, fontFamily: 'Poppins-Bold' }}>{classes.length}</Text>
+            <Text style={{ color: '#fff', fontSize: 12, textAlign: 'center', fontFamily: 'Poppins-Regular' }}>Active Classes</Text>
           </View>
           <View style={{ flex: 1, backgroundColor: '#00418b', borderRadius: 16, alignItems: 'center', padding: 16, marginLeft: 8, elevation: 2 }}>
             <Icon name="pencil" size={32} color="#fff" style={{ marginBottom: 8 }} />
-            <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 20, fontFamily: 'Poppins-Bold' }}>{completedAssignmentsPercent}%</Text>
-            <Text style={{ color: '#fff', fontSize: 12, textAlign: 'center', fontFamily: 'Poppins-Regular' }}>Completed Assignments</Text>
+            <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 20, fontFamily: 'Poppins-Bold' }}>{assignmentsToday.length}</Text>
+            <Text style={{ color: '#fff', fontSize: 12, textAlign: 'center', fontFamily: 'Poppins-Regular' }}>Due Today</Text>
           </View>
         </View>
 
@@ -373,8 +378,7 @@ export default function StudentDashboard() {
           </TouchableOpacity>
         )}
 
-        {/* Completed Classes Section */}
-        <Text style={{ fontSize: 16, fontWeight: 'bold', marginTop: 24, marginBottom: 8, fontFamily: 'Poppins-Bold' }}>Completed Classes</Text>
+
       </ScrollView>
     </View>
   );

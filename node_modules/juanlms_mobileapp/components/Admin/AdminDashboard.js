@@ -236,10 +236,18 @@ export default function AdminDashboard() {
             </Text>
           </View>
           <TouchableOpacity onPress={() => navigateToScreen('AProfile')}>
-            <Image 
-              source={require('../../assets/profile-icon (2).png')} 
-              style={AdminDashStyle.profileImage}
-            />
+            {user?.profilePicture ? (
+              <Image 
+                source={{ uri: user.profilePicture }} 
+                style={AdminDashStyle.profileImage}
+                resizeMode="cover"
+              />
+            ) : (
+              <Image 
+                source={require('../../assets/profile-icon (2).png')} 
+                style={AdminDashStyle.profileImage}
+              />
+            )}
           </TouchableOpacity>
         </View>
       </View>

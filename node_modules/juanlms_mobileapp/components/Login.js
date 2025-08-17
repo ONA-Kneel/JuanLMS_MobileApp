@@ -21,7 +21,7 @@ export default function Login() {
   const [isCooldown, setIsCooldown] = useState(false);
   const [cooldownTimer, setCooldownTimer] = useState(0);
   const navigation = useNavigation();
-  const { setUser } = useUser();
+  const { setUserAndToken } = useUser();
 
   useEffect(() => {
     const loadLockoutState = async () => {
@@ -143,16 +143,27 @@ export default function Login() {
 
         // Fetch user data
         console.log('Fetching user data for ID:', userId);
-        const userRes = await fetch(`${loginUrl.replace('/login', '')}/users/${userId}`);
+        const userRes = await fetch(`${loginUrl.replace('/login', '')}/users/${userId}`, {
+          headers: {
+            'Authorization': `Bearer ${data.token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (!userRes.ok) {
+          throw new Error(`Failed to fetch user data: ${userRes.status}`);
+        }
+        
         const userData = await userRes.json();
         console.log('User data fetched:', {
           id: userData._id,
           role: userData.role,
-          email: userData.email
+          email: userData.email,
+          firstname: userData.firstname,
+          lastname: userData.lastname
         });
 
-        await AsyncStorage.setItem('user', JSON.stringify(userData));
-        setUser(userData);
+        await setUserAndToken(userData, data.token);
 
         // Add audit log for login
         await addAuditLog({
@@ -163,8 +174,6 @@ export default function Login() {
           details: `User ${userData.email} logged in.`,
           timestamp: new Date().toISOString(),
         });
-
-        await AsyncStorage.setItem('jwtToken', data.token);
 
         switch (role) {
           case 'students': 

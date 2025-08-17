@@ -111,19 +111,27 @@ export default function FacultyDashboard() {
       <View style={FacultyDashStyle.whiteHeaderCard}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <View>
-          <Text style={FacultyDashStyle.headerTitle}>
-              Hello, <Text style={{ fontWeight: 'bold', fontFamily: 'Poppins-Bold' }}>{user?.firstname || 'Student'}!</Text>
+                      <Text style={FacultyDashStyle.headerTitle}>
+              Hello, <Text style={{ fontWeight: 'bold', fontFamily: 'Poppins-Bold' }}>{user?.firstname || 'Faculty'}!</Text>
             </Text>
             <Text style={FacultyDashStyle.headerSubtitle}>{formatDateTime(currentDateTime)}</Text>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           
             <TouchableOpacity onPress={() => navigation.navigate('FProfile')}>
-              <Image 
-                source={require('../../assets/profile-icon (2).png')} 
-                style={{ width: 36, height: 36, borderRadius: 18 }}
-                resizeMode="cover"
-              />
+              {user?.profilePicture ? (
+                <Image 
+                  source={{ uri: user.profilePicture }} 
+                  style={{ width: 36, height: 36, borderRadius: 18 }}
+                  resizeMode="cover"
+                />
+              ) : (
+                <Image 
+                  source={require('../../assets/profile-icon (2).png')} 
+                  style={{ width: 36, height: 36, borderRadius: 18 }}
+                  resizeMode="cover"
+                />
+              )}
             </TouchableOpacity>
           </View>
         </View>

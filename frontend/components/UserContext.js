@@ -26,10 +26,23 @@ export function UserProvider({ children }) {
     }
   };
 
+  // Function to set user and token
+  const setUserAndToken = async (userData, token) => {
+    try {
+      setUser(userData);
+      await AsyncStorage.setItem('user', JSON.stringify(userData));
+      await AsyncStorage.setItem('jwtToken', token);
+      return { success: true };
+    } catch (error) {
+      console.error('Error setting user and token:', error);
+      return { success: false, error: error.message };
+    }
+  };
+
   console.log('UserProvider rendered');
 
   return (
-    <UserContext.Provider value={{ user, setUser, updateUser }}>
+    <UserContext.Provider value={{ user, setUser, updateUser, setUserAndToken }}>
       {children}
     </UserContext.Provider>
   );

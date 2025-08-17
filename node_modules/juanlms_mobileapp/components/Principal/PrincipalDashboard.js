@@ -7,10 +7,12 @@ import {
   TouchableOpacity,
   RefreshControl,
   Alert,
+  Image,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
 import { useIsFocused } from '@react-navigation/native';
+import { useUser } from '../UserContext';
 import axios from 'axios';
 
 const API_BASE_URL = 'https://juanlms-webapp-server.onrender.com';
@@ -38,6 +40,7 @@ const QuickActionCard = ({ title, description, icon, color, onPress }) => (
 export default function PrincipalDashboard() {
   const navigation = useNavigation();
   const isFocused = useIsFocused();
+  const { user } = useUser();
   const [dashboardData, setDashboardData] = useState({
     totalUsers: 0,
     totalClasses: 0,
@@ -130,8 +133,22 @@ export default function PrincipalDashboard() {
       }
     >
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Principal Dashboard</Text>
-        <Text style={styles.headerSubtitle}>Academic System Overview</Text>
+        <View>
+          <Text style={styles.headerTitle}>Principal Dashboard</Text>
+          <Text style={styles.headerSubtitle}>Welcome back, {user?.firstname || 'Principal'} {user?.lastname || ''}</Text>
+          <Text style={styles.headerDescription}>Academic System Overview</Text>
+        </View>
+        <TouchableOpacity onPress={() => navigation.navigate('PrincipalProfile')}>
+          {user?.profilePicture ? (
+            <Image 
+              source={{ uri: user.profilePicture }} 
+              style={styles.profileImage}
+              resizeMode="cover"
+            />
+          ) : (
+            <Icon name="account-tie" size={40} color="#00418b" />
+          )}
+        </TouchableOpacity>
       </View>
 
       {/* System Overview */}
@@ -244,6 +261,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#00418b',
     padding: 20,
     paddingTop: 40,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   headerTitle: {
     fontSize: 28,
@@ -256,6 +276,17 @@ const styles = StyleSheet.create({
     color: '#e3f2fd',
     marginTop: 4,
     fontFamily: 'Poppins-Regular',
+  },
+  headerDescription: {
+    fontSize: 14,
+    color: '#bbdefb',
+    marginTop: 2,
+    fontFamily: 'Poppins-Regular',
+  },
+  profileImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
   },
   section: {
     padding: 20,

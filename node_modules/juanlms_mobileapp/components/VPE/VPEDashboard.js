@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, Image } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { useUser } from '../UserContext';
 import axios from 'axios';
 
 const API_BASE_URL = 'https://juanlms-webapp-server.onrender.com';
 
 export default function VPEDashboard() {
   const navigation = useNavigation();
+  const { user } = useUser();
   const [stats, setStats] = useState({
     totalUsers: 0,
     totalClasses: 0,
@@ -77,9 +79,20 @@ export default function VPEDashboard() {
       <View style={styles.header}>
         <View>
           <Text style={styles.welcomeText}>Welcome back,</Text>
-          <Text style={styles.roleText}>Vice President in Education</Text>
+          <Text style={styles.roleText}>{user?.firstname || 'VPE'} {user?.lastname || ''}</Text>
+          <Text style={styles.subRoleText}>Vice President in Education</Text>
         </View>
-        <Icon name="school" size={40} color="#00418b" />
+        <TouchableOpacity onPress={() => navigation.navigate('VPEProfile')}>
+          {user?.profilePicture ? (
+            <Image 
+              source={{ uri: user.profilePicture }} 
+              style={styles.profileImage}
+              resizeMode="cover"
+            />
+          ) : (
+            <Icon name="school" size={40} color="#00418b" />
+          )}
+        </TouchableOpacity>
       </View>
 
       {/* Statistics Cards */}
@@ -190,6 +203,16 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#00418b',
     fontFamily: 'Poppins-Bold',
+  },
+  subRoleText: {
+    fontSize: 14,
+    color: '#666',
+    fontFamily: 'Poppins-Regular',
+  },
+  profileImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
   },
   sectionTitle: {
     fontSize: 18,
