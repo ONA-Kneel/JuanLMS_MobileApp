@@ -69,6 +69,14 @@ export default function AdminSupportCenter() {
 
       const data = await response.json();
       const ticketsData = Array.isArray(data) ? data : [];
+      
+      // Debug: Log the ticket data structure
+      console.log('Tickets fetched:', ticketsData);
+      if (ticketsData.length > 0) {
+        console.log('Sample ticket structure:', ticketsData[0]);
+        console.log('Sample ticket keys:', Object.keys(ticketsData[0]));
+      }
+      
       setTickets(ticketsData);
       
       // Fetch all tickets for accurate counts
@@ -102,43 +110,194 @@ export default function AdminSupportCenter() {
   const fetchUserDetails = async (tickets) => {
     try {
       const token = await AsyncStorage.getItem('jwtToken');
-      const response = await fetch('https://juanlms-webapp-server.onrender.com/users', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
       
-      if (response.ok) {
-        const allUsers = await response.json();
-        const users = Array.isArray(allUsers) ? allUsers : [];
+      // Debug: Log the tickets to see their structure
+      console.log('Tickets to fetch user details for:', tickets);
+      
+      // Try multiple possible user ID fields and API endpoints
+      const userDetailsMap = {};
+      
+      for (const ticket of tickets) {
+        console.log('Processing ticket:', ticket._id, 'with fields:', Object.keys(ticket));
         
-        // Create user map
-        const userMap = {};
-        users.forEach(user => {
-          if (user._id) {
-            userMap[user._id] = {
-              name: `${user.firstname || ''} ${user.lastname || ''}`.trim() || 'Unknown User',
-              role: user.role || 'Unknown'
-            };
+        // Check multiple possible user ID fields
+        const possibleUserIdFields = ['userId', 'userID', 'user_id', 'createdBy', 'author'];
+        let userId = null;
+        
+        for (const field of possibleUserIdFields) {
+          if (ticket[field]) {
+            userId = ticket[field];
+            console.log(`Found userId in field '${field}':`, userId);
+            break;
           }
-        });
+        }
         
-        // Map user details to tickets
-        const userDetailsMap = {};
-        tickets.forEach(ticket => {
-          if (ticket.userId && userMap[ticket.userId]) {
-            userDetailsMap[ticket._id] = userMap[ticket.userId];
-          } else {
-            userDetailsMap[ticket._id] = {
-              name: 'Unknown User',
-              role: 'Unknown'
-            };
+        // Also check if user details are already embedded in the ticket
+        if (ticket.user && ticket.user.firstname && ticket.user.lastname) {
+          console.log('User details found embedded in ticket:', ticket.user);
+          userDetailsMap[ticket._id] = {
+            name: `${ticket.user.firstname || ''} ${ticket.user.lastname || ''}`.trim() || 'Unknown User',
+            role: ticket.user.role || 'Unknown'
+          };
+          continue;
+        }
+        
+        if (ticket.userDetails && ticket.userDetails.firstname && ticket.userDetails.lastname) {
+          console.log('User details found in userDetails field:', ticket.userDetails);
+          userDetailsMap[ticket._id] = {
+            name: `${ticket.userDetails.firstname || ''} ${ticket.userDetails.lastname || ''}`.trim() || 'Unknown User',
+            role: ticket.userDetails.role || 'Unknown'
+          };
+          continue;
+        }
+        
+        if (!userId) {
+          console.log('No userId found in ticket:', ticket);
+          userDetailsMap[ticket._id] = {
+            name: 'No User ID Found',
+            role: 'Unknown'
+          };
+          continue;
+        }
+        
+        // Try to fetch user details from multiple endpoints
+        let userFound = false;
+        
+        // First, try to get all users at once for efficiency
+        try {
+          const response1 = await fetch('https://juanlms-webapp-server.onrender.com/users', {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          });
+          
+          if (response1.ok) {
+            const allUsers = await response1.json();
+            const users = Array.isArray(allUsers) ? allUsers : [];
+            console.log('Users from /users endpoint:', users.length);
+            
+            // Create a map for quick lookup
+            const userMap = {};
+            users.forEach(user => {
+              if (user._id) {
+                userMap[user._id] = user;
+              }
+            });
+            
+            const user = userMap[userId];
+            if (user) {
+              console.log('Found user in /users:', user);
+              userDetailsMap[ticket._id] = {
+                name: `${user.firstname || ''} ${user.lastname || ''}`.trim() || 'Unknown User',
+                role: user.role || 'Unknown'
+              };
+              userFound = true;
+            }
           }
-        });
+        } catch (error) {
+          console.log('Error with /users endpoint:', error);
+        }
         
-        setUserDetails(userDetailsMap);
+        // If not found, try /api/users endpoint
+        if (!userFound) {
+          try {
+            const response1b = await fetch('https://juanlms-webapp-server.onrender.com/api/users', {
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+              },
+            });
+            
+            if (response1b.ok) {
+              const allUsers = await response1b.json();
+              const users = Array.isArray(allUsers) ? allUsers : [];
+              console.log('Users from /api/users endpoint:', users.length);
+              
+              // Create a map for quick lookup
+              const userMap = {};
+              users.forEach(user => {
+                if (user._id) {
+                  userMap[user._id] = user;
+                }
+              });
+              
+              const user = userMap[userId];
+              if (user) {
+                console.log('Found user in /api/users:', user);
+                userDetailsMap[ticket._id] = {
+                  name: `${user.firstname || ''} ${user.lastname || ''}`.trim() || 'Unknown User',
+                  role: user.role || 'Unknown'
+                };
+                userFound = true;
+              }
+            }
+          } catch (error) {
+            console.log('Error with /api/users endpoint:', error);
+          }
+        }
+        
+        // If not found, try individual user endpoints
+        if (!userFound) {
+          // Endpoint 2: /api/users
+          try {
+            const response2 = await fetch(`https://juanlms-webapp-server.onrender.com/api/users/${userId}`, {
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+              },
+            });
+            
+            if (response2.ok) {
+              const user = await response2.json();
+              console.log('Found user in /api/users:', user);
+              userDetailsMap[ticket._id] = {
+                name: `${user.firstname || ''} ${user.lastname || ''}`.trim() || 'Unknown User',
+                role: user.role || 'Unknown'
+              };
+              userFound = true;
+            }
+          } catch (error) {
+            console.log('Error with /api/users endpoint:', error);
+          }
+        }
+        
+        if (!userFound) {
+          // Endpoint 3: /api/user
+          try {
+            const response3 = await fetch(`https://juanlms-webapp-server.onrender.com/api/user/${userId}`, {
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+              },
+            });
+            
+            if (response3.ok) {
+              const user = await response3.json();
+              console.log('Found user in /api/user:', user);
+              userDetailsMap[ticket._id] = {
+                name: `${user.firstname || ''} ${user.lastname || ''}`.trim() || 'Unknown User',
+                role: user.role || 'Unknown'
+              };
+              userFound = true;
+            }
+          } catch (error) {
+            console.log('Error with /api/user endpoint:', error);
+          }
+        }
+        
+        if (!userFound) {
+          console.log('User not found in any endpoint for ID:', userId);
+          userDetailsMap[ticket._id] = {
+            name: 'User Not Found',
+            role: 'Unknown'
+          };
+        }
       }
+      
+      console.log('Final userDetailsMap:', userDetailsMap);
+      setUserDetails(userDetailsMap);
+      
     } catch (error) {
       console.error('Error fetching user details:', error);
       // Set default values
@@ -331,18 +490,11 @@ export default function AdminSupportCenter() {
                   {formatDateTime(currentDateTime)}
                 </Text>
               </View>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                <TouchableOpacity onPress={() => navigation.goBack()}>
-                  <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#e3f2fd', justifyContent: 'center', alignItems: 'center' }}>
-                    <MaterialIcons name="arrow-back" size={24} color="#00418b" />
-                  </View>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => navigation.navigate('AProfile')}>
-                  <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#e3f2fd', justifyContent: 'center', alignItems: 'center' }}>
-                    <MaterialIcons name="person" size={24} color="#00418b" />
-                  </View>
-                </TouchableOpacity>
-              </View>
+              <TouchableOpacity onPress={() => navigation.navigate('AProfile')}>
+                <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#e3f2fd', justifyContent: 'center', alignItems: 'center' }}>
+                  <MaterialIcons name="person" size={24} color="#00418b" />
+                </View>
+              </TouchableOpacity>
           </View>
         </View>
 
@@ -458,6 +610,10 @@ export default function AdminSupportCenter() {
                         </Text>
                         <Text style={{ fontSize: 12, color: '#666', fontFamily: 'Poppins-Regular' }}>
                           #{ticket.number}
+                        </Text>
+                        {/* Debug: Show raw ticket data */}
+                        <Text style={{ fontSize: 10, color: '#999', fontFamily: 'Poppins-Regular' }}>
+                          Debug: userId={ticket.userId || 'none'}, userID={ticket.userID || 'none'}, user_id={ticket.user_id || 'none'}
                         </Text>
                       </View>
                       <View style={{
@@ -577,6 +733,28 @@ export default function AdminSupportCenter() {
 
             <Text style={{ fontSize: 16, color: '#333', lineHeight: 24, fontFamily: 'Poppins-Regular' }}>
               {selectedTicket.description}
+            </Text>
+          </View>
+
+          {/* Debug Section - Remove this after fixing the issue */}
+          <View style={{ backgroundColor: '#fff3cd', borderRadius: 16, padding: 20, marginBottom: 20, borderLeftWidth: 4, borderLeftColor: '#ffc107' }}>
+            <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#856404', marginBottom: 8, fontFamily: 'Poppins-Bold' }}>
+              🐛 Debug Information
+            </Text>
+            <Text style={{ fontSize: 12, color: '#856404', marginBottom: 4, fontFamily: 'Poppins-Regular' }}>
+              Ticket ID: {selectedTicket._id}
+            </Text>
+            <Text style={{ fontSize: 12, color: '#856404', marginBottom: 4, fontFamily: 'Poppins-Regular' }}>
+              User ID fields: userId={selectedTicket.userId || 'none'}, userID={selectedTicket.userID || 'none'}, user_id={selectedTicket.user_id || 'none'}
+            </Text>
+            <Text style={{ fontSize: 12, color: '#856404', marginBottom: 4, fontFamily: 'Poppins-Regular' }}>
+              Has user object: {selectedTicket.user ? 'Yes' : 'No'}
+            </Text>
+            <Text style={{ fontSize: 12, color: '#856404', marginBottom: 4, fontFamily: 'Poppins-Regular' }}>
+              Has userDetails: {selectedTicket.userDetails ? 'Yes' : 'No'}
+            </Text>
+            <Text style={{ fontSize: 12, color: '#856404', fontFamily: 'Poppins-Regular' }}>
+              All ticket keys: {Object.keys(selectedTicket).join(', ')}
             </Text>
           </View>
 
