@@ -78,7 +78,6 @@ import PrincipalChats from './components/Principal/PrincipalChats';
 import PrincipalSupportCenter from './components/Principal/PrincipalSupportCenter';
 import PrincipalProfile from './components/Principal/PrincipalProfile';
 import PrincipalAuditTrail from './components/Principal/PrincipalAuditTrail';
-import PrincipalAnnouncements from './components/Principal/PrincipalAnnouncements';
 import PrincipalGrades from './components/Principal/PrincipalGrades';
 
 
@@ -182,10 +181,8 @@ const principalNavItems = [
   { label: 'Dashboard', icon: 'view-dashboard', route: 'PrincipalDash' },
   { label: 'Calendar', icon: 'calendar', route: 'PrincipalCalendar' },
   { label: 'Chats', icon: 'chat', route: 'PrincipalChats' },
-  { label: 'Support', icon: 'help-circle', route: 'PrincipalSupport' },
-  { label: 'Audit', icon: 'history', route: 'PrincipalAudit' },
-  { label: 'Announcements', icon: 'bullhorn', route: 'PrincipalAnnouncements' },
   { label: 'Grades', icon: 'star', route: 'PrincipalGrades' },
+  { label: 'Audit', icon: 'history', route: 'PrincipalAudit' },
 ];
 
 function PrincipalTabs() {
@@ -197,10 +194,8 @@ function PrincipalTabs() {
       <Tabs.Screen name='PrincipalDash' component={PrincipalDashboard} />
       <Tabs.Screen name='PrincipalCalendar' component={PrincipalCalendar} />
       <Tabs.Screen name='PrincipalChats' component={PrincipalChats} />
-      <Tabs.Screen name='PrincipalSupport' component={PrincipalSupportCenter} />
-      <Tabs.Screen name='PrincipalAudit' component={PrincipalAuditTrail} />
-      <Tabs.Screen name='PrincipalAnnouncements' component={PrincipalAnnouncements} />
       <Tabs.Screen name='PrincipalGrades' component={PrincipalGrades} />
+      <Tabs.Screen name='PrincipalAudit' component={PrincipalAuditTrail} />
     </Tabs.Navigator>
   );
 }
@@ -289,6 +284,7 @@ export default function App() {
         {/* Principal */}
         <Screens.Screen name='PrincipalDash' component={PrincipalTabs} options={{ headerShown: false }}/>
         <Screens.Screen name='PrincipalProfile' component={PrincipalProfile} options={{ headerShown: false }}/>
+        <Screens.Screen name='PrincipalSupportCenter' component={PrincipalSupportCenter} options={{ headerShown: false }}/>
 
 
       </Screens.Navigator>

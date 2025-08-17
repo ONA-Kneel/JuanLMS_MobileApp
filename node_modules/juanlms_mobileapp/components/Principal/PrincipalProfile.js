@@ -46,7 +46,7 @@ export default function PrincipalProfile() {
   };
 
   const goToSupportCenter = () => {
-    navigation.navigate('PrincipalSupport');
+    navigation.navigate('PrincipalSupportCenter');
   };
 
   const pickImage = async () => {

@@ -8,85 +8,117 @@ import {
   RefreshControl,
   Alert,
   Image,
+  Dimensions,
+  ActivityIndicator,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
-import { useIsFocused } from '@react-navigation/native';
 import { useUser } from '../UserContext';
-import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import moment from 'moment';
 
-const API_BASE_URL = 'https://juanlms-webapp-server.onrender.com';
-
-const StatCard = ({ title, value, icon, color, onPress }) => (
-  <TouchableOpacity style={[styles.statCard, { borderLeftColor: color }]} onPress={onPress}>
-    <View style={styles.statContent}>
-      <Icon name={icon} size={32} color={color} />
-      <View style={styles.statText}>
-        <Text style={styles.statValue}>{value}</Text>
-        <Text style={styles.statTitle}>{title}</Text>
-      </View>
-    </View>
-  </TouchableOpacity>
-);
-
-const QuickActionCard = ({ title, description, icon, color, onPress }) => (
-  <TouchableOpacity style={styles.actionCard} onPress={onPress}>
-    <Icon name={icon} size={32} color={color} />
-    <Text style={styles.actionTitle}>{title}</Text>
-    <Text style={styles.actionDescription}>{description}</Text>
-  </TouchableOpacity>
-);
+const { width } = Dimensions.get('window');
 
 export default function PrincipalDashboard() {
   const navigation = useNavigation();
-  const isFocused = useIsFocused();
   const { user } = useUser();
-  const [dashboardData, setDashboardData] = useState({
-    totalUsers: 0,
-    totalClasses: 0,
-    totalAnnouncements: 0,
-    recentLogins: [],
-  });
-  const [isLoading, setIsLoading] = useState(false);
+  const [currentDateTime, setCurrentDateTime] = useState(new Date());
+  const [recentLogs, setRecentLogs] = useState([]);
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [calendarDays, setCalendarDays] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [academicYear, setAcademicYear] = useState('2025-2026');
+  const [currentTerm, setCurrentTerm] = useState('Term 1');
   const [academicContext, setAcademicContext] = useState('2025-2026 | Term 1');
 
-  const fetchDashboardData = async () => {
-    try {
-      setIsLoading(true);
-      
-      // Fetch data from multiple endpoints like the web app does
-      const [userCounts, recentLogins, auditLogs] = await Promise.all([
-        axios.get(`${API_BASE_URL}/user-counts`),
-        axios.get(`${API_BASE_URL}/audit-logs/last-logins`),
-        axios.get(`${API_BASE_URL}/audit-logs?page=1&limit=5`)
-      ]);
-      
-      if (userCounts.data && recentLogins.data && auditLogs.data) {
-        const totalUsers = (userCounts.data.admin || 0) + (userCounts.data.faculty || 0) + (userCounts.data.student || 0);
-        setDashboardData({
-          totalUsers,
-          totalClasses: 45, // This would need a separate endpoint
-          totalAnnouncements: 23, // This would need a separate endpoint
-          recentLogins: recentLogins.data.lastLogins || [],
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentDateTime(new Date());
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  // Fetch dashboard data
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        // Fetch audit logs
+        const token = await AsyncStorage.getItem('jwtToken');
+        const auditResponse = await fetch('https://juanlms-webapp-server.onrender.com/audit-logs?page=1&limit=5', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
         });
+
+        if (auditResponse.ok) {
+          const auditData = await auditResponse.json();
+          setRecentLogs(auditData.data?.logs || []);
+        }
+
+        // Fetch academic year info
+        const academicResponse = await fetch('https://juanlms-webapp-server.onrender.com/api/academic-year/active', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (academicResponse.ok) {
+          const academicData = await academicResponse.json();
+          if (academicData.success && academicData.academicYear) {
+            setAcademicYear(academicData.academicYear.year || '2025-2026');
+            setCurrentTerm(academicData.academicYear.currentTerm || 'Term 1');
+            setAcademicContext(`${academicData.academicYear.year || '2025-2026'} | ${academicData.academicYear.currentTerm || 'Term 1'}`);
+          }
+        }
+
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+        setError('Failed to load dashboard data');
+        
+        // Fallback to mock data
+        setRecentLogs([
+          { timestamp: '2025-08-03T12:43:56', userName: 'Will Bianca', action: 'Login' },
+          { timestamp: '2025-07-22T00:06:11', userName: 'Rochelle Borre', action: 'Login' },
+          { timestamp: '2025-07-20T23:23:40', userName: 'Niel Nathan Borre', action: 'Login' },
+          { timestamp: '2025-07-13T01:59:20', userName: 'Roman Cyril Panganiban', action: 'Login' },
+          { timestamp: '2025-07-05T19:04:07', userName: 'hatdog asd', action: 'Login' },
+        ]);
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      console.error('Error fetching dashboard data:', error);
-      // Use mock data as fallback
-      setDashboardData({
-        totalUsers: 1250,
-        totalClasses: 45,
-        totalAnnouncements: 23,
-        recentLogins: [
-          { user: 'Dr. Smith', role: 'Faculty', time: '2 hours ago' },
-          { user: 'John Doe', role: 'Student', time: '3 hours ago' },
-          { user: 'Admin User', role: 'Admin', time: '4 hours ago' },
-        ],
-      });
-    } finally {
-      setIsLoading(false);
+    };
+
+    fetchDashboardData();
+    generateCalendarDays();
+  }, []);
+
+  const generateCalendarDays = () => {
+    const year = currentMonth.getFullYear();
+    const month = currentMonth.getMonth();
+    
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const startDate = new Date(firstDay);
+    startDate.setDate(startDate.getDate() - firstDay.getDay());
+    
+    const days = [];
+    const currentDate = new Date(startDate);
+    
+    // Generate 42 days (6 weeks * 7 days)
+    for (let i = 0; i < 42; i++) {
+      days.push(new Date(currentDate));
+      currentDate.setDate(currentDate.getDate() + 1);
     }
+    
+    setCalendarDays(days);
   };
 
   const onRefresh = async () => {
@@ -95,200 +127,275 @@ export default function PrincipalDashboard() {
     setRefreshing(false);
   };
 
-  useEffect(() => {
-    if (isFocused) {
-      fetchDashboardData();
-      fetchAcademicYear();
-    }
-  }, [isFocused]);
-
-  const fetchAcademicYear = async () => {
+  const fetchDashboardData = async () => {
     try {
+      setLoading(true);
+      setError(null);
+      
+      // Fetch audit logs
       const token = await AsyncStorage.getItem('jwtToken');
-      const academicResponse = await fetch(`https://juanlms-webapp-server.onrender.com/api/academic-year/active`, {
-        method: 'GET',
+      const auditResponse = await fetch('https://juanlms-webapp-server.onrender.com/audit-logs?page=1&limit=5', {
         headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
       });
 
-      let activeYear = '2025-2026';
-      let activeTerm = 'Term 1';
-      
+      if (auditResponse.ok) {
+        const auditData = await auditResponse.json();
+        setRecentLogs(auditData.data?.logs || []);
+      }
+
+      // Fetch academic year info
+      const academicResponse = await fetch('https://juanlms-webapp-server.onrender.com/api/academic-year/active', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
       if (academicResponse.ok) {
         const academicData = await academicResponse.json();
-        console.log('Academic year API response:', academicData);
         if (academicData.success && academicData.academicYear) {
-          activeYear = academicData.academicYear.year;
-          activeTerm = academicData.academicYear.currentTerm;
-          console.log('Using academic year data:', activeYear, activeTerm);
-        } else {
-          console.log('Academic year data not in expected format:', academicData);
+          setAcademicYear(academicData.academicYear.year || '2025-2026');
+          setCurrentTerm(academicData.academicYear.currentTerm || 'Term 1');
+          setAcademicContext(`${academicData.academicYear.year || '2025-2026'} | ${academicData.academicYear.currentTerm || 'Term 1'}`);
         }
-      } else {
-        console.log('Academic year API not available, using default values');
-        console.log('Response status:', academicResponse.status);
       }
 
-      console.log('Active Academic Year:', activeYear, 'Term:', activeTerm);
-      setAcademicContext(`${activeYear} | ${activeTerm}`);
     } catch (error) {
-      console.error('Error fetching academic year:', error);
+      console.error('Error fetching dashboard data:', error);
+      setError('Failed to load dashboard data');
+      
+      // Fallback to mock data
+      setRecentLogs([
+        { timestamp: '2025-08-03T12:43:56', userName: 'Will Bianca', action: 'Login' },
+        { timestamp: '2025-07-22T00:06:11', userName: 'Rochelle Borre', action: 'Login' },
+        { timestamp: '2025-07-20T23:23:40', userName: 'Niel Nathan Borre', action: 'Login' },
+        { timestamp: '2025-07-13T01:59:20', userName: 'Roman Cyril Panganiban', action: 'Login' },
+        { timestamp: '2025-07-05T19:04:07', userName: 'hatdog asd', action: 'Login' },
+      ]);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleQuickAction = (action) => {
-    switch (action) {
-      case 'calendar':
-        navigation.navigate('PrincipalCalendar');
-        break;
-      case 'support':
-        navigation.navigate('PrincipalSupportCenter');
-        break;
-      case 'audit':
-        navigation.navigate('PrincipalAuditTrail');
-        break;
-      case 'chats':
-        navigation.navigate('PrincipalChats');
-        break;
-      case 'announcements':
-        navigation.navigate('PrincipalAnnouncements');
-        break;
-      case 'grades':
-        navigation.navigate('PrincipalGrades');
-        break;
-      default:
-        break;
+  const navigateToScreen = (screenName) => {
+    navigation.navigate(screenName);
+  };
+
+  const goToToday = () => {
+    const today = new Date();
+    setCurrentMonth(today);
+    generateCalendarDays();
+  };
+
+  const goToPreviousMonth = () => {
+    const newMonth = new Date(currentMonth);
+    newMonth.setMonth(newMonth.getMonth() - 1);
+    setCurrentMonth(newMonth);
+    generateCalendarDays();
+  };
+
+  const goToNextMonth = () => {
+    const newMonth = new Date(currentMonth);
+    newMonth.setMonth(newMonth.getMonth() + 1);
+    setCurrentMonth(newMonth);
+    generateCalendarDays();
+  };
+
+  const isToday = (date) => {
+    const today = new Date();
+    return date.toDateString() === today.toDateString();
+  };
+
+  const isCurrentMonth = (date) => {
+    return date.getMonth() === currentMonth.getMonth();
+  };
+
+  const formatDateTime = (date) => {
+    return date.toLocaleString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true
+    });
+  };
+
+  const formatDate = (dateString) => {
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      });
+    } catch (error) {
+      return 'Invalid date';
     }
   };
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color="#00418b" />
+        <Text style={{ marginTop: 16, fontFamily: 'Poppins-Regular', color: '#666' }}>
+          Loading dashboard...
+        </Text>
+      </View>
+    );
+  }
 
   return (
-    <ScrollView
-      style={styles.container}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-      }
-    >
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.headerTitle}>Principal Dashboard</Text>
-          <Text style={styles.headerSubtitle}>Welcome back, {user?.firstname || 'Principal'} {user?.lastname || ''}</Text>
-          <Text style={styles.headerDescription}>{academicContext}</Text>
-          <Text style={styles.headerSubtitle2}>Academic System Overview</Text>
-        </View>
-        <TouchableOpacity onPress={() => navigation.navigate('PrincipalProfile')}>
-          {user?.profilePicture ? (
-            <Image 
-              source={{ uri: user.profilePicture }} 
-              style={styles.profileImage}
-              resizeMode="cover"
-            />
-          ) : (
-            <Icon name="account-tie" size={40} color="#00418b" />
-          )}
-        </TouchableOpacity>
-      </View>
+    <View style={styles.container}>
+      {/* Blue background */}
+      <View style={styles.blueBackground} />
 
-      {/* System Overview */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>System Overview</Text>
-        <View style={styles.statsGrid}>
-          <StatCard
-            title="Total Users"
-            value={dashboardData.totalUsers.toLocaleString()}
-            icon="account-group"
-            color="#4CAF50"
-            onPress={() => Alert.alert('Users', `Total users: ${dashboardData.totalUsers}`)}
-          />
-          <StatCard
-            title="Active Classes"
-            value={dashboardData.totalClasses}
-            icon="school"
-            color="#2196F3"
-            onPress={() => Alert.alert('Classes', `Active classes: ${dashboardData.totalClasses}`)}
-          />
-          <StatCard
-            title="Announcements"
-            value={dashboardData.totalAnnouncements}
-            icon="bullhorn"
-            color="#FF9800"
-            onPress={() => navigation.navigate('PrincipalAnnouncements')}
-          />
-        </View>
-      </View>
-
-      {/* Quick Actions */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Quick Actions</Text>
-        <View style={styles.actionsGrid}>
-          <QuickActionCard
-            title="Academic Calendar"
-            description="View and manage academic events"
-            icon="calendar-month"
-            color="#9C27B0"
-            onPress={() => handleQuickAction('calendar')}
-          />
-          <QuickActionCard
-            title="Support Center"
-            description="Manage support tickets and issues"
-            icon="help-circle"
-            color="#607D8B"
-            onPress={() => handleQuickAction('support')}
-          />
-          <QuickActionCard
-            title="Audit Trail"
-            description="Monitor system activities"
-            icon="clipboard-list"
-            color="#795548"
-            onPress={() => handleQuickAction('audit')}
-          />
-          <QuickActionCard
-            title="Communication"
-            description="Chat with faculty and staff"
-            icon="chat"
-            color="#E91E63"
-            onPress={() => handleQuickAction('chats')}
-          />
-          <QuickActionCard
-            title="Announcements"
-            description="Create and manage announcements"
-            icon="bullhorn"
-            color="#FF9800"
-            onPress={() => handleQuickAction('announcements')}
-          />
-          <QuickActionCard
-            title="Academic Performance"
-            description="View grades and performance metrics"
-            icon="chart-line"
-            color="#4CAF50"
-            onPress={() => handleQuickAction('grades')}
-          />
-        </View>
-      </View>
-
-      {/* Recent Activity */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Recent Logins</Text>
-        <View style={styles.recentContainer}>
-          {dashboardData.recentLogins.map((login, index) => (
-            <View key={index} style={styles.recentItem}>
-              <Icon
-                name={login.role === 'Faculty' ? 'account-tie' : login.role === 'Student' ? 'school' : 'shield-account'}
-                size={24}
-                color="#666"
+      {/* Header Card */}
+      <View style={styles.headerCard}>
+        <View style={styles.headerContent}>
+          <View>
+            <Text style={styles.greetingText}>
+              Hello, <Text style={styles.userName}>{user?.firstname || 'Principal'}!</Text>
+            </Text>
+            <Text style={styles.academicContext}>{academicContext}</Text>
+            <Text style={styles.dateText}>
+              {formatDateTime(currentDateTime)}
+            </Text>
+          </View>
+          <TouchableOpacity onPress={() => navigateToScreen('PrincipalProfile')}>
+            {user?.profilePicture ? (
+              <Image 
+                source={{ uri: user.profilePicture }} 
+                style={styles.profileImage}
+                resizeMode="cover"
               />
-              <View style={styles.recentText}>
-                <Text style={styles.recentUser}>{login.user}</Text>
-                <Text style={styles.recentRole}>{login.role}</Text>
-              </View>
-              <Text style={styles.recentTime}>{login.time}</Text>
-            </View>
-          ))}
+            ) : (
+              <Image 
+                source={require('../../assets/profile-icon (2).png')} 
+                style={styles.profileImage}
+              />
+            )}
+          </TouchableOpacity>
         </View>
       </View>
-    </ScrollView>
+
+      {error && (
+        <View style={{ backgroundColor: '#fee', padding: 12, marginHorizontal: 20, borderRadius: 8, marginBottom: 10 }}>
+          <Text style={{ color: '#c33', fontFamily: 'Poppins-Regular', fontSize: 14 }}>
+            {error}
+          </Text>
+        </View>
+      )}
+
+      <ScrollView 
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#00418b']}
+            tintColor="#00418b"
+          />
+        }
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Audit Preview Section */}
+        <View style={styles.sectionContainer}>
+          <Text style={styles.sectionTitle}>Audit Preview</Text>
+          <View style={styles.tableCard}>
+            <View style={styles.tableHeader}>
+              <Text style={styles.tableHeaderText}>Timestamp</Text>
+              <Text style={styles.tableHeaderText}>User</Text>
+              <Text style={styles.tableHeaderText}>Details</Text>
+            </View>
+            {recentLogs.length > 0 ? (
+              recentLogs.map((log, index) => (
+                <View 
+                  key={index} 
+                  style={[
+                    styles.tableRow, 
+                    { backgroundColor: index % 2 === 0 ? '#ffffff' : '#f8f9fa' }
+                  ]}
+                >
+                  <Text style={styles.tableCellText} numberOfLines={1}>
+                    {formatDate(log.timestamp)}
+                  </Text>
+                  <Text style={styles.tableCellText} numberOfLines={1}>
+                    {log.userName}
+                  </Text>
+                  <Text style={styles.tableCellText} numberOfLines={1}>
+                    {log.action}
+                  </Text>
+                </View>
+              ))
+            ) : (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyStateText}>No logs found</Text>
+              </View>
+            )}
+          </View>
+        </View>
+
+        {/* Academic Calendar Section */}
+        <View style={styles.sectionContainer}>
+          <Text style={styles.sectionTitle}>Academic Calendar</Text>
+          <View style={styles.calendarCard}>
+            {/* Calendar Navigation */}
+            <View style={styles.calendarNavigation}>
+              <TouchableOpacity style={styles.calendarNavButton} onPress={goToToday}>
+                <Text style={styles.calendarNavButtonText}>today</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.calendarNavButton} onPress={goToPreviousMonth}>
+                <Text style={styles.calendarNavButtonText}>{'<'}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.calendarNavButton} onPress={goToNextMonth}>
+                <Text style={styles.calendarNavButtonText}>{'>'}</Text>
+              </TouchableOpacity>
+              <Text style={styles.calendarMonthText}>
+                {currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+              </Text>
+            </View>
+
+            {/* Calendar Grid */}
+            <View style={styles.calendarGrid}>
+              {/* Day Headers */}
+              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, index) => (
+                <View key={index} style={styles.calendarDayHeader}>
+                  <Text style={styles.calendarDayHeaderText}>{day}</Text>
+                </View>
+              ))}
+
+              {/* Calendar Days */}
+              {calendarDays.map((date, index) => (
+                <TouchableOpacity
+                  key={index}
+                  style={[
+                    styles.calendarDay,
+                    isToday(date) && styles.calendarDayToday,
+                    !isCurrentMonth(date) && styles.calendarDayOtherMonth
+                  ]}
+                >
+                  <Text style={[
+                    styles.calendarDayText,
+                    isToday(date) && styles.calendarDayTextToday,
+                    !isCurrentMonth(date) && styles.calendarDayTextOtherMonth
+                  ]}>
+                    {date.getDate()}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        </View>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -297,45 +404,76 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f5f5f5',
   },
-  header: {
+  blueBackground: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: width * 0.4, // Adjust height as needed
     backgroundColor: '#00418b',
+    borderBottomLeftRadius: 50,
+    borderBottomRightRadius: 50,
+    zIndex: -1,
+  },
+  headerCard: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
     padding: 20,
-    paddingTop: 40,
+    marginHorizontal: 20,
+    marginTop: -50, // Adjust to position it correctly
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+  },
+  headerContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  headerTitle: {
-    fontSize: 28,
+  greetingText: {
+    fontSize: 20,
+    color: '#333',
+    fontFamily: 'Poppins-Regular',
+  },
+  userName: {
+    fontSize: 20,
     fontWeight: 'bold',
-    color: '#fff',
+    color: '#00418b',
     fontFamily: 'Poppins-Bold',
   },
-  headerSubtitle: {
-    fontSize: 16,
-    color: '#e3f2fd',
-    marginTop: 4,
-    fontFamily: 'Poppins-Regular',
-  },
-  headerDescription: {
+  academicContext: {
     fontSize: 14,
-    color: '#bbdefb',
-    marginTop: 2,
+    color: '#666',
     fontFamily: 'Poppins-Regular',
+    marginTop: 4,
+  },
+  dateText: {
+    fontSize: 16,
+    color: '#00418b',
+    fontFamily: 'Poppins-Bold',
+    marginTop: 8,
   },
   profileImage: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
   },
-  headerSubtitle2: {
-    fontSize: 12,
-    color: '#bbdefb',
-    fontFamily: 'Poppins-Regular',
-    marginTop: 2,
+  scrollContent: {
+    paddingBottom: 20, // Add some padding at the bottom
   },
-  section: {
+  sectionContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 15,
     padding: 20,
+    marginHorizontal: 20,
+    marginBottom: 20,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   sectionTitle: {
     fontSize: 20,
@@ -344,107 +482,117 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     fontFamily: 'Poppins-Bold',
   },
-  statsGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 20,
+  tableCard: {
+    borderRadius: 10,
+    overflow: 'hidden',
   },
-  statCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
+  tableHeader: {
+    flexDirection: 'row',
+    backgroundColor: '#f0f0f0',
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  tableHeaderText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#333',
     flex: 1,
-    marginHorizontal: 4,
-    borderLeftWidth: 4,
-    elevation: 2,
+    textAlign: 'center',
+    fontFamily: 'Poppins-Bold',
+  },
+  tableRow: {
+    flexDirection: 'row',
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  tableCellText: {
+    fontSize: 14,
+    color: '#333',
+    flex: 1,
+    textAlign: 'center',
+    fontFamily: 'Poppins-Regular',
+  },
+  emptyState: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  emptyStateText: {
+    fontSize: 16,
+    color: '#666',
+    fontFamily: 'Poppins-Regular',
+  },
+  calendarCard: {
+    backgroundColor: '#fff',
+    borderRadius: 15,
+    padding: 20,
+    elevation: 3,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
   },
-  statContent: {
+  calendarNavigation: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 15,
   },
-  statText: {
-    marginLeft: 12,
-    flex: 1,
+  calendarNavButton: {
+    padding: 10,
+    borderRadius: 8,
+    backgroundColor: '#e0e0e0',
   },
-  statValue: {
-    fontSize: 24,
+  calendarNavButtonText: {
+    fontSize: 16,
+    color: '#333',
+    fontFamily: 'Poppins-Regular',
+  },
+  calendarMonthText: {
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#333',
     fontFamily: 'Poppins-Bold',
   },
-  statTitle: {
-    fontSize: 12,
-    color: '#666',
-    fontFamily: 'Poppins-Regular',
-  },
-  actionsGrid: {
+  calendarGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
   },
-  actionCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 20,
-    width: '48%',
-    marginBottom: 16,
+  calendarDayHeader: {
+    width: width * 0.142, // 7 days
     alignItems: 'center',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    marginBottom: 8,
   },
-  actionTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-    marginTop: 12,
-    textAlign: 'center',
-    fontFamily: 'Poppins-Bold',
-  },
-  actionDescription: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 4,
-    textAlign: 'center',
-    fontFamily: 'Poppins-Regular',
-  },
-  recentContainer: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-  },
-  recentItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  recentText: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  recentUser: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    fontFamily: 'Poppins-SemiBold',
-  },
-  recentRole: {
+  calendarDayHeaderText: {
     fontSize: 12,
     color: '#666',
     fontFamily: 'Poppins-Regular',
   },
-  recentTime: {
-    fontSize: 12,
-    color: '#999',
+  calendarDay: {
+    width: width * 0.142, // 7 days
+    height: width * 0.142, // 7 days
+    borderRadius: 15,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  calendarDayToday: {
+    backgroundColor: '#00418b',
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  calendarDayText: {
+    fontSize: 16,
+    color: '#333',
     fontFamily: 'Poppins-Regular',
+  },
+  calendarDayTextToday: {
+    color: '#fff',
+  },
+  calendarDayTextOtherMonth: {
+    color: '#ccc',
   },
 });
 
