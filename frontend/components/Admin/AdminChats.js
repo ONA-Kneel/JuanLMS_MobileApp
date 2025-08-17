@@ -24,6 +24,29 @@ import io from 'socket.io-client';
 const API_BASE = 'https://juanlms-webapp-server.onrender.com';
 const SOCKET_URL = 'https://juanlms-webapp-server.onrender.com';
 
+// Helper function to format timestamp
+const formatTimestamp = (timestamp) => {
+  if (!timestamp) return '';
+  
+  const date = new Date(timestamp);
+  const now = new Date();
+  const diffInHours = (now - date) / (1000 * 60 * 60);
+  
+  if (diffInHours < 24) {
+    // Today - show time
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  } else if (diffInHours < 48) {
+    // Yesterday
+    return 'Yesterday';
+  } else if (diffInHours < 168) {
+    // Within a week - show day name
+    return date.toLocaleDateString([], { weekday: 'short' });
+  } else {
+    // Older - show date
+    return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+  }
+};
+
 export default function AdminChats() {
   const navigation = useNavigation();
   const { user } = useUser();
@@ -106,7 +129,11 @@ export default function AdminChats() {
           : (incomingMessage.fileUrl ? 'File sent' : '');
         setLastMessages(prev => ({
           ...prev,
-          [chat._id]: { prefix, text }
+          [chat._id]: { 
+            prefix, 
+            text, 
+            timestamp: incomingMessage.timestamp 
+          }
         }));
       }
     });
@@ -132,6 +159,21 @@ export default function AdminChats() {
         };
         return newGroupMessages;
       });
+
+      // Update last message for group chats
+      const group = groups.find(g => g._id === data.groupId);
+      if (group) {
+        const prefix = `${data.senderName || 'Unknown'}: `;
+        const text = data.text || (data.fileUrl ? 'File sent' : '');
+        setLastMessages(prev => ({
+          ...prev,
+          [`group_${data.groupId}`]: { 
+            prefix, 
+            text, 
+            timestamp: incomingGroupMessage.timestamp 
+          }
+        }));
+      }
     });
 
     return () => {
@@ -171,21 +213,7 @@ export default function AdminChats() {
     fetchUsers();
   }, [user?._id]);
 
-  // Initialize recent chats from users (like web version)
-  useEffect(() => {
-    if (!user?._id || users.length === 0) return;
-    
-    // Create recent chats from users (this is how web version works)
-    const userChats = users.map(userItem => ({
-      _id: userItem._id,
-      partnerId: userItem._id,
-      firstname: userItem.firstname,
-      lastname: userItem.lastname,
-      role: userItem.role
-    }));
-    
-    setRecentChats(userChats);
-  }, [user?._id, users]);
+  // Note: Recent chats are now fetched from backend with actual message data
 
   // Fetch user groups
   useEffect(() => {
@@ -212,6 +240,60 @@ export default function AdminChats() {
 
     fetchUserGroups();
   }, [user?._id]);
+
+  // Fetch recent chats with last messages and timestamps
+  useEffect(() => {
+    const fetchRecentChats = async () => {
+      if (!user?._id) return;
+      
+      try {
+        const token = await AsyncStorage.getItem('jwtToken');
+        const response = await fetch(`${API_BASE}/messages/recent/${user._id}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+        
+        if (response.ok) {
+          const recentChatsData = await response.json();
+          
+          // Update recentChats with actual chat data
+          setRecentChats(recentChatsData);
+          
+          // Populate lastMessages with timestamp information
+          const lastMessagesWithTimestamps = {};
+          recentChatsData.forEach(chat => {
+            if (chat.lastMessage) {
+              const partner = users.find(u => u._id === chat.partnerId);
+              if (partner) {
+                const prefix = chat.lastMessage.senderId === user._id 
+                  ? 'You: ' 
+                  : `${partner.lastname}, ${partner.firstname}: `;
+                const text = chat.lastMessage.message 
+                  ? chat.lastMessage.message 
+                  : (chat.lastMessage.fileUrl ? 'File sent' : '');
+                
+                lastMessagesWithTimestamps[chat.partnerId] = {
+                  prefix,
+                  text,
+                  timestamp: chat.lastMessage.timestamp
+                };
+              }
+            }
+          });
+          
+          setLastMessages(lastMessagesWithTimestamps);
+        }
+      } catch (error) {
+        console.error('Error fetching recent chats:', error);
+      }
+    };
+
+    if (users.length > 0) {
+      fetchRecentChats();
+    }
+  }, [user?._id, users]);
 
   // Fetch messages for selected chat
   useEffect(() => {
@@ -549,8 +631,13 @@ export default function AdminChats() {
                           {partner.firstname} {partner.lastname}
                         </Text>
                         <Text style={{ fontSize: 14, color: '#666' }}>
-                          {lastMessages[chat._id]?.text || 'Start a conversation...'}
+                          {lastMessages[chat.partnerId]?.text || 'Start a conversation...'}
                         </Text>
+                        {lastMessages[chat.partnerId]?.timestamp && (
+                          <Text style={{ fontSize: 12, color: '#999', marginTop: 2 }}>
+                            {formatTimestamp(lastMessages[chat.partnerId].timestamp)}
+                          </Text>
+                        )}
                       </View>
                     </TouchableOpacity>
                   );
@@ -605,8 +692,13 @@ export default function AdminChats() {
                         {group.name}
                       </Text>
                       <Text style={{ fontSize: 14, color: '#666' }}>
-                        {group.members?.length || 0} members
+                        {lastMessages[`group_${group._id}`]?.text || `${group.members?.length || 0} members`}
                       </Text>
+                      {lastMessages[`group_${group._id}`]?.timestamp && (
+                        <Text style={{ fontSize: 12, color: '#999', marginTop: 2 }}>
+                          {formatTimestamp(lastMessages[`group_${group._id}`].timestamp)}
+                        </Text>
+                      )}
                     </View>
                   </TouchableOpacity>
                 ))}
