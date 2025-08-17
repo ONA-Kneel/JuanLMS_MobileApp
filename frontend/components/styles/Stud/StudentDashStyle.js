@@ -99,6 +99,12 @@ const StudentDashStyle = StyleSheet.create({
         fontSize: 14,
         fontFamily: 'Poppins-Regular',
     },
+    headerSubtitle2: {
+        color: '#666',
+        fontSize: 12,
+        fontFamily: 'Poppins-Regular',
+        marginTop: 2,
+    },
     sectionTitle: {
         fontSize: 18,
         fontWeight: 'bold',

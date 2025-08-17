@@ -49,6 +49,7 @@ export default function PrincipalDashboard() {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [academicContext, setAcademicContext] = useState('2025-2026 | Term 1');
 
   const fetchDashboardData = async () => {
     try {
@@ -97,8 +98,46 @@ export default function PrincipalDashboard() {
   useEffect(() => {
     if (isFocused) {
       fetchDashboardData();
+      fetchAcademicYear();
     }
   }, [isFocused]);
+
+  const fetchAcademicYear = async () => {
+    try {
+      const token = await AsyncStorage.getItem('jwtToken');
+      const academicResponse = await fetch(`https://juanlms-webapp-server.onrender.com/api/academic-year/active`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+      });
+
+      let activeYear = '2025-2026';
+      let activeTerm = 'Term 1';
+      
+      if (academicResponse.ok) {
+        const academicData = await academicResponse.json();
+        console.log('Academic year API response:', academicData);
+        if (academicData.success && academicData.academicYear) {
+          activeYear = academicData.academicYear.year;
+          activeTerm = academicData.academicYear.currentTerm;
+          console.log('Using academic year data:', activeYear, activeTerm);
+        } else {
+          console.log('Academic year data not in expected format:', academicData);
+        }
+      } else {
+        console.log('Academic year API not available, using default values');
+        console.log('Response status:', academicResponse.status);
+      }
+
+      console.log('Active Academic Year:', activeYear, 'Term:', activeTerm);
+      setAcademicContext(`${activeYear} | ${activeTerm}`);
+    } catch (error) {
+      console.error('Error fetching academic year:', error);
+    }
+  };
 
   const handleQuickAction = (action) => {
     switch (action) {
@@ -136,7 +175,8 @@ export default function PrincipalDashboard() {
         <View>
           <Text style={styles.headerTitle}>Principal Dashboard</Text>
           <Text style={styles.headerSubtitle}>Welcome back, {user?.firstname || 'Principal'} {user?.lastname || ''}</Text>
-          <Text style={styles.headerDescription}>Academic System Overview</Text>
+          <Text style={styles.headerDescription}>{academicContext}</Text>
+          <Text style={styles.headerSubtitle2}>Academic System Overview</Text>
         </View>
         <TouchableOpacity onPress={() => navigation.navigate('PrincipalProfile')}>
           {user?.profilePicture ? (
@@ -287,6 +327,12 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
+  },
+  headerSubtitle2: {
+    fontSize: 12,
+    color: '#bbdefb',
+    fontFamily: 'Poppins-Regular',
+    marginTop: 2,
   },
   section: {
     padding: 20,

@@ -26,6 +26,7 @@ export default function AdminDashboard() {
   const [refreshing, setRefreshing] = useState(false);
   const [academicYear, setAcademicYear] = useState('2025-2026');
   const [currentTerm, setCurrentTerm] = useState('Term 1');
+  const [academicContext, setAcademicContext] = useState('2025-2026 | Term 1');
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -86,7 +87,47 @@ export default function AdminDashboard() {
     };
 
     fetchDashboardData();
+    fetchAcademicYear();
   }, []);
+
+  const fetchAcademicYear = async () => {
+    try {
+      const token = await AsyncStorage.getItem('jwtToken');
+      const academicResponse = await fetch(`https://juanlms-webapp-server.onrender.com/api/academic-year/active`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+      });
+
+      let activeYear = '2025-2026';
+      let activeTerm = 'Term 1';
+      
+      if (academicResponse.ok) {
+        const academicData = await academicResponse.json();
+        console.log('Academic year API response:', academicData);
+        if (academicData.success && academicData.academicYear) {
+          activeYear = academicData.academicYear.year;
+          activeTerm = academicData.academicYear.currentTerm;
+          console.log('Using academic year data:', activeYear, activeTerm);
+        } else {
+          console.log('Academic year data not in expected format:', academicData);
+        }
+      } else {
+        console.log('Academic year API not available, using default values');
+        console.log('Response status:', academicResponse.status);
+      }
+
+      console.log('Active Academic Year:', activeYear, 'Term:', activeTerm);
+      setAcademicYear(activeYear);
+      setCurrentTerm(activeTerm);
+      setAcademicContext(`${activeYear} | ${activeTerm}`);
+    } catch (error) {
+      console.error('Error fetching academic year:', error);
+    }
+  };
 
   // Generate calendar days
   useEffect(() => {
@@ -232,7 +273,7 @@ export default function AdminDashboard() {
               Hello, <Text style={AdminDashStyle.userName}>{user?.firstname || 'Admin'}!</Text>
             </Text>
             <Text style={AdminDashStyle.dateText}>
-              {academicYear} | {currentTerm} | {formatDateTime(currentDateTime)}
+              {academicContext} | {formatDateTime(currentDateTime)}
             </Text>
           </View>
           <TouchableOpacity onPress={() => navigateToScreen('AProfile')}>

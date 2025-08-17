@@ -17,10 +17,49 @@ export default function VPEDashboard() {
     recentLogins: []
   });
   const [isLoading, setIsLoading] = useState(true);
+  const [academicContext, setAcademicContext] = useState('2025-2026 | Term 1');
 
   useEffect(() => {
     fetchDashboardData();
+    fetchAcademicYear();
   }, []);
+
+  const fetchAcademicYear = async () => {
+    try {
+      const token = await AsyncStorage.getItem('jwtToken');
+      const academicResponse = await fetch(`https://juanlms-webapp-server.onrender.com/api/academic-year/active`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+      });
+
+      let activeYear = '2025-2026';
+      let activeTerm = 'Term 1';
+      
+      if (academicResponse.ok) {
+        const academicData = await academicResponse.json();
+        console.log('Academic year API response:', academicData);
+        if (academicData.success && academicData.academicYear) {
+          activeYear = academicData.academicYear.year;
+          activeTerm = academicData.academicYear.currentTerm;
+          console.log('Using academic year data:', activeYear, activeTerm);
+        } else {
+          console.log('Academic year data not in expected format:', academicData);
+        }
+      } else {
+        console.log('Academic year API not available, using default values');
+        console.log('Response status:', academicResponse.status);
+      }
+
+      console.log('Active Academic Year:', activeYear, 'Term:', activeTerm);
+      setAcademicContext(`${activeYear} | ${activeTerm}`);
+    } catch (error) {
+      console.error('Error fetching academic year:', error);
+    }
+  };
 
   const fetchDashboardData = async () => {
     try {
@@ -81,6 +120,7 @@ export default function VPEDashboard() {
           <Text style={styles.welcomeText}>Welcome back,</Text>
           <Text style={styles.roleText}>{user?.firstname || 'VPE'} {user?.lastname || ''}</Text>
           <Text style={styles.subRoleText}>Vice President in Education</Text>
+          <Text style={styles.academicContext}>{academicContext}</Text>
         </View>
         <TouchableOpacity onPress={() => navigation.navigate('VPEProfile')}>
           {user?.profilePicture ? (
@@ -213,6 +253,12 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
+  },
+  academicContext: {
+    fontSize: 12,
+    color: '#888',
+    fontFamily: 'Poppins-Regular',
+    marginTop: 2,
   },
   sectionTitle: {
     fontSize: 18,

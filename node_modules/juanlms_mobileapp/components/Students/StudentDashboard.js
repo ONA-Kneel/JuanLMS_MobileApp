@@ -19,6 +19,7 @@ export default function StudentDashboard() {
   const [completedAssignmentsPercent, setCompletedAssignmentsPercent] = useState(0);
   const [assignmentsToday, setAssignmentsToday] = useState([]);
   const [assignmentsCompletedToday, setAssignmentsCompletedToday] = useState(0);
+  const [academicContext, setAcademicContext] = useState('2025-2026 | Term 1');
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -39,6 +40,39 @@ export default function StudentDashboard() {
     try {
       console.log('Fetching classes for student:', user._id);
       const token = await AsyncStorage.getItem('jwtToken');
+      
+      // First, get the current active academic year and term
+      const academicResponse = await fetch(`https://juanlms-webapp-server.onrender.com/api/academic-year/active`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+      });
+
+      let activeYear = '2025-2026';
+      let activeTerm = 'Term 1';
+      
+      if (academicResponse.ok) {
+        const academicData = await academicResponse.json();
+        console.log('Academic year API response:', academicData);
+        if (academicData.success && academicData.academicYear) {
+          activeYear = academicData.academicYear.year;
+          activeTerm = academicData.academicYear.currentTerm;
+          console.log('Using academic year data:', activeYear, activeTerm);
+        } else {
+          console.log('Academic year data not in expected format:', academicData);
+        }
+      } else {
+        console.log('Academic year API not available, using default values');
+        console.log('Response status:', academicResponse.status);
+      }
+
+      console.log('Active Academic Year:', activeYear, 'Term:', activeTerm);
+      
+      // Update academic context for display
+      setAcademicContext(`${activeYear} | ${activeTerm}`);
       
       // Use the correct backend URL for the web app backend
       const response = await fetch(`https://juanlms-webapp-server.onrender.com/api/classes`, {
@@ -228,7 +262,8 @@ export default function StudentDashboard() {
             <Text style={StudentDashboardStyle.headerTitle}>
               Hello, <Text style={{ fontWeight: 'bold', fontFamily: 'Poppins-Bold' }}>{user?.firstname || 'Student'}!</Text>
             </Text>
-            <Text style={StudentDashboardStyle.headerSubtitle}>{formatDateTime(currentDateTime)}</Text>
+                         <Text style={StudentDashboardStyle.headerSubtitle}>{academicContext}</Text>
+             <Text style={StudentDashboardStyle.headerSubtitle2}>{formatDateTime(currentDateTime)}</Text>
           </View>
           <TouchableOpacity onPress={() => changeScreen.navigate('SProfile')}>
             {user?.profilePicture ? (
