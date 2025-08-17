@@ -6,6 +6,7 @@ const submissionSchema = new mongoose.Schema({
     url: String,
     name: String
   }],
+  context: { type: String }, // Add text submission support
   fileUrl: { type: String }, // legacy, keep for backward compatibility
   fileName: { type: String }, // legacy, keep for backward compatibility
   submittedAt: { type: Date, default: Date.now },
@@ -13,4 +14,4 @@ const submissionSchema = new mongoose.Schema({
   grade: { type: Number },
   feedback: { type: String }
 });
-export default mongoose.model("Submission", submissionSchema, "Submissions"); 
+export default mongoose.model("Submission", mongoose.models.Submission || "Submissions"); 

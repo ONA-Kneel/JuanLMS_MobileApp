@@ -117,7 +117,7 @@ export default function AssignmentDetail() {
   };
 
   const handleSubmit = async () => {
-    if (!selectedFile && !submissionText) {
+    if (!selectedFile && !submissionText.trim()) {
       Alert.alert('Error', 'Please attach a file or enter text for submission');
       return;
     }
@@ -126,10 +126,11 @@ export default function AssignmentDetail() {
       setSubmitting(true);
       const token = await AsyncStorage.getItem('jwtToken');
       
-      // Create form data for file upload
+      // Create form data for file upload (matching web version exactly)
       const formData = new FormData();
       formData.append('studentId', user._id);
       
+      // Handle file uploads (matching web version)
       if (selectedFile) {
         formData.append('files', {
           uri: selectedFile.uri,
@@ -137,9 +138,10 @@ export default function AssignmentDetail() {
           name: selectedFile.name,
         });
       }
-
-      if (submissionText) {
-        formData.append('textSubmission', submissionText);
+      
+      // Handle text submission (matching web version - using 'context' field)
+      if (submissionText.trim()) {
+        formData.append('context', submissionText.trim());
       }
 
       const response = await fetch(`${API_BASE}/assignments/${assignmentId}/submit`, {
@@ -155,6 +157,10 @@ export default function AssignmentDetail() {
         setSubmissionStatus(result);
         setShowSuccessModal(true);
         setShowSubmitModal(false);
+        
+        // Clear form after successful submission (matching web version)
+        setSelectedFile(null);
+        setSubmissionText('');
       } else {
         const error = await response.json();
         Alert.alert('Error', error.message || 'Failed to submit assignment');

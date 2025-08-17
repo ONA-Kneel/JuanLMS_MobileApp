@@ -349,7 +349,7 @@ router.get('/:id', /*authenticateToken,*/ async (req, res) => {
 router.post('/:id/submit', /*authenticateToken,*/ upload.array('files', 5), async (req, res) => {
   try {
     // const student = req.user._id;
-    const { studentId } = req.body;
+    const { studentId, context } = req.body;
     const assignment = req.params.id;
     let files = [];
     if (req.files && req.files.length > 0) {
@@ -362,11 +362,12 @@ router.post('/:id/submit', /*authenticateToken,*/ upload.array('files', 5), asyn
     let submission = await Submission.findOne({ assignment, student: studentId });
     if (submission) {
       submission.files = files;
+      submission.context = context || submission.context; // Update context if provided
       submission.submittedAt = new Date();
       submission.status = 'turned-in';
       await submission.save();
     } else {
-      submission = new Submission({ assignment, student: studentId, files });
+      submission = new Submission({ assignment, student: studentId, files, context });
       await submission.save();
     }
     res.json(submission);

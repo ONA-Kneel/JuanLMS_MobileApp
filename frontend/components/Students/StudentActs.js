@@ -439,6 +439,11 @@ export default function StudentActs() {
     }
   };
 
+  // Calculate counts once to avoid multiple function calls in render
+  const upcomingCount = getUpcomingActivities().length;
+  const pastDueCount = getPastDueActivities().length;
+  const completedCount = getCompletedActivities().length;
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -466,7 +471,7 @@ export default function StudentActs() {
             onPress={() => setActiveTab(0)}
           >
             <Text style={[styles.tabText, activeTab === 0 && styles.activeTabText]}>
-              Upcoming ({getUpcomingActivities().length})
+              Upcoming ({upcomingCount})
             </Text>
           </TouchableOpacity>
           
@@ -475,7 +480,7 @@ export default function StudentActs() {
             onPress={() => setActiveTab(1)}
           >
             <Text style={[styles.tabText, activeTab === 1 && styles.activeTabText]}>
-              Past Due ({getPastDueActivities().length})
+              Past Due ({pastDueCount})
             </Text>
           </TouchableOpacity>
           
@@ -484,7 +489,7 @@ export default function StudentActs() {
             onPress={() => setActiveTab(2)}
           >
             <Text style={[styles.tabText, activeTab === 2 && styles.activeTabText]}>
-              Completed ({getCompletedActivities().length})
+              Completed ({completedCount})
             </Text>
           </TouchableOpacity>
         </View>
