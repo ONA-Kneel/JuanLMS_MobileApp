@@ -317,8 +317,37 @@ export default function AdminSupportCenter() {
         throw new Error(`Failed to update ticket status: ${response.status}`);
       }
       
-      // Refetch tickets
-      await fetchTickets();
+      // Show success message based on action
+      if (newStatus === 'closed') {
+        Alert.alert('Success', 'Ticket has been closed successfully!', [
+          {
+            text: 'OK',
+            onPress: async () => {
+              // Switch to closed tab
+              setActiveTab('closed');
+              // Refetch tickets
+              await fetchTickets();
+              // Go back to list view to see the updated ticket
+              setView('list');
+            }
+          }
+        ]);
+      } else {
+        // For opening tickets
+        Alert.alert('Success', 'Ticket has been opened successfully!', [
+          {
+            text: 'OK',
+            onPress: async () => {
+              // Switch to opened tab
+              setActiveTab('opened');
+              // Refetch tickets
+              await fetchTickets();
+              // Go back to list view to see the updated ticket
+              setView('list');
+            }
+          }
+        ]);
+      }
       
     } catch (error) {
       console.error('Status change error:', error);
@@ -341,8 +370,20 @@ export default function AdminSupportCenter() {
         throw new Error(`Failed to open ticket: ${response.status}`);
       }
       
-      // Refetch tickets
-      await fetchTickets();
+      // Show success message
+      Alert.alert('Success', 'Ticket has been opened successfully!', [
+        {
+          text: 'OK',
+          onPress: async () => {
+            // Switch to opened tab
+            setActiveTab('opened');
+            // Refetch tickets
+            await fetchTickets();
+            // Go back to list view to see the updated ticket
+            setView('list');
+          }
+        }
+      ]);
       
     } catch (error) {
       console.error('Open ticket error:', error);
@@ -777,7 +818,22 @@ export default function AdminSupportCenter() {
                     borderRadius: 8,
                     alignItems: 'center',
                   }}
-                  onPress={() => handleOpenTicket(selectedTicket._id)}
+                  onPress={() => {
+                    Alert.alert(
+                      'Open Ticket',
+                      'Are you sure you want to open this ticket?',
+                      [
+                        {
+                          text: 'Cancel',
+                          style: 'cancel',
+                        },
+                        {
+                          text: 'Open',
+                          onPress: () => handleOpenTicket(selectedTicket._id),
+                        },
+                      ]
+                    );
+                  }}
                 >
                   <Text style={{ color: '#fff', fontWeight: '600', fontFamily: 'Poppins-Medium' }}>
                     Open Ticket
@@ -793,7 +849,23 @@ export default function AdminSupportCenter() {
                     borderRadius: 8,
                     alignItems: 'center',
                   }}
-                  onPress={() => handleStatusChange(selectedTicket._id, 'closed')}
+                  onPress={() => {
+                    Alert.alert(
+                      'Close Ticket',
+                      'Are you sure you want to close this ticket?',
+                      [
+                        {
+                          text: 'Cancel',
+                          style: 'cancel',
+                        },
+                        {
+                          text: 'Close',
+                          style: 'destructive',
+                          onPress: () => handleStatusChange(selectedTicket._id, 'closed'),
+                        },
+                      ]
+                    );
+                  }}
                 >
                   <Text style={{ color: '#fff', fontWeight: '600', fontFamily: 'Poppins-Medium' }}>
                     Close Ticket
