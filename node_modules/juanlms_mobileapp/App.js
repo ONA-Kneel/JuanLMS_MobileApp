@@ -69,7 +69,7 @@ import VPEChats from './components/VPE/VPEChats';
 import VPESupportCenter from './components/VPE/VPESupportCenter';
 import VPEProfile from './components/VPE/VPEProfile';
 import VPEAuditTrail from './components/VPE/VPEAuditTrail';
-import VPEAnnouncements from './components/VPE/VPEAnnouncements';
+
 
 //Principal
 import PrincipalDashboard from './components/Principal/PrincipalDashboard';
@@ -159,9 +159,8 @@ const vpeNavItems = [
   { label: 'Dashboard', icon: 'view-dashboard', route: 'VPEDash' },
   { label: 'Calendar', icon: 'calendar', route: 'VPECalendar' },
   { label: 'Chats', icon: 'chat', route: 'VPEChats' },
-  { label: 'Support', icon: 'help-circle', route: 'VPESupport' },
   { label: 'Audit', icon: 'history', route: 'VPEAudit' },
-  { label: 'Announcements', icon: 'bullhorn', route: 'VPEAnnouncements' },
+   
 ];
 
 function VPETabs() {
@@ -172,10 +171,9 @@ function VPETabs() {
     >
       <Tabs.Screen name='VPEDash' component={VPEDashboard} />
       <Tabs.Screen name='VPECalendar' component={VPECalendar} />
-      <Tabs.Screen name='VPEChats' component={VPEChats} />
-      <Tabs.Screen name='VPESupport' component={VPESupportCenter} />
-      <Tabs.Screen name='VPEAudit' component={VPEAuditTrail} />
-      <Tabs.Screen name='VPEAnnouncements' component={VPEAnnouncements} />
+              <Tabs.Screen name='VPEChats' component={VPEChats} />
+        <Tabs.Screen name='VPEAudit' component={VPEAuditTrail} />
+      
     </Tabs.Navigator>
   );
 }
@@ -286,6 +284,7 @@ export default function App() {
         {/* VPE */}
         <Screens.Screen name='VPEDash' component={VPETabs} options={{ headerShown: false }}/>
         <Screens.Screen name='VPEProfile' component={VPEProfile} options={{ headerShown: false }}/>
+        <Screens.Screen name='VPESupportCenter' component={VPESupportCenter} options={{ headerShown: false }}/>
 
         {/* Principal */}
         <Screens.Screen name='PrincipalDash' component={PrincipalTabs} options={{ headerShown: false }}/>

@@ -3,9 +3,11 @@ import { View, Text, ScrollView, TouchableOpacity, StyleSheet, TextInput, Alert,
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useContext } from 'react';
 import { UserContext } from '../UserContext';
+import { useNavigation } from '@react-navigation/native';
 
 export default function VPEProfile() {
   const { user, setUser } = useContext(UserContext);
+  const navigation = useNavigation();
   const [isEditing, setIsEditing] = useState(false);
   const [editedProfile, setEditedProfile] = useState({
     firstname: '',
@@ -219,6 +221,38 @@ export default function VPEProfile() {
         </View>
       </View>
 
+      {/* Support Center Section */}
+      <View style={styles.supportSection}>
+        <Text style={styles.sectionTitle}>Support Center</Text>
+        <View style={styles.supportCard}>
+          <View style={styles.supportHeader}>
+            <Icon name="help-circle" size={24} color="#00418b" />
+            <Text style={styles.supportTitle}>Need Help?</Text>
+          </View>
+          <Text style={styles.supportDescription}>
+            Get assistance with system issues, report bugs, or request new features.
+          </Text>
+          
+          <View style={styles.supportActions}>
+            <TouchableOpacity 
+              style={styles.supportActionButton}
+              onPress={() => navigation.navigate('VPESupportCenter')}
+            >
+              <Icon name="plus-circle" size={20} color="#fff" />
+              <Text style={styles.supportActionText}>Create Ticket</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.supportActionButton}
+              onPress={() => navigation.navigate('VPESupportCenter')}
+            >
+              <Icon name="eye" size={20} color="#fff" />
+              <Text style={styles.supportActionText}>View Tickets</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+
       {/* Quick Actions */}
       <View style={styles.quickActionsContainer}>
         <Text style={styles.sectionTitle}>Quick Actions</Text>
@@ -238,10 +272,7 @@ export default function VPEProfile() {
             <Text style={styles.quickActionTitle}>Privacy Settings</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.quickActionCard}>
-            <Icon name="help-circle" size={24} color="#00418b" />
-            <Text style={styles.quickActionTitle}>Help & Support</Text>
-          </TouchableOpacity>
+
         </View>
       </View>
 
@@ -443,6 +474,61 @@ const styles = StyleSheet.create({
   logoutButtonText: {
     color: '#ff6b6b',
     fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
+    fontFamily: 'Poppins-SemiBold',
+  },
+  
+  // Support Center Styles
+  supportSection: {
+    marginBottom: 24,
+  },
+  supportCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  supportHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  supportTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+    marginLeft: 8,
+    fontFamily: 'Poppins-SemiBold',
+  },
+  supportDescription: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 16,
+    fontFamily: 'Poppins-Regular',
+    lineHeight: 20,
+  },
+  supportActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  supportActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#00418b',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 8,
+    flex: 1,
+    marginHorizontal: 4,
+    justifyContent: 'center',
+  },
+  supportActionText: {
+    color: '#fff',
+    fontSize: 14,
     fontWeight: '600',
     marginLeft: 8,
     fontFamily: 'Poppins-SemiBold',
