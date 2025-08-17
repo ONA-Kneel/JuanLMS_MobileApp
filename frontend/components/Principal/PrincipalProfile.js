@@ -102,7 +102,7 @@ export default function PrincipalProfile() {
   };
 
   if (loading) {
-    return (
+  return (
       <View style={styles.container}>
         <ActivityIndicator size="large" color="#00418b" />
       </View>
@@ -115,13 +115,13 @@ export default function PrincipalProfile() {
         <View style={styles.topBackground} />
         <View style={styles.card}>
           <Text style={styles.name}>Profile Not Available</Text>
-          <TouchableOpacity 
+            <TouchableOpacity
             style={[styles.logout, { marginTop: 20 }]} 
             onPress={() => navigation.navigate('Login')}
           >
             <Text style={styles.logoutText}>Go to Login</Text>
-          </TouchableOpacity>
-        </View>
+            </TouchableOpacity>
+          </View>
       </View>
     );
   }
@@ -150,7 +150,7 @@ export default function PrincipalProfile() {
           resizeMode="cover"
         />
       </View>
-      
+
       {/* Card */}
       <View style={styles.card}>
         <Text style={styles.name}>
@@ -167,7 +167,7 @@ export default function PrincipalProfile() {
             <Text style={styles.infoLabel}>Role</Text>
             <Text style={styles.infoValue}>Principal</Text>
           </View>
-        </View>
+      </View>
         <View style={styles.actionRow}>
           <TouchableOpacity 
             style={styles.actionBtn}
@@ -190,12 +190,12 @@ export default function PrincipalProfile() {
           </TouchableOpacity>
         </View>
       </View>
-      
+
       {/* Logout Button */}
       <TouchableOpacity style={styles.logout} onPress={logout}>
         <Text style={styles.logoutText}>Log Out</Text>
-      </TouchableOpacity>
-      
+        </TouchableOpacity>
+
       {/* Edit Profile Modal */}
       <Modal
         visible={isEditModalVisible}
@@ -226,8 +226,8 @@ export default function PrincipalProfile() {
                 style={styles.modalAvatar}
               />
               <Text style={styles.imagePickerText}>Tap to change photo</Text>
-            </TouchableOpacity>
-            
+        </TouchableOpacity>
+
             <View style={styles.modalButtons}>
               <TouchableOpacity
                 style={[styles.modalButton, styles.cancelButton]}
@@ -245,10 +245,10 @@ export default function PrincipalProfile() {
                 ) : (
                   <Text style={styles.buttonText}>Save</Text>
                 )}
-              </TouchableOpacity>
-            </View>
+        </TouchableOpacity>
+      </View>
           </View>
-        </View>
+          </View>
       </Modal>
       
       {/* Hidden file input for web */}
@@ -261,7 +261,7 @@ export default function PrincipalProfile() {
           style={{ display: 'none' }}
         />
       )}
-    </View>
+      </View>
   );
 }
 

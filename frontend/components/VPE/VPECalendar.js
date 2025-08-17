@@ -1,12 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, Image, Dimensions, ActivityIndicator } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { useNavigation } from '@react-navigation/native';
+import { useUser } from '../UserContext';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import moment from 'moment';
 
 const API_BASE_URL = 'https://juanlms-webapp-server.onrender.com';
+const { width } = Dimensions.get('window');
 
 export default function VPECalendar() {
+  const navigation = useNavigation();
+  const { user } = useUser();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [events, setEvents] = useState([]);
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -218,128 +224,177 @@ export default function VPECalendar() {
     setSelectedDate(new Date(newDate.getFullYear(), newDate.getMonth(), 1));
   };
 
+  const goToToday = () => {
+    const today = new Date();
+    setCurrentDate(today);
+    setSelectedDate(today);
+  };
+
   const days = getDaysInMonth(currentDate);
   const selectedDateEvents = getEventsForDate(selectedDate);
 
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#00418b" />
+        <Text style={styles.loadingText}>Loading calendar...</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Academic Calendar</Text>
-        <Icon name="calendar" size={28} color="#00418b" />
-      </View>
-
-      {/* Academic Year and Term Info */}
-      <View style={styles.academicInfo}>
-        <Text style={styles.academicText}>
-          {academicYear ? `${academicYear.schoolYearStart}-${academicYear.schoolYearEnd}` : "Loading..."} | 
-          {currentTerm ? ` ${currentTerm.termName}` : " Loading..."}
-        </Text>
-      </View>
-
-      {/* Month Navigation */}
-      <View style={styles.monthNavigation}>
-        <TouchableOpacity onPress={() => changeMonth('prev')} style={styles.navButton}>
-          <Icon name="chevron-left" size={24} color="#00418b" />
-        </TouchableOpacity>
-        <Text style={styles.monthText}>{getMonthName(currentDate)}</Text>
-        <TouchableOpacity onPress={() => changeMonth('next')} style={styles.navButton}>
-          <Icon name="chevron-right" size={24} color="#00418b" />
-        </TouchableOpacity>
-      </View>
-
-      {/* Calendar Grid */}
-      <View style={styles.calendarContainer}>
-        {/* Day Headers */}
-        <View style={styles.dayHeaders}>
-          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-            <Text key={day} style={styles.dayHeader}>{day}</Text>
-          ))}
-        </View>
-
-        {/* Calendar Days */}
-        <View style={styles.calendarGrid}>
-          {days.map((day, index) => {
-            const dayEvents = day ? getEventsForDate(day) : [];
-            const isSelected = day && selectedDate.toDateString() === day.toDateString();
-            const isToday = day && day.toDateString() === new Date().toDateString();
-            
-            return (
-              <TouchableOpacity
-                key={index}
-                style={[
-                  styles.dayCell,
-                  isSelected && styles.selectedDay,
-                  isToday && styles.today
-                ]}
-                onPress={() => day && setSelectedDate(day)}
-                disabled={!day}
-              >
-                {day && (
-                  <>
-                    <Text style={[
-                      styles.dayNumber,
-                      isSelected && styles.selectedDayText,
-                      isToday && styles.todayText
-                    ]}>
-                      {day.getDate()}
-                    </Text>
-                    {dayEvents.length > 0 && (
-                      <View style={styles.eventIndicator}>
-                        <Text style={styles.eventCount}>{dayEvents.length}</Text>
-                      </View>
-                    )}
-                  </>
-                )}
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-      </View>
-
-      {/* Selected Date Events */}
-      <View style={styles.eventsContainer}>
-        <Text style={styles.eventsTitle}>
-          Events for {selectedDate.toLocaleDateString('en-US', { 
-            weekday: 'long', 
-            year: 'numeric', 
-            month: 'long', 
-            day: 'numeric' 
-          })}
-        </Text>
-        
-        {selectedDateEvents.length > 0 ? (
-          <ScrollView style={styles.eventsList} showsVerticalScrollIndicator={false}>
-            {selectedDateEvents.map(event => (
-              <View key={event.id} style={[styles.eventCard, { borderLeftColor: event.color }]}>
-                <View style={styles.eventHeader}>
-                  <Icon 
-                    name={event.type === 'academic' ? 'school' : 
-                          event.type === 'class' ? 'calendar' : 
-                          event.type === 'holiday' ? 'flag' : 'calendar'} 
-                    size={20} 
-                    color={event.color} 
-                  />
-                  <Text style={styles.eventTitle}>{event.title}</Text>
-                </View>
-                <Text style={styles.eventDescription}>{event.description}</Text>
-                {event.type && (
-                  <View style={[styles.eventTypeBadge, { backgroundColor: `${event.color}20` }]}>
-                    <Text style={[styles.eventTypeText, { color: event.color }]}>
-                      {event.type.toUpperCase()}
-                    </Text>
-                  </View>
-                )}
-              </View>
-            ))}
-          </ScrollView>
-        ) : (
-          <View style={styles.noEventsContainer}>
-            <Icon name="calendar-blank" size={48} color="#ccc" />
-            <Text style={styles.noEventsText}>No events scheduled for this date</Text>
+      {/* Profile Header */}
+      <View style={styles.profileHeader}>
+        <View style={styles.profileHeaderContent}>
+          <View style={styles.profileInfo}>
+            <Text style={styles.greetingText}>
+              Hello, <Text style={styles.userName}>{user?.firstname || 'VPE'}!</Text>
+            </Text>
+            <Text style={styles.academicContext}>
+              {academicYear ? `${academicYear.schoolYearStart}-${academicYear.schoolYearEnd}` : "Loading..."} | 
+              {currentTerm ? ` ${currentTerm.termName}` : " Loading..."}
+            </Text>
+            <Text style={styles.dateText}>
+              {moment(new Date()).format('dddd, MMMM D, YYYY')}
+            </Text>
           </View>
-        )}
+          <TouchableOpacity onPress={() => navigation.navigate('VPEProfile')}>
+            {user?.profilePicture ? (
+              <Image 
+                source={{ uri: user.profilePicture }} 
+                style={styles.profileImage}
+                resizeMode="cover"
+              />
+            ) : (
+              <Image 
+                source={require('../../assets/profile-icon (2).png')} 
+                style={styles.profileImage}
+              />
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
+
+      <ScrollView style={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        {/* Calendar Title */}
+        <View style={styles.calendarTitleContainer}>
+          <Text style={styles.calendarTitle}>Academic Calendar</Text>
+          <Icon name="calendar" size={28} color="#00418b" />
+        </View>
+
+        {/* Month Navigation */}
+        <View style={styles.monthNavigation}>
+          <TouchableOpacity onPress={() => changeMonth('prev')} style={styles.navButton}>
+            <Icon name="chevron-left" size={24} color="#00418b" />
+          </TouchableOpacity>
+          <Text style={styles.monthText}>{getMonthName(currentDate)}</Text>
+          <TouchableOpacity onPress={() => changeMonth('next')} style={styles.navButton}>
+            <Icon name="chevron-right" size={24} color="#00418b" />
+          </TouchableOpacity>
+        </View>
+
+        {/* Today Button */}
+        <View style={styles.todayButtonContainer}>
+          <TouchableOpacity onPress={goToToday} style={styles.todayButton}>
+            <Icon name="calendar-today" size={16} color="#00418b" />
+            <Text style={styles.todayButtonText}>Today</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Calendar Grid */}
+        <View style={styles.calendarContainer}>
+          {/* Day Headers */}
+          <View style={styles.dayHeaders}>
+            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+              <Text key={day} style={styles.dayHeader}>{day}</Text>
+            ))}
+          </View>
+
+          {/* Calendar Days */}
+          <View style={styles.calendarGrid}>
+            {days.map((day, index) => {
+              const dayEvents = day ? getEventsForDate(day) : [];
+              const isSelected = day && selectedDate.toDateString() === day.toDateString();
+              const isToday = day && day.toDateString() === new Date().toDateString();
+              
+              return (
+                <TouchableOpacity
+                  key={index}
+                  style={[
+                    styles.dayCell,
+                    isSelected && styles.selectedDay,
+                    isToday && styles.today
+                  ]}
+                  onPress={() => day && setSelectedDate(day)}
+                  disabled={!day}
+                >
+                  {day && (
+                    <>
+                      <Text style={[
+                        styles.dayNumber,
+                        isSelected && styles.selectedDayText,
+                        isToday && styles.todayText
+                      ]}>
+                        {day.getDate()}
+                      </Text>
+                      {dayEvents.length > 0 && (
+                        <View style={styles.eventIndicator}>
+                          <Text style={styles.eventCount}>{dayEvents.length}</Text>
+                        </View>
+                      )}
+                    </>
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+
+        {/* Selected Date Events */}
+        <View style={styles.eventsContainer}>
+          <Text style={styles.eventsTitle}>
+            Events for {selectedDate.toLocaleDateString('en-US', { 
+              weekday: 'long', 
+              year: 'numeric', 
+              month: 'long', 
+              day: 'numeric' 
+            })}
+          </Text>
+          
+          {selectedDateEvents.length > 0 ? (
+            <View style={styles.eventsList}>
+              {selectedDateEvents.map(event => (
+                <View key={event.id} style={[styles.eventCard, { borderLeftColor: event.color }]}>
+                  <View style={styles.eventHeader}>
+                    <Icon 
+                      name={event.type === 'academic' ? 'school' : 
+                            event.type === 'class' ? 'calendar' : 
+                            event.type === 'holiday' ? 'flag' : 'calendar'} 
+                      size={20} 
+                      color={event.color} 
+                    />
+                    <Text style={styles.eventTitle}>{event.title}</Text>
+                  </View>
+                  <Text style={styles.eventDescription}>{event.description}</Text>
+                  {event.type && (
+                    <View style={[styles.eventTypeBadge, { backgroundColor: `${event.color}20` }]}>
+                      <Text style={[styles.eventTypeText, { color: event.color }]}>
+                        {event.type.toUpperCase()}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              ))}
+            </View>
+          ) : (
+            <View style={styles.noEventsContainer}>
+              <Icon name="calendar-blank" size={48} color="#ccc" />
+              <Text style={styles.noEventsText}>No events scheduled for this date</Text>
+            </View>
+          )}
+        </View>
+      </ScrollView>
     </View>
   );
 }
@@ -348,79 +403,141 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f7f9fa',
-    padding: 16,
   },
-  header: {
+  
+  // Profile Header
+  profileHeader: {
+    backgroundColor: '#00418b',
+    paddingTop: 48,
+    paddingBottom: 20,
+    paddingHorizontal: 20,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+  },
+  profileHeaderContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  profileInfo: {
+    flex: 1,
+  },
+  greetingText: {
+    fontSize: 20,
+    fontFamily: 'Poppins-Bold',
+    color: '#fff',
+    marginBottom: 4,
+  },
+  userName: {
+    fontWeight: 'bold',
+  },
+  academicContext: {
+    fontSize: 14,
+    fontFamily: 'Poppins-Regular',
+    color: '#e3f2fd',
+    marginBottom: 2,
+  },
+  dateText: {
+    fontSize: 13,
+    fontFamily: 'Poppins-Regular',
+    color: '#b3e5fc',
+  },
+  profileImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+
+  // Scroll Content
+  scrollContent: {
+    flex: 1,
+    padding: 20,
+  },
+
+  // Calendar Title
+  calendarTitleContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: 24,
   },
-  headerTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#00418b',
+  calendarTitle: {
+    fontSize: 24,
     fontFamily: 'Poppins-Bold',
+    color: '#00418b',
   },
-  academicInfo: {
-    backgroundColor: '#e3f2fd',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 16,
-    borderLeftWidth: 4,
-    borderLeftColor: '#00418b',
-  },
-  academicText: {
-    fontSize: 14,
-    color: '#1976d2',
-    fontFamily: 'Poppins-Regular',
-    textAlign: 'center',
-    fontWeight: '500',
-  },
+
+  // Month Navigation
   monthNavigation: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 24,
+    marginBottom: 20,
     paddingHorizontal: 20,
   },
   navButton: {
-    padding: 8,
+    padding: 12,
+    backgroundColor: '#f0f8ff',
+    borderRadius: 12,
   },
   monthText: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 20,
+    fontFamily: 'Poppins-Bold',
     color: '#333',
-    fontFamily: 'Poppins-SemiBold',
   },
+
+  // Today Button
+  todayButtonContainer: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  todayButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#e3f2fd',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#00418b',
+  },
+  todayButtonText: {
+    fontSize: 14,
+    fontFamily: 'Poppins-Medium',
+    color: '#00418b',
+    marginLeft: 8,
+  },
+
+  // Calendar Container
   calendarContainer: {
     backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 16,
+    padding: 20,
     marginBottom: 24,
     shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
   },
   dayHeaders: {
     flexDirection: 'row',
-    marginBottom: 16,
+    marginBottom: 20,
   },
   dayHeader: {
     flex: 1,
     textAlign: 'center',
     fontSize: 14,
-    fontWeight: 'bold',
-    color: '#666',
     fontFamily: 'Poppins-SemiBold',
+    color: '#666',
   },
   calendarGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
   },
   dayCell: {
-    width: '14.28%',
+    width: (width - 80) / 7,
     aspectRatio: 1,
     alignItems: 'center',
     justifyContent: 'center',
@@ -438,8 +555,8 @@ const styles = StyleSheet.create({
   },
   dayNumber: {
     fontSize: 16,
-    color: '#333',
     fontFamily: 'Poppins-Regular',
+    color: '#333',
   },
   selectedDayText: {
     color: '#fff',
@@ -451,8 +568,8 @@ const styles = StyleSheet.create({
   },
   eventIndicator: {
     position: 'absolute',
-    bottom: 2,
-    right: 2,
+    bottom: 4,
+    right: 4,
     backgroundColor: '#ff6b6b',
     borderRadius: 8,
     minWidth: 16,
@@ -463,31 +580,31 @@ const styles = StyleSheet.create({
   eventCount: {
     color: '#fff',
     fontSize: 10,
-    fontWeight: 'bold',
     fontFamily: 'Poppins-Bold',
   },
+
+  // Events Container
   eventsContainer: {
     flex: 1,
   },
   eventsTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontSize: 18,
+    fontFamily: 'Poppins-Bold',
     color: '#333',
     marginBottom: 16,
-    fontFamily: 'Poppins-SemiBold',
   },
   eventsList: {
     flex: 1,
   },
   eventCard: {
     backgroundColor: '#fff',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 8,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
     shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
     borderLeftWidth: 4,
   },
   eventHeader: {
@@ -496,27 +613,25 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   eventTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#333',
-    marginLeft: 8,
+    fontSize: 16,
     fontFamily: 'Poppins-SemiBold',
+    color: '#333',
+    marginLeft: 12,
   },
   eventDescription: {
-    fontSize: 12,
-    color: '#666',
+    fontSize: 14,
     fontFamily: 'Poppins-Regular',
-    marginBottom: 8,
+    color: '#666',
+    marginBottom: 12,
   },
   eventTypeBadge: {
     alignSelf: 'flex-start',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
   },
   eventTypeText: {
-    fontSize: 10,
-    fontWeight: 'bold',
+    fontSize: 11,
     fontFamily: 'Poppins-Bold',
   },
   noEventsContainer: {
@@ -525,10 +640,24 @@ const styles = StyleSheet.create({
     paddingVertical: 40,
   },
   noEventsText: {
-    fontSize: 14,
-    color: '#999',
-    marginTop: 12,
+    fontSize: 16,
     fontFamily: 'Poppins-Regular',
+    color: '#999',
+    marginTop: 16,
+  },
+
+  // Loading
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f7f9fa',
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    fontFamily: 'Poppins-Regular',
+    color: '#666',
   },
 });
 

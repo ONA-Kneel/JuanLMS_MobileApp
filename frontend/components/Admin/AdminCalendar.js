@@ -1,11 +1,14 @@
-import { Text, TouchableOpacity, View, Image, Alert } from 'react-native';
+import { Text, TouchableOpacity, View, Image, Alert, ScrollView, Dimensions, ActivityIndicator } from 'react-native';
 import * as React from 'react';
 import { useState, useEffect } from 'react';
-import { Calendar } from 'react-native-calendars';
 import { Ionicons } from '@expo/vector-icons';
 import AdminCalendarStyle from '../styles/administrator/AdminCalendarStyle';
 import { useNavigation } from '@react-navigation/native';
+import { useUser } from '../UserContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import moment from 'moment';
+
+const { width } = Dimensions.get('window');
 
 const timeToString = (time) => {
   const date = new Date(time);
@@ -38,7 +41,8 @@ const addDays = (dateString, days) => {
 };
 
 export default function AdminCalendar() {
-  const changeScreen = useNavigation();
+  const navigation = useNavigation();
+  const { user } = useUser();
   const [items, setItems] = useState({});
   const [selectedDate, setSelectedDate] = useState(timeToString(Date.now()));
   const [currentMonth, setCurrentMonth] = useState(getMonthYearString(timeToString(Date.now())));
@@ -105,52 +109,43 @@ export default function AdminCalendar() {
         // Process events
         eventsData.forEach(event => {
           if (event && event.date) {
-            let date = '';
-            try {
-              date = event.date.split('T')[0];
-            } catch (err) {
-              console.error('Error splitting event date:', err);
-              return;
-            }
-            if (date && !newItems[date]) newItems[date] = [];
-            if (date) {
-              newItems[date].push({
-                name: event.title || 'Event',
-                type: 'event',
-                color: event.color || '#2196f3',
-                time: event.time || '',
-                height: 50
-              });
-            }
+            const eventDate = timeToString(new Date(event.date));
+            if (!newItems[eventDate]) newItems[eventDate] = [];
+            newItems[eventDate].push({
+              name: event.title || 'Event',
+              type: 'event',
+              color: '#2196f3',
+              height: 50,
+              time: event.time || '',
+              status: event.status || ''
+            });
           }
         });
 
         // Process class dates
-        classDates.forEach(date => {
-          try {
-            const dateStr = new Date(date.date).toISOString().split('T')[0];
-            if (!dateStr) return;
-            if (!newItems[dateStr]) newItems[dateStr] = [];
-            newItems[dateStr].push({
-              name: 'Class Day',
-              type: 'class',
-              color: '#93c5fd',
-              height: 50
-            });
-          } catch (err) {
-            console.error('Error processing class date:', err);
-            return;
-          }
-        });
-        
+        if (classDates.length > 0) {
+          classDates.forEach(classDate => {
+            if (classDate && classDate.date) {
+              const classDateStr = timeToString(new Date(classDate.date));
+              if (!newItems[classDateStr]) newItems[classDateStr] = [];
+              newItems[classDateStr].push({
+                name: 'Class Day',
+                type: 'class',
+                color: '#4CAF50',
+                height: 50
+              });
+            }
+          });
+        }
+
         setItems(newItems);
-      } catch (err) {
-        console.error('Failed to fetch calendar data:', err);
-        setItems({});
+      } catch (error) {
+        console.error('Error fetching calendar data:', error);
       } finally {
         setLoadingEvents(false);
       }
     };
+
     fetchAll();
   }, [classDates]);
 
@@ -303,121 +298,204 @@ export default function AdminCalendar() {
     }
   }, [viewMode, selectedDate]);
 
+  if (loadingEvents) {
+    return (
+      <View style={[AdminCalendarStyle.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color="#00418b" />
+        <Text style={{ marginTop: 16, fontFamily: 'Poppins-Regular', color: '#666' }}>
+          Loading calendar...
+        </Text>
+      </View>
+    );
+  }
+
   return (
     <View style={AdminCalendarStyle.container}>
-      {/* Blue background */}
-      <View style={AdminCalendarStyle.blueHeaderBackground} />
-      {/* White card header */}
-      <View style={AdminCalendarStyle.whiteHeaderCard}>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-          <View>
-            <Text style={AdminCalendarStyle.headerTitle}>Calendar</Text>
-            <Text style={AdminCalendarStyle.headerSubtitle}>{formatDateTime(currentDateTime)}</Text>
-            {/* Academic Year and Term Info */}
-            <View style={{ marginTop: 4 }}>
-              <Text style={{ fontSize: 12, color: '#666', fontFamily: 'Poppins-Regular' }}>
-                {academicYear ? `${academicYear.schoolYearStart}-${academicYear.schoolYearEnd}` : "Loading..."} | 
-                {currentTerm ? ` ${currentTerm.termName}` : " Loading..."}
-              </Text>
-            </View>
+      {/* Profile Header */}
+      <View style={AdminCalendarStyle.profileHeader}>
+        <View style={AdminCalendarStyle.profileHeaderContent}>
+          <View style={AdminCalendarStyle.profileInfo}>
+            <Text style={AdminCalendarStyle.greetingText}>
+              Hello, <Text style={AdminCalendarStyle.userName}>{user?.firstname || 'Admin'}!</Text>
+            </Text>
+            <Text style={AdminCalendarStyle.roleText}>Administrator</Text>
+            <Text style={AdminCalendarStyle.dateText}>
+              {moment(new Date()).format('dddd, MMMM D, YYYY')}
+            </Text>
           </View>
-          <TouchableOpacity onPress={() => changeScreen.navigate('AProfile')}>
-            <Image 
-              source={require('../../assets/profile-icon (2).png')} 
-              style={{ width: 36, height: 36, borderRadius: 18 }}
-              resizeMode="cover"
-            />
+          <TouchableOpacity onPress={() => navigation.navigate('AProfile')}>
+            {user?.profilePicture ? (
+              <Image 
+                source={{ uri: user.profilePicture }} 
+                style={AdminCalendarStyle.profileImage}
+                resizeMode="cover"
+              />
+            ) : (
+              <Image 
+                source={require('../../assets/profile-icon (2).png')} 
+                style={AdminCalendarStyle.profileImage}
+              />
+            )}
           </TouchableOpacity>
         </View>
       </View>
-      {/* Always show week row */}
-      <View style={[AdminCalendarStyle.calendarCard, { padding: 8, marginTop: 5, marginBottom: 10 }]}> 
-        {/* Collapsible Month Calendar Toggle */}
-        <TouchableOpacity
-          style={{ flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', marginTop: 10, marginBottom: 5, marginHorizontal: 10 }}
-          onPress={() => setShowMonthCalendar(!showMonthCalendar)}
-        >
-          <Text style={{ fontFamily: 'Poppins-Bold', color: '#00418B', fontSize: 16, marginLeft: 4 }}>
-            {getMonthYearString(selectedDate)}
+
+      <ScrollView style={AdminCalendarStyle.scrollContent} showsVerticalScrollIndicator={false}>
+        {/* Calendar Title */}
+        <View style={AdminCalendarStyle.calendarTitleContainer}>
+          <Text style={AdminCalendarStyle.calendarTitle}>Administrative Calendar</Text>
+          <Ionicons name="calendar" size={28} color="#00418b" />
+        </View>
+
+        {/* Academic Year and Term Info */}
+        <View style={AdminCalendarStyle.academicInfo}>
+          <Text style={AdminCalendarStyle.academicText}>
+            {academicYear ? `${academicYear.schoolYearStart}-${academicYear.schoolYearEnd}` : "Loading..."} | 
+            {currentTerm ? ` ${currentTerm.termName}` : " Loading..."}
           </Text>
-          <Ionicons name={showMonthCalendar ? 'chevron-up' : 'chevron-down'} size={20} color="#00418B" />
-        </TouchableOpacity>
+        </View>
+
+        {/* Month Navigation */}
+        <View style={AdminCalendarStyle.monthNavigation}>
+          <TouchableOpacity onPress={() => setShowMonthCalendar(!showMonthCalendar)} style={AdminCalendarStyle.navButton}>
+            <Ionicons name={showMonthCalendar ? 'chevron-up' : 'chevron-down'} size={24} color="#00418b" />
+          </TouchableOpacity>
+          <Text style={AdminCalendarStyle.monthText}>{getMonthYearString(selectedDate)}</Text>
+          <TouchableOpacity style={AdminCalendarStyle.navButton}>
+            <Ionicons name="calendar" size={24} color="#00418b" />
+          </TouchableOpacity>
+        </View>
+
         {/* Collapsible Month Calendar */}
         {showMonthCalendar && (
-          <View style={[AdminCalendarStyle.calendarCard, {marginBottom:5}]}> 
-            <Calendar
-              current={selectedDate}
-              onDayPress={day => setSelectedDate(day.dateString)}
-              markedDates={{
-                [selectedDate]: { selected: true, selectedColor: '#00418B' }
-              }}
-              theme={{
-                backgroundColor: '#fff',
-                calendarBackground: '#fff',
-                textSectionTitleColor: '#222',
-                selectedDayBackgroundColor: '#00418B',
-                selectedDayTextColor: '#fff',
-                todayTextColor: '#00418B',
-                dayTextColor: '#222',
-                textDisabledColor: '#ccc',
-                monthTextColor: '#00418B',
-                arrowColor: '#00418B',
-                textDayFontFamily: 'Poppins-Regular',
-                textMonthFontFamily: 'Poppins-Bold',
-                textDayHeaderFontFamily: 'Poppins-Medium',
-              }}
-            />
+          <View style={AdminCalendarStyle.calendarContainer}>
+            <View style={AdminCalendarStyle.dayHeaders}>
+              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                <Text key={day} style={AdminCalendarStyle.dayHeader}>{day}</Text>
+              ))}
+            </View>
+            <View style={AdminCalendarStyle.calendarGrid}>
+              {/* Generate calendar days for current month */}
+              {(() => {
+                const year = new Date(selectedDate).getFullYear();
+                const month = new Date(selectedDate).getMonth();
+                const firstDay = new Date(year, month, 1);
+                const lastDay = new Date(year, month + 1, 0);
+                const daysInMonth = lastDay.getDate();
+                const startingDay = firstDay.getDay();
+                
+                const days = [];
+                
+                // Add empty cells for days before the first day of the month
+                for (let i = 0; i < startingDay; i++) {
+                  days.push(null);
+                }
+                
+                // Add all days of the month
+                for (let i = 1; i <= daysInMonth; i++) {
+                  days.push(new Date(year, month, i));
+                }
+                
+                return days.map((day, index) => {
+                  if (!day) return <View key={index} style={AdminCalendarStyle.dayCell} />;
+                  
+                  const dayString = timeToString(day);
+                  const dayEvents = items[dayString] || [];
+                  const isSelected = dayString === selectedDate;
+                  const isToday = dayString === timeToString(new Date());
+                  
+                  return (
+                    <TouchableOpacity
+                      key={index}
+                      style={[
+                        AdminCalendarStyle.dayCell,
+                        isSelected && AdminCalendarStyle.selectedDay,
+                        isToday && AdminCalendarStyle.today
+                      ]}
+                      onPress={() => setSelectedDate(dayString)}
+                    >
+                      <Text style={[
+                        AdminCalendarStyle.dayNumber,
+                        isSelected && AdminCalendarStyle.selectedDayText,
+                        isToday && AdminCalendarStyle.todayText
+                      ]}>
+                        {day.getDate()}
+                      </Text>
+                      {dayEvents.length > 0 && (
+                        <View style={AdminCalendarStyle.eventIndicator}>
+                          <Text style={AdminCalendarStyle.eventCount}>{dayEvents.length}</Text>
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  );
+                });
+              })()}
+            </View>
           </View>
         )}
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop:5 }}>
-          <TouchableOpacity onPress={goToPrevWeek} style={{ padding: 8 }}>
-            <Ionicons name="chevron-back" size={24} color="#00418B" />
-          </TouchableOpacity>
-          {weekDates.map(date => (
-            <TouchableOpacity
-              key={date}
-              onPress={() => setSelectedDate(date)}
-              style={{
-                flex: 1,
-                alignItems: 'center',
-                paddingVertical: 8,
-                backgroundColor: selectedDate === date ? '#00418B' : '#f0f0f0',
-                borderRadius: 10,
-                marginHorizontal: 2,
-              }}
-            >
-              <Text style={{
-                color: selectedDate === date ? '#fff' : '#888',
-                fontFamily: selectedDate === date ? 'Poppins-Bold' : 'Poppins-Regular',
-                fontSize: 13,
-              }}>
-                {new Date(date).toLocaleDateString('en-US', { weekday: 'short' })}
-              </Text>
-              <Text style={{
-                color: selectedDate === date ? '#fff' : '#222',
-                fontFamily: selectedDate === date ? 'Poppins-Bold' : 'Poppins-Regular',
-                fontSize: 16,
-              }}>
-                {new Date(date).getDate()}
-              </Text>
+
+        {/* Week View */}
+        <View style={AdminCalendarStyle.weekContainer}>
+          <View style={AdminCalendarStyle.weekNavigation}>
+            <TouchableOpacity onPress={goToPrevWeek} style={AdminCalendarStyle.weekNavButton}>
+              <Ionicons name="chevron-back" size={24} color="#00418b" />
             </TouchableOpacity>
-          ))}
-          <TouchableOpacity onPress={goToNextWeek} style={{ padding: 8 }}>
-            <Ionicons name="chevron-forward" size={24} color="#00418B" />
-          </TouchableOpacity>
+            <Text style={AdminCalendarStyle.weekText}>Week View</Text>
+            <TouchableOpacity onPress={goToNextWeek} style={AdminCalendarStyle.weekNavButton}>
+              <Ionicons name="chevron-forward" size={24} color="#00418b" />
+            </TouchableOpacity>
+          </View>
+          
+          <View style={AdminCalendarStyle.weekGrid}>
+            {weekDates.map(date => (
+              <TouchableOpacity
+                key={date}
+                onPress={() => setSelectedDate(date)}
+                style={[
+                  AdminCalendarStyle.weekDay,
+                  selectedDate === date && AdminCalendarStyle.selectedWeekDay
+                ]}
+              >
+                <Text style={[
+                  AdminCalendarStyle.weekDayText,
+                  selectedDate === date && AdminCalendarStyle.selectedWeekDayText
+                ]}>
+                  {new Date(date).toLocaleDateString('en-US', { weekday: 'short' })}
+                </Text>
+                <Text style={[
+                  AdminCalendarStyle.weekDateText,
+                  selectedDate === date && AdminCalendarStyle.selectedWeekDayText
+                ]}>
+                  {new Date(date).getDate()}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         </View>
-      </View>
-      {/* Upcoming events */}
-      <Text style={AdminCalendarStyle.upcomingTitle}>Upcoming events</Text>
-      <View style={AdminCalendarStyle.eventsList}>
-        {loadingEvents ? (
-          <Text style={AdminCalendarStyle.noEventsText}>Loading events...</Text>
-        ) : getEventsForSelectedDate().length === 0 ? (
-          <Text style={AdminCalendarStyle.noEventsText}>No events</Text>
-        ) : (
-          getEventsForSelectedDate().map((item, index) => renderEventCard(item, index))
-        )}
-      </View>
+
+        {/* Selected Date Events */}
+        <View style={AdminCalendarStyle.eventsContainer}>
+          <Text style={AdminCalendarStyle.eventsTitle}>
+            Events for {new Date(selectedDate).toLocaleDateString('en-US', { 
+              weekday: 'long', 
+              year: 'numeric', 
+              month: 'long', 
+              day: 'numeric' 
+            })}
+          </Text>
+          
+          {getEventsForSelectedDate().length === 0 ? (
+            <View style={AdminCalendarStyle.noEventsContainer}>
+              <Ionicons name="calendar-outline" size={48} color="#ccc" />
+              <Text style={AdminCalendarStyle.noEventsText}>No events scheduled for this date</Text>
+            </View>
+          ) : (
+            <View style={AdminCalendarStyle.eventsList}>
+              {getEventsForSelectedDate().map((item, index) => renderEventCard(item, index))}
+            </View>
+          )}
+        </View>
+      </ScrollView>
     </View>
   );
 }

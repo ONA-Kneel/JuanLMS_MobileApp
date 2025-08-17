@@ -20,6 +20,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MaterialIcons, Ionicons, Feather } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
 import io from 'socket.io-client';
+import moment from 'moment';
 
 const API_BASE = 'https://juanlms-webapp-server.onrender.com';
 const SOCKET_URL = 'https://juanlms-webapp-server.onrender.com';
@@ -415,7 +416,7 @@ export default function FacultyChats() {
   if (!selectedChat) {
     return (
       <View style={{ flex: 1, backgroundColor: '#f6f7fb' }}>
-        {/* Header */}
+        {/* Profile Header */}
         <View style={{ 
           backgroundColor: '#00418b', 
           paddingTop: 48, 
@@ -424,12 +425,55 @@ export default function FacultyChats() {
           borderBottomLeftRadius: 20,
           borderBottomRightRadius: 20,
         }}>
-          <Text style={{ fontSize: 24, fontWeight: 'bold', color: '#fff', marginBottom: 8 }}>
-            Chats
-          </Text>
-          <Text style={{ fontSize: 14, color: '#e3f2fd' }}>
-            Connect with students and colleagues
-          </Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 20, fontFamily: 'Poppins-Bold', color: '#fff', marginBottom: 4 }}>
+                Hello, <Text style={{ fontWeight: 'bold' }}>{user?.firstname || 'Faculty'}!</Text>
+              </Text>
+              <Text style={{ fontSize: 14, fontFamily: 'Poppins-Regular', color: '#e3f2fd', marginBottom: 2 }}>
+                Faculty Member
+              </Text>
+              <Text style={{ fontSize: 13, fontFamily: 'Poppins-Regular', color: '#b3e5fc' }}>
+                {moment(new Date()).format('dddd, MMMM D, YYYY')}
+              </Text>
+            </View>
+            <TouchableOpacity onPress={() => navigation.navigate('FProfile')}>
+              {user?.profilePicture ? (
+                <Image 
+                  source={{ uri: user.profilePicture }} 
+                  style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 20,
+                    borderWidth: 2,
+                    borderColor: '#fff',
+                  }}
+                  resizeMode="cover"
+                />
+              ) : (
+                <Image 
+                  source={require('../../assets/profile-icon (2).png')} 
+                  style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 20,
+                    borderWidth: 2,
+                    borderColor: '#fff',
+                  }}
+                />
+              )}
+            </TouchableOpacity>
+          </View>
+          
+          {/* Chats Title */}
+          <View style={{ marginTop: 20 }}>
+            <Text style={{ fontSize: 24, fontFamily: 'Poppins-Bold', color: '#fff', marginBottom: 8 }}>
+              Chats
+            </Text>
+            <Text style={{ fontSize: 14, fontFamily: 'Poppins-Regular', color: '#e3f2fd' }}>
+              Connect with students and colleagues
+            </Text>
+          </View>
         </View>
 
         <ScrollView style={{ flex: 1, padding: 24 }} showsVerticalScrollIndicator={false}>
