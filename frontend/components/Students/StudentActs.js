@@ -247,13 +247,66 @@ export default function StudentActs() {
   const [activeTab, setActiveTab] = useState(0);
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentDateTime(new Date());
-    }, 1000);
-
     fetchActivities();
-    return () => clearInterval(timer);
   }, []);
+
+  // Add focus listener to refresh activities when returning to this screen
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      // Refresh activities when screen comes into focus (e.g., after submission)
+      fetchActivities();
+    });
+
+    return unsubscribe;
+  }, [navigation]);
+
+  // Add submission status checking for each activity
+  const checkSubmissionStatuses = async (activitiesList) => {
+    try {
+      const token = await AsyncStorage.getItem('jwtToken');
+      const updatedActivities = await Promise.all(
+        activitiesList.map(async (activity) => {
+          if (activity.type === 'assignment') {
+            try {
+              // Check submission status for assignments
+              const response = await fetch(`${API_BASE}/assignments/${activity._id}/submissions`, {
+                headers: { Authorization: `Bearer ${token}` }
+              });
+              if (response.ok) {
+                const submissions = await response.json();
+                const studentSubmission = submissions.find(sub => sub.student === user._id);
+                if (studentSubmission) {
+                  return { ...activity, submittedAt: studentSubmission.submittedAt, status: 'submitted' };
+                }
+              }
+            } catch (error) {
+              console.error('Error checking submission status:', error);
+            }
+          } else if (activity.type === 'quiz') {
+            try {
+              // Check submission status for quizzes
+              const response = await fetch(`${API_BASE}/api/quizzes/${activity._id}/response/${user._id}`, {
+                headers: { Authorization: `Bearer ${token}` }
+              });
+              if (response.ok) {
+                const quizResponse = await response.json();
+                if (quizResponse) {
+                  return { ...activity, submittedAt: quizResponse.submittedAt, status: 'submitted' };
+                }
+              }
+            } catch (error) {
+              console.error('Error checking quiz response status:', error);
+            }
+          }
+          return activity;
+        })
+      );
+      return updatedActivities;
+    } catch (error) {
+      console.error('Error checking submission statuses:', error);
+      return activitiesList;
+    }
+  };
 
   const fetchActivities = async () => {
     try {
@@ -261,97 +314,69 @@ export default function StudentActs() {
       setError('');
       const token = await AsyncStorage.getItem('jwtToken');
       
-      if (!token) {
-        throw new Error('No authentication token found');
-      }
-
-      let allActivities = [];
-
-      // First, get the user's enrolled classes (similar to web version)
+      // Fetch user's enrolled classes first
       const classesResponse = await fetch(`${API_BASE}/classes/my-classes`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-
-      if (classesResponse.ok) {
-        const classes = await classesResponse.json();
-        console.log('Student classes received:', classes);
-        
-        if (Array.isArray(classes) && classes.length > 0) {
-          // Fetch assignments and quizzes for each class (similar to web version)
-          for (const cls of classes) {
-            const classCode = cls.classID || cls.classCode || cls._id;
-            console.log('Fetching activities for class:', classCode, cls.className);
-            
-            try {
-              // Fetch assignments for this class
-              const assignmentsResponse = await fetch(`${API_BASE}/assignments?classID=${classCode}`, {
-                headers: { Authorization: `Bearer ${token}` }
-              });
-
-              if (assignmentsResponse.ok) {
-                const assignments = await assignmentsResponse.json();
-                console.log(`Assignments for class ${classCode}:`, assignments);
-                
-                if (Array.isArray(assignments)) {
-                  // Filter assignments assigned to this student (similar to web version)
-                  const studentAssignments = assignments.filter(assignment => {
-                    const entry = assignment.assignedTo?.find?.(e => e.classID === classCode);
-                    return entry && Array.isArray(entry.studentIDs) && entry.studentIDs.includes(user.userID);
-                  });
-                  
-                  // Add class info to assignments
-                  const assignmentsWithInfo = studentAssignments.map(assignment => ({
-                    ...assignment,
-                    type: 'assignment',
-                    className: cls.className || cls.name || 'Unknown Class',
-                    classCode: cls.classCode || cls.classID || 'N/A'
-                  }));
-                  
-                  allActivities.push(...assignmentsWithInfo);
-                }
-              }
-              
-              // Fetch quizzes for this class
-              const quizzesResponse = await fetch(`${API_BASE}/api/quizzes?classID=${classCode}`, {
-                headers: { Authorization: `Bearer ${token}` }
-              });
-
-              if (quizzesResponse.ok) {
-                const quizzes = await quizzesResponse.json();
-                console.log(`Quizzes for class ${classCode}:`, quizzes);
-                
-                if (Array.isArray(quizzes)) {
-                  // Filter quizzes assigned to this student (similar to web version)
-                  const studentQuizzes = quizzes.filter(quiz => {
-                    const entry = quiz.assignedTo?.find?.(e => e.classID === classCode);
-                    return entry && Array.isArray(entry.studentIDs) && entry.studentIDs.includes(user.userID);
-                  });
-                  
-                  // Add class info to quizzes
-                  const quizzesWithInfo = studentQuizzes.map(quiz => ({
-                    ...quiz,
-                    type: 'quiz',
-                    dueDate: quiz.endDate || quiz.dueDate,
-                    className: cls.className || cls.name || 'Unknown Class',
-                    classCode: cls.classCode || cls.classID || 'N/A'
-                  }));
-                  
-                  allActivities.push(...quizzesWithInfo);
-                }
-              }
-            } catch (err) {
-              console.log(`Error fetching activities for class ${classCode}:`, err);
-            }
+      
+      if (!classesResponse.ok) {
+        throw new Error('Failed to fetch classes');
+      }
+      
+      const classes = await classesResponse.json();
+      console.log('Classes for user:', classes);
+      
+      let allActivities = [];
+      
+      if (Array.isArray(classes)) {
+        for (const cls of classes) {
+          console.log('for class:', cls.className);
+          
+          // Fetch assignments for each class
+          const assignmentsResponse = await fetch(`${API_BASE}/assignments?classID=${cls.classID}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          
+          if (assignmentsResponse.ok) {
+            const assignments = await assignmentsResponse.json();
+            console.log('Assignments for class', cls.className + ':', assignments);
+            const assignmentsWithType = assignments.map(assignment => ({
+              ...assignment,
+              type: 'assignment',
+              className: cls.className,
+              classCode: cls.classCode
+            }));
+            allActivities.push(...assignmentsWithType);
+          }
+          
+          // Fetch quizzes for each class
+          const quizzesResponse = await fetch(`${API_BASE}/api/quizzes?classID=${cls.classID}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          
+          if (quizzesResponse.ok) {
+            const quizzes = await quizzesResponse.json();
+            console.log('Quizzes for class', cls.className + ':', quizzes);
+            const quizzesWithType = quizzes.map(quiz => ({
+              ...quiz,
+              type: 'quiz',
+              className: cls.className,
+              classCode: cls.classCode
+            }));
+            allActivities.push(...quizzesWithType);
           }
         }
       }
-
-      // Sort activities by due date
-      allActivities.sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
       
-      console.log('Fetched activities for StudentActs:', allActivities);
-      console.log('Total activities count:', allActivities.length);
-      setActivities(allActivities);
+      // Check submission statuses for all activities
+      const activitiesWithStatus = await checkSubmissionStatuses(allActivities);
+      
+      // Sort by due date
+      activitiesWithStatus.sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+      
+      console.log('Fetched activities for StudentActs:', activitiesWithStatus);
+      console.log('Total activities count:', activitiesWithStatus.length);
+      setActivities(activitiesWithStatus);
     } catch (err) {
       console.error('Error fetching activities:', err);
       setError('Failed to load activities');
@@ -365,6 +390,21 @@ export default function StudentActs() {
     setRefreshing(true);
     fetchActivities();
   };
+
+  // Force refresh activities (called when returning from submission screens)
+  const refreshActivities = () => {
+    fetchActivities();
+  };
+
+  // Add this to the navigation listener to refresh when returning from submission
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      // Refresh activities when screen comes into focus (e.g., after submission)
+      refreshActivities();
+    });
+
+    return unsubscribe;
+  }, [navigation]);
 
   const handleActivityPress = (activity) => {
     setSelectedActivity(activity);
@@ -380,7 +420,8 @@ export default function StudentActs() {
       // Navigate to assignment detail or submission
       navigation.navigate('AssignmentDetail', { 
         assignmentId: activity._id,
-        assignment: activity
+        assignment: activity,
+        onSubmissionComplete: refreshActivities // Pass refresh callback
       });
     }
   };
@@ -402,7 +443,8 @@ export default function StudentActs() {
     const now = new Date();
     const upcoming = activities.filter(activity => {
       const dueDate = new Date(activity.dueDate);
-      return dueDate > now;
+      // Only show as upcoming if not submitted and due date is in the future
+      return dueDate > now && !activity.submittedAt;
     });
     console.log('Upcoming activities:', upcoming);
     return upcoming;
@@ -412,7 +454,8 @@ export default function StudentActs() {
     const now = new Date();
     const pastDue = activities.filter(activity => {
       const dueDate = new Date(activity.dueDate);
-      return dueDate < now && !activity.submittedAt && !activity.completedAt;
+      // Show as past due if not submitted and due date has passed
+      return dueDate < now && !activity.submittedAt;
     });
     console.log('Past due activities:', pastDue);
     return pastDue;
@@ -420,7 +463,8 @@ export default function StudentActs() {
 
   const getCompletedActivities = () => {
     const completed = activities.filter(activity => {
-      return activity.submittedAt || activity.completedAt;
+      // Show as completed if submitted (has submittedAt timestamp)
+      return activity.submittedAt || activity.status === 'submitted';
     });
     console.log('Completed activities:', completed);
     return completed;
@@ -506,9 +550,19 @@ export default function StudentActs() {
             </TouchableOpacity>
           </View>
         ) : (
-          <View style={styles.tabContent}>
+          <ScrollView
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                colors={['#00418b']}
+                tintColor="#00418b"
+              />
+            }
+            showsVerticalScrollIndicator={false}
+          >
             {renderTabContent()}
-          </View>
+          </ScrollView>
         )}
       </View>
 

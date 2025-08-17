@@ -161,6 +161,11 @@ export default function AssignmentDetail() {
         // Clear form after successful submission (matching web version)
         setSelectedFile(null);
         setSubmissionText('');
+        
+        // Notify parent screens to refresh (for real-time updates)
+        if (route.params?.onSubmissionComplete) {
+          route.params.onSubmissionComplete();
+        }
       } else {
         const error = await response.json();
         Alert.alert('Error', error.message || 'Failed to submit assignment');

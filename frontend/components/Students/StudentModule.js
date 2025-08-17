@@ -351,7 +351,13 @@ export default function StudentModule(){
                                                             if (item.type === 'quiz') {
                                                                 navigation.navigate('QuizView', { quizId: item._id });
                                                             } else {
-                                                                navigation.navigate('AssignmentDetail', { assignmentId: item._id });
+                                                                navigation.navigate('AssignmentDetail', { 
+                                                                    assignmentId: item._id,
+                                                                    onSubmissionComplete: () => {
+                                                                        // Refresh classwork when returning from submission
+                                                                        fetchClasswork(classID);
+                                                                    }
+                                                                });
                                                             }
                                                         }}
                                                     >
@@ -451,7 +457,13 @@ export default function StudentModule(){
                                                             if (item.type === 'quiz') {
                                                                 navigation.navigate('QuizView', { quizId: item._id });
                                                             } else {
-                                                                navigation.navigate('AssignmentDetail', { assignmentId: item._id });
+                                                                navigation.navigate('AssignmentDetail', { 
+                                                                    assignmentId: item._id,
+                                                                    onSubmissionComplete: () => {
+                                                                        // Refresh classwork when returning from submission
+                                                                        fetchClasswork(classID);
+                                                                    }
+                                                                });
                                                             }
                                                         }}
                                                     >
