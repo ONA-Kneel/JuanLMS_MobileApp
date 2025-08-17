@@ -3,7 +3,7 @@ import { View, Text, FlatList, StyleSheet, TextInput, TouchableOpacity, RefreshC
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { formatDate } from '../../utils/dateUtils';
 import { useIsFocused } from '@react-navigation/native';
-import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const API_BASE_URL = 'https://juanlms-webapp-server.onrender.com';
 
@@ -31,11 +31,25 @@ export default function AdminAuditTrail() {
       setIsLoading(true);
       setError(null);
 
-      const response = await axios.get(`${API_BASE_URL}/audit-logs?page=1&limit=100`);
+      const token = await AsyncStorage.getItem('jwtToken');
+      const response = await fetch(`${API_BASE_URL}/audit-logs?page=1&limit=100`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+      });
 
-      if (response.data && response.data.logs && Array.isArray(response.data.logs)) {
-        setLogs(response.data.logs);
-        setFilteredLogs(response.data.logs);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (data && data.logs && Array.isArray(data.logs)) {
+        setLogs(data.logs);
+        setFilteredLogs(data.logs);
       } else {
         setLogs([]);
         setFilteredLogs([]);
@@ -62,28 +76,36 @@ export default function AdminAuditTrail() {
     }
   }, [isFocused]);
 
-  // Filter logs based on search query
+  // Filter logs based on search query and active filter
   useEffect(() => {
-    if (!searchQuery.trim()) {
-      setFilteredLogs(logs);
-      return;
+    let filtered = logs;
+
+    // Apply category filter
+    if (activeFilter !== 'all') {
+      filtered = filtered.filter(log => {
+        const category = log.category?.toLowerCase() || log.userRole?.toLowerCase() || '';
+        return category === activeFilter.toLowerCase();
+      });
     }
 
-    const query = searchQuery.toLowerCase().trim();
-    const filtered = logs.filter(log => {
-      const userName = log.userName?.toLowerCase() || '';
-      const userRole = log.userRole?.toLowerCase() || '';
-      const action = log.action?.toLowerCase() || '';
-      const details = log.details?.toLowerCase() || '';
-      
-      return userName.includes(query) || 
-             userRole.includes(query) || 
-             action.includes(query) ||
-             details.includes(query);
-    });
+    // Apply search query filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      filtered = filtered.filter(log => {
+        const userName = log.userName?.toLowerCase() || '';
+        const userRole = log.userRole?.toLowerCase() || '';
+        const action = log.action?.toLowerCase() || '';
+        const details = log.details?.toLowerCase() || '';
+        
+        return userName.includes(query) || 
+               userRole.includes(query) || 
+               action.includes(query) ||
+               details.includes(query);
+      });
+    }
     
     setFilteredLogs(filtered);
-  }, [searchQuery, logs]);
+  }, [searchQuery, logs, activeFilter]);
 
   const clearSearch = () => {
     setSearchQuery('');
@@ -138,6 +160,21 @@ export default function AdminAuditTrail() {
             {filteredLogs.length} result{filteredLogs.length !== 1 ? 's' : ''} found
           </Text>
         )}
+      </View>
+
+      {/* Filter Tabs */}
+      <View style={styles.filterContainer}>
+        {['all', 'academic', 'faculty', 'admin', 'student', 'system'].map((filter) => (
+          <TouchableOpacity
+            key={filter}
+            style={[styles.filterTab, activeFilter === filter && styles.activeFilterTab]}
+            onPress={() => setActiveFilter(filter)}
+          >
+            <Text style={[styles.filterTabText, activeFilter === filter && styles.activeFilterTabText]}>
+              {filter.charAt(0).toUpperCase() + filter.slice(1)}
+            </Text>
+          </TouchableOpacity>
+        ))}
       </View>
 
       {/* Audit Trail List */}
@@ -256,6 +293,34 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins-Regular',
     marginTop: 8,
     textAlign: 'center',
+  },
+  filterContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    marginBottom: 16,
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  filterTab: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#f0f0f0',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  activeFilterTab: {
+    backgroundColor: '#00418b',
+    borderColor: '#00418b',
+  },
+  filterTabText: {
+    fontSize: 12,
+    color: '#666',
+    fontFamily: 'Poppins-Regular',
+  },
+  activeFilterTabText: {
+    color: '#fff',
+    fontFamily: 'Poppins-Bold',
   },
   daySection: { 
     marginBottom: 18 

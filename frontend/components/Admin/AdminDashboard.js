@@ -272,8 +272,11 @@ export default function AdminDashboard() {
             <Text style={AdminDashStyle.greetingText}>
               Hello, <Text style={AdminDashStyle.userName}>{user?.firstname || 'Admin'}!</Text>
             </Text>
+            <Text style={AdminDashStyle.academicContext}>
+              {academicContext}
+            </Text>
             <Text style={AdminDashStyle.dateText}>
-              {academicContext} | {formatDateTime(currentDateTime)}
+              {formatDateTime(currentDateTime)}
             </Text>
           </View>
           <TouchableOpacity onPress={() => navigateToScreen('AProfile')}>

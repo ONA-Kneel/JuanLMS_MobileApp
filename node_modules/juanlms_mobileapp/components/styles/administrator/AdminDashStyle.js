@@ -52,6 +52,13 @@ const AdminDashStyle = StyleSheet.create({
     fontFamily: 'Poppins-Regular',
     color: '#888',
     fontSize: 13,
+    marginTop: 2,
+  },
+  academicContext: {
+    fontFamily: 'Poppins-Regular',
+    color: '#666',
+    fontSize: 14,
+    marginTop: 4,
   },
   profileImage: {
     width: 36,

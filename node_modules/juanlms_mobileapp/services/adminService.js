@@ -17,9 +17,13 @@ class AdminService {
       const baseURL = await this.getBaseURL();
       const url = `${baseURL}${endpoint}`;
       
+      // Get JWT token for authorization
+      const token = await AsyncStorage.getItem('jwtToken');
+      
       const defaultOptions = {
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
         },
         ...options,
       };
