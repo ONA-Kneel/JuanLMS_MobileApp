@@ -70,6 +70,9 @@ export default function FacultyModule() {
     const [savingEditModule, setSavingEditModule] = useState(false);
     const [showDeleteModuleModal, setShowDeleteModuleModal] = useState(false);
     const [deleteModuleId, setDeleteModuleId] = useState(null);
+    
+    // Add activeTab state here
+    const [activeTab, setActiveTab] = useState('Announcement');
 
     useEffect(() => {
         console.log('DEBUG FacultyModule: useEffect classId:', classId);
@@ -236,7 +239,6 @@ export default function FacultyModule() {
         { title: "Lesson 3: Advanced Topics", content: "Time for advanced computing!", image: "https://example.com/image3.jpg", progress: 0.10 },
     ];
     const [currentLesson, setCurrentLesson] = useState(0);
-    const [activeTab, setActiveTab] = useState('Announcement');
     const changeScreen = useNavigation();
     const back = () => changeScreen.goBack();
     let [fontsLoaded] = useFonts({
