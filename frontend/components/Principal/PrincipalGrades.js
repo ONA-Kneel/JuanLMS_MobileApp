@@ -346,7 +346,10 @@ export default function PrincipalGrades() {
         }
 
         const filtered = (Array.isArray(gradesPayload) ? gradesPayload : []).filter(grade => {
-          const subjectMatch = (grade.subjectName || '').toLowerCase().includes(selectedSubject.toLowerCase()) || (grade.subjectCode || '').toLowerCase().includes(selectedSubject.toLowerCase());
+          const sel = (selectedSubject || '').trim().toLowerCase();
+          const subjName = (grade.subjectName || '').trim().toLowerCase();
+          const subjCode = (grade.subjectCode || '').trim().toLowerCase();
+          const subjectMatch = subjName === sel || subjCode === sel || subjName.includes(sel) || subjCode.includes(sel);
           const sectionMatch = !grade.section || grade.section === selectedSection;
           const strandMatch = !grade.strandName || (grade.strandName || '').toLowerCase().includes(selectedStrand.toLowerCase());
           const gradeLevelMatch = !grade.gradeLevel || grade.gradeLevel === selectedGradeLevel;
@@ -356,6 +359,19 @@ export default function PrincipalGrades() {
         });
 
         const byStudent = new Map();
+        const getVal = (obj, keys, fallback='-') => {
+          for (const k of keys) {
+            const parts = k.split('.');
+            let cur = obj;
+            let ok = true;
+            for (const p of parts) {
+              if (cur && Object.prototype.hasOwnProperty.call(cur, p)) cur = cur[p]; else { ok = false; break; }
+            }
+            if (ok && cur !== undefined && cur !== null && cur !== '') return cur;
+          }
+          return fallback;
+        };
+
         filtered.forEach(grade => {
           const studentKey = grade.schoolID || grade.userID || grade.studentId || grade.studentID || grade._id;
           const studentName = grade.studentName || `${grade.firstname || ''} ${grade.lastname || ''}`.trim();
@@ -363,12 +379,12 @@ export default function PrincipalGrades() {
             studentName: studentName || 'N/A',
             schoolID: studentKey || 'N/A',
             grades: {
-              quarter1: grade.quarter1 || grade.first_quarter || '-',
-              quarter2: grade.quarter2 || grade.second_quarter || '-',
-              quarter3: grade.quarter3 || grade.third_quarter || '-',
-              quarter4: grade.quarter4 || grade.fourth_quarter || '-',
-              semesterFinal: grade.semesterFinal || grade.final_grade || '-',
-              remarks: grade.remarks || grade.remark || '-',
+              quarter1: getVal(grade, ['quarter1', 'first_quarter', 'firstQuarter', 'q1', 'grades.quarter1']),
+              quarter2: getVal(grade, ['quarter2', 'second_quarter', 'secondQuarter', 'q2', 'grades.quarter2']),
+              quarter3: getVal(grade, ['quarter3', 'third_quarter', 'thirdQuarter', 'q3', 'grades.quarter3']),
+              quarter4: getVal(grade, ['quarter4', 'fourth_quarter', 'fourthQuarter', 'q4', 'grades.quarter4']),
+              semesterFinal: getVal(grade, ['semesterFinal', 'final_grade', 'final', 'grades.semesterFinal']),
+              remarks: getVal(grade, ['remarks', 'remark', 'grades.remarks']),
             },
           };
           byStudent.set(studentKey || `${grade.studentName}-${grade.subjectName}`, record);
