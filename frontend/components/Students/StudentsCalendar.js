@@ -21,20 +21,6 @@ const getMonthYearString = (dateString) => {
   return date.toLocaleString('default', { month: 'long', year: 'numeric' });
 };
 
-const getCurrentWeekDates = (selectedDate) => {
-  const today = new Date(selectedDate);
-  const currentDay = today.getDay();
-  const startOfWeek = new Date(today);
-  startOfWeek.setDate(today.getDate() - currentDay);
-  const weekDates = [];
-  for (let i = 0; i < 7; i++) {
-    const date = new Date(startOfWeek);
-    date.setDate(startOfWeek.getDate() + i);
-    weekDates.push(timeToString(date));
-  }
-  return weekDates;
-};
-
 const addDays = (dateString, days) => {
   const date = new Date(dateString);
   date.setDate(date.getDate() + days);
@@ -47,15 +33,6 @@ export default function StudentCalendar() {
   const [items, setItems] = useState({});
   const [selectedDate, setSelectedDate] = useState(timeToString(Date.now()));
   const [currentMonth, setCurrentMonth] = useState(getMonthYearString(timeToString(Date.now())));
-  const [viewMode, setViewMode] = useState('Month');
-  const [weekStartDate, setWeekStartDate] = useState(() => {
-    const today = new Date();
-    const currentDay = today.getDay();
-    const startOfWeek = new Date(today);
-    startOfWeek.setDate(today.getDate() - currentDay);
-    return timeToString(startOfWeek);
-  });
-  const [showMonthCalendar, setShowMonthCalendar] = useState(false);
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
   
   // New state variables for web integration
@@ -319,29 +296,16 @@ export default function StudentCalendar() {
     return events;
   };
 
-  // Week view: get week dates for the current week
-  const weekDates = getCurrentWeekDates(weekStartDate);
-
-  // Handlers for week navigation
-  const goToPrevWeek = () => {
-    setWeekStartDate(addDays(weekStartDate, -7));
-    setSelectedDate(addDays(weekStartDate, -7));
-  };
-  const goToNextWeek = () => {
-    setWeekStartDate(addDays(weekStartDate, 7));
-    setSelectedDate(addDays(weekStartDate, 7));
-  };
-
-  // When switching to week view, sync weekStartDate to selectedDate's week
-  React.useEffect(() => {
-    if (viewMode === 'Week') {
-      const date = new Date(selectedDate);
-      const currentDay = date.getDay();
-      const startOfWeek = new Date(date);
-      startOfWeek.setDate(date.getDate() - currentDay);
-      setWeekStartDate(timeToString(startOfWeek));
+  const changeMonth = (direction) => {
+    const date = new Date(selectedDate);
+    if (direction === 'prev') {
+      date.setMonth(date.getMonth() - 1);
+    } else {
+      date.setMonth(date.getMonth() + 1);
     }
-  }, [viewMode, selectedDate]);
+    setSelectedDate(timeToString(date));
+    setCurrentMonth(getMonthYearString(timeToString(date)));
+  };
 
   if (loadingEvents) {
     return (
@@ -402,119 +366,78 @@ export default function StudentCalendar() {
 
         {/* Month Navigation */}
         <View style={StudentCalendarStyle.monthNavigation}>
-          <TouchableOpacity onPress={() => setShowMonthCalendar(!showMonthCalendar)} style={StudentCalendarStyle.navButton}>
-            <Ionicons name={showMonthCalendar ? 'chevron-up' : 'chevron-down'} size={24} color="#00418b" />
+          <TouchableOpacity onPress={() => changeMonth('prev')} style={StudentCalendarStyle.navButton}>
+            <Ionicons name="chevron-left" size={24} color="#00418b" />
           </TouchableOpacity>
           <Text style={StudentCalendarStyle.monthText}>{getMonthYearString(selectedDate)}</Text>
-          <TouchableOpacity style={StudentCalendarStyle.navButton}>
-            <Ionicons name="calendar" size={24} color="#00418b" />
+          <TouchableOpacity onPress={() => changeMonth('next')} style={StudentCalendarStyle.navButton}>
+            <Ionicons name="chevron-right" size={24} color="#00418b" />
           </TouchableOpacity>
         </View>
 
-        {/* Collapsible Month Calendar */}
-        {showMonthCalendar && (
-          <View style={StudentCalendarStyle.calendarContainer}>
-            <View style={StudentCalendarStyle.dayHeaders}>
-              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                <Text key={day} style={StudentCalendarStyle.dayHeader}>{day}</Text>
-              ))}
-            </View>
-            <View style={StudentCalendarStyle.calendarGrid}>
-              {/* Generate calendar days for current month */}
-              {(() => {
-                const year = new Date(selectedDate).getFullYear();
-                const month = new Date(selectedDate).getMonth();
-                const firstDay = new Date(year, month, 1);
-                const lastDay = new Date(year, month + 1, 0);
-                const daysInMonth = lastDay.getDate();
-                const startingDay = firstDay.getDay();
-                
-                const days = [];
-                
-                // Add empty cells for days before the first day of the month
-                for (let i = 0; i < startingDay; i++) {
-                  days.push(null);
-                }
-                
-                // Add all days of the month
-                for (let i = 1; i <= daysInMonth; i++) {
-                  days.push(new Date(year, month, i));
-                }
-                
-                return days.map((day, index) => {
-                  if (!day) return <View key={index} style={StudentCalendarStyle.dayCell} />;
-                  
-                  const dayString = timeToString(day);
-                  const dayEvents = items[dayString] || [];
-                  const isSelected = dayString === selectedDate;
-                  const isToday = dayString === timeToString(new Date());
-                  
-                  return (
-                    <TouchableOpacity
-                      key={index}
-                      style={[
-                        StudentCalendarStyle.dayCell,
-                        isSelected && StudentCalendarStyle.selectedDay,
-                        isToday && StudentCalendarStyle.today
-                      ]}
-                      onPress={() => setSelectedDate(dayString)}
-                    >
-                      <Text style={[
-                        StudentCalendarStyle.dayNumber,
-                        isSelected && StudentCalendarStyle.selectedDayText,
-                        isToday && StudentCalendarStyle.todayText
-                      ]}>
-                        {day.getDate()}
-                      </Text>
-                      {dayEvents.length > 0 && (
-                        <View style={StudentCalendarStyle.eventIndicator}>
-                          <Text style={StudentCalendarStyle.eventCount}>{dayEvents.length}</Text>
-                        </View>
-                      )}
-                    </TouchableOpacity>
-                  );
-                });
-              })()}
-            </View>
-          </View>
-        )}
-
-        {/* Week View */}
-        <View style={StudentCalendarStyle.weekContainer}>
-          <View style={StudentCalendarStyle.weekNavigation}>
-            <TouchableOpacity onPress={goToPrevWeek} style={StudentCalendarStyle.weekNavButton}>
-              <Ionicons name="chevron-back" size={24} color="#00418b" />
-            </TouchableOpacity>
-            <Text style={StudentCalendarStyle.weekText}>Week View</Text>
-            <TouchableOpacity onPress={goToNextWeek} style={StudentCalendarStyle.weekNavButton}>
-              <Ionicons name="chevron-forward" size={24} color="#00418b" />
-            </TouchableOpacity>
-          </View>
-          
-          <View style={StudentCalendarStyle.weekGrid}>
-            {weekDates.map(date => (
-              <TouchableOpacity
-                key={date}
-                onPress={() => setSelectedDate(date)}
-                style={[
-                  StudentCalendarStyle.weekDay,
-                  selectedDate === date && StudentCalendarStyle.selectedWeekDay
-                ]}
-              >
-                <Text style={[
-                  StudentCalendarStyle.weekDayText,
-                  selectedDate === date && StudentCalendarStyle.selectedWeekDayText
-                ]}>
-                  {new Date(date).toLocaleDateString('en-US', { weekday: 'short' })}
-                </Text>
-                <Text style={[
-                  StudentCalendarStyle.weekDateText,
-                  selectedDate === date && StudentCalendarStyle.selectedWeekDayText
-                ]}>
-                  {new Date(date).getDate()}
-                </Text>
-              </TouchableOpacity>
+        {/* Month Calendar - Always Visible */}
+        <View style={StudentCalendarStyle.calendarContainer}>
+          <View style={StudentCalendarStyle.dayHeaders}>
+            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+              <Text key={day} style={StudentCalendarStyle.dayHeader}>{day}</Text>
             ))}
+          </View>
+          <View style={StudentCalendarStyle.calendarGrid}>
+            {/* Generate calendar days for current month */}
+            {(() => {
+              const year = new Date(selectedDate).getFullYear();
+              const month = new Date(selectedDate).getMonth();
+              const firstDay = new Date(year, month, 1);
+              const lastDay = new Date(year, month + 1, 0);
+              const daysInMonth = lastDay.getDate();
+              const startingDay = firstDay.getDay();
+              
+              const days = [];
+              
+              // Add empty cells for days before the first day of the month
+              for (let i = 0; i < startingDay; i++) {
+                days.push(null);
+              }
+              
+              // Add all days of the month
+              for (let i = 1; i <= daysInMonth; i++) {
+                days.push(new Date(year, month, i));
+              }
+              
+              return days.map((day, index) => {
+                if (!day) return <View key={index} style={StudentCalendarStyle.dayCell} />;
+                
+                const dayString = timeToString(day);
+                const dayEvents = items[dayString] || [];
+                const isSelected = dayString === selectedDate;
+                const isToday = dayString === timeToString(new Date());
+                
+                return (
+                  <TouchableOpacity
+                    key={index}
+                    style={[
+                      StudentCalendarStyle.dayCell,
+                      isSelected && StudentCalendarStyle.selectedDay,
+                      isToday && StudentCalendarStyle.today
+                    ]}
+                    onPress={() => setSelectedDate(dayString)}
+                  >
+                    <Text style={[
+                      StudentCalendarStyle.dayNumber,
+                      isSelected && StudentCalendarStyle.selectedDayText,
+                      isToday && StudentCalendarStyle.todayText
+                    ]}>
+                      {day.getDate()}
+                    </Text>
+                    {dayEvents.length > 0 && (
+                      <View style={StudentCalendarStyle.eventIndicator}>
+                        <Text style={StudentCalendarStyle.eventCount}>{dayEvents.length}</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                );
+              });
+            })()}
           </View>
         </View>
 

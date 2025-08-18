@@ -183,63 +183,6 @@ const StudentCalendarStyle = StyleSheet.create({
         fontFamily: 'Poppins-Bold',
     },
 
-    // Week Container
-    weekContainer: {
-        backgroundColor: '#fff',
-        borderRadius: 16,
-        padding: 20,
-        marginBottom: 24,
-        shadowColor: '#000',
-        shadowOpacity: 0.08,
-        shadowRadius: 8,
-        elevation: 3,
-    },
-    weekNavigation: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        marginBottom: 20,
-    },
-    weekNavButton: {
-        padding: 8,
-        backgroundColor: '#f0f8ff',
-        borderRadius: 8,
-    },
-    weekText: {
-        fontSize: 18,
-        fontFamily: 'Poppins-Bold',
-        color: '#333',
-    },
-    weekGrid: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-    },
-    weekDay: {
-        flex: 1,
-        alignItems: 'center',
-        paddingVertical: 12,
-        backgroundColor: '#f8f9fa',
-        borderRadius: 12,
-        marginHorizontal: 4,
-    },
-    selectedWeekDay: {
-        backgroundColor: '#00418b',
-    },
-    weekDayText: {
-        fontSize: 12,
-        fontFamily: 'Poppins-Medium',
-        color: '#666',
-        marginBottom: 4,
-    },
-    weekDateText: {
-        fontSize: 16,
-        fontFamily: 'Poppins-Bold',
-        color: '#333',
-    },
-    selectedWeekDayText: {
-        color: '#fff',
-    },
-
     // Events Container
     eventsContainer: {
         flex: 1,

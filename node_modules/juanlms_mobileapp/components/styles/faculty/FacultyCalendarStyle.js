@@ -111,28 +111,6 @@ const FacultyCalendarStyle = StyleSheet.create({
         color: '#333',
     },
 
-    // Today Button
-    todayButtonContainer: {
-        alignItems: 'center',
-        marginBottom: 20,
-    },
-    todayButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#e3f2fd',
-        paddingHorizontal: 20,
-        paddingVertical: 10,
-        borderRadius: 20,
-        borderWidth: 1,
-        borderColor: '#00418b',
-    },
-    todayButtonText: {
-        fontSize: 14,
-        fontFamily: 'Poppins-Medium',
-        color: '#00418b',
-        marginLeft: 8,
-    },
-
     // Calendar Container
     calendarContainer: {
         backgroundColor: '#fff',
@@ -206,61 +184,6 @@ const FacultyCalendarStyle = StyleSheet.create({
         fontFamily: 'Poppins-Bold',
     },
 
-    // Week Container
-    weekContainer: {
-        backgroundColor: '#fff',
-        borderRadius: 16,
-        padding: 20,
-        marginBottom: 24,
-        shadowColor: '#000',
-        shadowOpacity: 0.08,
-        shadowRadius: 8,
-        elevation: 3,
-    },
-    weekNavigation: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        marginBottom: 16,
-    },
-    weekNavButton: {
-        padding: 8,
-        backgroundColor: '#f0f8ff',
-        borderRadius: 8,
-    },
-    weekText: {
-        fontSize: 16,
-        fontFamily: 'Poppins-SemiBold',
-        color: '#333',
-    },
-    weekGrid: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-    },
-    weekDay: {
-        alignItems: 'center',
-        padding: 12,
-        borderRadius: 12,
-        minWidth: 40,
-    },
-    selectedWeekDay: {
-        backgroundColor: '#00418b',
-    },
-    weekDayText: {
-        fontSize: 12,
-        fontFamily: 'Poppins-Medium',
-        color: '#666',
-        marginBottom: 4,
-    },
-    selectedWeekDayText: {
-        color: '#fff',
-    },
-    weekDateText: {
-        fontSize: 16,
-        fontFamily: 'Poppins-Bold',
-        color: '#333',
-    },
-
     // Events Container
     eventsContainer: {
         backgroundColor: '#fff',
@@ -321,13 +244,6 @@ const FacultyCalendarStyle = StyleSheet.create({
         fontFamily: 'Poppins-Medium',
         fontSize: 13,
         marginLeft: 10,
-    },
-    noEventsText: {
-        textAlign: 'center',
-        color: '#888',
-        fontFamily: 'Poppins-Regular',
-        marginTop: 30,
-        fontSize: 15,
     },
 
     // Legacy styles (keeping for backward compatibility)
