@@ -71,8 +71,8 @@ class AdminService {
            admin: localResponse?.admin || localResponse?.admins || 0,
            faculty: localResponse?.faculty || 0,
            student: localResponse?.student || localResponse?.students || 0,
-           vpe: 0, // Local backend doesn't have these roles yet
-           principal: 0
+           vpe: localResponse?.vpe || 0,
+           principal: localResponse?.principal || 0
          };
          
          console.log('Local backend mapped stats:', stats);
@@ -160,35 +160,30 @@ class AdminService {
   // Get academic progress (calculate based on current date and academic calendar)
   async getAcademicProgress() {
     try {
-      // Get current academic year and term
-      const yearRes = await this.makeRequest('/api/schoolyears/active');
-      if (!yearRes) return { schoolYear: 0, term: 0 };
+      // Try to get academic progress from local backend first
+      const response = await this.makeRequest('/admin/academic-progress');
+      if (response && (response.schoolYear !== undefined || response.term !== undefined)) {
+        return {
+          schoolYear: response.schoolYear || 0,
+          term: response.term || 0
+        };
+      }
 
-      const schoolYearStart = new Date(yearRes.schoolYearStart);
-      const schoolYearEnd = new Date(yearRes.schoolYearEnd);
+      // Fallback: calculate manually if local backend fails
       const now = new Date();
-
-      // Calculate school year progress
+      const schoolYearStart = new Date('2025-06-01');
+      const schoolYearEnd = new Date('2026-04-30');
+      const termStart = new Date('2025-08-02');
+      const termEnd = new Date('2025-12-20');
+      
       const schoolYearTotal = schoolYearEnd - schoolYearStart;
       const schoolYearElapsed = Math.max(0, now - schoolYearStart);
       const schoolYearProgress = Math.min(100, (schoolYearElapsed / schoolYearTotal) * 100);
-
-      // Get current term
-      const schoolYearName = `${yearRes.schoolYearStart}-${yearRes.schoolYearEnd}`;
-      const termsRes = await this.makeRequest(`/api/terms/schoolyear/${schoolYearName}`);
       
-      let termProgress = 0;
-      if (termsRes && Array.isArray(termsRes)) {
-        const activeTerm = termsRes.find(term => term.status === 'active');
-        if (activeTerm) {
-          const termStart = new Date(activeTerm.startDate);
-          const termEnd = new Date(activeTerm.endDate);
-          const termTotal = termEnd - termStart;
-          const termElapsed = Math.max(0, now - termStart);
-          termProgress = Math.min(100, (termElapsed / termTotal) * 100);
-        }
-      }
-
+      const termTotal = termEnd - termStart;
+      const termElapsed = Math.max(0, now - termStart);
+      const termProgress = Math.min(100, (termElapsed / termTotal) * 100);
+      
       return {
         schoolYear: Math.round(schoolYearProgress),
         term: Math.round(termProgress)

@@ -5,6 +5,31 @@ import moment from 'moment';
 
 const adminRoutes = e.Router();
 
+// Get user counts for all roles (matches web app endpoint)
+adminRoutes.get("/user-counts", async (req, res) => {
+    try {
+        const db = database.getDb();
+        
+        // Count users by role
+        const admin = await db.collection("users").countDocuments({ role: "admin" });
+        const faculty = await db.collection("users").countDocuments({ role: "faculty" });
+        const student = await db.collection("users").countDocuments({ role: "students" });
+        const vpe = await db.collection("users").countDocuments({ role: "vpe" });
+        const principal = await db.collection("users").countDocuments({ role: "principal" });
+        
+        res.json({
+            admin,
+            faculty,
+            student,
+            vpe,
+            principal
+        });
+    } catch (error) {
+        console.error('Error fetching user counts:', error);
+        res.status(500).json({ error: 'Failed to fetch user counts' });
+    }
+});
+
 // Get user statistics (counts by role)
 adminRoutes.get("/api/admin/user-stats", async (req, res) => {
     try {
@@ -14,12 +39,16 @@ adminRoutes.get("/api/admin/user-stats", async (req, res) => {
         const admins = await db.collection("users").countDocuments({ role: "admin" });
         const faculty = await db.collection("users").countDocuments({ role: "faculty" });
         const students = await db.collection("users").countDocuments({ role: "students" });
+        const vpe = await db.collection("users").countDocuments({ role: "vpe" });
+        const principal = await db.collection("users").countDocuments({ role: "principal" });
         
         res.json({
             admins,
             faculty,
             students,
-            total: admins + faculty + students
+            vpe,
+            principal,
+            total: admins + faculty + students + vpe + principal
         });
     } catch (error) {
         console.error('Error fetching user stats:', error);
@@ -111,11 +140,13 @@ adminRoutes.get("/admin/academic-progress", async (req, res) => {
     try {
         const now = new Date();
         
-        // Academic year dates (configurable)
+        // Academic year dates (configurable) - Updated to match web app logic
         const schoolYearStart = new Date('2025-06-01');
         const schoolYearEnd = new Date('2026-04-30');
+        
+        // Term dates - Updated to be more realistic
         const termStart = new Date('2025-08-02');
-        const termEnd = new Date('2025-08-03');
+        const termEnd = new Date('2025-12-20'); // Extended to end of semester
         
         // Calculate progress percentages
         const schoolYearTotal = schoolYearEnd - schoolYearStart;
@@ -127,16 +158,8 @@ adminRoutes.get("/admin/academic-progress", async (req, res) => {
         const termProgress = Math.min(100, (termElapsed / termTotal) * 100);
         
         res.json({
-            schoolYear: {
-                progress: Math.round(schoolYearProgress),
-                startDate: schoolYearStart,
-                endDate: schoolYearEnd
-            },
-            term: {
-                progress: Math.round(termProgress),
-                startDate: termStart,
-                endDate: termEnd
-            }
+            schoolYear: Math.round(schoolYearProgress),
+            term: Math.round(termProgress)
         });
     } catch (error) {
         console.error('Error calculating academic progress:', error);
@@ -205,7 +228,9 @@ adminRoutes.get("/api/admin/dashboard-summary", async (req, res) => {
                 const admins = await db.collection("users").countDocuments({ role: "admin" });
                 const faculty = await db.collection("users").countDocuments({ role: "faculty" });
                 const students = await db.collection("users").countDocuments({ role: "students" });
-                return { admins, faculty, students };
+                const vpe = await db.collection("users").countDocuments({ role: "vpe" });
+                const principal = await db.collection("users").countDocuments({ role: "principal" });
+                return { admins, faculty, students, vpe, principal };
             })(),
             
             // Recent logins
@@ -258,7 +283,7 @@ adminRoutes.get("/api/admin/dashboard-summary", async (req, res) => {
                 const schoolYearStart = new Date('2025-06-01');
                 const schoolYearEnd = new Date('2026-04-30');
                 const termStart = new Date('2025-08-02');
-                const termEnd = new Date('2025-08-03');
+                const termEnd = new Date('2025-12-20'); // Extended to end of semester
                 
                 const schoolYearTotal = schoolYearEnd - schoolYearStart;
                 const schoolYearElapsed = Math.max(0, now - schoolYearStart);

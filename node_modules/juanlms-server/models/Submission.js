@@ -14,4 +14,4 @@ const submissionSchema = new mongoose.Schema({
   grade: { type: Number },
   feedback: { type: String }
 });
-export default mongoose.model("Submission", mongoose.models.Submission || "Submissions"); 
+export default mongoose.model("Submission", submissionSchema); 
