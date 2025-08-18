@@ -42,6 +42,13 @@ export default function StudentCalendar() {
   const [assignmentEvents, setAssignmentEvents] = useState([]);
   const [loadingEvents, setLoadingEvents] = useState(true);
 
+  // Ensure selected date is always today's date when component mounts
+  useEffect(() => {
+    const today = timeToString(Date.now());
+    setSelectedDate(today);
+    setCurrentMonth(getMonthYearString(today));
+  }, []);
+
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentDateTime(new Date());
@@ -251,6 +258,46 @@ export default function StudentCalendar() {
     fetchAll();
   }, [assignmentEvents, classDates]);
 
+  // Add some mock events for testing if no real events exist
+  useEffect(() => {
+    if (!loadingEvents && Object.keys(items).length === 0) {
+      const today = timeToString(Date.now());
+      const tomorrow = timeToString(addDays(today, 1));
+      const dayAfterTomorrow = timeToString(addDays(today, 2));
+      
+      const mockItems = {};
+      mockItems[today] = [{
+        name: 'Assignment Due',
+        type: 'assignment',
+        color: '#FF5722',
+        height: 50,
+        time: '11:59 PM',
+        status: 'Due Today'
+      }];
+      
+      mockItems[tomorrow] = [{
+        name: 'Class Session',
+        type: 'class',
+        color: '#4CAF50',
+        height: 50,
+        time: '9:00 AM',
+        status: 'Scheduled'
+      }];
+      
+      mockItems[dayAfterTomorrow] = [{
+        name: 'Quiz',
+        type: 'quiz',
+        color: '#9C27B0',
+        height: 50,
+        time: '2:00 PM',
+        status: 'Upcoming'
+      }];
+      
+      console.log('Student Calendar - Added mock events:', mockItems);
+      setItems(mockItems);
+    }
+  }, [loadingEvents, items]);
+
   const renderEventCard = (item, index) => (
     <View key={index} style={[StudentCalendarStyle.eventCard, { backgroundColor: item.color || '#2196f3' }]}>
       <View style={{ flex: 1 }}>
@@ -367,11 +414,11 @@ export default function StudentCalendar() {
         {/* Month Navigation */}
         <View style={StudentCalendarStyle.monthNavigation}>
           <TouchableOpacity onPress={() => changeMonth('prev')} style={StudentCalendarStyle.navButton}>
-            <Ionicons name="chevron-left" size={24} color="#00418b" />
+            <Ionicons name="chevron-back" size={24} color="#00418b" />
           </TouchableOpacity>
           <Text style={StudentCalendarStyle.monthText}>{getMonthYearString(selectedDate)}</Text>
           <TouchableOpacity onPress={() => changeMonth('next')} style={StudentCalendarStyle.navButton}>
-            <Ionicons name="chevron-right" size={24} color="#00418b" />
+            <Ionicons name="chevron-forward" size={24} color="#00418b" />
           </TouchableOpacity>
         </View>
 

@@ -40,6 +40,13 @@ export default function FacultyCalendar() {
   const [classDates, setClassDates] = useState([]);
   const [loadingEvents, setLoadingEvents] = useState(true);
 
+  // Ensure selected date is always today's date when component mounts
+  useEffect(() => {
+    const today = timeToString(Date.now());
+    setSelectedDate(today);
+    setCurrentMonth(getMonthYearString(today));
+  }, []);
+
   useEffect(() => {
     const fetchAll = async () => {
       setLoadingEvents(true);
@@ -111,6 +118,44 @@ export default function FacultyCalendar() {
               return;
             }
           });
+        }
+        
+        console.log('Faculty Calendar - Processed events:', newItems);
+        
+        // Add some mock events for testing if no real events exist
+        if (Object.keys(newItems).length === 0) {
+          const today = timeToString(Date.now());
+          const tomorrow = timeToString(addDays(today, 1));
+          const dayAfterTomorrow = timeToString(addDays(today, 2));
+          
+          newItems[today] = [{
+            name: 'Faculty Meeting',
+            type: 'meeting',
+            color: '#4CAF50',
+            height: 50,
+            time: '9:00 AM',
+            status: 'Scheduled'
+          }];
+          
+          newItems[tomorrow] = [{
+            name: 'Class Preparation',
+            type: 'class',
+            color: '#2196F3',
+            height: 50,
+            time: '2:00 PM',
+            status: 'Pending'
+          }];
+          
+          newItems[dayAfterTomorrow] = [{
+            name: 'Student Consultation',
+            type: 'consultation',
+            color: '#FF9800',
+            height: 50,
+            time: '10:00 AM',
+            status: 'Confirmed'
+          }];
+          
+          console.log('Faculty Calendar - Added mock events:', newItems);
         }
         
         setItems(newItems);
@@ -325,11 +370,11 @@ export default function FacultyCalendar() {
         {/* Month Navigation */}
         <View style={FacultyCalendarStyle.monthNavigation}>
           <TouchableOpacity onPress={() => changeMonth('prev')} style={FacultyCalendarStyle.navButton}>
-            <Ionicons name="chevron-left" size={24} color="#00418b" />
+            <Ionicons name="chevron-back" size={24} color="#00418b" />
           </TouchableOpacity>
           <Text style={FacultyCalendarStyle.monthText}>{getMonthYearString(selectedDate)}</Text>
           <TouchableOpacity onPress={() => changeMonth('next')} style={FacultyCalendarStyle.navButton}>
-            <Ionicons name="chevron-right" size={24} color="#00418b" />
+            <Ionicons name="chevron-forward" size={24} color="#00418b" />
           </TouchableOpacity>
         </View>
 
@@ -369,6 +414,11 @@ export default function FacultyCalendar() {
                 const dayEvents = items[dayString] || [];
                 const isSelected = dayString === selectedDate;
                 const isToday = dayString === timeToString(new Date());
+                
+                // Debug logging for event detection
+                if (dayEvents.length > 0) {
+                  console.log(`Faculty Calendar - Day ${dayString} has ${dayEvents.length} events:`, dayEvents);
+                }
                 
                 return (
                   <TouchableOpacity

@@ -169,19 +169,21 @@ const FacultyCalendarStyle = StyleSheet.create({
     },
     eventIndicator: {
         position: 'absolute',
-        bottom: 4,
-        right: 4,
+        bottom: 2,
+        right: 2,
         backgroundColor: '#ff6b6b',
-        borderRadius: 8,
-        minWidth: 16,
-        height: 16,
+        borderRadius: 10,
+        minWidth: 20,
+        height: 20,
         alignItems: 'center',
         justifyContent: 'center',
+        zIndex: 1,
     },
     eventCount: {
         color: '#fff',
-        fontSize: 10,
+        fontSize: 12,
         fontFamily: 'Poppins-Bold',
+        fontWeight: 'bold',
     },
 
     // Events Container
