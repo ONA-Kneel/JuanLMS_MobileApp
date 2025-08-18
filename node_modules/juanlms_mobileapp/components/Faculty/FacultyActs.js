@@ -175,10 +175,12 @@ const FacultyActs = () => {
       }
 
       const classesData = await classesResponse.json();
+      // Backend stores Class.facultyID as the public faculty code (user.userID), not Mongo _id
+      const facultyIdentifier = user?.userID || user?._id;
       const facultyClasses = Array.isArray(classesData) 
-        ? classesData.filter(cls => cls.facultyID === user._id)
+        ? classesData.filter(cls => cls.facultyID === facultyIdentifier)
         : (classesData.success && classesData.classes) 
-          ? classesData.classes.filter(cls => cls.facultyID === user._id)
+          ? classesData.classes.filter(cls => cls.facultyID === facultyIdentifier)
           : [];
 
       console.log('DEBUG: Faculty classes found:', facultyClasses.length);
@@ -202,178 +204,40 @@ const FacultyActs = () => {
         facultyID: cls.facultyID
       })));
 
-      // Fetch all assignments and quizzes at once (same approach as FacultyModule.js)
-      console.log('DEBUG: Fetching from endpoints:', {
-        assignments: `${API_BASE}/assignments`,
-        quizzes: `${API_BASE}/api/quizzes`
-      });
-      
-      const [assignmentsRes, quizzesRes] = await Promise.all([
-        fetch(`${API_BASE}/assignments`, {
-          headers: { Authorization: `Bearer ${token}` }
-        }),
-        fetch(`${API_BASE}/api/quizzes`, {
+      // Fetch merged classwork per class (matches Classwork tab behavior)
+      const perClassPromises = facultyClassIDs.map((cid) =>
+        fetch(`${API_BASE}/assignments?classID=${encodeURIComponent(cid)}`, {
           headers: { Authorization: `Bearer ${token}` }
         })
-      ]);
+          .then(res => (res.ok ? res.json() : []))
+          .catch(() => [])
+      );
 
-      console.log('DEBUG: API responses status:', {
-        assignments: assignmentsRes.status,
-        quizzes: quizzesRes.status
+      const perClassResults = await Promise.all(perClassPromises);
+      let merged = [];
+      perClassResults.forEach(list => {
+        if (Array.isArray(list)) merged.push(...list);
       });
 
-      let allActivities = [];
+      // Normalize and enrich with class info for display
+      const normalized = merged.map(item => ({
+        ...item,
+        type: item.type || (item.questions ? 'quiz' : 'assignment'),
+        className: item.classInfo?.className || item.className || 'Unknown Class',
+        classCode: item.classInfo?.classCode || item.classCode || 'N/A',
+        classID: item.classID || item.classInfo?.classID || (item.assignedTo && item.assignedTo[0]?.classID)
+      }));
 
-      // Process assignments
-      if (assignmentsRes.ok) {
-        const assignments = await assignmentsRes.json();
-        console.log('DEBUG: All assignments fetched:', assignments.length);
-        console.log('DEBUG: Sample assignment:', assignments[0]);
-        console.log('DEBUG: All assignments data:', assignments);
-        
-        // Filter assignments for faculty's classes
-        const facultyAssignments = assignments.filter(assignment => {
-          const assignmentClassID = assignment.classID || assignment.classId;
-          const isIncluded = facultyClassIDs.includes(assignmentClassID);
-          console.log('DEBUG: Assignment classID check:', { 
-            assignmentId: assignment._id, 
-            assignmentTitle: assignment.title,
-            assignmentClassID, 
-            assignmentClassIDType: typeof assignmentClassID,
-            facultyClassIDs, 
-            facultyClassIDsTypes: facultyClassIDs.map(id => typeof id),
-            isIncluded 
-          });
-          return isIncluded;
-        });
-        
-        console.log('DEBUG: Faculty assignments filtered:', facultyAssignments.length);
-        console.log('DEBUG: Faculty assignments data:', facultyAssignments);
-        
-        const assignmentsWithClass = facultyAssignments.map(assignment => {
-          const classInfo = facultyClasses.find(cls => 
-            cls.classID === (assignment.classID || assignment.classId)
-          );
-          return {
-            ...assignment,
-            type: 'assignment',
-            className: classInfo?.className || 'Unknown Class',
-            classCode: classInfo?.classCode || 'N/A',
-            classID: classInfo?.classID || assignment.classID || assignment.classId
-          };
-        });
-        
-        allActivities.push(...assignmentsWithClass);
-      } else {
-        console.log('DEBUG: Assignments response not ok:', assignmentsRes.status, assignmentsRes.statusText);
-        const errorText = await assignmentsRes.text();
-        console.log('DEBUG: Assignments error response:', errorText);
-      }
+      // Deduplicate by _id to avoid multiple entries if a quiz is returned for several classes
+      const dedup = new Map();
+      normalized.forEach(it => {
+        if (it && it._id && !dedup.has(it._id)) dedup.set(it._id, it);
+      });
+      let allActivities = Array.from(dedup.values());
 
-      // Process quizzes
-      if (quizzesRes.ok) {
-        const quizzes = await quizzesRes.json();
-        console.log('DEBUG: All quizzes fetched:', quizzes.length);
-        console.log('DEBUG: Sample quiz:', quizzes[0]);
-        console.log('DEBUG: All quizzes data:', quizzes);
-        
-        // Filter quizzes for faculty's classes
-        const facultyQuizzes = quizzes.filter(quiz => {
-          const quizClassID = quiz.classID || (quiz.assignedTo && quiz.assignedTo[0]?.classID);
-          const isIncluded = facultyClassIDs.includes(quizClassID);
-          console.log('DEBUG: Quiz classID check:', { 
-            quizId: quiz._id, 
-            quizTitle: quiz.title,
-            quizClassID, 
-            quizClassIDType: typeof quizClassID,
-            facultyClassIDs, 
-            facultyClassIDsTypes: facultyClassIDs.map(id => typeof id),
-            isIncluded 
-          });
-          return isIncluded;
-        });
-        
-        console.log('DEBUG: Faculty quizzes filtered:', facultyQuizzes.length);
-        console.log('DEBUG: Faculty quizzes data:', facultyQuizzes);
-        
-        const quizzesWithClass = facultyQuizzes.map(quiz => {
-          const classInfo = facultyClasses.find(cls => 
-            cls.classID === (quiz.classID || (quiz.assignedTo && quiz.assignedTo[0]?.classID))
-          );
-          return {
-            ...quiz,
-            type: 'quiz',
-            className: classInfo?.className || 'Unknown Class',
-            classCode: classInfo?.classCode || 'N/A',
-            classID: classInfo?.classID || quiz.classID || (quiz.assignedTo && quiz.assignedTo[0]?.classID)
-          };
-        });
-        
-        allActivities.push(...quizzesWithClass);
-      } else {
-        console.log('DEBUG: Quizzes response not ok:', quizzesRes.status, quizzesRes.statusText);
-        const errorText = await quizzesRes.text();
-        console.log('DEBUG: Quizzes error response:', errorText);
-      }
+      // Sort by due date ascending
+      allActivities.sort((a, b) => new Date(a.dueDate || 0) - new Date(b.dueDate || 0));
 
-      // Sort by due date
-      allActivities.sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
-      
-      console.log('DEBUG: Final combined activities:', allActivities.length);
-      console.log('DEBUG: All activities fetched:', allActivities);
-      
-      // If no activities found with strict filtering, try to show all activities for debugging
-      if (allActivities.length === 0) {
-        console.log('DEBUG: No activities found with strict filtering, showing all activities for debugging');
-        console.log('DEBUG: Faculty class IDs being searched for:', facultyClassIDs);
-        
-        // Try to fetch all activities without filtering to see what's available
-        try {
-          const allAssignmentsRes = await fetch(`${API_BASE}/assignments`, {
-            headers: { Authorization: `Bearer ${token}` }
-          });
-          const allQuizzesRes = await fetch(`${API_BASE}/api/quizzes`, {
-            headers: { Authorization: `Bearer ${token}` }
-          });
-          
-          if (allAssignmentsRes.ok) {
-            const allAssignments = await allAssignmentsRes.json();
-            console.log('DEBUG: All assignments in system:', allAssignments.length);
-            console.log('DEBUG: All assignments data:', allAssignments);
-            
-            // Add all assignments for debugging (without class filtering)
-            const debugAssignments = allAssignments.map(assignment => ({
-              ...assignment,
-              type: 'assignment',
-              className: 'Debug - All Classes',
-              classCode: 'DEBUG',
-              classID: assignment.classID || assignment.classId || 'unknown'
-            }));
-            allActivities.push(...debugAssignments);
-          }
-          
-          if (allQuizzesRes.ok) {
-            const allQuizzes = await allQuizzesRes.json();
-            console.log('DEBUG: All quizzes in system:', allQuizzes.length);
-            console.log('DEBUG: All quizzes data:', allQuizzes);
-            
-            // Add all quizzes for debugging (without class filtering)
-            const debugQuizzes = allQuizzes.map(quiz => ({
-              ...quiz,
-              type: 'quiz',
-              className: 'Debug - All Classes',
-              classCode: 'DEBUG',
-              classID: quiz.classID || (quiz.assignedTo && quiz.assignedTo[0]?.classID) || 'unknown'
-            }));
-            allActivities.push(...debugQuizzes);
-          }
-          
-          console.log('DEBUG: Debug activities added:', allActivities.length);
-        } catch (debugError) {
-          console.log('DEBUG: Error fetching all activities for debugging:', debugError);
-        }
-      }
-      
       setActivities(allActivities);
       
       // Categorize activities by grading status
@@ -579,7 +443,12 @@ const FacultyActs = () => {
       </View>
 
       {/* Grading Tabs (similar to web app) */}
-      <View style={styles.gradingTabsContainer}>
+      <ScrollView 
+        horizontal 
+        showsHorizontalScrollIndicator={false}
+        style={styles.gradingTabsContainer}
+        contentContainerStyle={styles.gradingTabsContent}
+      >
         {[
           { key: 'all', label: 'All Activities', count: activities.length },
           { key: 'ready', label: 'Ready to Grade', count: readyToGradeActivities.length },
@@ -612,13 +481,14 @@ const FacultyActs = () => {
             </View>
           </TouchableOpacity>
         ))}
-      </View>
+      </ScrollView>
 
       {/* Legacy Filter Tabs (keeping for backward compatibility) */}
       <ScrollView 
         horizontal 
         showsHorizontalScrollIndicator={false}
         style={styles.filterContainer}
+        contentContainerStyle={styles.filterContent}
       >
         {['all', 'active', 'past', 'quiz', 'assignment'].map((filter) => (
           <TouchableOpacity
@@ -756,8 +626,8 @@ const styles = {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
-    paddingTop: 60,
+    padding: 16,
+    paddingTop: 36,
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
@@ -783,7 +653,7 @@ const styles = {
     fontFamily: 'Poppins-Medium',
   },
   searchContainer: {
-    padding: 20,
+    padding: 12,
     backgroundColor: '#fff',
   },
   searchBox: {
@@ -801,31 +671,37 @@ const styles = {
     fontFamily: 'Poppins-Regular',
   },
   filterContainer: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     backgroundColor: '#fff',
   },
+  filterContent: {
+    alignItems: 'center',
+  },
   gradingTabsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
     paddingVertical: 10,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
+  },
+  gradingTabsContent: {
+    paddingHorizontal: 12,
+    alignItems: 'center',
   },
   gradingTab: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: '#f0f0f0',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: '#f5f7fb',
+    marginRight: 8,
   },
   gradingTabActive: {
     backgroundColor: '#00418b',
   },
   gradingTabText: {
-    color: '#666',
+    color: '#3a3a3a',
     fontSize: 14,
     fontFamily: 'Poppins-Medium',
   },
@@ -833,17 +709,17 @@ const styles = {
     color: '#fff',
   },
   gradingTabCount: {
-    backgroundColor: '#00418b',
+    backgroundColor: '#e7eef9',
     borderRadius: 10,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    marginLeft: 8,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    marginLeft: 6,
   },
   gradingTabCountActive: {
     backgroundColor: '#fff',
   },
   gradingTabCountText: {
-    color: '#fff',
+    color: '#00418b',
     fontSize: 12,
     fontWeight: 'bold',
     fontFamily: 'Poppins-Bold',
@@ -852,17 +728,17 @@ const styles = {
     color: '#00418b',
   },
   filterTab: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     marginRight: 8,
-    borderRadius: 20,
-    backgroundColor: '#f0f0f0',
+    borderRadius: 16,
+    backgroundColor: '#f5f7fb',
   },
   filterTabActive: {
     backgroundColor: '#00418b',
   },
   filterTabText: {
-    color: '#666',
+    color: '#3a3a3a',
     fontSize: 14,
     fontFamily: 'Poppins-Medium',
   },
@@ -871,13 +747,14 @@ const styles = {
   },
   activitiesContainer: {
     flex: 1,
-    padding: 20,
+    paddingHorizontal: 12,
+    paddingTop: 8,
   },
   activityCard: {
     backgroundColor: '#fff',
     borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
+    padding: 12,
+    marginBottom: 12,
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -886,46 +763,46 @@ const styles = {
   },
   activityHeader: {
     flexDirection: 'row',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   activityIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: '#f0f0f0',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: 10,
   },
   activityContent: {
     flex: 1,
   },
   activityTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
     color: '#333',
-    marginBottom: 4,
+    marginBottom: 2,
     fontFamily: 'Poppins-Bold',
   },
   activityClass: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#666',
-    marginBottom: 4,
+    marginBottom: 2,
     fontFamily: 'Poppins-Medium',
   },
   activityDescription: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#666',
-    marginBottom: 4,
+    marginBottom: 2,
     fontFamily: 'Poppins-Regular',
   },
   activityDueDate: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#999',
     fontFamily: 'Poppins-Regular',
   },
   activityType: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#666',
     fontFamily: 'Poppins-Medium',
     marginTop: 2,
@@ -933,10 +810,10 @@ const styles = {
   activityPoints: {
     alignItems: 'center',
     justifyContent: 'center',
-    minWidth: 60,
+    minWidth: 54,
   },
   pointsText: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: 'bold',
     color: '#00418b',
     fontFamily: 'Poppins-Bold',
@@ -944,21 +821,21 @@ const styles = {
   activityFooter: {
     borderTopWidth: 1,
     borderTopColor: '#f0f0f0',
-    paddingTop: 12,
+    paddingTop: 8,
   },
   activityStats: {
     flexDirection: 'row',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   statItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginRight: 16,
+    marginRight: 12,
   },
   statText: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#666',
-    marginLeft: 4,
+    marginLeft: 3,
     fontFamily: 'Poppins-Regular',
   },
   actionButtons: {
@@ -968,11 +845,11 @@ const styles = {
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     borderRadius: 6,
     flex: 1,
-    marginHorizontal: 4,
+    marginHorizontal: 3,
     justifyContent: 'center',
   },
   viewButton: {
@@ -986,20 +863,20 @@ const styles = {
   },
   viewButtonText: {
     color: '#2196F3',
-    fontSize: 12,
-    marginLeft: 4,
+    fontSize: 11,
+    marginLeft: 3,
     fontFamily: 'Poppins-Medium',
   },
   editButtonText: {
     color: '#FF9800',
-    fontSize: 12,
-    marginLeft: 4,
+    fontSize: 11,
+    marginLeft: 3,
     fontFamily: 'Poppins-Medium',
   },
   deleteButtonText: {
     color: '#F44336',
-    fontSize: 12,
-    marginLeft: 4,
+    fontSize: 11,
+    marginLeft: 3,
     fontFamily: 'Poppins-Medium',
   },
   emptyContainer: {

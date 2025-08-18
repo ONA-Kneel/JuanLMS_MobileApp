@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useIsFocused } from '@react-navigation/native';
-import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { formatDate } from '../../utils/dateUtils';
 
 const API_BASE_URL = 'https://juanlms-webapp-server.onrender.com';
@@ -33,16 +33,24 @@ const getFilterColor = (category) => {
   }
 };
 
+// Normalize categories/roles so filters match expected tabs
+const normalizeCategory = (log) => {
+  const raw = ((log.category || log.userRole || '') + '').toLowerCase().trim();
+  if (raw === 'students') return 'student';
+  if (raw === 'vice president of education') return 'admin'; // falls under admin tab, same as web app UX
+  return raw;
+};
+
 const LogItem = ({ log, onPress }) => (
   <TouchableOpacity style={styles.logItem} onPress={onPress}>
     <View style={styles.logHeader}>
       <View style={styles.logInfo}>
         <Text style={styles.logAction}>{log.action}</Text>
-        <View style={[styles.filterBadge, { backgroundColor: getFilterColor(log.category) }]}>
-          <Text style={styles.filterText}>{log.category}</Text>
+        <View style={[styles.filterBadge, { backgroundColor: getFilterColor(normalizeCategory(log) || 'system') }]}>
+          <Text style={styles.filterText}>{(normalizeCategory(log) || 'system')}</Text>
         </View>
       </View>
-      <Text style={styles.logTime}>{log.timestamp}</Text>
+      <Text style={styles.logTime}>{formatDate(log.timestamp, 'hh:mm A')}</Text>
     </View>
 
     <Text style={styles.logDetails} numberOfLines={2}>
@@ -52,7 +60,7 @@ const LogItem = ({ log, onPress }) => (
     <View style={styles.logFooter}>
       <View style={styles.footerItem}>
         <Icon name="account" size={16} color="#666" />
-        <Text style={styles.footerText}>{log.user}</Text>
+        <Text style={styles.footerText}>{log.userName}</Text>
       </View>
       <View style={styles.footerItem}>
         <Icon name="monitor" size={16} color="#666" />
@@ -69,14 +77,17 @@ const LogItem = ({ log, onPress }) => (
 function groupLogsByDay(logs) {
   const grouped = {};
   logs.forEach(log => {
-    const date = formatDate(log.timestamp, 'YYYY-MM-DD');
-    if (!grouped[date]) {
-      grouped[date] = [];
+    // Use UTC date for stable grouping regardless of device timezone
+    const dateKey = new Date(log.timestamp).toISOString().slice(0, 10); // YYYY-MM-DD
+    if (!grouped[dateKey]) {
+      grouped[dateKey] = [];
     }
-    grouped[date].push(log);
+    grouped[dateKey].push(log);
   });
   return grouped;
 }
+
+const sortByTimestampDesc = (a, b) => new Date(b.timestamp) - new Date(a.timestamp);
 
 export default function PrincipalAuditTrail() {
   const isFocused = useIsFocused();
@@ -92,19 +103,45 @@ export default function PrincipalAuditTrail() {
     try {
       setIsLoading(true);
       setError(null);
+      const token = await AsyncStorage.getItem('jwtToken');
+      const response = await fetch(`${API_BASE_URL}/audit-logs?page=1&limit=200&action=all&role=all`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
 
-      const response = await axios.get(`${API_BASE_URL}/audit-logs?page=1&limit=100`);
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Unauthorized. Please login again.');
+        }
+        if (response.status === 403) {
+          throw new Error('Access denied for your role. Only Admin and Principal can view audit logs.');
+        }
+        throw new Error(`HTTP ${response.status}`);
+      }
 
-      if (response.data && response.data.logs && Array.isArray(response.data.logs)) {
-        setLogs(response.data.logs);
-        setFilteredLogs(response.data.logs);
+      const data = await response.json();
+
+      if (data && data.logs && Array.isArray(data.logs)) {
+        // Map and normalize categories/roles for stable filtering
+        const normalized = data.logs.map(l => ({
+          ...l,
+          category: normalizeCategory(l) || l.category,
+        }));
+        // Ensure newest logs appear first consistently
+        const sorted = normalized.sort(sortByTimestampDesc);
+        setLogs(sorted);
+        setFilteredLogs(sorted);
       } else {
         setLogs([]);
         setFilteredLogs([]);
       }
     } catch (error) {
       console.error('Error fetching audit logs:', error);
-      setError('Failed to fetch audit logs. Please try again.');
+      setError(error.message || 'Failed to fetch audit logs. Please try again.');
       setLogs([]);
       setFilteredLogs([]);
     } finally {
@@ -211,17 +248,16 @@ export default function PrincipalAuditTrail() {
     let filtered = logs;
 
     if (activeFilter !== 'all') {
-      filtered = filtered.filter(log =>
-        log.category.toLowerCase() === activeFilter.toLowerCase()
-      );
+      filtered = filtered.filter(log => normalizeCategory(log) === activeFilter.toLowerCase());
     }
 
     if (searchQuery.length > 0) {
+      const query = searchQuery.toLowerCase();
       filtered = filtered.filter(log =>
-        log.action.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        log.details.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        log.user.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        log.category.toLowerCase().includes(searchQuery.toLowerCase())
+        (log.action || '').toLowerCase().includes(query) ||
+        (log.details || '').toLowerCase().includes(query) ||
+        (log.userName || '').toLowerCase().includes(query) ||
+        (normalizeCategory(log) || '').toLowerCase().includes(query)
       );
     }
 
@@ -231,7 +267,7 @@ export default function PrincipalAuditTrail() {
   const handleLogPress = (log) => {
     Alert.alert(
       log.action,
-      `Details: ${log.details}\n\nUser: ${log.user}\nCategory: ${log.category}\nTime: ${log.timestamp}\nIP: ${log.ipAddress || 'N/A'}\nUser Agent: ${log.userAgent || 'N/A'}`,
+      `Details: ${log.details}\n\nUser: ${log.userName} (${log.userRole})\nCategory: ${(log.category || log.userRole || 'system').toString()}\nTime: ${formatDate(log.timestamp, 'MMMM D, YYYY hh:mm A')}\nIP: ${log.ipAddress || 'N/A'}\nUser Agent: ${log.userAgent || 'N/A'}`,
       [{ text: 'Close' }]
     );
   };
@@ -309,9 +345,9 @@ export default function PrincipalAuditTrail() {
               <Text style={styles.dayHeader}>
                 {formatDate(day, 'dddd, MMMM D, YYYY')}
               </Text>
-              {grouped[day].map((log) => (
+              {[...grouped[day]].sort(sortByTimestampDesc).map((log) => (
                 <LogItem
-                  key={log.id}
+                  key={log._id || log.id}
                   log={log}
                   onPress={() => handleLogPress(log)}
                 />

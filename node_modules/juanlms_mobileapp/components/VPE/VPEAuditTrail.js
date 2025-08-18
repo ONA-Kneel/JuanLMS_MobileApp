@@ -32,7 +32,7 @@ export default function VPEAuditTrail() {
       setError(null);
 
       const token = await AsyncStorage.getItem('jwtToken');
-      const response = await fetch(`${API_BASE_URL}/audit-logs?page=1&limit=100`, {
+      const response = await fetch(`${API_BASE_URL}/audit-logs?page=1&limit=200&action=all&role=all`, {
         method: 'GET',
         headers: {
           'Accept': 'application/json',
@@ -76,11 +76,10 @@ export default function VPEAuditTrail() {
     }
   }, [isFocused]);
 
-  // Filter logs based on search query and active filter
+  // Filter logs based on search query and active filter (same as Admin)
   useEffect(() => {
     let filtered = logs;
 
-    // Apply category filter
     if (activeFilter !== 'all') {
       filtered = filtered.filter(log => {
         const category = log.category?.toLowerCase() || log.userRole?.toLowerCase() || '';
@@ -88,7 +87,6 @@ export default function VPEAuditTrail() {
       });
     }
 
-    // Apply search query filter
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase().trim();
       filtered = filtered.filter(log => {
@@ -96,14 +94,15 @@ export default function VPEAuditTrail() {
         const userRole = log.userRole?.toLowerCase() || '';
         const action = log.action?.toLowerCase() || '';
         const details = log.details?.toLowerCase() || '';
-        
-        return userName.includes(query) || 
-               userRole.includes(query) || 
-               action.includes(query) ||
-               details.includes(query);
+        return (
+          userName.includes(query) ||
+          userRole.includes(query) ||
+          action.includes(query) ||
+          details.includes(query)
+        );
       });
     }
-    
+
     setFilteredLogs(filtered);
   }, [searchQuery, logs, activeFilter]);
 
