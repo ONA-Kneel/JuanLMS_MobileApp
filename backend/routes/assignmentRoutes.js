@@ -38,13 +38,22 @@ router.get('/', /*authenticateToken,*/ async (req, res) => {
   // Fetch quizzes for this class
   let quizzes = [];
   if (classID) {
+    console.log('DEBUG: Searching for quizzes with classID:', classID);
     quizzes = await Quiz.find({
       $or: [
-        { classID },
-        { classIDs: classID },
-        { "assignedTo.classID": classID }
+        { classID: classID }, // For backward compatibility with old quizzes
+        { 'assignedTo.classID': classID } // For new quizzes with correct structure
       ]
     }).sort({ createdAt: -1 });
+    console.log('DEBUG: Found quizzes:', quizzes.length);
+    quizzes.forEach((quiz, index) => {
+      console.log(`DEBUG: Quiz ${index}:`, {
+        _id: quiz._id,
+        title: quiz.title,
+        assignedTo: quiz.assignedTo,
+        classID: quiz.classID
+      });
+    });
   } else {
     quizzes = await Quiz.find().sort({ createdAt: -1 });
   }
@@ -76,10 +85,18 @@ router.get('/', /*authenticateToken,*/ async (req, res) => {
   const quizzesWithType = quizzes.map(q => ({ 
     ...q.toObject(), 
     type: 'quiz',
-    classInfo: classesMap[q.classID || (q.classIDs && q.classIDs[0])] || { className: 'Unknown', classCode: 'N/A', classDesc: '' }
+    classInfo: classesMap[q.classID || (q.assignedTo && q.assignedTo[0]?.classID)] || { className: 'Unknown', classCode: 'N/A', classDesc: '' }
   }));
 
   let combined = [...assignmentsWithType, ...quizzesWithType];
+  
+  console.log('DEBUG: Final combined data:', {
+    assignmentsCount: assignmentsWithType.length,
+    quizzesCount: quizzesWithType.length,
+    totalCount: combined.length,
+    assignments: assignmentsWithType.map(a => ({ _id: a._id, title: a.title, type: a.type })),
+    quizzes: quizzesWithType.map(q => ({ _id: q._id, title: q.title, type: q.type }))
+  });
 
   // Sort by dueDate if available, otherwise by createdAt
   combined.sort((a, b) => {

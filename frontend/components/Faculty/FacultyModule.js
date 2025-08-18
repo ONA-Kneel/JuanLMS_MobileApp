@@ -73,6 +73,7 @@ export default function FacultyModule() {
 
     useEffect(() => {
         console.log('DEBUG FacultyModule: useEffect classId:', classId);
+        console.log('DEBUG FacultyModule: Initial activeTab:', activeTab);
         if (classId) {
             // If we have a specific classId from navigation, use it
             fetchSpecificClass(classId);
@@ -82,17 +83,47 @@ export default function FacultyModule() {
         }
     }, [classId]);
 
+    // Debug useEffect for classwork state changes
+    useEffect(() => {
+        console.log('DEBUG: classwork state changed:', {
+            length: classwork.length,
+            data: classwork,
+            activeTab: activeTab
+        });
+    }, [classwork, activeTab]);
+
     const fetchClasswork = async (classId) => {
         try {
             const token = await AsyncStorage.getItem('jwtToken');
+            console.log('DEBUG: Fetching classwork for classId:', classId);
+            
             const res = await axios.get(`https://juanlms-webapp-server.onrender.com/assignments?classID=${classId}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
+            
+            console.log('DEBUG: Raw API response:', res.data);
+            console.log('DEBUG: Response length:', res.data.length);
+            
+            // Log each item to see the structure
+            res.data.forEach((item, index) => {
+                console.log(`DEBUG: Item ${index}:`, {
+                    _id: item._id,
+                    title: item.title,
+                    type: item.type,
+                    classID: item.classID,
+                    description: item.description,
+                    instructions: item.instructions,
+                    dueDate: item.dueDate,
+                    points: item.points
+                });
+            });
+            
             setClasswork(res.data);
             console.log('Fetched classwork (Faculty):', res.data); // Debug log
         } catch (err) {
-            setClasswork([]);
             console.log('Error fetching classwork (Faculty):', err);
+            console.log('Error details:', err.response?.data || err.message);
+            setClasswork([]);
         }
     };
 
@@ -605,16 +636,37 @@ export default function FacultyModule() {
                         {/* Classwork Content */}
                         {loading ? (
                             <ActivityIndicator />
+                        ) : classwork.length === 0 ? (
+                            <Text style={{ fontFamily: 'Poppins-Regular', color: '#222', fontSize: 13, marginTop: 10 }}>No classwork items found.</Text>
                         ) : (
                             (() => {
+                                console.log('DEBUG: Rendering classwork tab, classwork data:', classwork);
+                                console.log('DEBUG: Classwork length:', classwork.length);
+                                
+                                // Filter out any invalid items
+                                const validClasswork = classwork.filter(item => {
+                                    const isValid = item && item._id && item.title && item.type;
+                                    if (!isValid) {
+                                        console.log('DEBUG: Invalid item filtered out:', item);
+                                    }
+                                    return isValid;
+                                });
+                                
+                                console.log('DEBUG: Valid classwork items:', validClasswork.length);
+                                
                                 // Sort by createdAt/postAt descending
-                                const sorted = [...classwork].sort((a, b) => {
+                                const sorted = [...validClasswork].sort((a, b) => {
                                     const aDate = a.postAt || a.createdAt;
                                     const bDate = b.postAt || b.createdAt;
                                     return new Date(bDate) - new Date(aDate);
                                 });
+                                
+                                console.log('DEBUG: Sorted classwork:', sorted);
+                                
                                 // Group by date
                                 const groups = groupByDate(sorted, item => item.postAt || item.createdAt);
+                                console.log('DEBUG: Grouped classwork:', groups);
+                                
                                 return Object.entries(groups).map(([dateKey, items]) => (
                                     <View key={dateKey}>
                                         <Text style={{ fontFamily: 'Poppins-Bold', fontSize: 16, color: '#222', marginBottom: 8, marginTop: 18 }}>
@@ -624,6 +676,7 @@ export default function FacultyModule() {
                                             })()}
                                         </Text>
                                         {items.map(item => {
+                                            console.log('DEBUG: Rendering item:', item);
                                             const isFuturePost = item.postAt && new Date(item.postAt) > new Date();
                                             const isSuperFuture = item.postAt && new Date(item.postAt).getFullYear() >= 2099;
                                             return (
@@ -648,7 +701,7 @@ export default function FacultyModule() {
                                                             </Text>
                                                         ) : null}
                                                         {/* Description */}
-                                                        <Text style={{ fontFamily: 'Poppins-Regular', color: '#222', fontSize: 15, marginBottom: 6 }}>{item.description || item.instructions}</Text>
+                                                        <Text style={{ fontFamily: 'Poppins-Regular', color: '#222', fontSize: 15, marginBottom: 6 }}>{item.description || item.instructions || 'No description available'}</Text>
                                                         {/* Due Date */}
                                                         {item.dueDate && <Text style={{ fontFamily: 'Poppins-Regular', color: '#888', fontSize: 13, marginBottom: 2 }}>Due: {new Date(item.dueDate).toLocaleString()}</Text>}
                                                         {/* Points */}
@@ -833,7 +886,10 @@ export default function FacultyModule() {
                 {['Announcement', 'Classwork', 'Class Materials'].map(tab => (
                     <TouchableOpacity
                         key={tab}
-                        onPress={() => setActiveTab(tab)}
+                        onPress={() => {
+                            console.log('DEBUG: Tab selected:', tab);
+                            setActiveTab(tab);
+                        }}
                         style={{
                             backgroundColor: activeTab === tab ? '#00418b' : '#e3eefd',
                             paddingVertical: 7,

@@ -128,11 +128,15 @@ export default function CreateQuiz() {
         description: description.trim(),
         points: parseInt(points),
         dueDate: dueDate.toISOString(),
-        classID: classId,
+        assignedTo: [{
+          classID: classId,
+          studentIDs: [] // Empty array means all students in the class
+        }],
         questions: questions.map(q => ({
-          text: q.text.trim(),
+          type: 'multiple', // Default type for now
+          question: q.text.trim(),
           choices: q.choices.filter(choice => choice.trim() !== ''),
-          correctAnswer: q.correctAnswer,
+          correctAnswers: [q.correctAnswer],
           points: q.points
         }))
       };
