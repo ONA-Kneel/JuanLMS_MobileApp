@@ -52,9 +52,7 @@ class AdminService {
        const stats = {
          admin: response?.admin || response?.admins || response?.administrator || 0,
          faculty: response?.faculty || response?.faculties || response?.teachers || 0,
-         student: response?.student || response?.students || response?.learners || 0,
-         vpe: response?.vpe || response?.vpes || response?.vicePresident || 0,
-         principal: response?.principal || response?.principals || response?.director || 0
+         student: response?.student || response?.students || response?.learners || 0
        };
        
        console.log('Mapped user stats:', stats);
@@ -70,9 +68,7 @@ class AdminService {
          const stats = {
            admin: localResponse?.admin || localResponse?.admins || 0,
            faculty: localResponse?.faculty || 0,
-           student: localResponse?.student || localResponse?.students || 0,
-           vpe: 0, // Local backend doesn't have these roles yet
-           principal: 0
+           student: localResponse?.student || localResponse?.students || 0
          };
          
          console.log('Local backend mapped stats:', stats);
@@ -89,9 +85,7 @@ class AdminService {
              const roleCounts = {
                admin: 0,
                faculty: 0,
-               student: 0,
-               vpe: 0,
-               principal: 0
+               student: 0
              };
              
              usersResponse.forEach(user => {
@@ -99,8 +93,6 @@ class AdminService {
                if (role === 'admin' || role === 'administrator') roleCounts.admin++;
                else if (role === 'faculty' || role === 'teacher') roleCounts.faculty++;
                else if (role === 'student' || role === 'learner') roleCounts.student++;
-               else if (role === 'vpe' || role === 'vicepresident') roleCounts.vpe++;
-               else if (role === 'principal' || role === 'director') roleCounts.principal++;
              });
              
              console.log('Fallback role counts:', roleCounts);
@@ -112,7 +104,7 @@ class AdminService {
        }
        
        // Return default values if all methods fail
-       return { admin: 0, faculty: 0, student: 0, vpe: 0, principal: 0 };
+       return { admin: 0, faculty: 0, student: 0 };
      }
    }
 

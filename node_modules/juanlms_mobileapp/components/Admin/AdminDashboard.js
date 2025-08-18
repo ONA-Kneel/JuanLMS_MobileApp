@@ -15,7 +15,7 @@ export default function AdminDashboard() {
   const { user } = useUser();
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
   const [recentLogs, setRecentLogs] = useState([]);
-     const [userStats, setUserStats] = useState({ admin: 0, faculty: 0, student: 0, vpe: 0, principal: 0 });
+     const [userStats, setUserStats] = useState({ admin: 0, faculty: 0, student: 0 });
   const [schoolYearProgress, setSchoolYearProgress] = useState(0);
   const [termProgress, setTermProgress] = useState(0);
   const [lastLogins, setLastLogins] = useState([]);
@@ -65,11 +65,11 @@ export default function AdminDashboard() {
         setError('Failed to load dashboard data');
         
                  // Fallback to mock data if all else fails
-         setUserStats({ admin: 1, faculty: 8, student: 17, vpe: 1, principal: 1 });
+         setUserStats({ admin: 1, faculty: 8, student: 17 });
          setLastLogins([
            { userName: 'Rochelle Borre', role: 'students' },
            { userName: 'Niel Nathan Borre', role: 'faculty' },
-           { userName: 'Roman Cyril Panganiban', role: 'principal' },
+           { userName: 'Roman Cyril Panganiban', role: 'faculty' },
            { userName: 'hatdog asd', role: 'students' },
          ]);
         setRecentLogs([
@@ -322,24 +322,13 @@ export default function AdminDashboard() {
              <Text style={AdminDashStyle.summaryNumber}>{userStats.student}</Text>
              <Text style={AdminDashStyle.summaryLabel}>Students</Text>
            </View>
-           {/* Second Row - 2 cards */}
-           <View style={AdminDashStyle.summaryCard}>
-             <Icon name="account-star" size={24} color="#00418b" />
-             <Text style={AdminDashStyle.summaryNumber}>{userStats.vpe || 0}</Text>
-             <Text style={AdminDashStyle.summaryLabel}>VPE</Text>
-           </View>
-           <View style={AdminDashStyle.summaryCard}>
-             <Icon name="account-tie" size={24} color="#00418b" />
-             <Text style={AdminDashStyle.summaryNumber}>{userStats.principal || 0}</Text>
-             <Text style={AdminDashStyle.summaryLabel}>Principal</Text>
-           </View>
          </View>
 
          {/* Debug Info - Temporary */}
          <View style={{ backgroundColor: '#f0f8ff', padding: 16, borderRadius: 12, marginBottom: 20 }}>
            <Text style={{ fontFamily: 'Poppins-Bold', color: '#00418b', marginBottom: 8 }}>Debug Info</Text>
            <Text style={{ fontFamily: 'Poppins-Regular', color: '#666', fontSize: 12 }}>
-             Admin: {userStats.admin} | Faculty: {userStats.faculty} | Student: {userStats.student} | VPE: {userStats.vpe} | Principal: {userStats.principal}
+             Admin: {userStats.admin} | Faculty: {userStats.faculty} | Student: {userStats.student}
            </Text>
            <TouchableOpacity 
              style={{ 
