@@ -43,9 +43,9 @@ const StudentGrades = () => {
   const fetchGrades = async () => {
     try {
       setLoading(true);
-      const token = await AsyncStorage.getItem('token');
-      const userData = await AsyncStorage.getItem('userData');
-      const user = userData ? JSON.parse(userData) : null;
+      const token = await AsyncStorage.getItem('jwtToken');
+      const userStr = await AsyncStorage.getItem('user');
+      const user = userStr ? JSON.parse(userStr) : null;
 
       if (!user) {
         throw new Error('User data not found');
@@ -56,11 +56,14 @@ const StudentGrades = () => {
         headers: { Authorization: `Bearer ${token}` }
       });
 
+      let activeYearName = '';
+      let activeTermName = '';
+
       if (yearResponse.ok) {
         const yearData = await yearResponse.json();
-        setAcademicYear(`${yearData.schoolYearStart}-${yearData.schoolYearEnd}`);
-        
-        // Fetch active term
+        activeYearName = `${yearData.schoolYearStart}-${yearData.schoolYearEnd}`;
+        setAcademicYear(activeYearName);
+
         const termResponse = await fetch(`${API_BASE}/api/terms/schoolyear/${yearData.schoolYearStart}-${yearData.schoolYearEnd}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
@@ -69,74 +72,58 @@ const StudentGrades = () => {
           const terms = await termResponse.json();
           const active = terms.find(term => term.status === 'active');
           if (active) {
-            setCurrentTerm(active.termName);
+            activeTermName = active.termName;
+            setCurrentTerm(activeTermName);
           }
         }
       }
 
-      // Fetch grades
-      const response = await fetch(`${API_BASE}/api/grades/student/${user._id}`, {
+      // Determine student identifier (prefer schoolID like web app)
+      const schoolID = user.schoolID || user.userID || user._id;
+      if (!schoolID) {
+        throw new Error('Missing student identifier (schoolID/userID)');
+      }
+
+      // Fetch semestral grades from Web App backend
+      const response = await fetch(`${API_BASE}/api/semestral-grades/student/${schoolID}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        
-        // Filter grades based on selected term
-        let filteredGrades = data;
-        if (selectedTerm === 'current') {
-          filteredGrades = data.filter(grade => 
-            grade.academicYear === `${academicYear}` && 
-            grade.termName === currentTerm
-          );
-        } else if (selectedTerm === 'previous') {
-          filteredGrades = data.filter(grade => 
-            grade.academicYear !== `${academicYear}` || 
-            grade.termName !== currentTerm
-          );
-        }
-
-        // Calculate final grades and remarks
-        const processedGrades = filteredGrades.map(grade => {
-          const prelims = parseFloat(grade.prelims) || 0;
-          const midterms = parseFloat(grade.midterms) || 0;
-          const finals = parseFloat(grade.finals) || 0;
-          
-          let finalGrade = 0;
-          if (prelims > 0 && midterms > 0 && finals > 0) {
-            finalGrade = Math.round((prelims * 0.3 + midterms * 0.3 + finals * 0.4) * 100) / 100;
-          } else if (prelims > 0 && midterms > 0) {
-            finalGrade = Math.round((prelims * 0.5 + midterms * 0.5) * 100) / 100;
-          } else if (prelims > 0) {
-            finalGrade = prelims;
-          }
-
-          let remarks = '';
-          if (finalGrade >= 75) {
-            remarks = 'Passed';
-          } else if (finalGrade >= 70) {
-            remarks = 'Conditional';
-          } else if (finalGrade > 0) {
-            remarks = 'Failed';
-          } else {
-            remarks = 'No Grade';
-          }
-
-          return {
-            ...grade,
-            finalGrade,
-            remarks,
-            prelims: prelims > 0 ? prelims : '-',
-            midterms: midterms > 0 ? midterms : '-',
-            finals: finals > 0 ? finals : '-',
-          };
-        });
-
-        setGrades(processedGrades);
-        setError('');
-      } else {
+      if (!response.ok) {
         throw new Error('Failed to fetch grades');
       }
+
+      const payload = await response.json();
+      const allGrades = payload?.grades || [];
+
+      // Transform to UI-friendly structure
+      const transformed = allGrades.map(g => ({
+        subjectCode: g.subjectCode,
+        subjectDescription: g.subjectName,
+        academicYear: g.academicYear,
+        termName: g.termName,
+        quarter1: g.grades?.quarter1 ?? '-',
+        quarter2: g.grades?.quarter2 ?? '-',
+        quarter3: g.grades?.quarter3 ?? '-',
+        quarter4: g.grades?.quarter4 ?? '-',
+        semestralGrade: g.grades?.semesterFinal ?? '-',
+        remarks: g.grades?.remarks ?? '-',
+      }));
+
+      // Filter grades for current or previous
+      let filtered = transformed;
+      if (selectedTerm === 'current' && activeYearName && activeTermName) {
+        filtered = transformed.filter(
+          it => it.academicYear === activeYearName && it.termName === activeTermName
+        );
+      } else if (selectedTerm === 'previous' && activeYearName && activeTermName) {
+        filtered = transformed.filter(
+          it => it.academicYear !== activeYearName || it.termName !== activeTermName
+        );
+      }
+
+      setGrades(filtered);
+      setError('');
     } catch (err) {
       console.error('Error fetching grades:', err);
       setError('Failed to load grades');
@@ -165,21 +152,43 @@ const StudentGrades = () => {
   };
 
   const getGradeColor = (grade) => {
-    if (grade === '-' || grade === 0) return '#999';
-    if (grade >= 90) return '#4CAF50';
-    if (grade >= 85) return '#8BC34A';
-    if (grade >= 80) return '#CDDC39';
-    if (grade >= 75) return '#FF9800';
+    const value = typeof grade === 'string' ? parseFloat(grade) : grade;
+    if (!value || isNaN(value)) return '#999';
+    if (value >= 90) return '#4CAF50';
+    if (value >= 85) return '#8BC34A';
+    if (value >= 80) return '#CDDC39';
+    if (value >= 75) return '#FF9800';
     return '#f44336';
   };
 
   const getRemarksColor = (remarks) => {
     switch (remarks) {
+      case 'PASSED':
       case 'Passed': return '#4CAF50';
+      case 'REPEAT':
+      case 'INCOMPLETE':
       case 'Conditional': return '#FF9800';
+      case 'FAILED':
       case 'Failed': return '#f44336';
       default: return '#999';
     }
+  };
+
+  const getQuarterLabels = () => {
+    if (currentTerm === 'Term 1') {
+      return { q1: '1st Quarter', q2: '2nd Quarter' };
+    }
+    if (currentTerm === 'Term 2') {
+      return { q1: '3rd Quarter', q2: '4th Quarter' };
+    }
+    return { q1: 'Quarter 1', q2: 'Quarter 2' };
+  };
+
+  const pickQuarterValues = (grade) => {
+    if (currentTerm === 'Term 2') {
+      return { qa: grade.quarter3 ?? '-', qb: grade.quarter4 ?? '-' };
+    }
+    return { qa: grade.quarter1 ?? '-', qb: grade.quarter2 ?? '-' };
   };
 
   const renderGradeRow = (grade, index) => (
@@ -192,26 +201,24 @@ const StudentGrades = () => {
       </View>
       
       <View style={styles.gradeCell}>
-        <Text style={[styles.gradeText, { color: getGradeColor(grade.prelims) }]}>
-          {grade.prelims}
-        </Text>
+        {(() => { const { qa } = pickQuarterValues(grade); return (
+          <Text style={[styles.gradeText, { color: getGradeColor(qa) }]}>
+            {qa || '-'}
+          </Text>
+        ); })()}
       </View>
       
       <View style={styles.gradeCell}>
-        <Text style={[styles.gradeText, { color: getGradeColor(grade.midterms) }]}>
-          {grade.midterms}
-        </Text>
+        {(() => { const { qb } = pickQuarterValues(grade); return (
+          <Text style={[styles.gradeText, { color: getGradeColor(qb) }]}>
+            {qb || '-'}
+          </Text>
+        ); })()}
       </View>
       
       <View style={styles.gradeCell}>
-        <Text style={[styles.gradeText, { color: getGradeColor(grade.finals) }]}>
-          {grade.finals}
-        </Text>
-      </View>
-      
-      <View style={styles.gradeCell}>
-        <Text style={[styles.gradeText, { color: getGradeColor(grade.finalGrade) }]}>
-          {grade.finalGrade}
+        <Text style={[styles.gradeText, { color: getGradeColor(grade.semestralGrade) }]}>
+          {grade.semestralGrade || '-'}
         </Text>
       </View>
       
@@ -322,10 +329,9 @@ const StudentGrades = () => {
             <View style={styles.tableHeader}>
               <View style={styles.headerRow}>
                 <Text style={styles.headerSubject}>Subject</Text>
-                <Text style={styles.headerGrade}>Prelims</Text>
-                <Text style={styles.headerGrade}>Midterms</Text>
-                <Text style={styles.headerGrade}>Finals</Text>
-                <Text style={styles.headerGrade}>Final</Text>
+                <Text style={styles.headerGrade}>{getQuarterLabels().q1}</Text>
+                <Text style={styles.headerGrade}>{getQuarterLabels().q2}</Text>
+                <Text style={styles.headerGrade}>Semestral</Text>
                 <Text style={styles.headerRemarks}>Remarks</Text>
               </View>
             </View>
