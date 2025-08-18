@@ -653,7 +653,7 @@ export default function CreateQuiz() {
           display="default"
           onChange={(event, selectedDate) => {
             setShowDatePicker(false);
-            if (platform === 'ios' ? event.type === 'set' : true) {
+            if (Platform.OS === 'ios' ? event.type === 'set' : true) {
               if (selectedDate) {
                 setDueDate(selectedDate);
               }
