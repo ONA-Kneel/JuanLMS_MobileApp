@@ -26,7 +26,7 @@ export default function AssignmentDetail() {
   const { user } = useUser();
   const { assignmentId, assignment } = route.params;
 
-  const [assignmentData, setAssignmentData] = useState(assignment || null);
+  const [assignmentData, setAssignment] = useState(assignment || null);
   const [loading, setLoading] = useState(!assignment);
   const [submitting, setSubmitting] = useState(false);
   const [submissionText, setSubmissionText] = useState('');
@@ -63,20 +63,21 @@ export default function AssignmentDetail() {
   const fetchAssignment = async () => {
     try {
       setLoading(true);
-      const token = await AsyncStorage.getItem('jwtToken');
       
+      const token = await AsyncStorage.getItem('jwtToken');
       const response = await fetch(`${API_BASE}/assignments/${assignmentId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        setAssignmentData(data);
-        checkSubmissionStatus();
-      } else {
-        Alert.alert('Error', 'Failed to load assignment');
-        navigation.goBack();
+      if (!response.ok) {
+        throw new Error('Failed to fetch assignment');
       }
+
+      const assignmentData = await response.json();
+      setAssignment(assignmentData);
+      
+      // Check if student has already submitted
+      await checkSubmissionStatus();
     } catch (error) {
       console.error('Error fetching assignment:', error);
       Alert.alert('Error', 'Failed to load assignment');
@@ -89,15 +90,16 @@ export default function AssignmentDetail() {
   const checkSubmissionStatus = async () => {
     try {
       const token = await AsyncStorage.getItem('jwtToken');
-      
       const response = await fetch(`${API_BASE}/assignments/${assignmentId}/submissions`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
       if (response.ok) {
         const submissions = await response.json();
-        // Find the submission for this student
-        const studentSubmission = submissions.find(sub => sub.student === user._id);
+        const studentSubmission = submissions.find(sub => 
+          sub.student === user._id || sub.student._id === user._id
+        );
+        
         if (studentSubmission) {
           setSubmissionStatus(studentSubmission);
         }
@@ -141,6 +143,7 @@ export default function AssignmentDetail() {
 
     try {
       setSubmitting(true);
+      
       const token = await AsyncStorage.getItem('jwtToken');
       
       // Create form data for file upload (matching web version exactly)
@@ -164,7 +167,7 @@ export default function AssignmentDetail() {
       const response = await fetch(`${API_BASE}/assignments/${assignmentId}/submit`, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${token}`
         },
         body: formData,
       });
