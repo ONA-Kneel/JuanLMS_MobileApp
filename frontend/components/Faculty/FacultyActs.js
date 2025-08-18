@@ -206,20 +206,49 @@ const FacultyActs = () => {
         facultyID: cls.facultyID
       })));
 
-      // Fetch merged classwork per class (matches Classwork tab behavior)
-      const perClassPromises = facultyClassIDs.map((cid) =>
+      // Fetch both assignments and quizzes per class (EXACT SAME LOGIC AS CLASSWORK TAB)
+      const perClassPromises = facultyClassIDs.map((cid) => [
+        // Fetch assignments - using the SAME endpoint as Classwork tab
         fetch(`${API_BASE}/assignments?classID=${encodeURIComponent(cid)}`, {
           headers: { Authorization: `Bearer ${token}` }
         })
           .then(res => (res.ok ? res.json() : []))
+          .then(assignments => {
+            console.log(`DEBUG: Fetched ${assignments.length} assignments for class ${cid}`);
+            return assignments.map(item => ({ ...item, type: 'assignment' }));
+          })
+          .catch(() => []),
+        // Fetch quizzes - using the SAME endpoint as Classwork tab
+        fetch(`${API_BASE}/api/quizzes?classID=${encodeURIComponent(cid)}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+          .then(res => (res.ok ? res.json() : []))
+          .then(quizzes => {
+            console.log(`DEBUG: Fetched ${quizzes.length} quizzes for class ${cid}`);
+            return quizzes.map(item => ({ ...item, type: 'quiz' }));
+          })
           .catch(() => [])
-      );
+      ]);
 
-      const perClassResults = await Promise.all(perClassPromises);
+      // Flatten the nested promises and wait for all
+      const flattenedPromises = perClassPromises.flat();
+      const perClassResults = await Promise.all(flattenedPromises);
       let merged = [];
-      perClassResults.forEach(list => {
-        if (Array.isArray(list)) merged.push(...list);
+      perClassResults.forEach((list, index) => {
+        if (Array.isArray(list)) {
+          console.log(`DEBUG: Class ${Math.floor(index/2)} result ${index % 2 === 0 ? 'assignments' : 'quizzes'}:`, list.length, 'items');
+          merged.push(...list);
+        }
       });
+      
+      console.log('DEBUG: Total merged items before normalization:', merged.length);
+      console.log('DEBUG: Sample merged items:', merged.slice(0, 3).map(item => ({
+        _id: item._id,
+        title: item.title,
+        type: item.type,
+        questions: item.questions,
+        hasQuestions: !!item.questions
+      })));
 
       // Normalize and enrich with class info for display
       const normalized = merged.map(item => ({
@@ -239,6 +268,12 @@ const FacultyActs = () => {
 
       // Sort by due date ascending
       allActivities.sort((a, b) => new Date(a.dueDate || 0) - new Date(b.dueDate || 0));
+      
+      console.log('DEBUG: Final activities after normalization and deduplication:', allActivities.length);
+      console.log('DEBUG: Final activities by type:', allActivities.reduce((acc, item) => {
+        acc[item.type] = (acc[item.type] || 0) + 1;
+        return acc;
+      }, {}));
       
       setActivities(allActivities);
       
