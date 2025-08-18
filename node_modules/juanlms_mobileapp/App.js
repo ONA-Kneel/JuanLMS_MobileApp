@@ -47,6 +47,8 @@ import FacultyChats from './components/Faculty/FacultyChats';
 import FacultyProfile from './components/Faculty/FacultyProfile';
 import FacultySCMain from './components/Faculty/FacultySCMain';
 import FacultySupportCenter from './components/Faculty/FacultySupportCenter';
+import FacultyActs from './components/Faculty/FacultyActs';
+import FacultyGrades from './components/Faculty/FacultyGrades';
 
 
 
@@ -107,6 +109,8 @@ function StudentTabs() {
 
 const facultyNavItems = [
   { label: 'Dashboard', icon: 'view-dashboard', route: 'FDashboard' },
+  { label: 'Activities', icon: 'file-document', route: 'FActs' },
+  { label: 'Grades', icon: 'star', route: 'FGrades' },
   { label: 'Calendar', icon: 'calendar', route: 'FCalendar' },
   { label: 'Chats', icon: 'chat', route: 'FChat' },
 ];
@@ -118,6 +122,8 @@ function FacultyTabs() {
       screenOptions={{ headerShown: false }}
     >
       <Tabs.Screen name="FDashboard" component={FacultyDashboard} />
+      <Tabs.Screen name="FActs" component={FacultyActs} />
+      <Tabs.Screen name="FGrades" component={FacultyGrades} />
       <Tabs.Screen name="FCalendar" component={FacultyCalendar} />
       <Tabs.Screen name="FChat" component={FacultyChats} />
       {/* <Tabs.Screen name="FProfile" component={FacultyProfile} /> */}
@@ -260,6 +266,8 @@ export default function App() {
         <Screens.Screen name ='FMod' component={FacultyModule} options={{ headerShown: false }}/>
         <Screens.Screen name ='CMod' component={CreateModule} options={{ headerShown: false }}/>
         <Screens.Screen name ='CAct' component={CreateActivity} options={{ headerShown: false }}/>
+        <Screens.Screen name ='FActs' component={FacultyActs} options={{ headerShown: false }}/>
+        <Screens.Screen name ='FGrades' component={FacultyGrades} options={{ headerShown: false }}/>
         <Screens.Screen name ='FMain' component={FacultySCMain} options={{ headerShown: false }}/>
         <Screens.Screen name ='FReq' component={FacultySupportCenter} options={{ headerShown: false }}/>
         <Screens.Screen name ='FProfile' component={FacultyProfile} options={{ headerShown: false }}/>

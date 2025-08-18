@@ -318,4 +318,39 @@ function seededShuffle(array, seed) {
   return arr;
 }
 
+// Get all quizzes created by a specific faculty member
+router.get('/faculty/:facultyId', /*authenticateToken,*/ async (req, res) => {
+  try {
+    const { facultyId } = req.params;
+    
+    // Find classes taught by this faculty member
+    const classes = await Class.find({ faculty: facultyId });
+    const classIds = classes.map(cls => cls.classID);
+    
+    // Find quizzes for these classes
+    const quizzes = await Quiz.find({ 
+      $or: [
+        { classID: { $in: classIds } },
+        { classIDs: { $in: classIds } }
+      ]
+    }).sort({ createdAt: -1 });
+    
+    // Add class information to each quiz
+    const quizzesWithClassInfo = quizzes.map(quiz => {
+      const classId = quiz.classID || (quiz.classIDs && quiz.classIDs[0]);
+      const classInfo = classes.find(cls => cls.classID === classId);
+      return {
+        ...quiz.toObject(),
+        className: classInfo ? classInfo.className : 'Unknown Class',
+        classCode: classInfo ? classInfo.classCode : 'N/A'
+      };
+    });
+    
+    res.json(quizzesWithClassInfo);
+  } catch (err) {
+    console.error('Error fetching faculty quizzes:', err);
+    res.status(500).json({ error: 'Failed to fetch faculty quizzes.' });
+  }
+});
+
 export default router;

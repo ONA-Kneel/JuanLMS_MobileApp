@@ -18,6 +18,7 @@ import { Server } from 'socket.io';
 import { MongoClient } from 'mongodb';
 import ticketsRouter from "./routes/tickets.js";
 import lessonRoutes from './routes/lessonRoutes.js';
+import gradeRoutes from './routes/gradeRoutes.js';
 
 
 const app = express();
@@ -39,6 +40,7 @@ app.use('/api/assignments', assignmentRoutes);
 app.use('/api/tickets', ticketsRouter);
 app.use('/api', classRoutes);
 app.use('/api/lessons', lessonRoutes);
+app.use('/api/grades', gradeRoutes);
 app.use('/api', adminRoutes);
 app.use('/api/group-chats', groupChatsRouter);
 app.use('/uploads', express.static('uploads'));

@@ -448,4 +448,35 @@ router.patch('/:id/submission/file', /*authenticateToken,*/ async (req, res) => 
   }
 });
 
+// Get all assignments created by a specific faculty member
+router.get('/faculty/:facultyId', /*authenticateToken,*/ async (req, res) => {
+  try {
+    const { facultyId } = req.params;
+    
+    // Find classes taught by this faculty member
+    const classes = await Class.find({ faculty: facultyId });
+    const classIds = classes.map(cls => cls.classID);
+    
+    // Find assignments for these classes
+    const assignments = await Assignment.find({ 
+      classID: { $in: classIds } 
+    }).sort({ createdAt: -1 });
+    
+    // Add class information to each assignment
+    const assignmentsWithClassInfo = assignments.map(assignment => {
+      const classInfo = classes.find(cls => cls.classID === assignment.classID);
+      return {
+        ...assignment.toObject(),
+        className: classInfo ? classInfo.className : 'Unknown Class',
+        classCode: classInfo ? classInfo.classCode : 'N/A'
+      };
+    });
+    
+    res.json(assignmentsWithClassInfo);
+  } catch (err) {
+    console.error('Error fetching faculty assignments:', err);
+    res.status(500).json({ error: 'Failed to fetch faculty assignments.' });
+  }
+});
+
 export default router; 
