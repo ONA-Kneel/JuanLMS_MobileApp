@@ -100,29 +100,30 @@ export default function FacultyModule() {
             const token = await AsyncStorage.getItem('jwtToken');
             console.log('DEBUG: Fetching classwork for classId:', classId);
             
-            const res = await axios.get(`https://juanlms-webapp-server.onrender.com/assignments?classID=${classId}`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            // Fetch both assignments and quizzes (similar to Student components)
+            const [assignmentsRes, quizzesRes] = await Promise.all([
+                axios.get(`https://juanlms-webapp-server.onrender.com/assignments?classID=${classId}`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                }),
+                axios.get(`https://juanlms-webapp-server.onrender.com/api/quizzes?classID=${classId}`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                })
+            ]);
             
-            console.log('DEBUG: Raw API response:', res.data);
-            console.log('DEBUG: Response length:', res.data.length);
+            console.log('DEBUG: Assignments response:', assignmentsRes.data);
+            console.log('DEBUG: Quizzes response:', quizzesRes.data);
             
-            // Log each item to see the structure
-            res.data.forEach((item, index) => {
-                console.log(`DEBUG: Item ${index}:`, {
-                    _id: item._id,
-                    title: item.title,
-                    type: item.type,
-                    classID: item.classID,
-                    description: item.description,
-                    instructions: item.instructions,
-                    dueDate: item.dueDate,
-                    points: item.points
-                });
-            });
+            // Combine assignments and quizzes with type indicators
+            const assignments = assignmentsRes.data.map(item => ({ ...item, type: 'assignment' }));
+            const quizzes = quizzesRes.data.map(item => ({ ...item, type: 'quiz' }));
             
-            setClasswork(res.data);
-            console.log('Fetched classwork (Faculty):', res.data); // Debug log
+            const allClasswork = [...assignments, ...quizzes];
+            
+            console.log('DEBUG: Combined classwork:', allClasswork);
+            console.log('DEBUG: Total classwork items:', allClasswork.length);
+            
+            setClasswork(allClasswork);
+            console.log('Fetched classwork (Faculty):', allClasswork); // Debug log
         } catch (err) {
             console.log('Error fetching classwork (Faculty):', err);
             console.log('Error details:', err.response?.data || err.message);
