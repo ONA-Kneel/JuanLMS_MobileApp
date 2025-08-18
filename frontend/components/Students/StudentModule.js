@@ -67,7 +67,7 @@ export default function StudentModule(){
             
             // Fetch both assignments and quizzes (similar to web version)
             const [assignmentsRes, quizzesRes] = await Promise.all([
-                axios.get(`https://juanlms-webapp-server.onrender.com/assignments?classID=${classId}`, {
+                axios.get(`https://juanlms-webapp-server.onrender.com/api/assignments?classID=${classId}`, {
                     headers: { Authorization: `Bearer ${token}` }
                 }),
                 axios.get(`https://juanlms-webapp-server.onrender.com/api/quizzes?classID=${classId}`, {
@@ -92,7 +92,7 @@ export default function StudentModule(){
         setMaterialsLoading(true);
         try {
             const token = await AsyncStorage.getItem('jwtToken');
-            const res = await axios.get(`https://juanlms-webapp-server.onrender.com/lessons?classID=${classId}`, {
+            const res = await axios.get(`https://juanlms-webapp-server.onrender.com/api/lessons?classID=${classId}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setMaterials(res.data);
@@ -180,7 +180,7 @@ export default function StudentModule(){
         try {
             const token = await AsyncStorage.getItem('jwtToken');
             console.log('DEBUG StudentModule: fetchAnnouncements classId:', classId);
-            const res = await axios.get(`https://juanlms-webapp-server.onrender.com/announcements?classID=${classId}`, {
+            const res = await axios.get(`https://juanlms-webapp-server.onrender.com/api/announcements?classID=${classId}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setAnnouncements(res.data);
