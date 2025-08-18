@@ -420,7 +420,12 @@ export default function CreateAssignment() {
           value={dueDate}
           mode="datetime"
           display="default"
-          onChange={handleDateChange}
+          onChange={(event, selectedDate) => {
+            setShowDatePicker(false);
+            if (selectedDate) {
+              setDueDate(selectedDate);
+            }
+          }}
           minimumDate={new Date()}
         />
       )}

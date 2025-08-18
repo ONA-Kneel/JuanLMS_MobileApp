@@ -651,7 +651,15 @@ export default function CreateQuiz() {
           value={dueDate}
           mode="datetime"
           display="default"
-          onChange={handleDateChange}
+          onChange={(event, selectedDate) => {
+            setShowDatePicker(false);
+            if (platform === 'ios' ? event.type === 'set' : true) {
+              if (selectedDate) {
+                setDueDate(selectedDate);
+              }
+            }
+            setShowDatePicker(false);
+          }}
           minimumDate={new Date()}
         />
       )}
