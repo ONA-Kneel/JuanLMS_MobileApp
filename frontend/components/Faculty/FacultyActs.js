@@ -194,8 +194,10 @@ const FacultyActs = () => {
       // Get all class IDs for this faculty
       const facultyClassIDs = facultyClasses.map(cls => cls.classID);
       console.log('DEBUG: Faculty class IDs:', facultyClassIDs);
+      console.log('DEBUG: Faculty class IDs types:', facultyClassIDs.map(id => typeof id));
       console.log('DEBUG: Faculty class details:', facultyClasses.map(cls => ({
         classID: cls.classID,
+        classIDType: typeof cls.classID,
         className: cls.className,
         facultyID: cls.facultyID
       })));
@@ -227,20 +229,26 @@ const FacultyActs = () => {
         const assignments = await assignmentsRes.json();
         console.log('DEBUG: All assignments fetched:', assignments.length);
         console.log('DEBUG: Sample assignment:', assignments[0]);
+        console.log('DEBUG: All assignments data:', assignments);
         
         // Filter assignments for faculty's classes
         const facultyAssignments = assignments.filter(assignment => {
           const assignmentClassID = assignment.classID || assignment.classId;
+          const isIncluded = facultyClassIDs.includes(assignmentClassID);
           console.log('DEBUG: Assignment classID check:', { 
             assignmentId: assignment._id, 
+            assignmentTitle: assignment.title,
             assignmentClassID, 
+            assignmentClassIDType: typeof assignmentClassID,
             facultyClassIDs, 
-            isIncluded: facultyClassIDs.includes(assignmentClassID) 
+            facultyClassIDsTypes: facultyClassIDs.map(id => typeof id),
+            isIncluded 
           });
-          return facultyClassIDs.includes(assignmentClassID);
+          return isIncluded;
         });
         
         console.log('DEBUG: Faculty assignments filtered:', facultyAssignments.length);
+        console.log('DEBUG: Faculty assignments data:', facultyAssignments);
         
         const assignmentsWithClass = facultyAssignments.map(assignment => {
           const classInfo = facultyClasses.find(cls => 
@@ -258,6 +266,8 @@ const FacultyActs = () => {
         allActivities.push(...assignmentsWithClass);
       } else {
         console.log('DEBUG: Assignments response not ok:', assignmentsRes.status, assignmentsRes.statusText);
+        const errorText = await assignmentsRes.text();
+        console.log('DEBUG: Assignments error response:', errorText);
       }
 
       // Process quizzes
@@ -265,20 +275,26 @@ const FacultyActs = () => {
         const quizzes = await quizzesRes.json();
         console.log('DEBUG: All quizzes fetched:', quizzes.length);
         console.log('DEBUG: Sample quiz:', quizzes[0]);
+        console.log('DEBUG: All quizzes data:', quizzes);
         
         // Filter quizzes for faculty's classes
         const facultyQuizzes = quizzes.filter(quiz => {
           const quizClassID = quiz.classID || (quiz.assignedTo && quiz.assignedTo[0]?.classID);
+          const isIncluded = facultyClassIDs.includes(quizClassID);
           console.log('DEBUG: Quiz classID check:', { 
             quizId: quiz._id, 
+            quizTitle: quiz.title,
             quizClassID, 
+            quizClassIDType: typeof quizClassID,
             facultyClassIDs, 
-            isIncluded: facultyClassIDs.includes(quizClassID) 
+            facultyClassIDsTypes: facultyClassIDs.map(id => typeof id),
+            isIncluded 
           });
-          return facultyClassIDs.includes(quizClassID);
+          return isIncluded;
         });
         
         console.log('DEBUG: Faculty quizzes filtered:', facultyQuizzes.length);
+        console.log('DEBUG: Faculty quizzes data:', facultyQuizzes);
         
         const quizzesWithClass = facultyQuizzes.map(quiz => {
           const classInfo = facultyClasses.find(cls => 
@@ -296,6 +312,8 @@ const FacultyActs = () => {
         allActivities.push(...quizzesWithClass);
       } else {
         console.log('DEBUG: Quizzes response not ok:', quizzesRes.status, quizzesRes.statusText);
+        const errorText = await quizzesRes.text();
+        console.log('DEBUG: Quizzes error response:', errorText);
       }
 
       // Sort by due date
@@ -303,6 +321,59 @@ const FacultyActs = () => {
       
       console.log('DEBUG: Final combined activities:', allActivities.length);
       console.log('DEBUG: All activities fetched:', allActivities);
+      
+      // If no activities found with strict filtering, try to show all activities for debugging
+      if (allActivities.length === 0) {
+        console.log('DEBUG: No activities found with strict filtering, showing all activities for debugging');
+        console.log('DEBUG: Faculty class IDs being searched for:', facultyClassIDs);
+        
+        // Try to fetch all activities without filtering to see what's available
+        try {
+          const allAssignmentsRes = await fetch(`${API_BASE}/assignments`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          const allQuizzesRes = await fetch(`${API_BASE}/api/quizzes`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          
+          if (allAssignmentsRes.ok) {
+            const allAssignments = await allAssignmentsRes.json();
+            console.log('DEBUG: All assignments in system:', allAssignments.length);
+            console.log('DEBUG: All assignments data:', allAssignments);
+            
+            // Add all assignments for debugging (without class filtering)
+            const debugAssignments = allAssignments.map(assignment => ({
+              ...assignment,
+              type: 'assignment',
+              className: 'Debug - All Classes',
+              classCode: 'DEBUG',
+              classID: assignment.classID || assignment.classId || 'unknown'
+            }));
+            allActivities.push(...debugAssignments);
+          }
+          
+          if (allQuizzesRes.ok) {
+            const allQuizzes = await allQuizzesRes.json();
+            console.log('DEBUG: All quizzes in system:', allQuizzes.length);
+            console.log('DEBUG: All quizzes data:', allQuizzes);
+            
+            // Add all quizzes for debugging (without class filtering)
+            const debugQuizzes = allQuizzes.map(quiz => ({
+              ...quiz,
+              type: 'quiz',
+              className: 'Debug - All Classes',
+              classCode: 'DEBUG',
+              classID: quiz.classID || (quiz.assignedTo && quiz.assignedTo[0]?.classID) || 'unknown'
+            }));
+            allActivities.push(...debugQuizzes);
+          }
+          
+          console.log('DEBUG: Debug activities added:', allActivities.length);
+        } catch (debugError) {
+          console.log('DEBUG: Error fetching all activities for debugging:', debugError);
+        }
+      }
+      
       setActivities(allActivities);
       
       // Categorize activities by grading status
