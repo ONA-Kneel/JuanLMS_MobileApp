@@ -147,6 +147,8 @@ const FacultyActs = () => {
   const [activeTab, setActiveTab] = useState('all');
   const [gradedActivities, setGradedActivities] = useState([]);
   const [readyToGradeActivities, setReadyToGradeActivities] = useState([]);
+  const [filterModalVisible, setFilterModalVisible] = useState(false);
+  const [createMenuVisible, setCreateMenuVisible] = useState(false);
 
   useEffect(() => {
     fetchActivities();
@@ -237,7 +239,7 @@ const FacultyActs = () => {
 
       // Sort by due date ascending
       allActivities.sort((a, b) => new Date(a.dueDate || 0) - new Date(b.dueDate || 0));
-
+      
       setActivities(allActivities);
       
       // Categorize activities by grading status
@@ -327,7 +329,7 @@ const FacultyActs = () => {
       let endpoint = '';
       
       if (activity.type === 'quiz') {
-        endpoint = `${API_BASE}/api/quizzes/${activity._id.replace('quiz_', '')}`;
+        endpoint = `${API_BASE}/api/quizzes/${activity._id}`;
       } else {
         endpoint = `${API_BASE}/api/assignments/${activity._id}`;
       }
@@ -355,7 +357,7 @@ const FacultyActs = () => {
       let endpoint = '';
       
       if (selectedActivity.type === 'quiz') {
-        endpoint = `${API_BASE}/api/quizzes/${selectedActivity._id.replace('quiz_', '')}`;
+        endpoint = `${API_BASE}/api/quizzes/${selectedActivity._id}`;
       } else {
         endpoint = `${API_BASE}/api/assignments/${selectedActivity._id}`;
       }
@@ -422,11 +424,21 @@ const FacultyActs = () => {
         <Text style={styles.headerTitle}>My Activities</Text>
         <TouchableOpacity 
           style={styles.createButton}
-          onPress={() => navigation.navigate('CAct')}
+          onPress={() => setCreateMenuVisible(v => !v)}
         >
           <MaterialIcons name="add" size={24} color="#fff" />
           <Text style={styles.createButtonText}>Create</Text>
         </TouchableOpacity>
+        {createMenuVisible && (
+          <View style={styles.createMenu}>
+            <TouchableOpacity style={styles.createMenuItem} onPress={() => { setCreateMenuVisible(false); navigation.navigate('CreateAssignment'); }}>
+              <Text style={styles.createMenuItemText}>Assignment</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.createMenuItem} onPress={() => { setCreateMenuVisible(false); navigation.navigate('CreateQuiz'); }}>
+              <Text style={styles.createMenuItemText}>Quiz</Text>
+        </TouchableOpacity>
+          </View>
+        )}
       </View>
 
       {/* Search and Filters */}
@@ -442,72 +454,43 @@ const FacultyActs = () => {
         </View>
       </View>
 
-      {/* Grading Tabs (similar to web app) */}
-      <ScrollView 
-        horizontal 
-        showsHorizontalScrollIndicator={false}
-        style={styles.gradingTabsContainer}
-        contentContainerStyle={styles.gradingTabsContent}
-      >
+      {/* Grading Tabs - compact segmented control */}
+      <View style={styles.gradingTabsContainer}>
+        <View style={styles.gradingTabsBar}>
         {[
-          { key: 'all', label: 'All Activities', count: activities.length },
-          { key: 'ready', label: 'Ready to Grade', count: readyToGradeActivities.length },
+            { key: 'all', label: 'All', count: activities.length },
+            { key: 'ready', label: 'Ready', count: readyToGradeActivities.length },
           { key: 'graded', label: 'Graded', count: gradedActivities.length }
         ].map((tab) => (
           <TouchableOpacity
             key={tab.key}
             style={[
-              styles.gradingTab,
-              activeTab === tab.key && styles.gradingTabActive
+                styles.gradingTabSegment,
+                activeTab === tab.key && styles.gradingTabSegmentActive
             ]}
             onPress={() => setActiveTab(tab.key)}
           >
             <Text style={[
               styles.gradingTabText,
               activeTab === tab.key && styles.gradingTabTextActive
-            ]}>
-              {tab.label}
-            </Text>
-            <View style={[
-              styles.gradingTabCount,
-              activeTab === tab.key && styles.gradingTabCountActive
-            ]}>
-              <Text style={[
-                styles.gradingTabCountText,
-                activeTab === tab.key && styles.gradingTabCountTextActive
-              ]}>
-                {tab.count}
-              </Text>
-            </View>
+              ]}>{`${tab.label} (${tab.count})`}</Text>
           </TouchableOpacity>
         ))}
-      </ScrollView>
+        </View>
+      </View>
 
-      {/* Legacy Filter Tabs (keeping for backward compatibility) */}
-      <ScrollView 
-        horizontal 
-        showsHorizontalScrollIndicator={false}
-        style={styles.filterContainer}
-        contentContainerStyle={styles.filterContent}
-      >
-        {['all', 'active', 'past', 'quiz', 'assignment'].map((filter) => (
+      {/* Compact Filter Dropdown */}
+      <View style={styles.filterContainer}>
           <TouchableOpacity
-            key={filter}
-            style={[
-              styles.filterTab,
-              selectedFilter === filter && styles.filterTabActive
-            ]}
-            onPress={() => setSelectedFilter(filter)}
-          >
-            <Text style={[
-              styles.filterTabText,
-              selectedFilter === filter && styles.filterTabTextActive
-            ]}>
-              {filter.charAt(0).toUpperCase() + filter.slice(1)}
+          style={styles.filterDropdownButton}
+          onPress={() => setFilterModalVisible(true)}
+        >
+          <Text style={styles.filterDropdownText}>
+            {selectedFilter.charAt(0).toUpperCase() + selectedFilter.slice(1)}
             </Text>
+          <MaterialIcons name="arrow-drop-down" size={20} color="#333" />
           </TouchableOpacity>
-        ))}
-      </ScrollView>
+      </View>
 
       {/* Activities List */}
       <ScrollView 
@@ -613,6 +596,36 @@ const FacultyActs = () => {
           </View>
         </View>
       </Modal>
+
+      {/* Filter Modal */}
+      <Modal
+        visible={filterModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setFilterModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { padding: 12 }] }>
+            {['all', 'active', 'past', 'quiz', 'assignment'].map((filter) => (
+              <TouchableOpacity
+                key={filter}
+                style={styles.filterOption}
+                onPress={() => {
+                  setSelectedFilter(filter);
+                  setFilterModalVisible(false);
+                }}
+              >
+                <Text style={[styles.filterOptionText, selectedFilter === filter && { fontWeight: '700', color: '#00418b' }]}>
+                  {filter.charAt(0).toUpperCase() + filter.slice(1)}
+                </Text>
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity style={styles.filterCancelBtn} onPress={() => setFilterModalVisible(false)}>
+              <Text style={styles.filterCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -626,14 +639,15 @@ const styles = {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
-    paddingTop: 36,
+    padding: 12,
+    paddingTop: 18,
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
+    zIndex: 20,
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#333',
     fontFamily: 'Poppins-Bold',
@@ -642,8 +656,8 @@ const styles = {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#00418b',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: 8,
   },
   createButtonText: {
@@ -653,7 +667,9 @@ const styles = {
     fontFamily: 'Poppins-Medium',
   },
   searchContainer: {
-    padding: 12,
+    paddingHorizontal: 10,
+    paddingTop: 4,
+    paddingBottom: 4,
     backgroundColor: '#fff',
   },
   searchBox: {
@@ -661,100 +677,94 @@ const styles = {
     alignItems: 'center',
     backgroundColor: '#f5f5f5',
     borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
   },
   searchInput: {
     flex: 1,
     marginLeft: 8,
-    fontSize: 16,
+    fontSize: 14,
     fontFamily: 'Poppins-Regular',
   },
   filterContainer: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
     backgroundColor: '#fff',
   },
-  filterContent: {
+  filterDropdownButton: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#f5f7fb',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  filterDropdownText: {
+    color: '#333',
+    fontSize: 13,
+    fontFamily: 'Poppins-Medium',
   },
   gradingTabsContainer: {
-    paddingVertical: 10,
+    paddingVertical: 4,
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
   },
-  gradingTabsContent: {
-    paddingHorizontal: 12,
-    alignItems: 'center',
-  },
-  gradingTab: {
+  gradingTabsBar: {
+    marginHorizontal: 10,
+    backgroundColor: '#f1f3f8',
+    borderRadius: 10,
     flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    backgroundColor: '#f5f7fb',
-    marginRight: 8,
+    padding: 2,
   },
-  gradingTabActive: {
+  gradingTabSegment: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  gradingTabSegmentActive: {
     backgroundColor: '#00418b',
   },
   gradingTabText: {
     color: '#3a3a3a',
-    fontSize: 14,
+    fontSize: 12,
     fontFamily: 'Poppins-Medium',
   },
   gradingTabTextActive: {
     color: '#fff',
   },
-  gradingTabCount: {
-    backgroundColor: '#e7eef9',
-    borderRadius: 10,
-    paddingHorizontal: 5,
-    paddingVertical: 1,
-    marginLeft: 6,
+  filterOption: {
+    paddingVertical: 10,
   },
-  gradingTabCountActive: {
-    backgroundColor: '#fff',
+  filterOptionText: {
+    fontSize: 14,
+    color: '#333',
+    fontFamily: 'Poppins-Regular',
   },
-  gradingTabCountText: {
-    color: '#00418b',
-    fontSize: 12,
-    fontWeight: 'bold',
-    fontFamily: 'Poppins-Bold',
-  },
-  gradingTabCountTextActive: {
-    color: '#00418b',
-  },
-  filterTab: {
-    paddingHorizontal: 12,
+  filterCancelBtn: {
+    marginTop: 8,
+    alignSelf: 'flex-end',
     paddingVertical: 6,
-    marginRight: 8,
-    borderRadius: 16,
-    backgroundColor: '#f5f7fb',
+    paddingHorizontal: 10,
   },
-  filterTabActive: {
-    backgroundColor: '#00418b',
-  },
-  filterTabText: {
-    color: '#3a3a3a',
+  filterCancelText: {
+    color: '#00418b',
     fontSize: 14,
     fontFamily: 'Poppins-Medium',
   },
-  filterTabTextActive: {
-    color: '#fff',
-  },
   activitiesContainer: {
     flex: 1,
-    paddingHorizontal: 12,
-    paddingTop: 8,
+    paddingHorizontal: 10,
+    paddingTop: 0,
   },
   activityCard: {
     backgroundColor: '#fff',
     borderRadius: 12,
-    padding: 12,
-    marginBottom: 12,
+    padding: 10,
+    marginBottom: 10,
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -763,46 +773,46 @@ const styles = {
   },
   activityHeader: {
     flexDirection: 'row',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   activityIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: '#f0f0f0',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 10,
+    marginRight: 8,
   },
   activityContent: {
     flex: 1,
   },
   activityTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: 'bold',
     color: '#333',
-    marginBottom: 2,
+    marginBottom: 1,
     fontFamily: 'Poppins-Bold',
   },
   activityClass: {
-    fontSize: 13,
+    fontSize: 12,
     color: '#666',
-    marginBottom: 2,
+    marginBottom: 1,
     fontFamily: 'Poppins-Medium',
   },
   activityDescription: {
-    fontSize: 13,
+    fontSize: 12,
     color: '#666',
-    marginBottom: 2,
+    marginBottom: 1,
     fontFamily: 'Poppins-Regular',
   },
   activityDueDate: {
-    fontSize: 11,
+    fontSize: 10,
     color: '#999',
     fontFamily: 'Poppins-Regular',
   },
   activityType: {
-    fontSize: 11,
+    fontSize: 10,
     color: '#666',
     fontFamily: 'Poppins-Medium',
     marginTop: 2,
@@ -810,10 +820,10 @@ const styles = {
   activityPoints: {
     alignItems: 'center',
     justifyContent: 'center',
-    minWidth: 54,
+    minWidth: 48,
   },
   pointsText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: 'bold',
     color: '#00418b',
     fontFamily: 'Poppins-Bold',
@@ -821,21 +831,21 @@ const styles = {
   activityFooter: {
     borderTopWidth: 1,
     borderTopColor: '#f0f0f0',
-    paddingTop: 8,
+    paddingTop: 6,
   },
   activityStats: {
     flexDirection: 'row',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   statItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: 10,
   },
   statText: {
-    fontSize: 11,
+    fontSize: 10,
     color: '#666',
-    marginLeft: 3,
+    marginLeft: 2,
     fontFamily: 'Poppins-Regular',
   },
   actionButtons: {
@@ -845,11 +855,11 @@ const styles = {
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     borderRadius: 6,
     flex: 1,
-    marginHorizontal: 3,
+    marginHorizontal: 2,
     justifyContent: 'center',
   },
   viewButton: {
@@ -863,20 +873,20 @@ const styles = {
   },
   viewButtonText: {
     color: '#2196F3',
-    fontSize: 11,
-    marginLeft: 3,
+    fontSize: 10,
+    marginLeft: 2,
     fontFamily: 'Poppins-Medium',
   },
   editButtonText: {
     color: '#FF9800',
-    fontSize: 11,
-    marginLeft: 3,
+    fontSize: 10,
+    marginLeft: 2,
     fontFamily: 'Poppins-Medium',
   },
   deleteButtonText: {
     color: '#F44336',
-    fontSize: 11,
-    marginLeft: 3,
+    fontSize: 10,
+    marginLeft: 2,
     fontFamily: 'Poppins-Medium',
   },
   emptyContainer: {
@@ -986,6 +996,32 @@ const styles = {
     fontSize: 16,
     fontWeight: '600',
     fontFamily: 'Poppins-Medium',
+  },
+  createMenu: {
+    position: 'absolute',
+    right: 12,
+    top: 50,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    paddingVertical: 6,
+    width: 160,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    zIndex: 30,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  createMenuItem: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  createMenuItemText: {
+    fontSize: 14,
+    color: '#333',
+    fontFamily: 'Poppins-Regular',
   },
 };
 

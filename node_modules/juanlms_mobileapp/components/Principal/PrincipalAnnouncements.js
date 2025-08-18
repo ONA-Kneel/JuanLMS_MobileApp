@@ -278,7 +278,8 @@ export default function PrincipalAnnouncements() {
 
   const toggleAnnouncementStatus = async (announcement) => {
     try {
-      const response = await axios.patch(`${API_BASE_URL}/api/announcements/${announcement.id}`, {
+      const annId = announcement._id || announcement.id;
+      const response = await axios.patch(`${API_BASE_URL}/api/announcements/${annId}`, {
         isActive: !announcement.isActive,
       });
       
@@ -455,7 +456,7 @@ export default function PrincipalAnnouncements() {
       <View style={styles.content}>
         <FlatList
           data={filteredAnnouncements}
-          keyExtractor={(item) => item.id.toString()}
+          keyExtractor={(item) => (item._id || item.id).toString()}
           renderItem={({ item }) => (
             <AnnouncementItem
               announcement={item}

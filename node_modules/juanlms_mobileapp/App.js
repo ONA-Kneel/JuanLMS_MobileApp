@@ -44,6 +44,8 @@ import CreateModule from './components/Faculty/CreateModule';
 import CreateActivity from './components/Faculty/CreateActivity';
 import CreateAssignment from './components/Faculty/CreateAssignment';
 import CreateQuiz from './components/Faculty/CreateQuiz';
+import AssignmentSubmissions from './components/Faculty/AssignmentSubmissions';
+import QuizSubmissions from './components/Faculty/QuizSubmissions';
 import FacultyCalendar from './components/Faculty/FacultyCalendar';
 import FacultyChats from './components/Faculty/FacultyChats';
 import FacultyProfile from './components/Faculty/FacultyProfile';
@@ -270,6 +272,8 @@ export default function App() {
         <Screens.Screen name ='CAct' component={CreateActivity} options={{ headerShown: false }}/>
         <Screens.Screen name ='CreateAssignment' component={CreateAssignment} options={{ headerShown: false }}/>
         <Screens.Screen name ='CreateQuiz' component={CreateQuiz} options={{ headerShown: false }}/>
+        <Screens.Screen name='AssignmentSubmissions' component={AssignmentSubmissions} options={{ headerShown: false }} />
+        <Screens.Screen name='QuizSubmissions' component={QuizSubmissions} options={{ headerShown: false }} />
         <Screens.Screen name ='FActs' component={FacultyActs} options={{ headerShown: false }}/>
         <Screens.Screen name ='FGrades' component={FacultyGrades} options={{ headerShown: false }}/>
         <Screens.Screen name ='FMain' component={FacultySCMain} options={{ headerShown: false }}/>

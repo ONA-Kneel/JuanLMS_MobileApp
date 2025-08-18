@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Text, 
   View, 
@@ -14,6 +14,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { useUser } from '../UserContext';
 
 const API_BASE = 'https://juanlms-webapp-server.onrender.com';
 
@@ -21,6 +22,7 @@ export default function CreateAssignment() {
   const navigation = useNavigation();
   const route = useRoute();
   const { classId, classInfo } = route.params || {};
+  const { user } = useUser();
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -29,6 +31,8 @@ export default function CreateAssignment() {
   const [dueDate, setDueDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [facultyClasses, setFacultyClasses] = useState([]);
+  const [selectedClassIds, setSelectedClassIds] = useState([]);
 
   const handleBack = () => {
     navigation.goBack();
@@ -39,6 +43,35 @@ export default function CreateAssignment() {
     if (selectedDate) {
       setDueDate(selectedDate);
     }
+  };
+
+  useEffect(() => {
+    const loadClasses = async () => {
+      try {
+        if (classId) return; // use provided class from module context
+        const token = await AsyncStorage.getItem('jwtToken');
+        const res = await fetch(`${API_BASE}/api/classes`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (!res.ok) throw new Error('Failed to load classes');
+        const data = await res.json();
+        const facultyIdentifier = user?.userID || user?._id;
+        const mine = Array.isArray(data) 
+          ? data.filter(c => c.facultyID === facultyIdentifier)
+          : (data.classes || []).filter(c => c.facultyID === facultyIdentifier);
+        setFacultyClasses(mine);
+        if (mine && mine.length > 0) {
+          setSelectedClassIds(mine.map(c => c.classID));
+        }
+      } catch (e) {
+        console.log('Load classes error:', e);
+      }
+    };
+    loadClasses();
+  }, [classId, user]);
+
+  const toggleClass = (cid) => {
+    setSelectedClassIds(prev => prev.includes(cid) ? prev.filter(id => id !== cid) : [...prev, cid]);
   };
 
   const handleSubmit = async () => {
@@ -52,36 +85,72 @@ export default function CreateAssignment() {
       return;
     }
 
+    if (!classId && selectedClassIds.length === 0) {
+      Alert.alert('Select classes', 'Please select at least one class to post the assignment.');
+      return;
+    }
+
     setLoading(true);
     try {
       const token = await AsyncStorage.getItem('jwtToken');
       
+      const pointsNum = Math.min(parseInt(points), 100);
       const assignmentData = {
         title: title.trim(),
         description: description.trim(),
         instructions: instructions.trim(),
-        points: parseInt(points),
+        points: pointsNum,
         dueDate: dueDate.toISOString(),
-        classID: classId,
+        classID: classId, // single when provided
+        classIDs: !classId && selectedClassIds.length > 0 ? selectedClassIds : undefined,
         type: 'assignment'
       };
 
-      const response = await fetch(`${API_BASE}/api/assignments`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(assignmentData)
-      });
+      const attempt = async (url) => {
+        return fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(assignmentData)
+        });
+      };
+
+      console.log('CreateAssignment: POST', `${API_BASE}/assignments`);
+      let response = await attempt(`${API_BASE}/assignments`);
 
       if (response.ok) {
-        Alert.alert('Success', 'Assignment created successfully', [
+        let infoText = 'Assignment created successfully';
+        try {
+          const data = await response.json();
+          const list = Array.isArray(data) ? data : (data ? [data] : []);
+          if (list.length > 0) {
+            const names = list.map(a => {
+              const match = facultyClasses.find(c => c.classID === a.classID);
+              return match ? `${match.className} (${match.classCode})` : a.classID;
+            }).filter(Boolean);
+            infoText = `Assignment posted to ${list.length} class${list.length > 1 ? 'es' : ''}${names.length ? `:\n${names.join('\n')}` : ''}`;
+          }
+        } catch (_) { /* ignore non-JSON success bodies */ }
+        Alert.alert('Success', infoText, [
           { text: 'OK', onPress: () => navigation.goBack() }
         ]);
       } else {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to create assignment');
+        let errMsg = 'Failed to create assignment';
+        try {
+          const clone = response.clone();
+          const errorData = await response.json();
+          errMsg = errorData.error || errMsg;
+        } catch (_) {}
+        try {
+          const text = await response.text();
+          console.log('CreateAssignment error body:', text);
+        } catch (_) {
+          // ignore
+        }
+        throw new Error(errMsg);
       }
     } catch (error) {
       console.error('Error creating assignment:', error);
@@ -124,13 +193,32 @@ export default function CreateAssignment() {
               fontFamily: 'Poppins-Regular',
               marginTop: 4
             }}>
-              {classInfo?.className || 'Class'} - {classInfo?.classCode || 'Code'}
+              {classInfo?.className || (classId ? 'Class' : 'Select classes')}{classInfo?.classCode ? ` - ${classInfo.classCode}` : ''}
             </Text>
           </View>
         </View>
       </View>
 
       <ScrollView style={{ flex: 1, padding: 20 }}>
+        {/* Class Selector (when no classId passed) */}
+        {!classId && (
+          <View style={{ backgroundColor: '#fff', borderRadius: 16, padding: 16, marginBottom: 16 }}>
+            <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 10, fontFamily: 'Poppins-Bold', color: '#333' }}>Assign to Classes</Text>
+            {facultyClasses.length === 0 ? (
+              <Text style={{ color: '#666', fontFamily: 'Poppins-Regular' }}>No classes found.</Text>
+            ) : (
+              facultyClasses.map(cls => (
+                <TouchableOpacity key={cls.classID} onPress={() => toggleClass(cls.classID)} style={{
+                  flexDirection: 'row', alignItems: 'center', paddingVertical: 8
+                }}>
+                  <Icon name={selectedClassIds.includes(cls.classID) ? 'checkbox-marked' : 'checkbox-blank-outline'} size={20} color={selectedClassIds.includes(cls.classID) ? '#00418b' : '#999'} />
+                  <Text style={{ marginLeft: 8, color: '#333', fontFamily: 'Poppins-Regular' }}>{cls.className} ({cls.classCode})</Text>
+                </TouchableOpacity>
+              ))
+            )}
+          </View>
+        )}
+
         {/* Form */}
         <View style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20, marginBottom: 20 }}>
           <Text style={{ 
@@ -253,8 +341,13 @@ export default function CreateAssignment() {
               }}
               placeholder="Enter points value"
               value={points}
-              onChangeText={setPoints}
+              onChangeText={(text) => {
+                const onlyNums = text.replace(/[^0-9]/g, '');
+                const num = Math.min(parseInt(onlyNums || '0', 10), 100);
+                setPoints(onlyNums === '' ? '' : String(num));
+              }}
               keyboardType="numeric"
+              maxLength={3}
             />
           </View>
 
