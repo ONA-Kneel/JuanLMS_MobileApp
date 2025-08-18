@@ -73,7 +73,10 @@ function ActivityCard({ activity, onActivityPress }) {
         </View>
         <View style={styles.activityPoints}>
           <Text style={styles.pointsText}>
-            {activity.points !== undefined && activity.points !== null ? activity.points : 0} pts
+            {activity.type === 'quiz' 
+              ? (activity.totalPoints || activity.points || 0) 
+              : (activity.points !== undefined && activity.points !== null ? activity.points : 0)
+            } pts
           </Text>
         </View>
       </View>
@@ -90,7 +93,23 @@ function ActivityCard({ activity, onActivityPress }) {
             <View style={styles.statItem}>
               <MaterialIcons name="grade" size={16} color="#4CAF50" />
               <Text style={styles.statText}>
-                Score: {activity.score}/{activity.points || 100}
+                Score: {activity.score}/{activity.type === 'quiz' ? (activity.totalPoints || activity.points || 100) : (activity.points || 100)}
+              </Text>
+            </View>
+          )}
+          {activity.isSubmitted && activity.type === 'quiz' && activity.percentage !== undefined && (
+            <View style={styles.statItem}>
+              <MaterialIcons name="percent" size={16} color="#FF9800" />
+              <Text style={styles.statText}>
+                {activity.percentage}%
+              </Text>
+            </View>
+          )}
+          {activity.isSubmitted && activity.type === 'quiz' && activity.timeSpent !== undefined && (
+            <View style={styles.statItem}>
+              <MaterialIcons name="schedule" size={16} color="#2196F3" />
+              <Text style={styles.statText}>
+                {Math.floor(activity.timeSpent / 60)}m {activity.timeSpent % 60}s
               </Text>
             </View>
           )}
@@ -169,30 +188,40 @@ export default function StudentActs() {
             } catch (error) {
               console.error('Error checking submission status:', error);
             }
-          } else if (activity.type === 'quiz') {
+                    } else if (activity.type === 'quiz') {
             try {
+              console.log('DEBUG: Checking quiz submission for:', activity._id, 'user:', user._id, 'activity points:', activity.points);
               const response = await fetch(`${API_BASE}/api/quizzes/${activity._id}/myscore?studentId=${user._id}`, {
                 headers: { Authorization: `Bearer ${token}` }
               });
               if (response.ok) {
                 const quizResponse = await response.json();
+                console.log('DEBUG: Quiz response for', activity._id, ':', quizResponse);
                 if (quizResponse && quizResponse.score !== undefined) {
-                  return { 
+                  const updatedActivity = { 
                     ...activity, 
-                    submittedAt: new Date(),
+                    submittedAt: quizResponse.submittedAt ? new Date(quizResponse.submittedAt) : new Date(),
                     status: 'submitted',
                     score: quizResponse.score,
                     totalPoints: quizResponse.total,
+                    percentage: quizResponse.percentage,
+                    timeSpent: quizResponse.timeSpent,
+                    graded: quizResponse.graded,
                     isSubmitted: true
                   };
+                  console.log('DEBUG: Updated quiz activity:', updatedActivity._id, 'score:', updatedActivity.score, 'totalPoints:', updatedActivity.totalPoints, 'percentage:', updatedActivity.percentage);
+                  return updatedActivity;
                 }
               } else if (response.status === 404) {
+                console.log('DEBUG: Quiz not submitted (404) for:', activity._id);
                 return { 
                   ...activity, 
                   isSubmitted: false,
                   status: 'not_submitted',
                   points: activity.points || 0
                 };
+              } else {
+                console.log('DEBUG: Quiz response not OK for:', activity._id, 'status:', response.status);
               }
             } catch (error) {
               console.error('Error checking quiz response status:', error);
@@ -339,13 +368,22 @@ export default function StudentActs() {
           headers: { Authorization: `Bearer ${token}` }
         })
           .then(res => (res.ok ? res.json() : []))
-          .then(assignments => assignments.map(item => ({ ...item, type: 'assignment' })))
+          .then(assignments => {
+            console.log('DEBUG: Assignments fetched for class', cid, ':', assignments);
+            return assignments.map(item => ({ ...item, type: 'assignment' }));
+          })
           .catch(() => []),
         fetch(`${API_BASE}/api/quizzes?classID=${encodeURIComponent(cid)}`, {
           headers: { Authorization: `Bearer ${token}` }
         })
           .then(res => (res.ok ? res.json() : []))
-          .then(quizzes => quizzes.map(item => ({ ...item, type: 'quiz' })))
+          .then(quizzes => {
+            console.log('DEBUG: Quizzes fetched for class', cid, ':', quizzes);
+            return quizzes.map(item => {
+              console.log('DEBUG: Individual quiz item:', item._id, 'title:', item.title, 'points:', item.points, 'questions:', item.questions?.length);
+              return { ...item, type: 'quiz' };
+            });
+          })
           .catch(() => [])
       ]);
 
@@ -357,6 +395,8 @@ export default function StudentActs() {
           merged.push(...list);
         }
       });
+      
+      console.log('DEBUG: Merged activities before filtering:', merged);
 
       // Filter for ONLY POSTED activities
       const now = new Date();
@@ -365,29 +405,43 @@ export default function StudentActs() {
           const scheduleEnabled = item?.schedulePost === true;
           const postAt = item?.postAt ? new Date(item.postAt) : null;
           if (scheduleEnabled && postAt) {
-            return postAt <= now;
+            const isPosted = postAt <= now;
+            console.log('DEBUG: Assignment', item._id, 'schedulePost:', scheduleEnabled, 'postAt:', postAt, 'isPosted:', isPosted);
+            return isPosted;
           }
+          console.log('DEBUG: Assignment', item._id, 'no schedule, considered posted');
           return true;
         } else if (item.type === 'quiz') {
           const openEnabled = item?.timing?.openEnabled;
           const openDate = item?.timing?.open ? new Date(item.timing.open) : null;
           if (openEnabled && openDate) {
-            return openDate <= now;
+            const isPosted = openDate <= now;
+            console.log('DEBUG: Quiz', item._id, 'openEnabled:', openEnabled, 'openDate:', openDate, 'isPosted:', isPosted);
+            return isPosted;
           }
+          console.log('DEBUG: Quiz', item._id, 'no timing, considered posted');
           return true;
         }
+        console.log('DEBUG: Unknown type item', item._id, 'type:', item.type);
         return false;
       });
+      
+      console.log('DEBUG: Posted activities after filtering:', postedActivities);
 
       // Normalize and enrich with class info for display
-      const normalized = postedActivities.map(item => ({
-        ...item,
-        type: item.type || (item.questions ? 'quiz' : 'assignment'),
-        className: item.classInfo?.className || item.className || 'Unknown Class',
-        classCode: item.classInfo?.classCode || item.classCode || 'N/A',
-        classID: item.classID || item.classInfo?.classID || (item.assignedTo && item.assignedTo[0]?.classID),
-        points: item.points !== undefined ? item.points : (item.type === 'quiz' ? 100 : 0)
-      }));
+      const normalized = postedActivities.map(item => {
+        console.log('DEBUG: Normalizing item:', item._id, 'type:', item.type, 'points:', item.points, 'questions:', item.questions?.length, 'timing:', item.timing);
+        const normalizedItem = {
+          ...item,
+          type: item.type || (item.questions ? 'quiz' : 'assignment'),
+          className: item.classInfo?.className || item.className || 'Unknown Class',
+          classCode: item.classInfo?.classCode || item.classCode || 'N/A',
+          classID: item.classID || item.classInfo?.classID || (item.assignedTo && item.assignedTo[0]?.classID),
+          points: item.points !== undefined ? item.points : (item.type === 'quiz' ? 100 : 0)
+        };
+        console.log('DEBUG: Normalized item:', normalizedItem._id, 'final type:', normalizedItem.type, 'final points:', normalizedItem.points);
+        return normalizedItem;
+      });
 
       // Deduplicate by _id
       const dedup = new Map();
@@ -401,6 +455,261 @@ export default function StudentActs() {
       
       // Check submission statuses for posted activities only
       const activitiesWithStatus = await checkSubmissionStatuses(allActivities);
+      
+      console.log('DEBUG: Final activities with status:', activitiesWithStatus);
+      
+      // Log quiz-specific information
+      const quizActivities = activitiesWithStatus.filter(a => a.type === 'quiz');
+      console.log('DEBUG: Quiz activities:', quizActivities.map(q => ({
+        id: q._id,
+        title: q.title,
+        points: q.points,
+        totalPoints: q.totalPoints,
+        score: q.score,
+        percentage: q.percentage,
+        timeSpent: q.timeSpent,
+        isSubmitted: q.isSubmitted,
+        status: q.status
+      })));
+      
+      // Log assignment-specific information
+      const assignmentActivities = activitiesWithStatus.filter(a => a.type === 'assignment');
+      console.log('DEBUG: Assignment activities:', assignmentActivities.map(a => ({
+        id: a._id,
+        title: a.title,
+        points: a.points,
+        score: a.score,
+        isSubmitted: a.isSubmitted,
+        status: a.status
+      })));
+      
+      // Log all activities summary
+      console.log('DEBUG: Activities summary - Total:', activitiesWithStatus.length, 'Quizzes:', quizActivities.length, 'Assignments:', assignmentActivities.length);
+      
+      // Log any activities with missing or unexpected data
+      const activitiesWithIssues = activitiesWithStatus.filter(a => {
+        if (a.type === 'quiz') {
+          return !a.points || !a.totalPoints || a.score === undefined;
+        } else if (a.type === 'assignment') {
+          return !a.points || a.score === undefined;
+        }
+        return false;
+      });
+      
+      if (activitiesWithIssues.length > 0) {
+        console.log('DEBUG: Activities with potential issues:', activitiesWithIssues.map(a => ({
+          id: a._id,
+          type: a.type,
+          title: a.title,
+          points: a.points,
+          totalPoints: a.totalPoints,
+          score: a.score,
+          isSubmitted: a.isSubmitted
+        })));
+      }
+      
+      // Log successful quiz activities for verification
+      const successfulQuizzes = activitiesWithStatus.filter(a => a.type === 'quiz' && a.isSubmitted && a.score !== undefined && a.totalPoints);
+      if (successfulQuizzes.length > 0) {
+        console.log('DEBUG: Successful quiz activities:', successfulQuizzes.map(q => ({
+          id: q._id,
+          title: q.title,
+          points: q.points,
+          totalPoints: q.totalPoints,
+          score: q.score,
+          percentage: q.percentage,
+          timeSpent: q.timeSpent
+        })));
+      }
+      
+      // Log any activities that might have score display issues
+      const scoreDisplayIssues = activitiesWithStatus.filter(a => {
+        if (a.type === 'quiz' && a.isSubmitted) {
+          return a.score !== undefined && a.totalPoints && a.score > a.totalPoints;
+        }
+        return false;
+      });
+      
+      if (scoreDisplayIssues.length > 0) {
+        console.log('DEBUG: Activities with score display issues:', scoreDisplayIssues.map(a => ({
+          id: a._id,
+          title: a.title,
+          score: a.score,
+          totalPoints: a.totalPoints,
+          percentage: a.percentage
+        })));
+      }
+      
+      // Final verification log
+      console.log('DEBUG: Setting activities state with', activitiesWithStatus.length, 'activities');
+      
+      // Log the first few activities for quick verification
+      if (activitiesWithStatus.length > 0) {
+        console.log('DEBUG: First 3 activities preview:', activitiesWithStatus.slice(0, 3).map(a => ({
+          id: a._id,
+          type: a.type,
+          title: a.title,
+          points: a.points,
+          totalPoints: a.totalPoints,
+          score: a.score,
+          isSubmitted: a.isSubmitted
+        })));
+      }
+      
+      // Log any activities with missing critical data
+      const criticalIssues = activitiesWithStatus.filter(a => {
+        if (a.type === 'quiz') {
+          return !a.title || !a.points || (a.isSubmitted && a.score === undefined);
+        } else if (a.type === 'assignment') {
+          return !a.title || !a.points || (a.isSubmitted && a.score === undefined);
+        }
+        return false;
+      });
+      
+      if (criticalIssues.length > 0) {
+        console.warn('DEBUG: Activities with critical data issues:', criticalIssues.map(a => ({
+          id: a._id,
+          type: a.type,
+          title: a.title,
+          points: a.points,
+          score: a.score,
+          isSubmitted: a.isSubmitted
+        })));
+      }
+      
+      // Log the final state that will be set
+      console.log('DEBUG: Final activities state to be set:', {
+        totalCount: activitiesWithStatus.length,
+        quizCount: activitiesWithStatus.filter(a => a.type === 'quiz').length,
+        assignmentCount: activitiesWithStatus.filter(a => a.type === 'assignment').length,
+        submittedCount: activitiesWithStatus.filter(a => a.isSubmitted).length,
+        quizSubmittedCount: activitiesWithStatus.filter(a => a.type === 'quiz' && a.isSubmitted).length,
+        assignmentSubmittedCount: activitiesWithStatus.filter(a => a.type === 'assignment' && a.isSubmitted).length
+      });
+      
+      // Log any quiz activities that should display scores
+      const quizScoreActivities = activitiesWithStatus.filter(a => a.type === 'quiz' && a.isSubmitted && a.score !== undefined);
+      if (quizScoreActivities.length > 0) {
+        console.log('DEBUG: Quiz activities that should display scores:', quizScoreActivities.map(q => ({
+          id: q._id,
+          title: q.title,
+          score: q.score,
+          totalPoints: q.totalPoints,
+          percentage: q.percentage,
+          timeSpent: q.timeSpent,
+          points: q.points
+        })));
+      }
+      
+      // Log any quiz activities that might have display issues
+      const quizDisplayIssues = activitiesWithStatus.filter(a => {
+        if (a.type === 'quiz' && a.isSubmitted) {
+          return !a.totalPoints || a.score === undefined || a.percentage === undefined;
+        }
+        return false;
+      });
+      
+      if (quizDisplayIssues.length > 0) {
+        console.warn('DEBUG: Quiz activities with potential display issues:', quizDisplayIssues.map(q => ({
+          id: q._id,
+          title: q.title,
+          score: q.score,
+          totalPoints: q.totalPoints,
+          percentage: q.percentage,
+          timeSpent: q.timeSpent,
+          points: q.points
+        })));
+      }
+      
+      // Log the final activities array for inspection
+      console.log('DEBUG: Final activities array:', JSON.stringify(activitiesWithStatus, null, 2));
+      
+      // Log any activities with missing data that might cause display issues
+      const missingDataActivities = activitiesWithStatus.filter(a => {
+        if (a.type === 'quiz') {
+          return !a.title || !a.className || !a.dueDate || !a.points;
+        } else if (a.type === 'assignment') {
+          return !a.title || !a.className || !a.dueDate || !a.points;
+        }
+        return false;
+      });
+      
+      if (missingDataActivities.length > 0) {
+        console.warn('DEBUG: Activities with missing display data:', missingDataActivities.map(a => ({
+          id: a._id,
+          type: a.type,
+          title: a.title,
+          className: a.className,
+          dueDate: a.dueDate,
+          points: a.points
+        })));
+      }
+      
+      // Log the final state summary
+      console.log('DEBUG: Final state summary:', {
+        totalActivities: activitiesWithStatus.length,
+        quizActivities: activitiesWithStatus.filter(a => a.type === 'quiz').length,
+        assignmentActivities: activitiesWithStatus.filter(a => a.type === 'assignment').length,
+        submittedQuizzes: activitiesWithStatus.filter(a => a.type === 'quiz' && a.isSubmitted).length,
+        submittedAssignments: activitiesWithStatus.filter(a => a.type === 'assignment' && a.isSubmitted).length,
+        quizScores: activitiesWithStatus.filter(a => a.type === 'quiz' && a.isSubmitted && a.score !== undefined).length,
+        quizPercentages: activitiesWithStatus.filter(a => a.type === 'quiz' && a.isSubmitted && a.percentage !== undefined).length,
+        quizTimeSpent: activitiesWithStatus.filter(a => a.type === 'quiz' && a.isSubmitted && a.timeSpent !== undefined).length
+      });
+      
+      // Log any activities that might have rendering issues
+      const renderingIssues = activitiesWithStatus.filter(a => {
+        if (a.type === 'quiz' && a.isSubmitted) {
+          return !a.score || !a.totalPoints || a.score > a.totalPoints;
+        }
+        return false;
+      });
+      
+      if (renderingIssues.length > 0) {
+        console.warn('DEBUG: Activities with potential rendering issues:', renderingIssues.map(a => ({
+          id: a._id,
+          type: a.type,
+          title: a.title,
+          score: a.score,
+          totalPoints: a.totalPoints,
+          percentage: a.percentage
+        })));
+      }
+      
+      // Log the final activities state for verification
+      console.log('DEBUG: Final activities state verification:', {
+        activities: activitiesWithStatus.map(a => ({
+          id: a._id,
+          type: a.type,
+          title: a.title,
+          points: a.points,
+          totalPoints: a.totalPoints,
+          score: a.score,
+          percentage: a.percentage,
+          timeSpent: a.timeSpent,
+          isSubmitted: a.isSubmitted
+        }))
+      });
+      
+      // Log any activities that might have display issues in the UI
+      const uiDisplayIssues = activitiesWithStatus.filter(a => {
+        if (a.type === 'quiz' && a.isSubmitted) {
+          return !a.score || !a.totalPoints || !a.percentage || !a.timeSpent;
+        }
+        return false;
+      });
+      
+      if (uiDisplayIssues.length > 0) {
+        console.warn('DEBUG: Activities with UI display issues:', uiDisplayIssues.map(a => ({
+          id: a._id,
+          type: a.type,
+          title: a.title,
+          score: a.score,
+          totalPoints: a.totalPoints,
+          percentage: a.percentage,
+          timeSpent: a.timeSpent
+        })));
+      }
       
       setActivities(activitiesWithStatus);
     } catch (err) {
@@ -614,8 +923,43 @@ export default function StudentActs() {
                   </View>
                   <View style={styles.modalDetailRow}>
                     <Text style={styles.modalDetailLabel}>Points:</Text>
-                    <Text style={styles.modalDetailValue}>{selectedActivity.points || 0} points</Text>
+                    <Text style={styles.modalDetailValue}>
+                      {selectedActivity.type === 'quiz' ? (selectedActivity.totalPoints || selectedActivity.points || 0) : (selectedActivity.points || 0)} points
+                    </Text>
                   </View>
+                  
+                  {selectedActivity.type === 'quiz' && selectedActivity.isSubmitted && selectedActivity.score !== undefined && (
+                    <>
+                      <View style={styles.modalDetailRow}>
+                        <Text style={styles.modalDetailLabel}>Score:</Text>
+                        <Text style={styles.modalDetailValue}>
+                          {selectedActivity.score}/{selectedActivity.totalPoints || selectedActivity.points || 100}
+                        </Text>
+                      </View>
+                      {selectedActivity.percentage !== undefined && (
+                        <View style={styles.modalDetailRow}>
+                          <Text style={styles.modalDetailLabel}>Percentage:</Text>
+                          <Text style={styles.modalDetailValue}>{selectedActivity.percentage}%</Text>
+                        </View>
+                      )}
+                      {selectedActivity.timeSpent !== undefined && (
+                        <View style={styles.modalDetailRow}>
+                          <Text style={styles.modalDetailLabel}>Time Spent:</Text>
+                          <Text style={styles.modalDetailValue}>
+                            {Math.floor(selectedActivity.timeSpent / 60)}m {selectedActivity.timeSpent % 60}s
+                          </Text>
+                        </View>
+                      )}
+                      {selectedActivity.submittedAt && (
+                        <View style={styles.modalDetailRow}>
+                          <Text style={styles.modalDetailLabel}>Submitted:</Text>
+                          <Text style={styles.modalDetailValue}>
+                            {formatDateTime(selectedActivity.submittedAt)}
+                          </Text>
+                        </View>
+                      )}
+                    </>
+                  )}
                 </View>
 
                 {selectedActivity.description && (
