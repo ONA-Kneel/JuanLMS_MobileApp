@@ -88,6 +88,10 @@ function ActivityCard({ activity, onEdit, onDelete, onViewSubmissions }) {
             <MaterialIcons name="check-circle" size={16} color="#4CAF50" />
             <Text style={styles.statText}>{activity.submittedCount || 0} submitted</Text>
           </View>
+          <View style={styles.statItem}>
+            <MaterialIcons name="grade" size={16} color="#FF9800" />
+            <Text style={styles.statText}>{activity.gradedCount || 0} graded</Text>
+          </View>
         </View>
         
         <View style={styles.actionButtons}>
@@ -96,7 +100,7 @@ function ActivityCard({ activity, onEdit, onDelete, onViewSubmissions }) {
             onPress={() => onViewSubmissions(activity)}
           >
             <MaterialIcons name="visibility" size={16} color="#2196F3" />
-            <Text style={styles.viewButtonText}>View</Text>
+            <Text style={styles.viewButtonText}>Grade</Text>
           </TouchableOpacity>
           
           <TouchableOpacity 
@@ -138,6 +142,11 @@ const FacultyActs = () => {
     points: '',
     type: ''
   });
+  
+  // Add grading tab state
+  const [activeTab, setActiveTab] = useState('all');
+  const [gradedActivities, setGradedActivities] = useState([]);
+  const [readyToGradeActivities, setReadyToGradeActivities] = useState([]);
 
   useEffect(() => {
     fetchActivities();
@@ -146,44 +155,81 @@ const FacultyActs = () => {
   const fetchActivities = async () => {
     try {
       setLoading(true);
-      const token = await AsyncStorage.getItem('token');
+      const token = await AsyncStorage.getItem('jwtToken'); // Use correct token key
       
       if (!user || !user._id) {
         throw new Error('User data not found');
       }
 
-      // Fetch activities created by the faculty member
-      const response = await fetch(`${API_BASE}/api/assignments/faculty/${user._id}`, {
+      // First, get all classes taught by this faculty member
+      const classesResponse = await fetch(`${API_BASE}/api/classes`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        
-        // Fetch quiz data as well
-        const quizResponse = await fetch(`${API_BASE}/api/quizzes/faculty/${user._id}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-
-        let allActivities = [...data];
-        
-        if (quizResponse.ok) {
-          const quizData = await quizResponse.json();
-          const quizzesWithType = quizData.map(quiz => ({
-            ...quiz,
-            type: 'quiz',
-            _id: `quiz_${quiz._id}` // Prefix to avoid conflicts
-          }));
-          allActivities = [...allActivities, ...quizzesWithType];
-        }
-
-        // Sort by due date
-        allActivities.sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
-        
-        setActivities(allActivities);
-      } else {
-        throw new Error('Failed to fetch activities');
+      if (!classesResponse.ok) {
+        throw new Error('Failed to fetch classes');
       }
+
+      const classesData = await classesResponse.json();
+      const facultyClasses = Array.isArray(classesData) 
+        ? classesData.filter(cls => cls.facultyID === user._id)
+        : (classesData.success && classesData.classes) 
+          ? classesData.classes.filter(cls => cls.facultyID === user._id)
+          : [];
+
+      console.log('Faculty classes:', facultyClasses);
+
+      let allActivities = [];
+
+      // Fetch activities for each class taught by the faculty
+      for (const cls of facultyClasses) {
+        try {
+          // Fetch assignments for this class
+          const assignmentsResponse = await fetch(`${API_BASE}/assignments?classID=${cls.classID}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+
+          if (assignmentsResponse.ok) {
+            const assignments = await assignmentsResponse.json();
+            const assignmentsWithClass = assignments.map(assignment => ({
+              ...assignment,
+              type: assignment.type || 'assignment',
+              className: cls.className,
+              classCode: cls.classCode,
+              classID: cls.classID
+            }));
+            allActivities.push(...assignmentsWithClass);
+          }
+
+          // Fetch quizzes for this class
+          const quizzesResponse = await fetch(`${API_BASE}/api/quizzes?classID=${cls.classID}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+
+          if (quizzesResponse.ok) {
+            const quizzes = await quizzesResponse.json();
+            const quizzesWithClass = quizzes.map(quiz => ({
+              ...quiz,
+              type: 'quiz',
+              className: cls.className,
+              classCode: cls.classCode,
+              classID: cls.classID
+            }));
+            allActivities.push(...quizzesWithClass);
+          }
+        } catch (classError) {
+          console.error(`Error fetching data for class ${cls.className}:`, classError);
+        }
+      }
+
+      // Sort by due date
+      allActivities.sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+      
+      console.log('All activities fetched:', allActivities);
+      setActivities(allActivities);
+      
+      // Categorize activities by grading status
+      categorizeActivities(allActivities);
     } catch (error) {
       console.error('Error fetching activities:', error);
       setError(error.message);
@@ -192,9 +238,48 @@ const FacultyActs = () => {
     }
   };
 
+  // Function to categorize activities by grading status
+  const categorizeActivities = (allActivities) => {
+    // For now, we'll categorize based on due date and submission status
+    // In a real implementation, you'd check actual submission and grading data
+    const now = new Date();
+    
+    const readyToGrade = allActivities.filter(activity => {
+      const dueDate = new Date(activity.dueDate);
+      return dueDate < now; // Past due date - ready to grade
+    });
+    
+    const graded = allActivities.filter(activity => {
+      // This would check actual grading status from the database
+      // For now, we'll show activities that are not ready to grade
+      const dueDate = new Date(activity.dueDate);
+      return dueDate >= now; // Not yet due - considered "graded" for demo
+    });
+    
+    setReadyToGradeActivities(readyToGrade);
+    setGradedActivities(graded);
+  };
+
   const onRefresh = () => {
     setRefreshing(true);
     fetchActivities().finally(() => setRefreshing(false));
+  };
+
+  const handleViewSubmissions = (activity) => {
+    // Navigate to submissions view for grading
+    if (activity.type === 'quiz') {
+      navigation.navigate('QuizSubmissions', { 
+        quizId: activity._id, 
+        quizTitle: activity.title,
+        className: activity.className 
+      });
+    } else {
+      navigation.navigate('AssignmentSubmissions', { 
+        assignmentId: activity._id, 
+        assignmentTitle: activity.title,
+        className: activity.className 
+      });
+    }
   };
 
   const handleEdit = (activity) => {
@@ -252,11 +337,6 @@ const FacultyActs = () => {
     }
   };
 
-  const handleViewSubmissions = (activity) => {
-    // Navigate to submissions view (you can implement this later)
-    Alert.alert('View Submissions', `Viewing submissions for ${activity.title}`);
-  };
-
   const handleSaveEdit = async () => {
     try {
       const token = await AsyncStorage.getItem('token');
@@ -290,10 +370,21 @@ const FacultyActs = () => {
     }
   };
 
+  // Filter activities based on selected tab and search query
   const filteredActivities = activities.filter(activity => {
     const matchesSearch = activity.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         (activity.description && activity.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
                          (activity.className && activity.className.toLowerCase().includes(searchQuery.toLowerCase()));
-    
+
+    // First filter by grading tab
+    if (activeTab === 'ready') {
+      return readyToGradeActivities.includes(activity) && matchesSearch;
+    } else if (activeTab === 'graded') {
+      return gradedActivities.includes(activity) && matchesSearch;
+    }
+    // activeTab === 'all' - show all activities
+
+    // Then apply legacy filters
     if (selectedFilter === 'all') return matchesSearch;
     if (selectedFilter === 'active') return matchesSearch && new Date(activity.dueDate) >= new Date();
     if (selectedFilter === 'past') return matchesSearch && new Date(activity.dueDate) < new Date();
@@ -339,7 +430,43 @@ const FacultyActs = () => {
         </View>
       </View>
 
-      {/* Filter Tabs */}
+      {/* Grading Tabs (similar to web app) */}
+      <View style={styles.gradingTabsContainer}>
+        {[
+          { key: 'all', label: 'All Activities', count: activities.length },
+          { key: 'ready', label: 'Ready to Grade', count: readyToGradeActivities.length },
+          { key: 'graded', label: 'Graded', count: gradedActivities.length }
+        ].map((tab) => (
+          <TouchableOpacity
+            key={tab.key}
+            style={[
+              styles.gradingTab,
+              activeTab === tab.key && styles.gradingTabActive
+            ]}
+            onPress={() => setActiveTab(tab.key)}
+          >
+            <Text style={[
+              styles.gradingTabText,
+              activeTab === tab.key && styles.gradingTabTextActive
+            ]}>
+              {tab.label}
+            </Text>
+            <View style={[
+              styles.gradingTabCount,
+              activeTab === tab.key && styles.gradingTabCountActive
+            ]}>
+              <Text style={[
+                styles.gradingTabCountText,
+                activeTab === tab.key && styles.gradingTabCountTextActive
+              ]}>
+                {tab.count}
+              </Text>
+            </View>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {/* Legacy Filter Tabs (keeping for backward compatibility) */}
       <ScrollView 
         horizontal 
         showsHorizontalScrollIndicator={false}
@@ -529,6 +656,52 @@ const styles = {
     paddingHorizontal: 20,
     paddingVertical: 10,
     backgroundColor: '#fff',
+  },
+  gradingTabsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingVertical: 10,
+    backgroundColor: '#f0f0f0',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  gradingTab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#f0f0f0',
+  },
+  gradingTabActive: {
+    backgroundColor: '#00418b',
+  },
+  gradingTabText: {
+    color: '#666',
+    fontSize: 14,
+    fontFamily: 'Poppins-Medium',
+  },
+  gradingTabTextActive: {
+    color: '#fff',
+  },
+  gradingTabCount: {
+    backgroundColor: '#00418b',
+    borderRadius: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    marginLeft: 8,
+  },
+  gradingTabCountActive: {
+    backgroundColor: '#fff',
+  },
+  gradingTabCountText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
+    fontFamily: 'Poppins-Bold',
+  },
+  gradingTabCountTextActive: {
+    color: '#00418b',
   },
   filterTab: {
     paddingHorizontal: 16,
