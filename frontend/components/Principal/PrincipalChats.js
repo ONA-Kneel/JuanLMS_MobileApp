@@ -13,8 +13,12 @@ import {
   KeyboardAvoidingView,
   Platform,
   Dimensions,
-  StyleSheet
+  StyleSheet,
+  Linking
 } from 'react-native';
+import * as FileSystem from 'expo-file-system';
+import * as MediaLibrary from 'expo-media-library';
+import * as Sharing from 'expo-sharing';
 import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../UserContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -68,6 +72,51 @@ export default function PrincipalChats() {
   const messagesEndRef = useRef(null);
   const socket = useRef(null);
   const scrollViewRef = useRef(null);
+
+  // Helpers for attachments
+  const buildFileUrl = (path) => {
+    if (!path) return null;
+    return path.startsWith('http') ? path : `${API_BASE}/${path}`;
+  };
+  const isImageUrl = (url) => /\.(png|jpe?g|gif|webp)$/i.test(url || '');
+  const getFilename = (path) => (path || '').split('/').pop();
+  const handleOpenAttachment = async (path) => {
+    const url = buildFileUrl(path);
+    if (!url) return;
+    try {
+      await Linking.openURL(url);
+    } catch (e) {
+      Alert.alert('Error', 'Unable to open attachment');
+    }
+  };
+
+  const handleDownloadAttachment = async (path) => {
+    try {
+      const url = buildFileUrl(path);
+      if (!url) return;
+      const filename = getFilename(path) || `file-${Date.now()}`;
+      const targetUri = FileSystem.documentDirectory + filename;
+
+      const downloadRes = await FileSystem.downloadAsync(url, targetUri);
+
+      if (isImageUrl(filename)) {
+        const perm = await MediaLibrary.requestPermissionsAsync();
+        if (perm.status === 'granted') {
+          await MediaLibrary.saveToLibraryAsync(downloadRes.uri);
+          Alert.alert('Downloaded', 'Image saved to your Photos.');
+          return;
+        }
+      }
+
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(downloadRes.uri);
+      }
+      Alert.alert('Downloaded', `Saved to app storage as ${filename}.`);
+    } catch (err) {
+      console.error('Download error', err);
+      Alert.alert('Error', 'Failed to download file');
+    }
+  };
 
   // Initialize socket connection
   useEffect(() => {
@@ -842,15 +891,32 @@ export default function PrincipalChats() {
               borderBottomRightRadius: message.senderId === user._id ? 4 : 16,
             }}>
               {message.fileUrl ? (
-                <View style={{ alignItems: 'center' }}>
-                  <MaterialIcons name="attach-file" size={24} color={message.senderId === user._id ? '#fff' : '#666'} />
-                  <Text style={{ 
-                    color: message.senderId === user._id ? '#fff' : '#666',
-                    fontSize: 12,
-                    marginTop: 4,
-                  }}>
-                    File attached
-                  </Text>
+                <View>
+                  <TouchableOpacity onPress={() => handleOpenAttachment(message.fileUrl)} activeOpacity={0.8}>
+                    {isImageUrl(message.fileUrl) ? (
+                      <Image
+                        source={{ uri: buildFileUrl(message.fileUrl) }}
+                        style={{ width: 180, height: 180, borderRadius: 12 }}
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      <View style={{ alignItems: 'center' }}>
+                        <MaterialIcons name="attach-file" size={24} color={message.senderId === user._id ? '#fff' : '#666'} />
+                        <Text style={{ 
+                          color: message.senderId === user._id ? '#fff' : '#666',
+                          fontSize: 12,
+                          marginTop: 4,
+                        }}>
+                          {getFilename(message.fileUrl)}
+                        </Text>
+                        <Text style={{ color: message.senderId === user._id ? '#eaeaea' : '#999', fontSize: 12 }}>Tap to view</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => handleDownloadAttachment(message.fileUrl)} style={{ marginTop: 8, alignSelf: 'flex-end', flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <MaterialIcons name="download" size={18} color={message.senderId === user._id ? '#fff' : '#666'} />
+                    <Text style={{ color: message.senderId === user._id ? '#fff' : '#666', fontSize: 12 }}>Download</Text>
+                  </TouchableOpacity>
                 </View>
               ) : (
                 <Text style={{ 
