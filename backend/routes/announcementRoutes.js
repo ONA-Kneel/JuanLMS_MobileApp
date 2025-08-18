@@ -118,6 +118,25 @@ router.put('/:id', /*authenticateToken,*/ async (req, res) => {
   res.json(announcement);
 });
 
+// Partial update (e.g., toggle active status)
+router.patch('/:id', /*authenticateToken,*/ async (req, res) => {
+  try {
+    const update = req.body || {};
+    const announcement = await Announcement.findByIdAndUpdate(
+      req.params.id,
+      update,
+      { new: true }
+    );
+    if (!announcement) {
+      return res.status(404).json({ success: false, error: 'Announcement not found' });
+    }
+    res.json(announcement);
+  } catch (error) {
+    console.error('Error patching announcement:', error);
+    res.status(500).json({ success: false, error: 'Failed to update announcement' });
+  }
+});
+
 // Delete announcement
 router.delete('/:id', /*authenticateToken,*/ async (req, res) => {
   await Announcement.findByIdAndDelete(req.params.id);

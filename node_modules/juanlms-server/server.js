@@ -24,13 +24,14 @@ import gradeRoutes from './routes/gradeRoutes.js';
 const app = express();
 const PORT = 5000;
 
-// Configure CORS to allow mobile app development server
+// Configure CORS (allow all local/dev origins). In production, scope this down as needed.
 app.use(cors({
-  origin: ['http://localhost:8081', 'http://localhost:19006', 'http://localhost:19000', 'http://localhost:3000'],
+  origin: (origin, callback) => callback(null, true),
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
+app.options('*', cors());
 app.use(express.json());
 app.use(users);
 app.use('/api/messages', messagesRouter);
@@ -44,6 +45,25 @@ app.use('/api/grades', gradeRoutes);
 app.use('/api', adminRoutes);
 app.use('/api/group-chats', groupChatsRouter);
 app.use('/uploads', express.static('uploads'));
+
+// Mobile app compatibility routes (direct routes without /api prefix)
+app.use('/quizzes', quizRoutes);
+app.use('/assignments', assignmentRoutes);
+
+// Academic year route alias for mobile app compatibility
+app.get('/api/academic-year/active', async (req, res) => {
+  try {
+    // Return hardcoded academic year data for mobile app compatibility
+    res.json({
+      academicYear: '2025-2026',
+      currentTerm: 'First Semester',
+      startDate: '2025-06-01',
+      endDate: '2026-03-31'
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // Serve uploaded files
 app.use('/uploads', express.static('uploads'));

@@ -147,6 +147,8 @@ const FacultyActs = () => {
   const [activeTab, setActiveTab] = useState('all');
   const [gradedActivities, setGradedActivities] = useState([]);
   const [readyToGradeActivities, setReadyToGradeActivities] = useState([]);
+  const [filterModalVisible, setFilterModalVisible] = useState(false);
+  const [createMenuVisible, setCreateMenuVisible] = useState(false);
 
   useEffect(() => {
     fetchActivities();
@@ -175,10 +177,12 @@ const FacultyActs = () => {
       }
 
       const classesData = await classesResponse.json();
+      // Backend stores Class.facultyID as the public faculty code (user.userID), not Mongo _id
+      const facultyIdentifier = user?.userID || user?._id;
       const facultyClasses = Array.isArray(classesData) 
-        ? classesData.filter(cls => cls.facultyID === user._id)
+        ? classesData.filter(cls => cls.facultyID === facultyIdentifier)
         : (classesData.success && classesData.classes) 
-          ? classesData.classes.filter(cls => cls.facultyID === user._id)
+          ? classesData.classes.filter(cls => cls.facultyID === facultyIdentifier)
           : [];
 
       console.log('DEBUG: Faculty classes found:', facultyClasses.length);
@@ -202,177 +206,74 @@ const FacultyActs = () => {
         facultyID: cls.facultyID
       })));
 
-      // Fetch all assignments and quizzes at once (same approach as FacultyModule.js)
-      console.log('DEBUG: Fetching from endpoints:', {
-        assignments: `${API_BASE}/assignments`,
-        quizzes: `${API_BASE}/api/quizzes`
-      });
-      
-      const [assignmentsRes, quizzesRes] = await Promise.all([
-        fetch(`${API_BASE}/assignments`, {
-          headers: { Authorization: `Bearer ${token}` }
-        }),
-        fetch(`${API_BASE}/api/quizzes`, {
+      // Fetch both assignments and quizzes per class (EXACT SAME LOGIC AS CLASSWORK TAB)
+      const perClassPromises = facultyClassIDs.map((cid) => [
+        // Fetch assignments - using the SAME endpoint as Classwork tab
+        fetch(`${API_BASE}/assignments?classID=${encodeURIComponent(cid)}`, {
           headers: { Authorization: `Bearer ${token}` }
         })
+          .then(res => (res.ok ? res.json() : []))
+          .then(assignments => {
+            console.log(`DEBUG: Fetched ${assignments.length} assignments for class ${cid}`);
+            return assignments.map(item => ({ ...item, type: 'assignment' }));
+          })
+          .catch(() => []),
+        // Fetch quizzes - using the SAME endpoint as Classwork tab
+        fetch(`${API_BASE}/api/quizzes?classID=${encodeURIComponent(cid)}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+          .then(res => (res.ok ? res.json() : []))
+          .then(quizzes => {
+            console.log(`DEBUG: Fetched ${quizzes.length} quizzes for class ${cid}`);
+            return quizzes.map(item => ({ ...item, type: 'quiz' }));
+          })
+          .catch(() => [])
       ]);
 
-      console.log('DEBUG: API responses status:', {
-        assignments: assignmentsRes.status,
-        quizzes: quizzesRes.status
-      });
-
-      let allActivities = [];
-
-      // Process assignments
-      if (assignmentsRes.ok) {
-        const assignments = await assignmentsRes.json();
-        console.log('DEBUG: All assignments fetched:', assignments.length);
-        console.log('DEBUG: Sample assignment:', assignments[0]);
-        console.log('DEBUG: All assignments data:', assignments);
-        
-        // Filter assignments for faculty's classes
-        const facultyAssignments = assignments.filter(assignment => {
-          const assignmentClassID = assignment.classID || assignment.classId;
-          const isIncluded = facultyClassIDs.includes(assignmentClassID);
-          console.log('DEBUG: Assignment classID check:', { 
-            assignmentId: assignment._id, 
-            assignmentTitle: assignment.title,
-            assignmentClassID, 
-            assignmentClassIDType: typeof assignmentClassID,
-            facultyClassIDs, 
-            facultyClassIDsTypes: facultyClassIDs.map(id => typeof id),
-            isIncluded 
-          });
-          return isIncluded;
-        });
-        
-        console.log('DEBUG: Faculty assignments filtered:', facultyAssignments.length);
-        console.log('DEBUG: Faculty assignments data:', facultyAssignments);
-        
-        const assignmentsWithClass = facultyAssignments.map(assignment => {
-          const classInfo = facultyClasses.find(cls => 
-            cls.classID === (assignment.classID || assignment.classId)
-          );
-          return {
-            ...assignment,
-            type: 'assignment',
-            className: classInfo?.className || 'Unknown Class',
-            classCode: classInfo?.classCode || 'N/A',
-            classID: classInfo?.classID || assignment.classID || assignment.classId
-          };
-        });
-        
-        allActivities.push(...assignmentsWithClass);
-      } else {
-        console.log('DEBUG: Assignments response not ok:', assignmentsRes.status, assignmentsRes.statusText);
-        const errorText = await assignmentsRes.text();
-        console.log('DEBUG: Assignments error response:', errorText);
-      }
-
-      // Process quizzes
-      if (quizzesRes.ok) {
-        const quizzes = await quizzesRes.json();
-        console.log('DEBUG: All quizzes fetched:', quizzes.length);
-        console.log('DEBUG: Sample quiz:', quizzes[0]);
-        console.log('DEBUG: All quizzes data:', quizzes);
-        
-        // Filter quizzes for faculty's classes
-        const facultyQuizzes = quizzes.filter(quiz => {
-          const quizClassID = quiz.classID || (quiz.assignedTo && quiz.assignedTo[0]?.classID);
-          const isIncluded = facultyClassIDs.includes(quizClassID);
-          console.log('DEBUG: Quiz classID check:', { 
-            quizId: quiz._id, 
-            quizTitle: quiz.title,
-            quizClassID, 
-            quizClassIDType: typeof quizClassID,
-            facultyClassIDs, 
-            facultyClassIDsTypes: facultyClassIDs.map(id => typeof id),
-            isIncluded 
-          });
-          return isIncluded;
-        });
-        
-        console.log('DEBUG: Faculty quizzes filtered:', facultyQuizzes.length);
-        console.log('DEBUG: Faculty quizzes data:', facultyQuizzes);
-        
-        const quizzesWithClass = facultyQuizzes.map(quiz => {
-          const classInfo = facultyClasses.find(cls => 
-            cls.classID === (quiz.classID || (quiz.assignedTo && quiz.assignedTo[0]?.classID))
-          );
-          return {
-            ...quiz,
-            type: 'quiz',
-            className: classInfo?.className || 'Unknown Class',
-            classCode: classInfo?.classCode || 'N/A',
-            classID: classInfo?.classID || quiz.classID || (quiz.assignedTo && quiz.assignedTo[0]?.classID)
-          };
-        });
-        
-        allActivities.push(...quizzesWithClass);
-      } else {
-        console.log('DEBUG: Quizzes response not ok:', quizzesRes.status, quizzesRes.statusText);
-        const errorText = await quizzesRes.text();
-        console.log('DEBUG: Quizzes error response:', errorText);
-      }
-
-      // Sort by due date
-      allActivities.sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
-      
-      console.log('DEBUG: Final combined activities:', allActivities.length);
-      console.log('DEBUG: All activities fetched:', allActivities);
-      
-      // If no activities found with strict filtering, try to show all activities for debugging
-      if (allActivities.length === 0) {
-        console.log('DEBUG: No activities found with strict filtering, showing all activities for debugging');
-        console.log('DEBUG: Faculty class IDs being searched for:', facultyClassIDs);
-        
-        // Try to fetch all activities without filtering to see what's available
-        try {
-          const allAssignmentsRes = await fetch(`${API_BASE}/assignments`, {
-            headers: { Authorization: `Bearer ${token}` }
-          });
-          const allQuizzesRes = await fetch(`${API_BASE}/api/quizzes`, {
-            headers: { Authorization: `Bearer ${token}` }
-          });
-          
-          if (allAssignmentsRes.ok) {
-            const allAssignments = await allAssignmentsRes.json();
-            console.log('DEBUG: All assignments in system:', allAssignments.length);
-            console.log('DEBUG: All assignments data:', allAssignments);
-            
-            // Add all assignments for debugging (without class filtering)
-            const debugAssignments = allAssignments.map(assignment => ({
-              ...assignment,
-              type: 'assignment',
-              className: 'Debug - All Classes',
-              classCode: 'DEBUG',
-              classID: assignment.classID || assignment.classId || 'unknown'
-            }));
-            allActivities.push(...debugAssignments);
-          }
-          
-          if (allQuizzesRes.ok) {
-            const allQuizzes = await allQuizzesRes.json();
-            console.log('DEBUG: All quizzes in system:', allQuizzes.length);
-            console.log('DEBUG: All quizzes data:', allQuizzes);
-            
-            // Add all quizzes for debugging (without class filtering)
-            const debugQuizzes = allQuizzes.map(quiz => ({
-              ...quiz,
-              type: 'quiz',
-              className: 'Debug - All Classes',
-              classCode: 'DEBUG',
-              classID: quiz.classID || (quiz.assignedTo && quiz.assignedTo[0]?.classID) || 'unknown'
-            }));
-            allActivities.push(...debugQuizzes);
-          }
-          
-          console.log('DEBUG: Debug activities added:', allActivities.length);
-        } catch (debugError) {
-          console.log('DEBUG: Error fetching all activities for debugging:', debugError);
+      // Flatten the nested promises and wait for all
+      const flattenedPromises = perClassPromises.flat();
+      const perClassResults = await Promise.all(flattenedPromises);
+      let merged = [];
+      perClassResults.forEach((list, index) => {
+        if (Array.isArray(list)) {
+          console.log(`DEBUG: Class ${Math.floor(index/2)} result ${index % 2 === 0 ? 'assignments' : 'quizzes'}:`, list.length, 'items');
+          merged.push(...list);
         }
-      }
+      });
+      
+      console.log('DEBUG: Total merged items before normalization:', merged.length);
+      console.log('DEBUG: Sample merged items:', merged.slice(0, 3).map(item => ({
+        _id: item._id,
+        title: item.title,
+        type: item.type,
+        questions: item.questions,
+        hasQuestions: !!item.questions
+      })));
+
+      // Normalize and enrich with class info for display
+      const normalized = merged.map(item => ({
+        ...item,
+        type: item.type || (item.questions ? 'quiz' : 'assignment'),
+        className: item.classInfo?.className || item.className || 'Unknown Class',
+        classCode: item.classInfo?.classCode || item.classCode || 'N/A',
+        classID: item.classID || item.classInfo?.classID || (item.assignedTo && item.assignedTo[0]?.classID)
+      }));
+
+      // Deduplicate by _id to avoid multiple entries if a quiz is returned for several classes
+      const dedup = new Map();
+      normalized.forEach(it => {
+        if (it && it._id && !dedup.has(it._id)) dedup.set(it._id, it);
+      });
+      let allActivities = Array.from(dedup.values());
+
+      // Sort by due date ascending
+      allActivities.sort((a, b) => new Date(a.dueDate || 0) - new Date(b.dueDate || 0));
+      
+      console.log('DEBUG: Final activities after normalization and deduplication:', allActivities.length);
+      console.log('DEBUG: Final activities by type:', allActivities.reduce((acc, item) => {
+        acc[item.type] = (acc[item.type] || 0) + 1;
+        return acc;
+      }, {}));
       
       setActivities(allActivities);
       
@@ -463,7 +364,7 @@ const FacultyActs = () => {
       let endpoint = '';
       
       if (activity.type === 'quiz') {
-        endpoint = `${API_BASE}/api/quizzes/${activity._id.replace('quiz_', '')}`;
+        endpoint = `${API_BASE}/api/quizzes/${activity._id}`;
       } else {
         endpoint = `${API_BASE}/api/assignments/${activity._id}`;
       }
@@ -491,7 +392,7 @@ const FacultyActs = () => {
       let endpoint = '';
       
       if (selectedActivity.type === 'quiz') {
-        endpoint = `${API_BASE}/api/quizzes/${selectedActivity._id.replace('quiz_', '')}`;
+        endpoint = `${API_BASE}/api/quizzes/${selectedActivity._id}`;
       } else {
         endpoint = `${API_BASE}/api/assignments/${selectedActivity._id}`;
       }
@@ -558,11 +459,21 @@ const FacultyActs = () => {
         <Text style={styles.headerTitle}>My Activities</Text>
         <TouchableOpacity 
           style={styles.createButton}
-          onPress={() => navigation.navigate('CAct')}
+          onPress={() => setCreateMenuVisible(v => !v)}
         >
           <MaterialIcons name="add" size={24} color="#fff" />
           <Text style={styles.createButtonText}>Create</Text>
         </TouchableOpacity>
+        {createMenuVisible && (
+          <View style={styles.createMenu}>
+            <TouchableOpacity style={styles.createMenuItem} onPress={() => { setCreateMenuVisible(false); navigation.navigate('CreateAssignment'); }}>
+              <Text style={styles.createMenuItemText}>Assignment</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.createMenuItem} onPress={() => { setCreateMenuVisible(false); navigation.navigate('CreateQuiz'); }}>
+              <Text style={styles.createMenuItemText}>Quiz</Text>
+        </TouchableOpacity>
+          </View>
+        )}
       </View>
 
       {/* Search and Filters */}
@@ -578,66 +489,43 @@ const FacultyActs = () => {
         </View>
       </View>
 
-      {/* Grading Tabs (similar to web app) */}
+      {/* Grading Tabs - compact segmented control */}
       <View style={styles.gradingTabsContainer}>
+        <View style={styles.gradingTabsBar}>
         {[
-          { key: 'all', label: 'All Activities', count: activities.length },
-          { key: 'ready', label: 'Ready to Grade', count: readyToGradeActivities.length },
+            { key: 'all', label: 'All', count: activities.length },
+            { key: 'ready', label: 'Ready', count: readyToGradeActivities.length },
           { key: 'graded', label: 'Graded', count: gradedActivities.length }
         ].map((tab) => (
           <TouchableOpacity
             key={tab.key}
             style={[
-              styles.gradingTab,
-              activeTab === tab.key && styles.gradingTabActive
+                styles.gradingTabSegment,
+                activeTab === tab.key && styles.gradingTabSegmentActive
             ]}
             onPress={() => setActiveTab(tab.key)}
           >
             <Text style={[
               styles.gradingTabText,
               activeTab === tab.key && styles.gradingTabTextActive
-            ]}>
-              {tab.label}
-            </Text>
-            <View style={[
-              styles.gradingTabCount,
-              activeTab === tab.key && styles.gradingTabCountActive
-            ]}>
-              <Text style={[
-                styles.gradingTabCountText,
-                activeTab === tab.key && styles.gradingTabCountTextActive
-              ]}>
-                {tab.count}
-              </Text>
-            </View>
+              ]}>{`${tab.label} (${tab.count})`}</Text>
           </TouchableOpacity>
         ))}
+        </View>
       </View>
 
-      {/* Legacy Filter Tabs (keeping for backward compatibility) */}
-      <ScrollView 
-        horizontal 
-        showsHorizontalScrollIndicator={false}
-        style={styles.filterContainer}
-      >
-        {['all', 'active', 'past', 'quiz', 'assignment'].map((filter) => (
+      {/* Compact Filter Dropdown */}
+      <View style={styles.filterContainer}>
           <TouchableOpacity
-            key={filter}
-            style={[
-              styles.filterTab,
-              selectedFilter === filter && styles.filterTabActive
-            ]}
-            onPress={() => setSelectedFilter(filter)}
-          >
-            <Text style={[
-              styles.filterTabText,
-              selectedFilter === filter && styles.filterTabTextActive
-            ]}>
-              {filter.charAt(0).toUpperCase() + filter.slice(1)}
+          style={styles.filterDropdownButton}
+          onPress={() => setFilterModalVisible(true)}
+        >
+          <Text style={styles.filterDropdownText}>
+            {selectedFilter.charAt(0).toUpperCase() + selectedFilter.slice(1)}
             </Text>
+          <MaterialIcons name="arrow-drop-down" size={20} color="#333" />
           </TouchableOpacity>
-        ))}
-      </ScrollView>
+      </View>
 
       {/* Activities List */}
       <ScrollView 
@@ -743,6 +631,36 @@ const FacultyActs = () => {
           </View>
         </View>
       </Modal>
+
+      {/* Filter Modal */}
+      <Modal
+        visible={filterModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setFilterModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { padding: 12 }] }>
+            {['all', 'active', 'past', 'quiz', 'assignment'].map((filter) => (
+              <TouchableOpacity
+                key={filter}
+                style={styles.filterOption}
+                onPress={() => {
+                  setSelectedFilter(filter);
+                  setFilterModalVisible(false);
+                }}
+              >
+                <Text style={[styles.filterOptionText, selectedFilter === filter && { fontWeight: '700', color: '#00418b' }]}>
+                  {filter.charAt(0).toUpperCase() + filter.slice(1)}
+                </Text>
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity style={styles.filterCancelBtn} onPress={() => setFilterModalVisible(false)}>
+              <Text style={styles.filterCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -756,14 +674,15 @@ const styles = {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
-    paddingTop: 60,
+    padding: 12,
+    paddingTop: 18,
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
+    zIndex: 20,
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#333',
     fontFamily: 'Poppins-Bold',
@@ -772,8 +691,8 @@ const styles = {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#00418b',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: 8,
   },
   createButtonText: {
@@ -783,7 +702,9 @@ const styles = {
     fontFamily: 'Poppins-Medium',
   },
   searchContainer: {
-    padding: 20,
+    paddingHorizontal: 10,
+    paddingTop: 4,
+    paddingBottom: 4,
     backgroundColor: '#fff',
   },
   searchBox: {
@@ -791,93 +712,94 @@ const styles = {
     alignItems: 'center',
     backgroundColor: '#f5f5f5',
     borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
   },
   searchInput: {
     flex: 1,
     marginLeft: 8,
-    fontSize: 16,
+    fontSize: 14,
     fontFamily: 'Poppins-Regular',
   },
   filterContainer: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
     backgroundColor: '#fff',
   },
-  gradingTabsContainer: {
+  filterDropdownButton: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingVertical: 10,
-    backgroundColor: '#f0f0f0',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#f5f7fb',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  filterDropdownText: {
+    color: '#333',
+    fontSize: 13,
+    fontFamily: 'Poppins-Medium',
+  },
+  gradingTabsContainer: {
+    paddingVertical: 4,
+    backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
   },
-  gradingTab: {
+  gradingTabsBar: {
+    marginHorizontal: 10,
+    backgroundColor: '#f1f3f8',
+    borderRadius: 10,
     flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: '#f0f0f0',
+    padding: 2,
   },
-  gradingTabActive: {
+  gradingTabSegment: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  gradingTabSegmentActive: {
     backgroundColor: '#00418b',
   },
   gradingTabText: {
-    color: '#666',
-    fontSize: 14,
+    color: '#3a3a3a',
+    fontSize: 12,
     fontFamily: 'Poppins-Medium',
   },
   gradingTabTextActive: {
     color: '#fff',
   },
-  gradingTabCount: {
-    backgroundColor: '#00418b',
-    borderRadius: 10,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    marginLeft: 8,
+  filterOption: {
+    paddingVertical: 10,
   },
-  gradingTabCountActive: {
-    backgroundColor: '#fff',
+  filterOptionText: {
+    fontSize: 14,
+    color: '#333',
+    fontFamily: 'Poppins-Regular',
   },
-  gradingTabCountText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: 'bold',
-    fontFamily: 'Poppins-Bold',
+  filterCancelBtn: {
+    marginTop: 8,
+    alignSelf: 'flex-end',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
   },
-  gradingTabCountTextActive: {
+  filterCancelText: {
     color: '#00418b',
-  },
-  filterTab: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    marginRight: 8,
-    borderRadius: 20,
-    backgroundColor: '#f0f0f0',
-  },
-  filterTabActive: {
-    backgroundColor: '#00418b',
-  },
-  filterTabText: {
-    color: '#666',
     fontSize: 14,
     fontFamily: 'Poppins-Medium',
   },
-  filterTabTextActive: {
-    color: '#fff',
-  },
   activitiesContainer: {
     flex: 1,
-    padding: 20,
+    paddingHorizontal: 10,
+    paddingTop: 0,
   },
   activityCard: {
     backgroundColor: '#fff',
     borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
+    padding: 10,
+    marginBottom: 10,
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -886,46 +808,46 @@ const styles = {
   },
   activityHeader: {
     flexDirection: 'row',
-    marginBottom: 12,
+    marginBottom: 6,
   },
   activityIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: '#f0f0f0',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: 8,
   },
   activityContent: {
     flex: 1,
   },
   activityTitle: {
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: 'bold',
     color: '#333',
-    marginBottom: 4,
+    marginBottom: 1,
     fontFamily: 'Poppins-Bold',
   },
   activityClass: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#666',
-    marginBottom: 4,
+    marginBottom: 1,
     fontFamily: 'Poppins-Medium',
   },
   activityDescription: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#666',
-    marginBottom: 4,
+    marginBottom: 1,
     fontFamily: 'Poppins-Regular',
   },
   activityDueDate: {
-    fontSize: 12,
+    fontSize: 10,
     color: '#999',
     fontFamily: 'Poppins-Regular',
   },
   activityType: {
-    fontSize: 12,
+    fontSize: 10,
     color: '#666',
     fontFamily: 'Poppins-Medium',
     marginTop: 2,
@@ -933,10 +855,10 @@ const styles = {
   activityPoints: {
     alignItems: 'center',
     justifyContent: 'center',
-    minWidth: 60,
+    minWidth: 48,
   },
   pointsText: {
-    fontSize: 16,
+    fontSize: 13,
     fontWeight: 'bold',
     color: '#00418b',
     fontFamily: 'Poppins-Bold',
@@ -944,21 +866,21 @@ const styles = {
   activityFooter: {
     borderTopWidth: 1,
     borderTopColor: '#f0f0f0',
-    paddingTop: 12,
+    paddingTop: 6,
   },
   activityStats: {
     flexDirection: 'row',
-    marginBottom: 12,
+    marginBottom: 6,
   },
   statItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginRight: 16,
+    marginRight: 10,
   },
   statText: {
-    fontSize: 12,
+    fontSize: 10,
     color: '#666',
-    marginLeft: 4,
+    marginLeft: 2,
     fontFamily: 'Poppins-Regular',
   },
   actionButtons: {
@@ -968,11 +890,11 @@ const styles = {
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     borderRadius: 6,
     flex: 1,
-    marginHorizontal: 4,
+    marginHorizontal: 2,
     justifyContent: 'center',
   },
   viewButton: {
@@ -986,20 +908,20 @@ const styles = {
   },
   viewButtonText: {
     color: '#2196F3',
-    fontSize: 12,
-    marginLeft: 4,
+    fontSize: 10,
+    marginLeft: 2,
     fontFamily: 'Poppins-Medium',
   },
   editButtonText: {
     color: '#FF9800',
-    fontSize: 12,
-    marginLeft: 4,
+    fontSize: 10,
+    marginLeft: 2,
     fontFamily: 'Poppins-Medium',
   },
   deleteButtonText: {
     color: '#F44336',
-    fontSize: 12,
-    marginLeft: 4,
+    fontSize: 10,
+    marginLeft: 2,
     fontFamily: 'Poppins-Medium',
   },
   emptyContainer: {
@@ -1109,6 +1031,32 @@ const styles = {
     fontSize: 16,
     fontWeight: '600',
     fontFamily: 'Poppins-Medium',
+  },
+  createMenu: {
+    position: 'absolute',
+    right: 12,
+    top: 50,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    paddingVertical: 6,
+    width: 160,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    zIndex: 30,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  createMenuItem: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  createMenuItemText: {
+    fontSize: 14,
+    color: '#333',
+    fontFamily: 'Poppins-Regular',
   },
 };
 

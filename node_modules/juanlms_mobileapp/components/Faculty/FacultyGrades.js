@@ -5,11 +5,8 @@ import {
   Text,
   TouchableOpacity,
   ActivityIndicator,
-  Alert,
   RefreshControl,
   Dimensions,
-  Modal,
-  TextInput,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -20,23 +17,16 @@ const { width } = Dimensions.get('window');
 const FacultyGrades = () => {
   const navigation = useNavigation();
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
-  const [classes, setClasses] = useState([]);
-  const [selectedClass, setSelectedClass] = useState(null);
-  const [students, setStudents] = useState([]);
-  const [grades, setGrades] = useState([]);
+  const [classOptions, setClassOptions] = useState([]);
+  const [selectedClassId, setSelectedClassId] = useState(null);
+  const [studentsForClass, setStudentsForClass] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [selectedTerm, setSelectedTerm] = useState('current');
   const [academicYear, setAcademicYear] = useState('');
   const [currentTerm, setCurrentTerm] = useState('');
-  const [gradeModalVisible, setGradeModalVisible] = useState(false);
-  const [selectedStudent, setSelectedStudent] = useState(null);
-  const [selectedActivity, setSelectedActivity] = useState(null);
-  const [gradeForm, setGradeForm] = useState({
-    score: '',
-    remarks: ''
-  });
+  // View-only: no grade edit state
 
   const API_BASE = 'https://juanlms-webapp-server.onrender.com';
 
@@ -45,14 +35,14 @@ const FacultyGrades = () => {
       setCurrentDateTime(new Date());
     }, 1000);
 
-    fetchClasses();
     fetchAcademicInfo();
+    fetchFacultyGrades();
     return () => clearInterval(timer);
-  }, []);
+  }, [selectedTerm]);
 
   const fetchAcademicInfo = async () => {
     try {
-      const token = await AsyncStorage.getItem('token');
+      const token = await AsyncStorage.getItem('jwtToken');
       
       // Fetch academic year and term
       const yearResponse = await fetch(`${API_BASE}/api/schoolyears/active`, {
@@ -81,38 +71,67 @@ const FacultyGrades = () => {
     }
   };
 
-  const fetchClasses = async () => {
+  const fetchFacultyGrades = async () => {
     try {
       setLoading(true);
-      const token = await AsyncStorage.getItem('token');
-      const userData = await AsyncStorage.getItem('userData');
-      const user = userData ? JSON.parse(userData) : null;
+      const token = await AsyncStorage.getItem('jwtToken');
+      const userStr = await AsyncStorage.getItem('user');
+      const user = userStr ? JSON.parse(userStr) : null;
+      if (!user) throw new Error('User data not found');
 
-      if (!user) {
-        throw new Error('User data not found');
-      }
-
-      // Fetch classes taught by the faculty member
-      const response = await fetch(`${API_BASE}/api/classes/faculty/${user._id}`, {
+      const facultyId = user.userID || user._id;
+      const res = await fetch(`${API_BASE}/api/semestral-grades/faculty/${facultyId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      if (!res.ok) throw new Error('Failed to fetch grades');
+      const payload = await res.json();
+      const allGrades = payload?.grades || [];
 
-      if (response.ok) {
-        const data = await response.json();
-        setClasses(data);
-        
-        if (data.length > 0) {
-          setSelectedClass(data[0]);
-          fetchStudents(data[0]._id);
+      // Filter by current/previous term like student view
+      const byTerm = allGrades.filter(g => {
+        if (!academicYear || !currentTerm) return true;
+        if (selectedTerm === 'current') {
+          return g.academicYear === academicYear && g.termName === currentTerm;
         }
-      } else {
-        throw new Error('Failed to fetch classes');
-      }
+        return g.academicYear !== academicYear || g.termName !== currentTerm;
+      });
+
+      // Build class options
+      const byClass = new Map();
+      byTerm.forEach(g => {
+        const key = g.classID || `${g.subjectCode}-${g.section || ''}`;
+        if (!byClass.has(key)) {
+          byClass.set(key, {
+            id: key,
+            classID: g.classID || key,
+            title: g.subjectName || g.subjectCode || 'Class',
+            section: g.section || ''
+          });
+        }
+      });
+      const options = Array.from(byClass.values());
+      setClassOptions(options);
+      const activeClassId = selectedClassId || options[0]?.id || null;
+      if (!selectedClassId && activeClassId) setSelectedClassId(activeClassId);
+
+      // Students for chosen class
+      const selectedGrades = byTerm.filter(g => (g.classID || `${g.subjectCode}-${g.section || ''}`) === activeClassId);
+      const students = selectedGrades.map(g => ({
+        studentId: g.studentId,
+        studentName: g.studentName,
+        schoolID: g.schoolID,
+        semesterFinal: g.grades?.semesterFinal ?? '-',
+        remarks: g.grades?.remarks ?? '-',
+      }));
+      setStudentsForClass(students);
+      setError('');
     } catch (error) {
-      console.error('Error fetching classes:', error);
-      setError(error.message);
+      console.error('Error fetching grades:', error);
+      setError('Failed to load grades');
+      setStudentsForClass([]);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -157,60 +176,15 @@ const FacultyGrades = () => {
 
   const onRefresh = () => {
     setRefreshing(true);
-    fetchClasses().finally(() => setRefreshing(false));
+    Promise.all([fetchAcademicInfo(), fetchFacultyGrades()]).finally(() => setRefreshing(false));
   };
 
-  const handleClassSelect = (classItem) => {
-    setSelectedClass(classItem);
-    fetchStudents(classItem._id);
+  const handleClassSelect = (opt) => {
+    setSelectedClassId(opt.id);
+    fetchFacultyGrades();
   };
 
-  const handleGradeEdit = (student, activity) => {
-    setSelectedStudent(student);
-    setSelectedActivity(activity);
-    setGradeForm({
-      score: activity.score?.toString() || '',
-      remarks: activity.feedback || ''
-    });
-    setGradeModalVisible(true);
-  };
-
-  const handleSaveGrade = async () => {
-    try {
-      const token = await AsyncStorage.getItem('token');
-      
-      // Determine the correct endpoint based on activity type
-      const endpoint = selectedActivity.type === 'quiz' 
-        ? `${API_BASE}/api/grades/quiz/${selectedActivity._id}`
-        : `${API_BASE}/api/grades/assignment/${selectedActivity._id}`;
-      
-      const response = await fetch(endpoint, {
-        method: 'PUT',
-        headers: { 
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          score: parseFloat(gradeForm.score),
-          feedback: gradeForm.remarks
-        })
-      });
-
-      if (response.ok) {
-        Alert.alert('Success', 'Grade updated successfully');
-        setGradeModalVisible(false);
-        // Refresh grades
-        if (selectedClass) {
-          fetchStudents(selectedClass._id);
-        }
-      } else {
-        throw new Error('Failed to update grade');
-      }
-    } catch (error) {
-      console.error('Error updating grade:', error);
-      Alert.alert('Error', 'Failed to update grade');
-    }
-  };
+  // View-only: remove edit/save handlers
 
   const calculateFinalGrade = (studentGrades) => {
     if (!studentGrades || studentGrades.length === 0) return 'N/A';
@@ -260,8 +234,8 @@ const FacultyGrades = () => {
         </View>
       </View>
 
-      {/* Class Selection */}
-      {classes.length > 0 && (
+      {/* Class Selection (from posted grades) */}
+      {classOptions.length > 0 && (
         <View style={styles.classSelector}>
           <Text style={styles.selectorLabel}>Select Class:</Text>
           <ScrollView 
@@ -269,20 +243,20 @@ const FacultyGrades = () => {
             showsHorizontalScrollIndicator={false}
             style={styles.classScroll}
           >
-            {classes.map((classItem) => (
+            {classOptions.map((opt) => (
               <TouchableOpacity
-                key={classItem._id}
+                key={opt.id}
                 style={[
                   styles.classTab,
-                  selectedClass?._id === classItem._id && styles.classTabActive
+                  selectedClassId === opt.id && styles.classTabActive
                 ]}
-                onPress={() => handleClassSelect(classItem)}
+                onPress={() => handleClassSelect(opt)}
               >
                 <Text style={[
                   styles.classTabText,
-                  selectedClass?._id === classItem._id && styles.classTabTextActive
+                  selectedClassId === opt.id && styles.classTabTextActive
                 ]}>
-                  {classItem.className}
+                  {opt.title}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -325,8 +299,8 @@ const FacultyGrades = () => {
         </View>
       </View>
 
-      {/* Grades Table */}
-      {selectedClass && students.length > 0 ? (
+      {/* Grades Table (view-only) */}
+      {selectedClassId && studentsForClass.length > 0 ? (
         <ScrollView 
           style={styles.gradesContainer}
           refreshControl={
@@ -336,45 +310,23 @@ const FacultyGrades = () => {
         >
           <View style={styles.tableHeader}>
             <Text style={styles.studentHeader}>Student</Text>
-            <Text style={styles.gradeHeader}>Final Grade</Text>
-            <Text style={styles.actionHeader}>Actions</Text>
+            <Text style={styles.gradeHeader}>Semestral</Text>
+            <Text style={styles.gradeHeader}>Remarks</Text>
           </View>
 
-          {grades.map((studentGrade, index) => (
+          {studentsForClass.map((studentGrade) => (
             <View key={studentGrade.studentId} style={styles.studentRow}>
               <View style={styles.studentInfo}>
                 <Text style={styles.studentName}>{studentGrade.studentName}</Text>
-                <Text style={styles.studentId}>ID: {studentGrade.studentId}</Text>
+                <Text style={styles.studentId}>ID: {studentGrade.schoolID}</Text>
               </View>
               
               <View style={styles.finalGrade}>
-                <Text style={[
-                  styles.gradeText,
-                  { color: getGradeColor(calculateFinalGrade(studentGrade.grades)) }
-                ]}>
-                  {calculateFinalGrade(studentGrade.grades)}
-                </Text>
+                <Text style={styles.gradeText}>{studentGrade.semesterFinal || '-'}</Text>
               </View>
               
-              <View style={styles.actionButtons}>
-                <TouchableOpacity 
-                  style={styles.viewButton}
-                  onPress={() => navigation.navigate('FMod', { 
-                    classId: selectedClass._id,
-                    studentId: studentGrade.studentId 
-                  })}
-                >
-                  <MaterialIcons name="visibility" size={20} color="#2196F3" />
-                  <Text style={styles.viewButtonText}>View</Text>
-                </TouchableOpacity>
-                
-                <TouchableOpacity 
-                  style={styles.editButton}
-                  onPress={() => handleGradeEdit(studentGrade, studentGrade.grades[0])}
-                >
-                  <MaterialIcons name="edit" size={20} color="#FF9800" />
-                  <Text style={styles.editButtonText}>Edit</Text>
-                </TouchableOpacity>
+              <View style={styles.finalGrade}>
+                <Text style={styles.gradeText}>{studentGrade.remarks || '-'}</Text>
               </View>
             </View>
           ))}
@@ -384,69 +336,10 @@ const FacultyGrades = () => {
           <MaterialCommunityIcons name="school-outline" size={64} color="#ccc" />
           <Text style={styles.emptyTitle}>No Classes Found</Text>
           <Text style={styles.emptyText}>
-            You don't have any classes assigned yet.
+            No grades available for the selected period.
           </Text>
         </View>
       )}
-
-      {/* Grade Edit Modal */}
-      <Modal
-        visible={gradeModalVisible}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setGradeModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Edit Grade</Text>
-              <TouchableOpacity onPress={() => setGradeModalVisible(false)}>
-                <MaterialIcons name="close" size={24} color="#666" />
-              </TouchableOpacity>
-            </View>
-            
-            <Text style={styles.modalStudentName}>
-              {selectedStudent?.studentName}
-            </Text>
-            
-            <Text style={styles.modalActivityName}>
-              {selectedActivity?.title}
-            </Text>
-            
-            <TextInput
-              style={styles.modalInput}
-              placeholder="Score"
-              value={gradeForm.score}
-              onChangeText={(text) => setGradeForm({...gradeForm, score: text})}
-              keyboardType="numeric"
-            />
-            
-            <TextInput
-              style={styles.modalInput}
-              placeholder="Remarks"
-              value={gradeForm.remarks}
-              onChangeText={(text) => setGradeForm({...gradeForm, remarks: text})}
-              multiline
-            />
-            
-            <View style={styles.modalButtons}>
-              <TouchableOpacity 
-                style={[styles.modalButton, styles.cancelButton]}
-                onPress={() => setGradeModalVisible(false)}
-              >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={[styles.modalButton, styles.saveButton]}
-                onPress={handleSaveGrade}
-              >
-                <Text style={styles.saveButtonText}>Save</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 };
