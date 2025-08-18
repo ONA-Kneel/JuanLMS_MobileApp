@@ -155,11 +155,15 @@ const FacultyActs = () => {
   const fetchActivities = async () => {
     try {
       setLoading(true);
-      const token = await AsyncStorage.getItem('jwtToken'); // Use correct token key
+      const token = await AsyncStorage.getItem('jwtToken');
+      
+      console.log('DEBUG: Token retrieved:', token ? 'Token exists' : 'No token');
       
       if (!user || !user._id) {
         throw new Error('User data not found');
       }
+
+      console.log('DEBUG: Fetching activities for faculty:', user._id);
 
       // First, get all classes taught by this faculty member
       const classesResponse = await fetch(`${API_BASE}/api/classes`, {
@@ -177,55 +181,128 @@ const FacultyActs = () => {
           ? classesData.classes.filter(cls => cls.facultyID === user._id)
           : [];
 
-      console.log('Faculty classes:', facultyClasses);
+      console.log('DEBUG: Faculty classes found:', facultyClasses.length);
+      console.log('DEBUG: Faculty classes:', facultyClasses);
+
+      if (facultyClasses.length === 0) {
+        console.log('DEBUG: No classes found for faculty');
+        setActivities([]);
+        setLoading(false);
+        return;
+      }
+
+      // Get all class IDs for this faculty
+      const facultyClassIDs = facultyClasses.map(cls => cls.classID);
+      console.log('DEBUG: Faculty class IDs:', facultyClassIDs);
+      console.log('DEBUG: Faculty class details:', facultyClasses.map(cls => ({
+        classID: cls.classID,
+        className: cls.className,
+        facultyID: cls.facultyID
+      })));
+
+      // Fetch all assignments and quizzes at once (same approach as FacultyModule.js)
+      console.log('DEBUG: Fetching from endpoints:', {
+        assignments: `${API_BASE}/assignments`,
+        quizzes: `${API_BASE}/api/quizzes`
+      });
+      
+      const [assignmentsRes, quizzesRes] = await Promise.all([
+        fetch(`${API_BASE}/assignments`, {
+          headers: { Authorization: `Bearer ${token}` }
+        }),
+        fetch(`${API_BASE}/api/quizzes`, {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+      ]);
+
+      console.log('DEBUG: API responses status:', {
+        assignments: assignmentsRes.status,
+        quizzes: quizzesRes.status
+      });
 
       let allActivities = [];
 
-      // Fetch activities for each class taught by the faculty
-      for (const cls of facultyClasses) {
-        try {
-          // Fetch assignments for this class
-          const assignmentsResponse = await fetch(`${API_BASE}/assignments?classID=${cls.classID}`, {
-            headers: { Authorization: `Bearer ${token}` }
+      // Process assignments
+      if (assignmentsRes.ok) {
+        const assignments = await assignmentsRes.json();
+        console.log('DEBUG: All assignments fetched:', assignments.length);
+        console.log('DEBUG: Sample assignment:', assignments[0]);
+        
+        // Filter assignments for faculty's classes
+        const facultyAssignments = assignments.filter(assignment => {
+          const assignmentClassID = assignment.classID || assignment.classId;
+          console.log('DEBUG: Assignment classID check:', { 
+            assignmentId: assignment._id, 
+            assignmentClassID, 
+            facultyClassIDs, 
+            isIncluded: facultyClassIDs.includes(assignmentClassID) 
           });
+          return facultyClassIDs.includes(assignmentClassID);
+        });
+        
+        console.log('DEBUG: Faculty assignments filtered:', facultyAssignments.length);
+        
+        const assignmentsWithClass = facultyAssignments.map(assignment => {
+          const classInfo = facultyClasses.find(cls => 
+            cls.classID === (assignment.classID || assignment.classId)
+          );
+          return {
+            ...assignment,
+            type: 'assignment',
+            className: classInfo?.className || 'Unknown Class',
+            classCode: classInfo?.classCode || 'N/A',
+            classID: classInfo?.classID || assignment.classID || assignment.classId
+          };
+        });
+        
+        allActivities.push(...assignmentsWithClass);
+      } else {
+        console.log('DEBUG: Assignments response not ok:', assignmentsRes.status, assignmentsRes.statusText);
+      }
 
-          if (assignmentsResponse.ok) {
-            const assignments = await assignmentsResponse.json();
-            const assignmentsWithClass = assignments.map(assignment => ({
-              ...assignment,
-              type: assignment.type || 'assignment',
-              className: cls.className,
-              classCode: cls.classCode,
-              classID: cls.classID
-            }));
-            allActivities.push(...assignmentsWithClass);
-          }
-
-          // Fetch quizzes for this class
-          const quizzesResponse = await fetch(`${API_BASE}/api/quizzes?classID=${cls.classID}`, {
-            headers: { Authorization: `Bearer ${token}` }
+      // Process quizzes
+      if (quizzesRes.ok) {
+        const quizzes = await quizzesRes.json();
+        console.log('DEBUG: All quizzes fetched:', quizzes.length);
+        console.log('DEBUG: Sample quiz:', quizzes[0]);
+        
+        // Filter quizzes for faculty's classes
+        const facultyQuizzes = quizzes.filter(quiz => {
+          const quizClassID = quiz.classID || (quiz.assignedTo && quiz.assignedTo[0]?.classID);
+          console.log('DEBUG: Quiz classID check:', { 
+            quizId: quiz._id, 
+            quizClassID, 
+            facultyClassIDs, 
+            isIncluded: facultyClassIDs.includes(quizClassID) 
           });
-
-          if (quizzesResponse.ok) {
-            const quizzes = await quizzesResponse.json();
-            const quizzesWithClass = quizzes.map(quiz => ({
-              ...quiz,
-              type: 'quiz',
-              className: cls.className,
-              classCode: cls.classCode,
-              classID: cls.classID
-            }));
-            allActivities.push(...quizzesWithClass);
-          }
-        } catch (classError) {
-          console.error(`Error fetching data for class ${cls.className}:`, classError);
-        }
+          return facultyClassIDs.includes(quizClassID);
+        });
+        
+        console.log('DEBUG: Faculty quizzes filtered:', facultyQuizzes.length);
+        
+        const quizzesWithClass = facultyQuizzes.map(quiz => {
+          const classInfo = facultyClasses.find(cls => 
+            cls.classID === (quiz.classID || (quiz.assignedTo && quiz.assignedTo[0]?.classID))
+          );
+          return {
+            ...quiz,
+            type: 'quiz',
+            className: classInfo?.className || 'Unknown Class',
+            classCode: classInfo?.classCode || 'N/A',
+            classID: classInfo?.classID || quiz.classID || (quiz.assignedTo && quiz.assignedTo[0]?.classID)
+          };
+        });
+        
+        allActivities.push(...quizzesWithClass);
+      } else {
+        console.log('DEBUG: Quizzes response not ok:', quizzesRes.status, quizzesRes.statusText);
       }
 
       // Sort by due date
       allActivities.sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
       
-      console.log('All activities fetched:', allActivities);
+      console.log('DEBUG: Final combined activities:', allActivities.length);
+      console.log('DEBUG: All activities fetched:', allActivities);
       setActivities(allActivities);
       
       // Categorize activities by grading status
@@ -311,7 +388,7 @@ const FacultyActs = () => {
 
   const deleteActivity = async (activity) => {
     try {
-      const token = await AsyncStorage.getItem('token');
+      const token = await AsyncStorage.getItem('jwtToken');
       let endpoint = '';
       
       if (activity.type === 'quiz') {
@@ -339,7 +416,7 @@ const FacultyActs = () => {
 
   const handleSaveEdit = async () => {
     try {
-      const token = await AsyncStorage.getItem('token');
+      const token = await AsyncStorage.getItem('jwtToken');
       let endpoint = '';
       
       if (selectedActivity.type === 'quiz') {
