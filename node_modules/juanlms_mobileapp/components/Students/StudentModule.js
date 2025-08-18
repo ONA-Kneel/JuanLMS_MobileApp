@@ -377,19 +377,36 @@ export default function StudentModule(){
                             <Text style={{ fontFamily: 'Poppins-Regular', color: '#222', fontSize: 13, marginTop: 10 }}>No classwork assigned yet.</Text>
                         ) : (
                             (() => {
-                                // Helper function to check if assignment is posted
-                                const isAssignmentPosted = (assignment) => {
-                                    if (!assignment.postAt) return false;
+                                // Helper: determine if an item is posted (assignments/quizzes)
+                                const isItemPosted = (item) => {
                                     const now = new Date();
-                                    const postAt = new Date(assignment.postAt);
-                                    return postAt <= now;
+                                    // Quizzes: respect timing.openEnabled/open when provided
+                                    const looksLikeQuiz = item.type === 'quiz' || !!item.questions;
+                                    if (looksLikeQuiz) {
+                                        const openEnabled = item?.timing?.openEnabled;
+                                        const openDate = item?.timing?.open ? new Date(item.timing.open) : null;
+                                        if (openEnabled && openDate) {
+                                            return openDate <= now;
+                                        }
+                                        // If no open gate configured, consider it posted immediately
+                                        return true;
+                                    }
+
+                                    // Assignments: only gate when schedulePost is explicitly enabled
+                                    const scheduleEnabled = item?.schedulePost === true;
+                                    const postAt = item?.postAt ? new Date(item.postAt) : null;
+                                    if (scheduleEnabled && postAt) {
+                                        return postAt <= now;
+                                    }
+                                    // If no schedule or missing postAt, treat as posted
+                                    return true;
                                 };
 
                                 // Filter and combine assignments/quizzes
                                 let allItems = classwork.map(item => ({ 
                                     ...item, 
-                                    isPosted: isAssignmentPosted(item),
-                                    type: item.type || 'assignment' // Default to assignment if no type
+                                    isPosted: isItemPosted(item),
+                                    type: item.type || (item.questions ? 'quiz' : 'assignment')
                                 }));
 
                                 // Apply filter
@@ -406,8 +423,7 @@ export default function StudentModule(){
                                     );
                                 }
 
-                                // Separate unposted and posted
-                                const unposted = allItems.filter(item => !item.isPosted);
+                                // Only show posted items to students
                                 const posted = allItems.filter(item => item.isPosted);
 
                                 // Group posted by date (descending)
@@ -422,185 +438,7 @@ export default function StudentModule(){
 
                                 return (
                                     <>
-                                        {/* Unposted at the top */}
-                                        {unposted.length > 0 && (
-                                            <View style={{ marginBottom: 24 }}>
-                                                <Text style={{ fontFamily: 'Poppins-Bold', fontSize: 18, color: '#666', marginBottom: 12 }}>Not Yet Posted</Text>
-                                                {unposted.map(item => (
-                                                    <TouchableOpacity
-                                                        key={item._id}
-                                                        style={{
-                                                            backgroundColor: '#f5f5f5',
-                                                            borderRadius: 12,
-                                                            borderWidth: 1,
-                                                            borderColor: '#ddd',
-                                                            padding: 16,
-                                                            marginBottom: 12,
-                                                            opacity: 0.75
-                                                        }}
-                                                        onPress={() => {
-                                                            // Check if activity is already completed
-                                                            if (item.isSubmitted) {
-                                                                Alert.alert(
-                                                                    'Already Completed',
-                                                                    `You have already completed this ${item.type === 'quiz' ? 'quiz' : 'assignment'}.`,
-                                                                    [
-                                                                        { text: 'OK', style: 'default' }
-                                                                    ]
-                                                                );
-                                                                return;
-                                                            }
-                                                            
-                                                            if (item.type === 'quiz') {
-                                                                navigation.navigate('QuizView', { quizId: item._id });
-                                                            } else {
-                                                                navigation.navigate('AssignmentDetail', { 
-                                                                    assignmentId: item._id,
-                                                                    onSubmissionComplete: () => {
-                                                                        // Refresh classwork when returning from submission
-                                                                        fetchClasswork(classID);
-                                                                    }
-                                                                });
-                                                            }
-                                                        }}
-                                                    >
-                                                        <View style={[
-                                                            {
-                                                                backgroundColor: 'white',
-                                                                borderRadius: 12,
-                                                                padding: 16,
-                                                                marginBottom: 12,
-                                                                elevation: 2,
-                                                                shadowColor: '#000',
-                                                                shadowOffset: { width: 0, height: 2 },
-                                                                shadowOpacity: 0.1,
-                                                                shadowRadius: 4,
-                                                            },
-                                                            !item.isPosted && {
-                                                                opacity: 0.6,
-                                                                backgroundColor: '#f5f5f5'
-                                                            }
-                                                        ]}>
-                                                            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                                                                <View style={{ 
-                                                                    backgroundColor: item.type === 'quiz' ? '#e9d5ff' : '#dcfce7', 
-                                                                    borderRadius: 6, 
-                                                                    paddingHorizontal: 10, 
-                                                                    paddingVertical: 4, 
-                                                                    marginRight: 8 
-                                                                }}>
-                                                                    <Text style={{ 
-                                                                        color: item.type === 'quiz' ? '#7c3aed' : '#15803d', 
-                                                                        fontWeight: 'bold', 
-                                                                        fontSize: 12, 
-                                                                        fontFamily: 'Poppins-Bold' 
-                                                                    }}>
-                                                                        {item.type === 'quiz' ? 'Quiz' : 'Assignment'}
-                                                                    </Text>
-                                                                </View>
-                                                                
-                                                                {!item.isPosted && (
-                                                                    <View style={{ 
-                                                                        backgroundColor: '#6b7280', 
-                                                                        borderRadius: 6, 
-                                                                        paddingHorizontal: 8, 
-                                                                        paddingVertical: 4 
-                                                                    }}>
-                                                                        <Text style={{ 
-                                                                            color: 'white', 
-                                                                            fontWeight: 'bold', 
-                                                                            fontSize: 11, 
-                                                                            fontFamily: 'Poppins-Bold' 
-                                                                        }}>
-                                                                            Not Posted Yet
-                                                                        </Text>
-                                                                    </View>
-                                                                )}
-                                                                
-                                                                {item.isSubmitted && (
-                                                                    <View style={{ 
-                                                                        backgroundColor: '#e8f5e9', 
-                                                                        borderRadius: 6, 
-                                                                        paddingHorizontal: 8, 
-                                                                        paddingVertical: 4,
-                                                                        marginLeft: 8,
-                                                                        flexDirection: 'row',
-                                                                        alignItems: 'center'
-                                                                    }}>
-                                                                        <MaterialIcons name="check-circle" size={16} color="#4CAF50" />
-                                                                        <Text style={{ 
-                                                                            color: '#4CAF50', 
-                                                                            fontWeight: 'bold', 
-                                                                            fontSize: 11, 
-                                                                            fontFamily: 'Poppins-Bold',
-                                                                            marginLeft: 4
-                                                                        }}>
-                                                                            Completed
-                                                                        </Text>
-                                                                    </View>
-                                                                )}
-                                                            </View>
-                                                            
-                                                            <Text style={{ 
-                                                                fontFamily: 'Poppins-Bold', 
-                                                                color: '#666', 
-                                                                fontSize: 16, 
-                                                                marginBottom: 4 
-                                                            }}>
-                                                                {item.title}
-                                                            </Text>
-                                                            
-                                                            <Text style={{ 
-                                                                fontFamily: 'Poppins-Regular', 
-                                                                color: '#666', 
-                                                                fontSize: 14, 
-                                                                marginBottom: 6 
-                                                            }}>
-                                                                {item.className || 'Unknown Class'}
-                                                            </Text>
-                                                            
-                                                            {item.description && (
-                                                                <Text style={{ 
-                                                                    fontFamily: 'Poppins-Regular', 
-                                                                    color: '#666', 
-                                                                    fontSize: 13, 
-                                                                    marginBottom: 6,
-                                                                    lineHeight: 18
-                                                                }}>
-                                                                    {item.description}
-                                                                </Text>
-                                                            )}
-                                                            
-                                                            {item.dueDate && (
-                                                                <Text style={{ 
-                                                                    fontFamily: 'Poppins-Regular', 
-                                                                    color: '#999', 
-                                                                    fontSize: 12, 
-                                                                    marginBottom: 2 
-                                                                }}>
-                                                                    Due: {new Date(item.dueDate).toLocaleDateString('en-US', {
-                                                                        month: 'short',
-                                                                        day: 'numeric',
-                                                                        hour: '2-digit',
-                                                                        minute: '2-digit',
-                                                                        hour12: true
-                                                                    })}
-                                                                </Text>
-                                                            )}
-                                                            
-                                                            <Text style={{ 
-                                                                fontFamily: 'Poppins-Regular', 
-                                                                color: '#999', 
-                                                                fontSize: 12, 
-                                                                marginBottom: 2 
-                                                            }}>
-                                                                Points: {item.points || 0}
-                                                            </Text>
-                                                        </View>
-                                                    </TouchableOpacity>
-                                                ))}
-                                            </View>
-                                        )}
+                                        {/* Unposted items are hidden for students */}
 
                                         {/* Posted grouped by date */}
                                         {sortedDateKeys.map(dateKey => (

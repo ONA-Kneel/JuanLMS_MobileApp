@@ -101,52 +101,57 @@ export default function QuizView() {
   const fetchQuiz = async () => {
     try {
       setLoading(true);
-      const token = await AsyncStorage.getItem('jwtToken');
       
+      const token = await AsyncStorage.getItem('jwtToken');
       const response = await fetch(`${API_BASE}/api/quizzes/${quizId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
-      if (response.ok) {
-        const quizData = await response.json();
-        setQuiz(quizData);
-        
-        // Initialize answers object
-        const initialAnswers = {};
-        quizData.questions.forEach((question, index) => {
-          if (question.type === 'multiple') {
-            initialAnswers[index] = [];
-          } else {
-            initialAnswers[index] = '';
-          }
+      if (!response.ok) {
+        throw new Error('Failed to fetch quiz');
+      }
+
+      const quizData = await response.json();
+      setQuiz(quizData);
+      
+      // Initialize answers object
+      const initialAnswers = {};
+      quizData.questions.forEach((question, index) => {
+        if (question.type === 'multiple') {
+          initialAnswers[index] = [];
+        } else {
+          initialAnswers[index] = '';
+        }
+      });
+      setAnswers(initialAnswers);
+
+      // Set time limit if exists
+      if (quizData.timeLimit && quizData.timeLimit > 0) {
+        setTimeLeft(quizData.timeLimit * 60); // Convert minutes to seconds
+      }
+
+      // Check if student has already submitted this quiz (similar to web version)
+      try {
+        const responseRes = await fetch(`${API_BASE}/api/quizzes/${quizId}/myscore?studentId=${user._id}`, {
+          headers: { Authorization: `Bearer ${token}` }
         });
-        setAnswers(initialAnswers);
-
-        // Set time limit if exists
-        if (quizData.timeLimit && quizData.timeLimit > 0) {
-          setTimeLeft(quizData.timeLimit * 60); // Convert minutes to seconds
-        }
-
-        // Check if student has already submitted this quiz (similar to web version)
-        try {
-          const responseRes = await fetch(`${API_BASE}/api/quizzes/${quizId}/response/${user._id}`, {
-            headers: { Authorization: `Bearer ${token}` }
-          });
-          
-          if (responseRes.ok) {
-            const responseData = await responseRes.json();
-            if (responseData && responseData._id) {
-              // Student has already submitted
-              setQuizResult(responseData);
-              setShowResultsModal(true);
-            }
+        
+        if (responseRes.ok) {
+          const responseData = await responseRes.json();
+          if (responseData && responseData.score !== undefined) {
+            // Student has already submitted
+            console.log('Quiz already submitted:', responseData);
+            setQuizResult({
+              score: responseData.score || 0,
+              totalPoints: responseData.total || quizData.points || 100,
+              percentage: responseData.percentage || Math.round(((responseData.score || 0) / (responseData.total || quizData.points || 100)) * 100),
+              timeSpent: responseData.timeSpent || 0
+            });
+            setShowResultsModal(true);
           }
-        } catch (responseError) {
-          console.log('Error checking quiz response:', responseError);
         }
-      } else {
-        Alert.alert('Error', 'Failed to load quiz');
-        navigation.goBack();
+      } catch (responseError) {
+        console.log('Error checking quiz response:', responseError);
       }
     } catch (error) {
       console.error('Error fetching quiz:', error);
@@ -248,29 +253,49 @@ export default function QuizView() {
       };
     });
 
-    const token = await AsyncStorage.getItem('jwtToken');
-    const response = await fetch(`${API_BASE}/api/quizzes/${quizId}/submit`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`
-      },
-      body: JSON.stringify({
-        studentId: user._id,
-        answers: formattedAnswers,
-        violationCount: violationCount,
-        violationEvents: violationEvents,
-        questionTimes: questionTimes
-      })
-    });
+    try {
+      setSubmitting(true);
+      
+      const token = await AsyncStorage.getItem('jwtToken');
+      const response = await fetch(`${API_BASE}/api/quizzes/${quizId}/submit`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          studentId: user._id,
+          answers: formattedAnswers,
+          violationCount: violationCount,
+          violationEvents: violationEvents,
+          questionTimes: questionTimes
+        })
+      });
 
-    if (response.ok) {
+      if (!response.ok) {
+        throw new Error('Failed to submit quiz');
+      }
+
       const result = await response.json();
-      setQuizResult(result);
+      console.log('Quiz submission result:', result);
+      
+      // Calculate score and percentage
+      const calculatedScore = result.score || 0;
+      const totalPoints = quiz.points || 100;
+      const percentage = Math.round((calculatedScore / totalPoints) * 100);
+      
+      setQuizResult({
+        score: calculatedScore,
+        totalPoints: totalPoints,
+        percentage: percentage,
+        timeSpent: result.timeSpent || 0
+      });
       setShowResultsModal(true);
-    } else {
-      const error = await response.json();
-      Alert.alert('Error', error.message || 'Failed to submit quiz');
+    } catch (error) {
+      console.error('Error submitting quiz:', error);
+      Alert.alert('Error', 'Failed to submit quiz');
+    } finally {
+      setSubmitting(false);
     }
   };
 

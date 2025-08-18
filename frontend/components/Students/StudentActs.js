@@ -15,236 +15,98 @@ import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../UserContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import StudentActsStyle from '../styles/Stud/StudentActsStyle';
 
 const API_BASE = 'https://juanlms-webapp-server.onrender.com';
 
-// Upcoming Activities Component
-function Upcoming({ activities, onActivityPress }) {
-  if (activities.length === 0) {
-    return (
-      <View style={styles.emptyTabContainer}>
-        <MaterialCommunityIcons name="calendar-clock" size={64} color="#ccc" />
-        <Text style={styles.emptyTabTitle}>No Upcoming Activities</Text>
-        <Text style={styles.emptyTabText}>
-          You have no upcoming assignments or activities due.
-        </Text>
-        {/* Debug section - remove in production */}
-        <View style={{ marginTop: 20, padding: 10, backgroundColor: '#f0f0f0', borderRadius: 8 }}>
-          <Text style={{ fontSize: 12, color: '#666', fontFamily: 'monospace' }}>
-            Debug: Check console for activities data
+// Helper function to format date and time
+const formatDateTime = (dateString) => {
+  if (!dateString) return 'No due date';
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+};
+
+// Activity Card Component
+function ActivityCard({ activity, onActivityPress }) {
+  const getActivityIcon = (type) => {
+    switch (type) {
+      case 'quiz':
+        return { name: 'quiz', color: '#9C27B0' };
+      case 'assignment':
+        return { name: 'assignment', color: '#FF9800' };
+      default:
+        return { name: 'school', color: '#4CAF50' };
+    }
+  };
+
+  const icon = getActivityIcon(activity.type);
+
+  return (
+    <View style={styles.activityCard}>
+      <View style={styles.activityHeader}>
+        <View style={styles.activityIconContainer}>
+          <MaterialIcons 
+            name={icon.name} 
+            size={24} 
+            color={icon.color} 
+          />
+        </View>
+        <View style={styles.activityContent}>
+          <Text style={styles.activityTitle}>{activity.title}</Text>
+          <Text style={styles.activityClass}>{activity.className || 'Unknown Class'}</Text>
+          {activity.description && (
+            <Text style={styles.activityDescription} numberOfLines={2}>
+              {activity.description}
+            </Text>
+          )}
+          <Text style={styles.activityDueDate}>
+            Due: {formatDateTime(activity.dueDate)}
+          </Text>
+          <Text style={styles.activityType}>
+            Type: {activity.type ? activity.type.charAt(0).toUpperCase() + activity.type.slice(1) : 'Activity'}
+          </Text>
+        </View>
+        <View style={styles.activityPoints}>
+          <Text style={styles.pointsText}>
+            {activity.points !== undefined && activity.points !== null ? activity.points : 0} pts
           </Text>
         </View>
       </View>
-    );
-  }
-
-  return (
-    <ScrollView style={styles.contentTabContainer} showsVerticalScrollIndicator={false}>
-      {activities.map((activity, index) => (
-        <TouchableOpacity
-          key={index}
-          style={styles.activityCard}
+      
+      <View style={styles.activityFooter}>
+        <View style={styles.activityStats}>
+          <View style={styles.statItem}>
+            <MaterialIcons name="schedule" size={16} color="#666" />
+            <Text style={styles.statText}>
+              {activity.isSubmitted ? 'Completed' : 'Pending'}
+            </Text>
+          </View>
+          {activity.isSubmitted && activity.score !== undefined && (
+            <View style={styles.statItem}>
+              <MaterialIcons name="grade" size={16} color="#4CAF50" />
+              <Text style={styles.statText}>
+                Score: {activity.score}/{activity.points || 100}
+              </Text>
+            </View>
+          )}
+        </View>
+        
+        <TouchableOpacity 
+          style={[styles.actionButton, styles.viewButton]}
           onPress={() => onActivityPress(activity)}
         >
-          <View style={styles.activityHeader}>
-            <View style={styles.activityIconContainer}>
-              <MaterialIcons 
-                name={activity.type === 'quiz' ? 'quiz' : 'assignment'} 
-                size={24} 
-                color={activity.type === 'quiz' ? '#9C27B0' : '#FF9800'} 
-              />
-            </View>
-            <View style={styles.activityContent}>
-              <Text style={[
-                styles.activityTitle,
-                activity.isSubmitted && styles.completedActivityTitle
-              ]}>
-                {activity.title}
-              </Text>
-              <Text style={[
-                styles.activityClass,
-                activity.isSubmitted && styles.completedActivityText
-              ]}>
-                {activity.className || 'Unknown Class'}
-              </Text>
-              {activity.description && (
-                <Text style={[
-                  styles.activityDescription,
-                  activity.isSubmitted && styles.completedActivityText
-                ]}>
-                  {activity.description}
-                </Text>
-              )}
-              <Text style={[
-                styles.activityDueDate,
-                activity.isSubmitted && styles.completedActivityText
-              ]}>
-                Due: {formatDateTime(activity.dueDate)}
-              </Text>
-            </View>
-            <View style={styles.activityPoints}>
-              <Text style={styles.pointsText}>{activity.points || 0} pts</Text>
-            </View>
-          </View>
-          
-          {activity.description && (
-            <Text style={styles.activityDescription} numberOfLines={2}>
-              {activity.description}
-            </Text>
-          )}
-          
-          <View style={styles.activityFooter}>
-            <View style={styles.activityStatus}>
-              <View style={[styles.statusDot, { backgroundColor: '#4CAF50' }]} />
-              <Text style={styles.statusText}>Upcoming</Text>
-            </View>
-            <View style={styles.attachmentsInfo}>
-              <MaterialIcons name="info" size={16} color="#666" />
-              <Text style={styles.attachmentsText}>Tap to view details</Text>
-            </View>
-          </View>
+          <MaterialIcons name="visibility" size={16} color="#2196F3" />
+          <Text style={styles.viewButtonText}>
+            {activity.isSubmitted ? 'View Details' : 'Start'}
+          </Text>
         </TouchableOpacity>
-      ))}
-    </ScrollView>
-  );
-}
-
-// Past Due Activities Component
-function PastDue({ activities, onActivityPress }) {
-  if (activities.length === 0) {
-    return (
-      <View style={styles.emptyTabContainer}>
-        <MaterialCommunityIcons name="calendar-remove" size={64} color="#ccc" />
-        <Text style={styles.emptyTabTitle}>No Past Due Activities</Text>
-        <Text style={styles.emptyTabText}>
-          Great! You have no overdue assignments.
-        </Text>
       </View>
-    );
-  }
-
-  return (
-    <ScrollView style={styles.contentTabContainer} showsVerticalScrollIndicator={false}>
-      {activities.map((activity, index) => (
-        <TouchableOpacity
-          key={index}
-          style={styles.activityCard}
-          onPress={() => onActivityPress(activity)}
-        >
-          <View style={styles.activityHeader}>
-            <View style={styles.activityIconContainer}>
-              <MaterialIcons 
-                name={activity.type === 'quiz' ? 'quiz' : 'assignment'} 
-                size={24} 
-                color="#f44336" 
-              />
-            </View>
-            <View style={styles.activityInfo}>
-              <Text style={styles.activityTitle}>{activity.title}</Text>
-              <Text style={styles.activityClass}>{activity.className}</Text>
-              <Text style={[styles.activityDue, { color: '#f44336' }]}>
-                Overdue since: {new Date(activity.dueDate).toLocaleDateString('en-US', {
-                  month: 'short',
-                  day: 'numeric'
-                })}
-              </Text>
-            </View>
-            <View style={styles.activityPoints}>
-              <Text style={styles.pointsText}>{activity.points || 0} pts</Text>
-            </View>
-          </View>
-          
-          {activity.description && (
-            <Text style={styles.activityDescription} numberOfLines={2}>
-              {activity.description}
-            </Text>
-          )}
-          
-          <View style={styles.activityFooter}>
-            <View style={styles.activityStatus}>
-              <View style={[styles.statusDot, { backgroundColor: '#f44336' }]} />
-              <Text style={[styles.statusText, { color: '#f44336' }]}>Past Due</Text>
-            </View>
-            
-            <View style={styles.latePenalty}>
-              <Text style={styles.latePenaltyText}>Late penalty may apply</Text>
-            </View>
-          </View>
-        </TouchableOpacity>
-      ))}
-    </ScrollView>
-  );
-}
-
-// Completed Activities Component
-function Completed({ activities, onActivityPress }) {
-  if (activities.length === 0) {
-  return (
-      <View style={styles.emptyTabContainer}>
-        <MaterialCommunityIcons name="check-circle" size={64} color="#ccc" />
-        <Text style={styles.emptyTabTitle}>No Completed Activities</Text>
-        <Text style={styles.emptyTabText}>
-          Complete some assignments to see them here.
-        </Text>
     </View>
-    );
-}
-
-  return (
-    <ScrollView style={styles.contentTabContainer} showsVerticalScrollIndicator={false}>
-      {activities.map((activity, index) => (
-        <TouchableOpacity
-          key={index}
-          style={styles.activityCard}
-          onPress={() => onActivityPress(activity)}
-        >
-          <View style={styles.activityHeader}>
-            <View style={styles.activityIconContainer}>
-              <MaterialIcons 
-                name={activity.type === 'quiz' ? 'quiz' : 'assignment'} 
-                size={24} 
-                color="#4CAF50" 
-              />
-            </View>
-            <View style={styles.activityInfo}>
-              <Text style={styles.activityTitle}>{activity.title}</Text>
-              <Text style={styles.activityClass}>{activity.className}</Text>
-              <Text style={styles.activityDue}>
-                Completed: {new Date(activity.submittedAt || activity.completedAt).toLocaleDateString('en-US', {
-                  month: 'short',
-                  day: 'numeric'
-                })}
-              </Text>
-            </View>
-            <View style={styles.activityPoints}>
-              <Text style={styles.pointsText}>{activity.points || 0} pts</Text>
-            </View>
-          </View>
-          
-          {activity.description && (
-            <Text style={styles.activityDescription} numberOfLines={2}>
-              {activity.description}
-            </Text>
-          )}
-          
-          <View style={styles.activityFooter}>
-            <View style={styles.activityStatus}>
-              <View style={[styles.statusDot, { backgroundColor: '#4CAF50' }]} />
-              <Text style={[styles.statusText, { color: '#4CAF50' }]}>Completed</Text>
-            </View>
-            
-            {activity.score !== undefined && (
-              <View style={styles.scoreInfo}>
-                <Text style={styles.scoreText}>
-                  Score: {activity.score}/{activity.points || 100}
-                </Text>
-              </View>
-            )}
-          </View>
-        </TouchableOpacity>
-      ))}
-    </ScrollView>
   );
 }
 
@@ -259,7 +121,8 @@ export default function StudentActs() {
   const [error, setError] = useState('');
   const [selectedActivity, setSelectedActivity] = useState(null);
   const [showActivityModal, setShowActivityModal] = useState(false);
-  const [activeTab, setActiveTab] = useState(0);
+  const [activeTab, setActiveTab] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     fetchActivities();
@@ -268,10 +131,8 @@ export default function StudentActs() {
   // Add focus listener to refresh activities when returning to this screen
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
-      // Refresh activities when screen comes into focus (e.g., after submission)
       fetchActivities();
     });
-
     return unsubscribe;
   }, [navigation]);
 
@@ -283,40 +144,25 @@ export default function StudentActs() {
         activitiesList.map(async (activity) => {
           if (activity.type === 'assignment') {
             try {
-              // Check submission status for assignments
               const response = await fetch(`${API_BASE}/assignments/${activity._id}/submissions`, {
                 headers: { Authorization: `Bearer ${token}` }
               });
               if (response.ok) {
                 const submissions = await response.json();
-                console.log(`Submissions for assignment ${activity.title}:`, submissions);
-                console.log(`Looking for student ID: ${user._id}`);
-                
-                // Check if any submission exists for this student
                 const studentSubmission = submissions.find(sub => {
-                  console.log(`Comparing submission student: ${sub.student} (type: ${typeof sub.student}) with user ID: ${user._id} (type: ${typeof user._id})`);
-                  console.log(`Submission student object:`, sub.student);
-                  console.log(`User object:`, user);
-                  
-                  // Try different ways to compare the IDs
                   const submissionStudentId = sub.student._id || sub.student;
                   const userId = user._id;
-                  
-                  console.log(`Comparing: ${submissionStudentId} === ${userId}`);
-                  const isMatch = submissionStudentId === userId || submissionStudentId === userId.toString();
-                  console.log(`Is match: ${isMatch}`);
-                  
-                  return isMatch;
+                  return submissionStudentId === userId || submissionStudentId === userId.toString();
                 });
                 
                 if (studentSubmission) {
-                  console.log(`Assignment ${activity.title} is already submitted:`, studentSubmission);
                   return { 
                     ...activity, 
                     submittedAt: studentSubmission.submittedAt || new Date(), 
                     status: 'submitted',
                     submissionId: studentSubmission._id,
-                    isSubmitted: true
+                    isSubmitted: true,
+                    score: studentSubmission.grade || 0
                   };
                 }
               }
@@ -325,32 +171,43 @@ export default function StudentActs() {
             }
           } else if (activity.type === 'quiz') {
             try {
-              // Check submission status for quizzes
-              const response = await fetch(`${API_BASE}/api/quizzes/${activity._id}/response/${user._id}`, {
+              const response = await fetch(`${API_BASE}/api/quizzes/${activity._id}/myscore?studentId=${user._id}`, {
                 headers: { Authorization: `Bearer ${token}` }
               });
               if (response.ok) {
                 const quizResponse = await response.json();
-                if (quizResponse) {
-                  console.log(`Quiz ${activity.title} is already submitted:`, quizResponse);
+                if (quizResponse && quizResponse.score !== undefined) {
                   return { 
                     ...activity, 
-                    submittedAt: quizResponse.submittedAt || quizResponse.createdAt || new Date(), 
+                    submittedAt: new Date(),
                     status: 'submitted',
-                    submissionId: quizResponse._id,
+                    score: quizResponse.score,
+                    totalPoints: quizResponse.total,
                     isSubmitted: true
                   };
                 }
+              } else if (response.status === 404) {
+                return { 
+                  ...activity, 
+                  isSubmitted: false,
+                  status: 'not_submitted',
+                  points: activity.points || 0
+                };
               }
             } catch (error) {
               console.error('Error checking quiz response status:', error);
+              return { 
+                ...activity, 
+                isSubmitted: false,
+                status: 'error',
+                points: activity.points || 0
+              };
             }
           }
           return { ...activity, isSubmitted: false };
         })
       );
       
-      console.log('Activities with submission status:', updatedActivities);
       return updatedActivities;
     } catch (error) {
       console.error('Error checking submission statuses:', error);
@@ -362,74 +219,193 @@ export default function StudentActs() {
     try {
       setLoading(true);
       setError('');
+      
       const token = await AsyncStorage.getItem('jwtToken');
       
-      // Fetch user's enrolled classes first
-      const classesResponse = await fetch(`${API_BASE}/classes/my-classes`, {
+      if (!user || !user._id) {
+        throw new Error('User data not found');
+      }
+
+      console.log('DEBUG: Fetching activities for student:', user._id);
+
+      // First, get all classes where this student is enrolled
+      const classesResponse = await fetch(`${API_BASE}/api/classes`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      
+
       if (!classesResponse.ok) {
         throw new Error('Failed to fetch classes');
       }
+
+      const classesData = await classesResponse.json();
       
-      const classes = await classesResponse.json();
-      console.log('Classes for user:', classes);
+      // For students, we need to find classes where they are enrolled
+      let studentClasses = [];
       
-      let allActivities = [];
-      
-      if (Array.isArray(classes)) {
-        for (const cls of classes) {
-          console.log('for class:', cls.className);
+      if (Array.isArray(classesData)) {
+        studentClasses = classesData.filter(classItem => {
+          if (!classItem || !classItem.members) return false;
           
-          // Fetch assignments for each class
-          const assignmentsResponse = await fetch(`${API_BASE}/assignments?classID=${cls.classID}`, {
-            headers: { Authorization: `Bearer ${token}` }
+          const isMember = classItem.members.some(member => {
+            const memberId = typeof member === 'object' ? member.toString() : member;
+            const userId = user._id.toString();
+            
+            if (memberId === userId) return true;
+            if (user.studentCode && memberId === user.studentCode) return true;
+            if (user.id && memberId === user.id) return true;
+            if (memberId.startsWith('S') && user.studentCode && memberId === user.studentCode) return true;
+            
+            return false;
           });
           
-          if (assignmentsResponse.ok) {
-            const assignments = await assignmentsResponse.json();
-            console.log('Assignments for class', cls.className + ':', assignments);
-            const assignmentsWithType = assignments.map(assignment => ({
-              ...assignment,
-              type: 'assignment',
-              className: cls.className,
-              classCode: cls.classCode
-            }));
-            allActivities.push(...assignmentsWithType);
-          }
+          return isMember;
+        });
+      } else if (classesData.success && classesData.classes) {
+        studentClasses = classesData.classes.filter(classItem => {
+          if (!classItem || !classItem.members) return false;
           
-          // Fetch quizzes for each class
-          const quizzesResponse = await fetch(`${API_BASE}/api/quizzes?classID=${cls.classID}`, {
-            headers: { Authorization: `Bearer ${token}` }
+          const isMember = classItem.members.some(member => {
+            const memberId = typeof member === 'object' ? member.toString() : member;
+            const userId = user._id.toString();
+            
+            if (memberId === userId) return true;
+            if (user.studentCode && memberId === user.studentCode) return true;
+            if (user.id && memberId === user.id) return true;
+            if (memberId.startsWith('S') && user.studentCode && memberId === user.studentCode) return true;
+            
+            return false;
           });
           
-          if (quizzesResponse.ok) {
-            const quizzes = await quizzesResponse.json();
-            console.log('Quizzes for class', cls.className + ':', quizzes);
-            const quizzesWithType = quizzes.map(quiz => ({
-              ...quiz,
-              type: 'quiz',
-              className: cls.className,
-              classCode: cls.classCode
-            }));
-            allActivities.push(...quizzesWithType);
-          }
-        }
+          return isMember;
+        });
       }
+
+      console.log('DEBUG: Student classes found:', studentClasses.length);
+
+      if (studentClasses.length === 0) {
+        console.log('DEBUG: No classes found for student, trying alternative approach...');
+        
+        // Fallback approach - fetch all activities directly
+        const allAssignmentsResponse = await fetch(`${API_BASE}/assignments`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        const allQuizzesResponse = await fetch(`${API_BASE}/api/quizzes`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        let allActivities = [];
+        
+        if (allAssignmentsResponse.ok) {
+          const assignments = await allAssignmentsResponse.json();
+          allActivities.push(...assignments.map(item => ({ ...item, type: 'assignment' })));
+        }
+        
+        if (allQuizzesResponse.ok) {
+          const quizzes = await allQuizzesResponse.json();
+          allActivities.push(...quizzes.map(item => ({ ...item, type: 'quiz' })));
+        }
+        
+        // Filter for posted activities only
+        const now = new Date();
+        const postedActivities = allActivities.filter(item => {
+          if (item.type === 'assignment') {
+            const scheduleEnabled = item?.schedulePost === true;
+            const postAt = item?.postAt ? new Date(item.postAt) : null;
+            if (scheduleEnabled && postAt) return postAt <= now;
+            return true;
+          } else if (item.type === 'quiz') {
+            const openEnabled = item?.timing?.openEnabled;
+            const openDate = item?.timing?.open ? new Date(item.timing.open) : null;
+            if (openEnabled && openDate) return openDate <= now;
+            return true;
+          }
+          return false;
+        });
+        
+        const activitiesWithStatus = await checkSubmissionStatuses(postedActivities);
+        activitiesWithStatus.sort((a, b) => new Date(a.dueDate || 0) - new Date(b.dueDate || 0));
+        setActivities(activitiesWithStatus);
+        setLoading(false);
+        return;
+      }
+
+      // Get all class IDs for this student
+      const studentClassIDs = studentClasses.map(cls => cls.classID);
+
+      // Fetch both assignments and quizzes per class
+      const perClassPromises = studentClassIDs.map((cid) => [
+        fetch(`${API_BASE}/assignments?classID=${encodeURIComponent(cid)}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+          .then(res => (res.ok ? res.json() : []))
+          .then(assignments => assignments.map(item => ({ ...item, type: 'assignment' })))
+          .catch(() => []),
+        fetch(`${API_BASE}/api/quizzes?classID=${encodeURIComponent(cid)}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+          .then(res => (res.ok ? res.json() : []))
+          .then(quizzes => quizzes.map(item => ({ ...item, type: 'quiz' })))
+          .catch(() => [])
+      ]);
+
+      const flattenedPromises = perClassPromises.flat();
+      const perClassResults = await Promise.all(flattenedPromises);
+      let merged = [];
+      perClassResults.forEach((list, index) => {
+        if (Array.isArray(list)) {
+          merged.push(...list);
+        }
+      });
+
+      // Filter for ONLY POSTED activities
+      const now = new Date();
+      const postedActivities = merged.filter(item => {
+        if (item.type === 'assignment') {
+          const scheduleEnabled = item?.schedulePost === true;
+          const postAt = item?.postAt ? new Date(item.postAt) : null;
+          if (scheduleEnabled && postAt) {
+            return postAt <= now;
+          }
+          return true;
+        } else if (item.type === 'quiz') {
+          const openEnabled = item?.timing?.openEnabled;
+          const openDate = item?.timing?.open ? new Date(item.timing.open) : null;
+          if (openEnabled && openDate) {
+            return openDate <= now;
+          }
+          return true;
+        }
+        return false;
+      });
+
+      // Normalize and enrich with class info for display
+      const normalized = postedActivities.map(item => ({
+        ...item,
+        type: item.type || (item.questions ? 'quiz' : 'assignment'),
+        className: item.classInfo?.className || item.className || 'Unknown Class',
+        classCode: item.classInfo?.classCode || item.classCode || 'N/A',
+        classID: item.classID || item.classInfo?.classID || (item.assignedTo && item.assignedTo[0]?.classID),
+        points: item.points !== undefined ? item.points : (item.type === 'quiz' ? 100 : 0)
+      }));
+
+      // Deduplicate by _id
+      const dedup = new Map();
+      normalized.forEach(it => {
+        if (it && it._id && !dedup.has(it._id)) dedup.set(it._id, it);
+      });
+      let allActivities = Array.from(dedup.values());
+
+      // Sort by due date ascending
+      allActivities.sort((a, b) => new Date(a.dueDate || 0) - new Date(b.dueDate || 0));
       
-      // Check submission statuses for all activities
+      // Check submission statuses for posted activities only
       const activitiesWithStatus = await checkSubmissionStatuses(allActivities);
       
-      // Sort by due date
-      activitiesWithStatus.sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
-      
-      console.log('Fetched activities for StudentActs:', activitiesWithStatus);
-      console.log('Total activities count:', activitiesWithStatus.length);
       setActivities(activitiesWithStatus);
     } catch (err) {
       console.error('Error fetching activities:', err);
-      setError('Failed to load activities');
+      setError('Failed to load activities: ' + err.message);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -441,77 +417,12 @@ export default function StudentActs() {
     fetchActivities();
   };
 
-  // Force refresh activities (called when returning from submission screens)
-  const refreshActivities = () => {
-    console.log('Refreshing activities...');
-    fetchActivities();
-  };
-
-  // Force complete refresh with submission status checking
-  const forceRefresh = async () => {
-    console.log('Force refreshing activities with submission status...');
-    setRefreshing(true);
-    try {
-      await fetchActivities();
-    } finally {
-      setRefreshing(false);
-    }
-  };
-
-  // Debug function to check submission status manually
-  const debugSubmissionStatus = async () => {
-    if (activities.length === 0) return;
-    
-    const activity = activities[0];
-    console.log('Debugging submission status for:', activity.title);
-    
-    try {
-      const token = await AsyncStorage.getItem('jwtToken');
-      const response = await fetch(`${API_BASE}/assignments/${activity._id}/submissions`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      
-      if (response.ok) {
-        const submissions = await response.json();
-        console.log('All submissions for this assignment:', submissions);
-        console.log('Current user ID:', user._id);
-        
-        const studentSubmission = submissions.find(sub => 
-          sub.student === user._id || sub.student._id === user._id
-        );
-        
-        if (studentSubmission) {
-          console.log('Found student submission:', studentSubmission);
-          console.log('Submitted at:', studentSubmission.submittedAt);
-          console.log('Status:', studentSubmission.status);
-        } else {
-          console.log('No submission found for this student');
-        }
-      }
-    } catch (error) {
-      console.error('Error debugging submission status:', error);
-    }
-  };
-
-  // Add this to the navigation listener to refresh when returning from submission
-  useEffect(() => {
-    const unsubscribe = navigation.addListener('focus', () => {
-      // Refresh activities when screen comes into focus (e.g., after submission)
-      refreshActivities();
-    });
-
-    return unsubscribe;
-  }, [navigation]);
-
   const handleActivityPress = (activity) => {
-    // Check if activity is already completed
     if (activity.isSubmitted) {
       Alert.alert(
         'Already Completed',
         `You have already completed this ${activity.type === 'quiz' ? 'quiz' : 'assignment'}.`,
-        [
-          { text: 'OK', style: 'default' }
-        ]
+        [{ text: 'OK', style: 'default' }]
       );
       return;
     }
@@ -523,14 +434,11 @@ export default function StudentActs() {
   const navigateToActivity = (activity) => {
     setShowActivityModal(false);
     
-    // Check if activity is already completed
     if (activity.isSubmitted) {
       Alert.alert(
         'Already Completed',
         `You have already completed this ${activity.type === 'quiz' ? 'quiz' : 'assignment'}.`,
-        [
-          { text: 'OK', style: 'default' }
-        ]
+        [{ text: 'OK', style: 'default' }]
       );
       return;
     }
@@ -538,83 +446,38 @@ export default function StudentActs() {
     if (activity.type === 'quiz') {
       navigation.navigate('QuizView', { quizId: activity._id });
     } else {
-      // Navigate to assignment detail or submission
-      console.log('Navigating to AssignmentDetail with callback:', refreshActivities);
       navigation.navigate('AssignmentDetail', { 
         assignmentId: activity._id,
         assignment: activity,
         onSubmissionComplete: () => {
-          console.log('Submission completed, refreshing activities...');
-          // Force immediate refresh
           setTimeout(() => {
-            refreshActivities();
+            fetchActivities();
           }, 100);
         }
       });
     }
   };
 
-  const formatDateTime = (date) => {
-    return date.toLocaleString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: true
-    });
-  };
+  // Filter activities based on selected tab and search query
+  const filteredActivities = activities.filter(activity => {
+    const matchesSearch = activity.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         (activity.description && activity.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
+                         (activity.className && activity.className.toLowerCase().includes(searchQuery.toLowerCase()));
 
-  const getUpcomingActivities = () => {
-    const now = new Date();
-    const upcoming = activities.filter(activity => {
+    if (activeTab === 'upcoming') {
+      const now = new Date();
       const dueDate = new Date(activity.dueDate);
-      // Only show as upcoming if not submitted and due date is in the future
-      return dueDate > now && !activity.isSubmitted;
-    });
-    console.log('Upcoming activities:', upcoming);
-    return upcoming;
-  };
-
-  const getPastDueActivities = () => {
-    const now = new Date();
-    const pastDue = activities.filter(activity => {
+      return dueDate > now && !activity.isSubmitted && matchesSearch;
+    } else if (activeTab === 'pastDue') {
+      const now = new Date();
       const dueDate = new Date(activity.dueDate);
-      // Show as past due if not submitted and due date has passed
-      return dueDate < now && !activity.isSubmitted;
-    });
-    console.log('Past due activities:', pastDue);
-    return pastDue;
-  };
-
-  const getCompletedActivities = () => {
-    const completed = activities.filter(activity => {
-      // Show as completed if submitted (regardless of due date)
-      return activity.isSubmitted;
-    });
-    console.log('Completed activities:', completed);
-    return completed;
-  };
-
-  const renderTabContent = () => {
-    switch (activeTab) {
-      case 0:
-        return <Upcoming activities={getUpcomingActivities()} onActivityPress={handleActivityPress} />;
-      case 1:
-        return <PastDue activities={getPastDueActivities()} onActivityPress={handleActivityPress} />;
-      case 2:
-        return <Completed activities={getCompletedActivities()} onActivityPress={handleActivityPress} />;
-      default:
-        return <Upcoming activities={getUpcomingActivities()} onActivityPress={handleActivityPress} />;
+      return dueDate < now && !activity.isSubmitted && matchesSearch;
+    } else if (activeTab === 'completed') {
+      return activity.isSubmitted && matchesSearch;
     }
-  };
-
-  // Calculate counts once to avoid multiple function calls in render
-  const upcomingCount = getUpcomingActivities().length;
-  const pastDueCount = getPastDueActivities().length;
-  const completedCount = getCompletedActivities().length;
+    
+    return matchesSearch; // activeTab === 'all'
+  });
 
   if (loading) {
     return (
@@ -629,102 +492,83 @@ export default function StudentActs() {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Activities</Text>
-        <Text style={styles.headerSubtitle}>
-          {formatDateTime(currentDateTime)}
-        </Text>
+        <Text style={styles.headerTitle}>My Activities</Text>
         <TouchableOpacity 
-          style={styles.refreshButton} 
-          onPress={refreshActivities}
+          style={styles.refreshButton}
+          onPress={onRefresh}
         >
-          <MaterialIcons name="refresh" size={24} color="white" />
+          <MaterialIcons name="refresh" size={24} color="#fff" />
         </TouchableOpacity>
       </View>
 
-      {/* Tab Navigation */}
-      <View style={styles.tabContainer}>
-        <View style={styles.tabBar}>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 0 && styles.activeTab]}
-            onPress={() => setActiveTab(0)}
-          >
-            <Text style={[styles.tabText, activeTab === 0 && styles.activeTabText]}>
-              Upcoming ({upcomingCount})
-            </Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 1 && styles.activeTab]}
-            onPress={() => setActiveTab(1)}
-          >
-            <Text style={[styles.tabText, activeTab === 1 && styles.activeTabText]}>
-              Past Due ({pastDueCount})
-            </Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 2 && styles.activeTab]}
-            onPress={() => setActiveTab(2)}
-          >
-            <Text style={[styles.tabText, activeTab === 2 && styles.activeTabText]}>
-              Completed ({completedCount})
-            </Text>
-          </TouchableOpacity>
+      {/* Search */}
+      <View style={styles.searchContainer}>
+        <View style={styles.searchBox}>
+          <MaterialIcons name="search" size={20} color="#666" />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search activities..."
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
         </View>
       </View>
 
-      {/* Tab Content */}
-      <View style={styles.contentContainer}>
-        {error ? (
-          <View style={styles.errorContainer}>
-            <MaterialIcons name="error" size={64} color="#f44336" />
-            <Text style={styles.errorText}>{error}</Text>
-            <TouchableOpacity style={styles.retryButton} onPress={fetchActivities}>
-              <Text style={styles.retryButtonText}>Retry</Text>
+      {/* Activity Tabs - compact segmented control */}
+      <View style={styles.activityTabsContainer}>
+        <View style={styles.activityTabsBar}>
+          {[
+            { key: 'all', label: 'All', count: activities.length },
+            { key: 'upcoming', label: 'Upcoming', count: activities.filter(a => !a.isSubmitted && new Date(a.dueDate) > new Date()).length },
+            { key: 'pastDue', label: 'Past Due', count: activities.filter(a => !a.isSubmitted && new Date(a.dueDate) < new Date()).length },
+            { key: 'completed', label: 'Completed', count: activities.filter(a => a.isSubmitted).length }
+          ].map((tab) => (
+            <TouchableOpacity
+              key={tab.key}
+              style={[
+                styles.activityTabSegment,
+                activeTab === tab.key && styles.activityTabSegmentActive
+              ]}
+              onPress={() => setActiveTab(tab.key)}
+            >
+              <Text style={[
+                styles.activityTabText,
+                activeTab === tab.key && styles.activityTabTextActive
+              ]}>{`${tab.label} (${tab.count})`}</Text>
             </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
+      {/* Activities List */}
+      <ScrollView 
+        style={styles.activitiesContainer}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+        showsVerticalScrollIndicator={false}
+      >
+        {filteredActivities.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <MaterialCommunityIcons name="file-document-outline" size={64} color="#ccc" />
+            <Text style={styles.emptyTitle}>No Activities Found</Text>
+            <Text style={styles.emptyText}>
+              {searchQuery || activeTab !== 'all' 
+                ? 'Try adjusting your search or filters'
+                : 'No activities available at this time'
+              }
+            </Text>
           </View>
         ) : (
-          <ScrollView
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={onRefresh}
-                colors={['#00418b']}
-                tintColor="#00418b"
-              />
-            }
-            showsVerticalScrollIndicator={false}
-          >
-            {renderTabContent()}
-            {/* Debug section - remove in production */}
-            <View style={{ marginTop: 20, padding: 10, backgroundColor: '#f0f0f0', borderRadius: 8 }}>
-              <Text style={{ fontSize: 12, color: '#666', fontFamily: 'monospace' }}>
-                Debug: Check console for activities data
-              </Text>
-              <Text style={{ fontSize: 10, color: '#888', fontFamily: 'monospace', marginTop: 4 }}>
-                Total: {activities.length} | Upcoming: {upcomingCount} | Past Due: {pastDueCount} | Completed: {completedCount}
-              </Text>
-              {activities.length > 0 && (
-                <Text style={{ fontSize: 10, color: '#888', fontFamily: 'monospace', marginTop: 4 }}>
-                  First activity: {activities[0]?.title} - Status: {activities[0]?.status || 'unknown'} - Submitted: {activities[0]?.isSubmitted ? 'Yes' : 'No'} - SubmittedAt: {activities[0]?.submittedAt ? new Date(activities[0].submittedAt).toLocaleString() : 'N/A'}
-                </Text>
-              )}
-              <TouchableOpacity 
-                style={{ marginTop: 8, backgroundColor: '#00418b', padding: 8, borderRadius: 4, alignItems: 'center' }}
-                onPress={forceRefresh}
-              >
-                <Text style={{ color: 'white', fontSize: 12 }}>Force Refresh</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={{ marginTop: 8, backgroundColor: '#ff9800', padding: 8, borderRadius: 4, alignItems: 'center' }}
-                onPress={debugSubmissionStatus}
-              >
-                <Text style={{ color: 'white', fontSize: 12 }}>Debug Submission Status</Text>
-              </TouchableOpacity>
-            </View>
-          </ScrollView>
+          filteredActivities.map((activity, index) => (
+            <ActivityCard
+              key={`${activity._id}_${index}`}
+              activity={activity}
+              onActivityPress={handleActivityPress}
+            />
+          ))
         )}
-      </View>
+      </ScrollView>
 
       {/* Activity Details Modal */}
       <Modal
@@ -765,15 +609,7 @@ export default function StudentActs() {
                   <View style={styles.modalDetailRow}>
                     <Text style={styles.modalDetailLabel}>Due Date:</Text>
                     <Text style={styles.modalDetailValue}>
-                      {new Date(selectedActivity.dueDate).toLocaleDateString('en-US', {
-                        weekday: 'long',
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        hour12: true
-                      })}
+                      {formatDateTime(selectedActivity.dueDate)}
                     </Text>
                   </View>
                   <View style={styles.modalDetailRow}>
@@ -812,70 +648,86 @@ const styles = {
     backgroundColor: '#f5f5f5',
   },
   header: {
-    backgroundColor: '#00418b',
-    paddingTop: 50,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    padding: 12,
+    paddingTop: 18,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+    zIndex: 20,
   },
   headerTitle: {
-    color: 'white',
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  headerSubtitle: {
-    color: 'rgba(255, 255, 255, 0.8)',
-    fontSize: 16,
+    color: '#333',
+    fontFamily: 'Poppins-Bold',
   },
   refreshButton: {
     padding: 8,
   },
-  tabContainer: {
-    backgroundColor: 'white',
+  searchContainer: {
+    paddingHorizontal: 10,
+    paddingTop: 4,
+    paddingBottom: 4,
+    backgroundColor: '#fff',
+  },
+  searchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  searchInput: {
+    flex: 1,
+    marginLeft: 8,
+    fontSize: 14,
+    fontFamily: 'Poppins-Regular',
+  },
+  activityTabsContainer: {
+    paddingVertical: 4,
+    backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
   },
-  tabBar: {
+  activityTabsBar: {
+    marginHorizontal: 10,
+    backgroundColor: '#f1f3f8',
+    borderRadius: 10,
     flexDirection: 'row',
-    paddingHorizontal: 20,
+    padding: 2,
   },
-  tab: {
+  activityTabSegment: {
     flex: 1,
-    paddingVertical: 16,
     alignItems: 'center',
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
+    justifyContent: 'center',
+    paddingVertical: 6,
+    borderRadius: 8,
   },
-  activeTab: {
-    borderBottomColor: '#00418b',
+  activityTabSegmentActive: {
+    backgroundColor: '#00418b',
   },
-  tabText: {
-    fontSize: 14,
-    color: '#666',
-    fontWeight: '500',
+  activityTabText: {
+    color: '#3a3a3a',
+    fontSize: 12,
+    fontFamily: 'Poppins-Medium',
   },
-  activeTabText: {
-    color: '#00418b',
-    fontWeight: 'bold',
+  activityTabTextActive: {
+    color: '#fff',
   },
-  contentContainer: {
+  activitiesContainer: {
     flex: 1,
-  },
-  tabContent: {
-    flex: 1,
-  },
-  contentTabContainer: {
-    flex: 1,
-    padding: 20,
+    paddingHorizontal: 10,
+    paddingTop: 0,
   },
   activityCard: {
-    backgroundColor: 'white',
+    backgroundColor: '#fff',
     borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+    padding: 10,
+    marginBottom: 10,
     elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -884,128 +736,118 @@ const styles = {
   },
   activityHeader: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 12,
+    marginBottom: 6,
   },
   activityIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#f5f5f5',
-    alignItems: 'center',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#f0f0f0',
     justifyContent: 'center',
-    marginRight: 12,
+    alignItems: 'center',
+    marginRight: 8,
   },
   activityContent: {
     flex: 1,
-    marginRight: 12,
-  },
-  activityRight: {
-    alignItems: 'flex-end',
-    justifyContent: 'center',
-    minWidth: 60,
   },
   activityTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: 'bold',
     color: '#333',
-    marginBottom: 4,
+    marginBottom: 1,
+    fontFamily: 'Poppins-Bold',
   },
   activityClass: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#666',
-    marginBottom: 4,
+    marginBottom: 1,
+    fontFamily: 'Poppins-Medium',
   },
   activityDescription: {
-    fontSize: 13,
+    fontSize: 12,
     color: '#666',
-    marginBottom: 4,
-    lineHeight: 18,
+    marginBottom: 1,
+    fontFamily: 'Poppins-Regular',
   },
   activityDueDate: {
-    fontSize: 12,
+    fontSize: 10,
     color: '#999',
-    marginBottom: 2,
+    fontFamily: 'Poppins-Regular',
+  },
+  activityType: {
+    fontSize: 10,
+    color: '#666',
+    fontFamily: 'Poppins-Medium',
+    marginTop: 2,
   },
   activityPoints: {
     alignItems: 'center',
     justifyContent: 'center',
-    minWidth: 60,
+    minWidth: 48,
   },
   pointsText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: 'bold',
     color: '#00418b',
+    fontFamily: 'Poppins-Bold',
   },
   activityFooter: {
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+    paddingTop: 6,
+  },
+  activityStats: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    marginBottom: 6,
   },
-  activityStatus: {
+  statItem: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginRight: 10,
   },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: 6,
-  },
-  statusText: {
-    fontSize: 12,
+  statText: {
+    fontSize: 10,
     color: '#666',
-    fontWeight: '500',
+    marginLeft: 2,
+    fontFamily: 'Poppins-Regular',
   },
-  attachmentsInfo: {
+  actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  attachmentsText: {
-    fontSize: 12,
-    color: '#666',
-    marginLeft: 4,
-  },
-  latePenalty: {
-    backgroundColor: '#ffebee',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  latePenaltyText: {
-    fontSize: 12,
-    color: '#f44336',
-    fontWeight: '500',
-  },
-  scoreInfo: {
-    backgroundColor: '#e8f5e8',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  scoreText: {
-    fontSize: 12,
-    color: '#4CAF50',
-    fontWeight: '500',
-  },
-  emptyTabContainer: {
-    flex: 1,
     justifyContent: 'center',
-    alignItems: 'center',
-    padding: 40,
+    backgroundColor: '#e3f2fd',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    alignSelf: 'flex-end',
   },
-  emptyTabTitle: {
-    fontSize: 18,
+  viewButton: {
+    backgroundColor: '#e3f2fd',
+  },
+  viewButtonText: {
+    color: '#2196F3',
+    fontSize: 10,
+    marginLeft: 2,
+    fontFamily: 'Poppins-Medium',
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+  },
+  emptyTitle: {
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#666',
     marginTop: 16,
-    marginBottom: 8,
+    fontFamily: 'Poppins-Bold',
   },
-  emptyTabText: {
-    fontSize: 14,
+  emptyText: {
+    fontSize: 16,
     color: '#999',
     textAlign: 'center',
-    lineHeight: 20,
+    marginTop: 8,
+    fontFamily: 'Poppins-Regular',
   },
   loadingContainer: {
     flex: 1,
@@ -1017,30 +859,7 @@ const styles = {
     marginTop: 16,
     fontSize: 16,
     color: '#666',
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  errorText: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-    marginTop: 16,
-    marginBottom: 20,
-  },
-  retryButton: {
-    backgroundColor: '#00418b',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  retryButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
+    fontFamily: 'Poppins-Regular',
   },
   modalOverlay: {
     flex: 1,
@@ -1065,6 +884,7 @@ const styles = {
     fontSize: 20,
     fontWeight: 'bold',
     color: '#333',
+    fontFamily: 'Poppins-Bold',
   },
   modalContent: {
     padding: 20,
@@ -1080,11 +900,13 @@ const styles = {
     marginTop: 12,
     marginBottom: 4,
     textAlign: 'center',
+    fontFamily: 'Poppins-Bold',
   },
   modalActivityType: {
     fontSize: 14,
     color: '#666',
     textTransform: 'capitalize',
+    fontFamily: 'Poppins-Regular',
   },
   modalSection: {
     marginBottom: 20,
@@ -1094,6 +916,7 @@ const styles = {
     fontWeight: 'bold',
     color: '#333',
     marginBottom: 12,
+    fontFamily: 'Poppins-Bold',
   },
   modalDetailRow: {
     flexDirection: 'row',
@@ -1106,6 +929,7 @@ const styles = {
     fontSize: 14,
     color: '#666',
     fontWeight: '500',
+    fontFamily: 'Poppins-Medium',
   },
   modalDetailValue: {
     fontSize: 14,
@@ -1113,11 +937,13 @@ const styles = {
     flex: 1,
     textAlign: 'right',
     marginLeft: 16,
+    fontFamily: 'Poppins-Regular',
   },
   modalDescription: {
     fontSize: 14,
     color: '#666',
     lineHeight: 20,
+    fontFamily: 'Poppins-Regular',
   },
   modalActionButton: {
     backgroundColor: '#00418b',
@@ -1130,70 +956,6 @@ const styles = {
     color: 'white',
     fontSize: 16,
     fontWeight: 'bold',
-  },
-  completedActivityCard: {
-    opacity: 0.7, // Make completed activities visually dimmed
-    backgroundColor: '#f0f0f0', // Slightly different background for completed
-  },
-  completedActivityTitle: {
-    color: '#999', // Gray out completed activity titles
-  },
-  completedActivityText: {
-    color: '#999', // Gray out completed activity text
-  },
-  completedActivityDueDate: {
-    color: '#999', // Gray out completed activity due dates
-  },
-  activityIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#f5f5f5',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  activityContent: {
-    flex: 1,
-    marginRight: 12,
-  },
-  activityRight: {
-    alignItems: 'flex-end',
-    justifyContent: 'center',
-    minWidth: 60,
-  },
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#e0f2f7', // Light blue background
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginTop: 8,
-  },
-  completedBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#e8f5e9', // Light green background
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginTop: 8,
-  },
-  completedBadgeText: {
-    fontSize: 12,
-    color: '#4CAF50',
-    fontWeight: '500',
-    marginLeft: 6,
-  },
-  activityInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  activityInfoText: {
-    fontSize: 12,
-    color: '#666',
-    marginLeft: 4,
+    fontFamily: 'Poppins-Bold',
   },
 };
