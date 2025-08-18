@@ -200,7 +200,7 @@ export default function VPEChats() {
       
       try {
         const token = await AsyncStorage.getItem('jwtToken');
-        const response = await fetch(`${API_BASE}/api/group-chats/user/${user._id}`, {
+        const response = await fetch(`${API_BASE}/group-chats/user/${user._id}`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
@@ -261,47 +261,65 @@ export default function VPEChats() {
 
     try {
       const token = await AsyncStorage.getItem('jwtToken');
-      const messageData = {
-        senderId: user._id,
-        receiverId: selectedChat._id,
-        text: newMessage.trim(),
-        fileUrl: selectedFile ? selectedFile.uri : null,
-      };
+
+      const formData = new FormData();
+      formData.append('senderId', user._id);
+      formData.append('receiverId', selectedChat._id);
+      if (newMessage.trim()) {
+        formData.append('message', newMessage.trim());
+      }
+      if (selectedFile) {
+        const file = selectedFile;
+        const name = file.name || `upload-${Date.now()}`;
+        const type = file.mimeType || 'application/octet-stream';
+
+        if (Platform.OS === 'web') {
+          const res = await fetch(file.uri);
+          const blob = await res.blob();
+          formData.append('file', new File([blob], name, { type }));
+        } else {
+          formData.append('file', { uri: file.uri, name, type });
+        }
+      }
 
       const response = await fetch(`${API_BASE}/messages`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
-        body: JSON.stringify(messageData),
+        body: formData,
       });
 
       if (response.ok) {
-        const sentMessage = {
-          ...messageData,
-          timestamp: new Date(),
-        };
+        const saved = await response.json();
 
         setMessages(prev => ({
           ...prev,
           [selectedChat._id]: [
             ...(prev[selectedChat._id] || []),
-            sentMessage,
+            saved,
           ],
         }));
 
         setNewMessage('');
         setSelectedFile(null);
 
-        // Emit message through socket
         if (socket.current) {
-          socket.current.emit('sendMessage', messageData);
+          socket.current.emit('sendMessage', {
+            senderId: saved.senderId,
+            receiverId: saved.receiverId,
+            text: saved.message || '',
+            fileUrl: saved.fileUrl || null,
+          });
         }
+      } else {
+        const errText = await response.text();
+        throw new Error(errText || 'Failed to send');
       }
     } catch (error) {
       console.error('Error sending message:', error);
-      Alert.alert('Error', 'Failed to send message');
+      Alert.alert('Error', error?.message || 'Failed to send message');
     }
   };
 
@@ -340,7 +358,7 @@ export default function VPEChats() {
         members: selectedGroupMembers,
       };
 
-      const response = await fetch(`${API_BASE}/api/group-chats`, {
+      const response = await fetch(`${API_BASE}/group-chats`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -371,7 +389,7 @@ export default function VPEChats() {
 
     try {
       const token = await AsyncStorage.getItem('jwtToken');
-      const response = await fetch(`${API_BASE}/api/group-chats/${joinGroupCode}/join`, {
+      const response = await fetch(`${API_BASE}/group-chats/${joinGroupCode}/join`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -847,7 +865,7 @@ export default function VPEChats() {
               marginTop: 4,
               alignSelf: message.senderId === user._id ? 'flex-end' : 'flex-start',
             }}>
-              {new Date(message.timestamp).toLocaleTimeString()}
+              {new Date(message.createdAt || message.timestamp || Date.now()).toLocaleTimeString()}
             </Text>
           </View>
         ))}
