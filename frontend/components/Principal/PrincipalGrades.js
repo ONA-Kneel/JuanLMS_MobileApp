@@ -12,6 +12,7 @@ import {
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useIsFocused } from '@react-navigation/native';
 import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const API_BASE_URL = 'https://juanlms-webapp-server.onrender.com';
 
@@ -72,6 +73,34 @@ const SubjectPerformanceItem = ({ subject, averageGrade, totalStudents, improvem
   </View>
 );
 
+const HorizontalSelector = ({ title, options, selected, onSelect, disabled }) => (
+  <View style={{ marginBottom: 16 }}>
+    <Text style={{ fontSize: 14, color: '#666', marginBottom: 8, fontFamily: 'Poppins-Regular' }}>{title}</Text>
+    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+      <View style={{ flexDirection: 'row', gap: 8 }}>
+        {options.map((opt) => (
+          <TouchableOpacity
+            key={opt}
+            disabled={disabled}
+            onPress={() => onSelect(opt)}
+            style={{
+              paddingHorizontal: 12,
+              paddingVertical: 8,
+              borderRadius: 16,
+              backgroundColor: selected === opt ? '#00418b' : '#fff',
+              borderWidth: 1,
+              borderColor: selected === opt ? '#00418b' : '#ddd',
+              opacity: disabled ? 0.6 : 1,
+            }}
+          >
+            <Text style={{ color: selected === opt ? '#fff' : '#333', fontFamily: 'Poppins-SemiBold' }}>{opt}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    </ScrollView>
+  </View>
+);
+
 export default function PrincipalGrades() {
   const isFocused = useIsFocused();
   const [performanceData, setPerformanceData] = useState({
@@ -84,6 +113,23 @@ export default function PrincipalGrades() {
   const [subjectPerformance, setSubjectPerformance] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Principal grade view states (mirroring web)
+  const [academicYear, setAcademicYear] = useState(null);
+  const [currentTerm, setCurrentTerm] = useState(null);
+  const [gradeLevels, setGradeLevels] = useState(['Grade 11', 'Grade 12']);
+  const [strands, setStrands] = useState([]);
+  const [sections, setSections] = useState([]);
+  const [subjects, setSubjects] = useState([]);
+
+  const [selectedGradeLevel, setSelectedGradeLevel] = useState('');
+  const [selectedStrand, setSelectedStrand] = useState('');
+  const [selectedSection, setSelectedSection] = useState('');
+  const [selectedSubject, setSelectedSubject] = useState('');
+
+  const [loadingOptions, setLoadingOptions] = useState(false);
+  const [loadingStudentGrades, setLoadingStudentGrades] = useState(false);
+  const [studentGrades, setStudentGrades] = useState([]);
 
   const fetchGradesData = async () => {
     try {
@@ -134,6 +180,208 @@ export default function PrincipalGrades() {
       fetchGradesData();
     }
   }, [isFocused]);
+
+  // Fetch active academic year
+  useEffect(() => {
+    (async () => {
+      try {
+        const token = await AsyncStorage.getItem('jwtToken');
+        const res = await fetch(`${API_BASE_URL}/api/schoolyears/active`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const year = await res.json();
+          setAcademicYear(year);
+        }
+      } catch (e) {
+        // silent
+      }
+    })();
+  }, []);
+
+  // Fetch active term for year
+  useEffect(() => {
+    (async () => {
+      if (!academicYear) return;
+      try {
+        const token = await AsyncStorage.getItem('jwtToken');
+        const schoolYearName = `${academicYear.schoolYearStart}-${academicYear.schoolYearEnd}`;
+        const res = await fetch(`${API_BASE_URL}/api/terms/schoolyear/${schoolYearName}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const terms = await res.json();
+          const active = Array.isArray(terms) ? terms.find(t => t.status === 'active') : null;
+          setCurrentTerm(active || null);
+        }
+      } catch {}
+    })();
+  }, [academicYear]);
+
+  // Fetch strands from sections (like web)
+  useEffect(() => {
+    (async () => {
+      if (!selectedGradeLevel || !academicYear || !currentTerm) {
+        setStrands([]);
+        setSelectedStrand('');
+        return;
+      }
+      try {
+        setLoadingOptions(true);
+        const token = await AsyncStorage.getItem('jwtToken');
+        const res = await fetch(`${API_BASE_URL}/api/sections?schoolYear=${academicYear.schoolYearStart}-${academicYear.schoolYearEnd}&termName=${currentTerm.termName}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const matchingStrands = [...new Set(
+            (data || [])
+              .filter(s => s.gradeLevel === selectedGradeLevel)
+              .map(s => s.strandName)
+              .filter(Boolean)
+          )];
+          setStrands(matchingStrands.length ? matchingStrands.sort() : ['STEM', 'ABM', 'HUMSS', 'GAS', 'TVL']);
+        }
+      } catch {}
+      finally { setLoadingOptions(false); }
+    })();
+  }, [selectedGradeLevel, academicYear, currentTerm]);
+
+  // Fetch sections when strand changes
+  useEffect(() => {
+    (async () => {
+      if (!selectedStrand || !selectedGradeLevel || !academicYear || !currentTerm) {
+        setSections([]);
+        setSelectedSection('');
+        return;
+      }
+      try {
+        setLoadingOptions(true);
+        const token = await AsyncStorage.getItem('jwtToken');
+        const res = await fetch(`${API_BASE_URL}/api/sections?schoolYear=${academicYear.schoolYearStart}-${academicYear.schoolYearEnd}&termName=${currentTerm.termName}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const matchingSections = [...new Set(
+            (data || [])
+              .filter(s => s.gradeLevel === selectedGradeLevel && (s.strandName || '').toLowerCase().includes(selectedStrand.toLowerCase()))
+              .map(s => s.sectionName)
+              .filter(Boolean)
+          )];
+          setSections(matchingSections.length ? matchingSections.sort() : []);
+        }
+      } catch {}
+      finally { setLoadingOptions(false); }
+    })();
+  }, [selectedStrand, selectedGradeLevel, academicYear, currentTerm]);
+
+  // Fetch subjects when section changes
+  useEffect(() => {
+    (async () => {
+      if (!selectedSection || !selectedStrand || !selectedGradeLevel || !academicYear || !currentTerm) {
+        setSubjects([]);
+        setSelectedSubject('');
+        return;
+      }
+      try {
+        setLoadingOptions(true);
+        const token = await AsyncStorage.getItem('jwtToken');
+        const res = await fetch(`${API_BASE_URL}/api/subjects?schoolYear=${academicYear.schoolYearStart}-${academicYear.schoolYearEnd}&termName=${currentTerm.termName}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const subs = await res.json();
+          const matching = (subs || []).filter(subject =>
+            subject.gradeLevel === selectedGradeLevel &&
+            (subject.strandName || '').toLowerCase().includes(selectedStrand.toLowerCase())
+          );
+          const uniqueSubjects = [...new Set(matching.map(s => s.subjectName).filter(Boolean))];
+          setSubjects(uniqueSubjects.length ? uniqueSubjects.sort() : []);
+        }
+      } catch {}
+      finally { setLoadingOptions(false); }
+    })();
+  }, [selectedSection, selectedStrand, selectedGradeLevel, academicYear, currentTerm]);
+
+  // Fetch student grades when all selections are made (no restricted endpoints)
+  useEffect(() => {
+    (async () => {
+      if (!selectedSubject || !selectedSection || !selectedStrand || !selectedGradeLevel || !academicYear || !currentTerm) {
+        setStudentGrades([]);
+        return;
+      }
+      try {
+        setLoadingStudentGrades(true);
+        const token = await AsyncStorage.getItem('jwtToken');
+
+        // Prefer principal-view endpoint (used by web)
+        const pvUrl = `${API_BASE_URL}/api/semestral-grades/principal-view?` +
+          `gradeLevel=${encodeURIComponent(selectedGradeLevel)}&` +
+          `strand=${encodeURIComponent(selectedStrand)}&` +
+          `section=${encodeURIComponent(selectedSection)}&` +
+          `subject=${encodeURIComponent(selectedSubject)}&` +
+          `termName=${encodeURIComponent(currentTerm.termName)}&` +
+          `academicYear=${academicYear.schoolYearStart}-${academicYear.schoolYearEnd}`;
+        let gradesPayload = [];
+        let pvRes;
+        try {
+          pvRes = await fetch(pvUrl, { headers: { Authorization: `Bearer ${token}` } });
+        } catch {}
+
+        if (pvRes && pvRes.ok) {
+          const pvData = await pvRes.json();
+          gradesPayload = pvData.grades || [];
+        } else {
+          // Fallback: try class list (broader) then filter client-side
+          const listUrl = `${API_BASE_URL}/api/semestral-grades/class/all?termName=${encodeURIComponent(currentTerm.termName)}&academicYear=${academicYear.schoolYearStart}-${academicYear.schoolYearEnd}`;
+          const listRes = await fetch(listUrl, { headers: { Authorization: `Bearer ${token}` } });
+          if (listRes.ok) {
+            const listData = await listRes.json();
+            gradesPayload = listData.grades || [];
+          } else {
+            setStudentGrades([]);
+            return;
+          }
+        }
+
+        const filtered = (Array.isArray(gradesPayload) ? gradesPayload : []).filter(grade => {
+          const subjectMatch = (grade.subjectName || '').toLowerCase().includes(selectedSubject.toLowerCase()) || (grade.subjectCode || '').toLowerCase().includes(selectedSubject.toLowerCase());
+          const sectionMatch = !grade.section || grade.section === selectedSection;
+          const strandMatch = !grade.strandName || (grade.strandName || '').toLowerCase().includes(selectedStrand.toLowerCase());
+          const gradeLevelMatch = !grade.gradeLevel || grade.gradeLevel === selectedGradeLevel;
+          const termMatch = !grade.termName || grade.termName === currentTerm.termName;
+          const yearMatch = !grade.academicYear || grade.academicYear === `${academicYear.schoolYearStart}-${academicYear.schoolYearEnd}`;
+          return subjectMatch && sectionMatch && strandMatch && gradeLevelMatch && termMatch && yearMatch;
+        });
+
+        const byStudent = new Map();
+        filtered.forEach(grade => {
+          const studentKey = grade.schoolID || grade.userID || grade.studentId || grade.studentID || grade._id;
+          const studentName = grade.studentName || `${grade.firstname || ''} ${grade.lastname || ''}`.trim();
+          const record = {
+            studentName: studentName || 'N/A',
+            schoolID: studentKey || 'N/A',
+            grades: {
+              quarter1: grade.quarter1 || grade.first_quarter || '-',
+              quarter2: grade.quarter2 || grade.second_quarter || '-',
+              quarter3: grade.quarter3 || grade.third_quarter || '-',
+              quarter4: grade.quarter4 || grade.fourth_quarter || '-',
+              semesterFinal: grade.semesterFinal || grade.final_grade || '-',
+              remarks: grade.remarks || grade.remark || '-',
+            },
+          };
+          byStudent.set(studentKey || `${grade.studentName}-${grade.subjectName}`, record);
+        });
+
+        setStudentGrades(Array.from(byStudent.values()));
+      } catch (e) {
+        setStudentGrades([]);
+      } finally {
+        setLoadingStudentGrades(false);
+      }
+    })();
+  }, [selectedSubject, selectedSection, selectedStrand, selectedGradeLevel, academicYear, currentTerm]);
 
   const handlePerformanceCardPress = (type) => {
     switch (type) {
@@ -267,6 +515,67 @@ export default function PrincipalGrades() {
             </TouchableOpacity>
           ))}
         </View>
+      </View>
+
+      {/* Student Grades (Principal View) */}
+      <View style={styles.distributionSection}>
+        <Text style={styles.sectionTitle}>Student Grades</Text>
+        {/* Selectors */}
+        <HorizontalSelector
+          title="Grade Level"
+          options={gradeLevels}
+          selected={selectedGradeLevel}
+          onSelect={(v) => { setSelectedGradeLevel(v); setSelectedStrand(''); setSelectedSection(''); setSelectedSubject(''); setStudentGrades([]); }}
+          disabled={loadingOptions}
+        />
+        <HorizontalSelector
+          title="Strand"
+          options={strands}
+          selected={selectedStrand}
+          onSelect={(v) => { setSelectedStrand(v); setSelectedSection(''); setSelectedSubject(''); setStudentGrades([]); }}
+          disabled={!selectedGradeLevel || loadingOptions}
+        />
+        <HorizontalSelector
+          title="Section"
+          options={sections}
+          selected={selectedSection}
+          onSelect={(v) => { setSelectedSection(v); setSelectedSubject(''); setStudentGrades([]); }}
+          disabled={!selectedStrand || loadingOptions}
+        />
+        <HorizontalSelector
+          title="Subject"
+          options={subjects}
+          selected={selectedSubject}
+          onSelect={(v) => setSelectedSubject(v)}
+          disabled={!selectedSection || loadingOptions}
+        />
+
+        {loadingStudentGrades ? (
+          <View style={{ paddingVertical: 16 }}>
+            <Text style={{ textAlign: 'center', color: '#666', fontFamily: 'Poppins-Regular' }}>Loading grades...</Text>
+          </View>
+        ) : studentGrades.length > 0 ? (
+          <View style={{ marginTop: 8 }}>
+            {studentGrades.map((g, idx) => (
+              <View key={`${g.schoolID}-${idx}`} style={{ paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' }}>
+                <Text style={{ fontFamily: 'Poppins-SemiBold', color: '#333' }}>{g.studentName || 'N/A'}</Text>
+                <Text style={{ fontFamily: 'Poppins-Regular', color: '#666', marginBottom: 6 }}>ID: {g.schoolID || 'N/A'}</Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+                  <Text style={{ color: '#333' }}>Q1: {g.grades?.quarter1 || '-'}</Text>
+                  <Text style={{ color: '#333' }}>Q2: {g.grades?.quarter2 || '-'}</Text>
+                  <Text style={{ color: '#333' }}>Q3: {g.grades?.quarter3 || '-'}</Text>
+                  <Text style={{ color: '#333' }}>Q4: {g.grades?.quarter4 || '-'}</Text>
+                  <Text style={{ color: '#00418b', fontFamily: 'Poppins-SemiBold' }}>Final: {g.grades?.semesterFinal || '-'}</Text>
+                  <Text style={{ color: '#666' }}>Remarks: {g.grades?.remarks || '-'}</Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        ) : (
+          <View style={{ paddingVertical: 16 }}>
+            <Text style={{ textAlign: 'center', color: '#999', fontFamily: 'Poppins-Regular' }}>Select all parameters to view grades.</Text>
+          </View>
+        )}
       </View>
 
       {/* Quick Actions */}
