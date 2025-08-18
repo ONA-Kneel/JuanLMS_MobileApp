@@ -179,7 +179,12 @@ const FacultyGrades = () => {
     try {
       const token = await AsyncStorage.getItem('token');
       
-      const response = await fetch(`${API_BASE}/api/grades/${selectedActivity._id}`, {
+      // Determine the correct endpoint based on activity type
+      const endpoint = selectedActivity.type === 'quiz' 
+        ? `${API_BASE}/api/grades/quiz/${selectedActivity._id}`
+        : `${API_BASE}/api/grades/assignment/${selectedActivity._id}`;
+      
+      const response = await fetch(endpoint, {
         method: 'PUT',
         headers: { 
           Authorization: `Bearer ${token}`,
@@ -187,7 +192,7 @@ const FacultyGrades = () => {
         },
         body: JSON.stringify({
           score: parseFloat(gradeForm.score),
-          remarks: gradeForm.remarks
+          feedback: gradeForm.remarks
         })
       });
 

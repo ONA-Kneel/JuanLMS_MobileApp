@@ -214,20 +214,20 @@ export default function FacultyModule() {
     });
     if (!fontsLoaded) return null;
 
-    // Placeholder handlers
+    // Activity creation handlers
     const handleCreateAnnouncement = () => {
         setShowCreateAnnouncementModal(true);
     };
     const handleCreateAssignment = () => {
         setShowCreateDropdown(false);
-        alert('Create Assignment');
+        navigation.navigate('CreateAssignment', { classId: classID, classInfo });
     };
     const handleCreateQuiz = () => {
         setShowCreateDropdown(false);
-        alert('Create Quiz');
+        navigation.navigate('CreateQuiz', { classId: classID, classInfo });
     };
     const handleAddMaterial = () => {
-        alert('Add Material');
+        setShowAddModuleModal(true);
     };
 
     const saveAnnouncement = async () => {
@@ -565,7 +565,7 @@ export default function FacultyModule() {
                         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10, justifyContent: 'space-between', position: 'relative'}}>
                             <Text style={{ fontFamily: 'Poppins-Bold', fontSize: 18, color: '#222', flex: 1 }}>Classwork</Text>
                             {/* + Create Dropdown Button (faculty only) */}
-                            {/* <View style={{ position: 'relative', alignSelf: 'flex-start ', zIndex: 9999  }}>
+                            <View style={{ position: 'relative', alignSelf: 'flex-start ', zIndex: 9999  }}>
                                 {user?.role === 'faculty' && (
                                     <TouchableOpacity
                                         onPress={() => setShowCreateDropdown(!showCreateDropdown)}
@@ -600,7 +600,7 @@ export default function FacultyModule() {
                                         </TouchableOpacity>
                                     </View>
                                 )}
-                            </View> */}
+                            </View>
                         </View>
                         {/* Classwork Content */}
                         {loading ? (
