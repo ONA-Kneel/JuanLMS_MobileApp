@@ -1,36 +1,108 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, StyleSheet, TextInput, TouchableOpacity, RefreshControl } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
+  TextInput,
+  RefreshControl,
+  Alert,
+} from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { formatDate } from '../../utils/dateUtils';
 import { useIsFocused } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { formatDate } from '../../utils/dateUtils';
 
-const API_BASE_URL = 'https://juanlms-webapp-server.onrender.com';
+const API_BASE_URL = 'http://localhost:5000';
+
+const getFilterColor = (category) => {
+  switch (category.toLowerCase()) {
+    case 'academic':
+      return '#2196F3';
+    case 'faculty':
+      return '#FF9800';
+    case 'admin':
+      return '#9C27B0';
+    case 'student':
+      return '#4CAF50';
+    case 'system':
+      return '#607D8B';
+    default:
+      return '#666';
+  }
+};
+
+// Normalize categories/roles so filters match expected tabs
+const normalizeCategory = (log) => {
+  const raw = ((log.category || log.userRole || '') + '').toLowerCase().trim();
+  if (raw === 'students') return 'student';
+  if (raw === 'vice president of education') return 'admin'; // falls under admin tab, same as web app UX
+  return raw;
+};
+
+const LogItem = ({ log, onPress }) => (
+  <TouchableOpacity style={styles.logItem} onPress={onPress}>
+    <View style={styles.logHeader}>
+      <View style={styles.logInfo}>
+        <Text style={styles.logAction}>{log.action}</Text>
+        <View style={[styles.filterBadge, { backgroundColor: getFilterColor(normalizeCategory(log) || 'system') }]}>
+          <Text style={styles.filterText}>{(normalizeCategory(log) || 'system')}</Text>
+        </View>
+      </View>
+      <Text style={styles.logTime}>{formatDate(log.timestamp, 'hh:mm A')}</Text>
+    </View>
+
+    <Text style={styles.logDetails} numberOfLines={2}>
+      {log.details}
+    </Text>
+
+    <View style={styles.logFooter}>
+      <View style={styles.footerItem}>
+        <Icon name="account" size={16} color="#666" />
+        <Text style={styles.footerText}>{log.userName}</Text>
+      </View>
+      <View style={styles.footerItem}>
+        <Icon name="monitor" size={16} color="#666" />
+        <Text style={styles.footerText}>{log.ipAddress || 'N/A'}</Text>
+      </View>
+      <View style={styles.footerItem}>
+        <Icon name="web" size={16} color="#666" />
+        <Text style={styles.footerText}>{log.userAgent || 'Mobile App'}</Text>
+      </View>
+    </View>
+  </TouchableOpacity>
+);
 
 function groupLogsByDay(logs) {
-  return logs.reduce((acc, log) => {
-    const day = formatDate(log.timestamp, 'YYYY-MM-DD');
-    if (!acc[day]) acc[day] = [];
-    acc[day].push(log);
-    return acc;
-  }, {});
+  const grouped = {};
+  logs.forEach(log => {
+    // Use UTC date for stable grouping regardless of device timezone
+    const dateKey = new Date(log.timestamp).toISOString().slice(0, 10); // YYYY-MM-DD
+    if (!grouped[dateKey]) {
+      grouped[dateKey] = [];
+    }
+    grouped[dateKey].push(log);
+  });
+  return grouped;
 }
 
+const sortByTimestampDesc = (a, b) => new Date(b.timestamp) - new Date(a.timestamp);
+
 export default function VPEAuditTrail() {
-  const [searchQuery, setSearchQuery] = useState('');
+  const isFocused = useIsFocused();
   const [logs, setLogs] = useState([]);
   const [filteredLogs, setFilteredLogs] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeFilter, setActiveFilter] = useState('all');
   const [isLoading, setIsLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
-  const [activeFilter, setActiveFilter] = useState('all'); // 'all', 'academic', 'faculty', 'admin', 'student', 'system'
-  const isFocused = useIsFocused();
 
   const fetchLogs = async () => {
     try {
       setIsLoading(true);
       setError(null);
-
       const token = await AsyncStorage.getItem('jwtToken');
       const response = await fetch(`${API_BASE_URL}/audit-logs?page=1&limit=200&action=all&role=all`, {
         method: 'GET',
@@ -38,31 +110,127 @@ export default function VPEAuditTrail() {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
-        },
+        }
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        if (response.status === 401) {
+          throw new Error('Unauthorized. Please login again.');
+        }
+        if (response.status === 403) {
+          throw new Error('Access denied for your role. Please contact an administrator.');
+        }
+        throw new Error(`HTTP ${response.status}`);
       }
 
       const data = await response.json();
 
       if (data && data.logs && Array.isArray(data.logs)) {
-        setLogs(data.logs);
-        setFilteredLogs(data.logs);
+        // Map and normalize categories/roles for stable filtering
+        const normalized = data.logs.map(l => ({
+          ...l,
+          category: normalizeCategory(l) || l.category,
+        }));
+        // Ensure newest logs appear first consistently
+        const sorted = normalized.sort(sortByTimestampDesc);
+        setLogs(sorted);
+        setFilteredLogs(sorted);
       } else {
         setLogs([]);
         setFilteredLogs([]);
       }
     } catch (error) {
       console.error('Error fetching audit logs:', error);
-      setError('Failed to fetch audit logs. Please try again.');
+      setError(error.message || 'Failed to fetch audit logs. Please try again.');
       setLogs([]);
       setFilteredLogs([]);
     } finally {
       setIsLoading(false);
     }
   };
+
+  const getMockLogs = () => [
+    {
+      id: 1,
+      action: 'Profile Updated',
+      details: 'VPE profile information modified - updated office location and contact details',
+      category: 'Admin',
+      user: 'Dr. Sarah Johnson',
+      timestamp: '2 hours ago',
+      ipAddress: '192.168.1.100',
+      userAgent: 'JuanLMS Mobile App v2.1',
+    },
+    {
+      id: 2,
+      action: 'Announcement Created',
+      details: 'New announcement created: "Faculty Meeting Schedule Update" targeting faculty members',
+      category: 'Academic',
+      user: 'Dr. Sarah Johnson',
+      timestamp: '3 hours ago',
+      ipAddress: '192.168.1.100',
+      userAgent: 'JuanLMS Mobile App v2.1',
+    },
+    {
+      id: 3,
+      action: 'Support Ticket Updated',
+      details: 'Ticket #1234 status changed from "Open" to "In Progress" - Faculty Meeting Room Booking Issue',
+      category: 'Faculty',
+      user: 'Dr. Sarah Johnson',
+      timestamp: '4 hours ago',
+      ipAddress: '192.168.1.100',
+      userAgent: 'JuanLMS Mobile App v2.1',
+    },
+    {
+      id: 4,
+      action: 'User Login',
+      details: 'Successful login from mobile application',
+      category: 'System',
+      user: 'Dr. Sarah Johnson',
+      timestamp: '5 hours ago',
+      ipAddress: '192.168.1.100',
+      userAgent: 'JuanLMS Mobile App v2.1',
+    },
+    {
+      id: 5,
+      action: 'Grade Report Generated',
+      details: 'Institutional grade report exported for Q1 2024 academic performance review',
+      category: 'Academic',
+      user: 'Dr. Sarah Johnson',
+      timestamp: '1 day ago',
+      ipAddress: '192.168.1.100',
+      userAgent: 'JuanLMS Mobile App v2.1',
+    },
+    {
+      id: 6,
+      action: 'Faculty Meeting Scheduled',
+      details: 'Monthly faculty meeting scheduled for next Tuesday at 2:00 PM in Conference Room A',
+      category: 'Faculty',
+      user: 'Dr. Sarah Johnson',
+      timestamp: '2 days ago',
+      ipAddress: '192.168.1.100',
+      userAgent: 'JuanLMS Mobile App v2.1',
+    },
+    {
+      id: 7,
+      action: 'Student Performance Review',
+      details: 'Reviewed academic performance metrics for Computer Science department - 8.7% improvement noted',
+      category: 'Academic',
+      user: 'Dr. Sarah Johnson',
+      timestamp: '3 days ago',
+      ipAddress: '192.168.1.100',
+      userAgent: 'JuanLMS Mobile App v2.1',
+    },
+    {
+      id: 8,
+      action: 'System Configuration Updated',
+      details: 'Updated academic calendar settings and holiday schedule for upcoming semester',
+      category: 'Admin',
+      user: 'Dr. Sarah Johnson',
+      timestamp: '1 week ago',
+      ipAddress: '192.168.1.100',
+      userAgent: 'JuanLMS Mobile App v2.1',
+    },
+  ];
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -76,35 +244,33 @@ export default function VPEAuditTrail() {
     }
   }, [isFocused]);
 
-  // Filter logs based on search query and active filter (same as Admin)
   useEffect(() => {
     let filtered = logs;
 
     if (activeFilter !== 'all') {
-      filtered = filtered.filter(log => {
-        const category = log.category?.toLowerCase() || log.userRole?.toLowerCase() || '';
-        return category === activeFilter.toLowerCase();
-      });
+      filtered = filtered.filter(log => normalizeCategory(log) === activeFilter.toLowerCase());
     }
 
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase().trim();
-      filtered = filtered.filter(log => {
-        const userName = log.userName?.toLowerCase() || '';
-        const userRole = log.userRole?.toLowerCase() || '';
-        const action = log.action?.toLowerCase() || '';
-        const details = log.details?.toLowerCase() || '';
-        return (
-          userName.includes(query) ||
-          userRole.includes(query) ||
-          action.includes(query) ||
-          details.includes(query)
-        );
-      });
+    if (searchQuery.length > 0) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(log =>
+        (log.action || '').toLowerCase().includes(query) ||
+        (log.details || '').toLowerCase().includes(query) ||
+        (log.userName || '').toLowerCase().includes(query) ||
+        (normalizeCategory(log) || '').toLowerCase().includes(query)
+      );
     }
 
     setFilteredLogs(filtered);
-  }, [searchQuery, logs, activeFilter]);
+  }, [activeFilter, searchQuery, logs]);
+
+  const handleLogPress = (log) => {
+    Alert.alert(
+      log.action,
+      `Details: ${log.details}\n\nUser: ${log.userName} (${log.userRole})\nCategory: ${(log.category || log.userRole || 'system').toString()}\nTime: ${formatDate(log.timestamp, 'MMMM D, YYYY hh:mm A')}\nIP: ${log.ipAddress || 'N/A'}\nUser Agent: ${log.userAgent || 'N/A'}`,
+      [{ text: 'Close' }]
+    );
+  };
 
   const clearSearch = () => {
     setSearchQuery('');
@@ -127,38 +293,28 @@ export default function VPEAuditTrail() {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Audit Trail</Text>
-        <Icon name="history" size={28} color="#00418b" />
+        <Text style={styles.headerSubtitle}>Monitor system activities and user actions</Text>
       </View>
 
       {/* Search Bar */}
       <View style={styles.searchContainer}>
-        <View style={styles.searchBar}>
+        <View style={styles.searchInputContainer}>
           <Icon name="magnify" size={20} color="#666" style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search by user, role, or action..."
-            placeholderTextColor="#999"
+            placeholder="Search logs..."
             value={searchQuery}
             onChangeText={setSearchQuery}
-            autoCapitalize="none"
-            autoCorrect={false}
+            placeholderTextColor="#999"
           />
           {searchQuery.length > 0 && (
             <TouchableOpacity onPress={clearSearch} style={styles.clearButton}>
-              <Icon name="close-circle" size={20} color="#666" />
+              <Icon name="close" size={20} color="#666" />
             </TouchableOpacity>
           )}
         </View>
-        
-        {/* Search Results Count */}
-        {searchQuery.length > 0 && (
-          <Text style={styles.resultsCount}>
-            {filteredLogs.length} result{filteredLogs.length !== 1 ? 's' : ''} found
-          </Text>
-        )}
       </View>
 
       {/* Filter Tabs */}
@@ -176,137 +332,119 @@ export default function VPEAuditTrail() {
         ))}
       </View>
 
-      {/* Audit Trail List */}
-      <FlatList
-        data={days}
-        keyExtractor={item => item}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-        renderItem={({ item: day }) => {
-          return (
+      {/* Logs List */}
+      <View style={styles.content}>
+        <FlatList
+          data={days}
+          keyExtractor={item => item}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+          renderItem={({ item: day }) => (
             <View style={styles.daySection}>
-              <Text style={styles.dayHeader}>{formatDate(day, 'MMMM D, YYYY')}</Text>
-              {[...grouped[day]]
-                .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-                .map((log, idx) => (
-                  <View key={log._id || log.id || idx} style={styles.card}>
-                    <View style={styles.cardRow}>
-                      <Icon name="account" size={24} color="#00418b" style={{ marginRight: 8 }} />
-                      <Text style={styles.userName}>
-                        {log.userName} <Text style={styles.role}>({log.userRole})</Text>
-                      </Text>
-                    </View>
-                    <View style={styles.cardRow}>
-                      <Icon name="flash" size={20} color="#888" style={{ marginRight: 4 }} />
-                      <Text style={styles.action}>{log.action}</Text>
-                      <Text style={styles.time}>{formatDate(log.timestamp, 'hh:mm A')}</Text>
-                    </View>
-                    {log.details && (
-                      <View style={styles.detailsRow}>
-                        <Text style={styles.details}>{log.details}</Text>
-                      </View>
-                    )}
-                  </View>
-                ))}
+              <Text style={styles.dayHeader}>
+                {formatDate(day, 'dddd, MMMM D, YYYY')}
+              </Text>
+              {[...grouped[day]].sort(sortByTimestampDesc).map((log) => (
+                <LogItem
+                  key={log._id || log.id}
+                  log={log}
+                  onPress={() => handleLogPress(log)}
+                />
+              ))}
             </View>
-          );
-        }}
-        ListEmptyComponent={(
-          <View style={styles.emptyContainer}>
-            {isLoading ? (
-              <>
-                <Icon name="loading" size={48} color="#ccc" />
-                <Text style={styles.emptyText}>Loading audit logs...</Text>
-              </>
-            ) : (
-              <>
-                <Icon name="file-search-outline" size={48} color="#ccc" />
-                <Text style={styles.emptyText}>
-                  {searchQuery.length > 0 ? 'No results found for your search.' : 'No logs found.'}
-                </Text>
-                {searchQuery.length > 0 && (
-                  <Text style={styles.emptySubtext}>Try adjusting your search terms.</Text>
-                )}
-              </>
-            )}
-          </View>
-        )}
-        showsVerticalScrollIndicator={false}
-      />
+          )}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              {isLoading ? (
+                <>
+                  <Icon name="loading" size={48} color="#ccc" />
+                  <Text style={styles.emptyText}>Loading audit logs...</Text>
+                </>
+              ) : (
+                <>
+                  <Icon name="file-search-outline" size={48} color="#ccc" />
+                  <Text style={styles.emptyText}>
+                    {searchQuery.length > 0 ? 'No results found for your search.' : 'No logs found.'}
+                  </Text>
+                  {searchQuery.length > 0 && (
+                    <Text style={styles.emptySubtext}>Try adjusting your search terms.</Text>
+                  )}
+                </>
+              )}
+            </View>
+          }
+          showsVerticalScrollIndicator={false}
+        />
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
-    backgroundColor: '#f7f9fa', 
-    padding: 16 
+  container: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
   },
-  header: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    justifyContent: 'space-between', 
-    marginBottom: 16 
+  header: {
+    backgroundColor: '#00418b',
+    padding: 20,
+    paddingTop: 40,
   },
-  headerTitle: { 
-    fontSize: 22, 
-    fontWeight: 'bold', 
-    color: '#00418b', 
-    fontFamily: 'Poppins-Bold' 
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#fff',
+    fontFamily: 'Poppins-Bold',
+  },
+  headerSubtitle: {
+    fontSize: 16,
+    color: '#e3f2fd',
+    marginTop: 4,
+    fontFamily: 'Poppins-Regular',
   },
   searchContainer: {
-    marginBottom: 16,
+    padding: 20,
+    paddingBottom: 10,
   },
-  searchBar: {
+  searchInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#fff',
     borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
+    paddingHorizontal: 16,
+    elevation: 2,
     shadowColor: '#000',
-    shadowOpacity: 0.04,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
     shadowRadius: 4,
-    elevation: 1,
   },
   searchIcon: {
-    marginRight: 8,
+    marginRight: 12,
   },
   searchInput: {
     flex: 1,
     fontSize: 16,
     color: '#333',
+    paddingVertical: 16,
     fontFamily: 'Poppins-Regular',
-    paddingVertical: 8,
   },
   clearButton: {
-    padding: 4,
-  },
-  resultsCount: {
-    fontSize: 14,
-    color: '#666',
-    fontFamily: 'Poppins-Regular',
-    marginTop: 8,
-    textAlign: 'center',
+    padding: 8,
   },
   filterContainer: {
     flexDirection: 'row',
     paddingHorizontal: 20,
     marginBottom: 16,
-    flexWrap: 'wrap',
-    gap: 8,
   },
   filterTab: {
-    paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: '#f0f0f0',
+    paddingHorizontal: 12,
+    marginHorizontal: 4,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: '#ddd',
+    backgroundColor: '#fff',
   },
   activeFilterTab: {
     backgroundColor: '#00418b',
@@ -319,87 +457,106 @@ const styles = StyleSheet.create({
   },
   activeFilterTabText: {
     color: '#fff',
-    fontFamily: 'Poppins-Bold',
-  },
-  daySection: { 
-    marginBottom: 18 
-  },
-  dayHeader: { 
-    fontSize: 16, 
-    fontWeight: 'bold', 
-    color: '#00418b', 
-    marginBottom: 6, 
-    fontFamily: 'Poppins-SemiBold' 
-  },
-  card: { 
-    backgroundColor: '#fff', 
-    borderRadius: 12, 
-    padding: 12, 
-    marginBottom: 8, 
-    shadowColor: '#000', 
-    shadowOpacity: 0.04, 
-    shadowRadius: 4, 
-    elevation: 1 
-  },
-  cardRow: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    marginBottom: 2 
-  },
-  userName: { 
-    fontSize: 15, 
-    fontWeight: 'bold', 
-    color: '#222',
+    fontWeight: '600',
     fontFamily: 'Poppins-SemiBold',
   },
-  role: { 
-    fontSize: 13, 
-    color: '#888', 
-    fontWeight: 'normal',
+  content: {
+    flex: 1,
+    paddingHorizontal: 20,
+  },
+  daySection: {
+    marginBottom: 20,
+  },
+  dayHeader: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 12,
+    fontFamily: 'Poppins-SemiBold',
+  },
+  logItem: {
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  logHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 8,
+  },
+  logInfo: {
+    flex: 1,
+  },
+  logAction: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 6,
+    fontFamily: 'Poppins-SemiBold',
+  },
+  filterBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  filterText: {
+    fontSize: 12,
+    color: '#fff',
+    fontWeight: '600',
+    fontFamily: 'Poppins-SemiBold',
+  },
+  logTime: {
+    fontSize: 12,
+    color: '#999',
     fontFamily: 'Poppins-Regular',
   },
-  action: { 
-    fontSize: 14, 
-    color: '#00418b',
+  logDetails: {
+    fontSize: 14,
+    color: '#666',
+    lineHeight: 20,
+    marginBottom: 12,
     fontFamily: 'Poppins-Regular',
-    marginRight: 8 
   },
-  time: { 
-    fontSize: 13, 
-    color: '#888',
-    fontFamily: 'Poppins-Regular',
-    marginLeft: 'auto' 
+  logFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
-  detailsRow: {
-    marginTop: 4,
-    paddingTop: 4,
-    borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
+  footerItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  details: {
+  footerText: {
     fontSize: 12,
     color: '#666',
+    marginLeft: 6,
     fontFamily: 'Poppins-Regular',
-    fontStyle: 'italic',
   },
   emptyContainer: {
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 40,
+    paddingVertical: 60,
   },
   emptyText: {
     fontSize: 16,
-    color: '#888',
-    fontFamily: 'Poppins-Regular',
-    textAlign: 'center',
+    color: '#999',
     marginTop: 12,
+    textAlign: 'center',
+    fontFamily: 'Poppins-Regular',
   },
   emptySubtext: {
     fontSize: 14,
-    color: '#999',
-    fontFamily: 'Poppins-Regular',
+    color: '#ccc',
+    marginTop: 8,
     textAlign: 'center',
-    marginTop: 4,
+    fontFamily: 'Poppins-Regular',
   },
   errorContainer: {
     flex: 1,

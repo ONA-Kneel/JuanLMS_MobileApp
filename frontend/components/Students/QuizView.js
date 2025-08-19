@@ -48,9 +48,27 @@ export default function QuizView() {
   const [unansweredQuestions, setUnansweredQuestions] = useState([]);
 
   useEffect(() => {
-    setIsReviewMode(!!review);
-    fetchQuiz();
-  }, [quizId]);
+    console.log('QuizView useEffect triggered with:', {
+      quizId,
+      review,
+      user: user ? { id: user._id, name: user.firstname } : null
+    });
+    
+    // Set review mode immediately if review prop is true
+    if (review) {
+      console.log('Setting review mode from navigation prop');
+      setIsReviewMode(true);
+    }
+    
+    if (quizId) {
+      fetchQuiz();
+    }
+  }, [quizId, review]);
+
+  // Debug state changes
+  useEffect(() => {
+    console.log('State changed - isReviewMode:', isReviewMode, 'quizResult:', !!quizResult, 'quiz:', !!quiz);
+  }, [isReviewMode, quizResult, quiz]);
 
   useEffect(() => {
     if (quiz && quiz.timeLimit && quiz.timeLimit > 0) {
@@ -109,15 +127,23 @@ export default function QuizView() {
       setLoading(true);
       
       const token = await AsyncStorage.getItem('jwtToken');
-      const response = await fetch(`${API_BASE}/api/quizzes/${quizId}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-
+      console.log('Fetching quiz data for ID:', quizId);
+      const response = await fetch(`${API_BASE}/api/quizzes/${quizId}`);
+      
       if (!response.ok) {
         throw new Error('Failed to fetch quiz');
       }
-
+      
       const quizData = await response.json();
+      
+      console.log('Quiz data loaded:', {
+        quizId: quizData._id,
+        title: quizData.title,
+        questionsLength: quizData.questions?.length,
+        quizPoints: quizData.points,
+        questionPoints: quizData.questions?.map(q => ({ question: q.question.substring(0, 30) + '...', points: q.points }))
+      });
+      
       setQuiz(quizData);
       
       // Initialize answers object
@@ -144,30 +170,228 @@ export default function QuizView() {
         
         if (responseRes.ok) {
           const responseData = await responseRes.json();
+          console.log('=== QUIZ RESPONSE DEBUG ===');
+          console.log('Quiz response data:', responseData);
+          console.log('Checked answers structure:', responseData.checkedAnswers);
+          console.log('Answers structure:', responseData.answers);
+          
+          // Deep dive into the data structure
+          if (responseData.answers && Array.isArray(responseData.answers)) {
+            console.log('=== ANSWERS ARRAY ANALYSIS ===');
+            responseData.answers.forEach((answerObj, index) => {
+              console.log(`Answer ${index + 1}:`, {
+                fullObject: answerObj,
+                keys: Object.keys(answerObj),
+                answer: answerObj.answer,
+                value: answerObj.value,
+                text: answerObj.text,
+                choice: answerObj.choice,
+                type: typeof answerObj.answer,
+                isNull: answerObj.answer === null,
+                isUndefined: answerObj.answer === undefined
+              });
+            });
+          }
+          
+          if (responseData.checkedAnswers && Array.isArray(responseData.checkedAnswers)) {
+            console.log('=== CHECKED ANSWERS ANALYSIS ===');
+            responseData.checkedAnswers.forEach((check, index) => {
+              console.log(`Checked Answer ${index + 1}:`, {
+                fullObject: check,
+                keys: Object.keys(check),
+                correct: check.correct,
+                studentAnswer: check.studentAnswer,
+                correctAnswer: check.correctAnswer,
+                studentAnswerType: typeof check.studentAnswer,
+                correctAnswerType: typeof check.correctAnswer
+              });
+            });
+          }
+          
           if (responseData && responseData.score !== undefined) {
             // Student has already submitted
             console.log('Quiz already submitted:', responseData);
+            
+            // Calculate total points from quiz questions as fallback
+            const calculatedTotal = responseData.total || 
+              (quizData.questions && Array.isArray(quizData.questions) 
+                ? quizData.questions.reduce((sum, q) => sum + (q.points || 1), 0)
+                : quizData.points || 100);
+            
+            console.log('Score data received:', {
+              score: responseData.score,
+              total: responseData.total,
+              quizDataPoints: quizData.points,
+              calculatedTotal: calculatedTotal,
+              questionsLength: quizData.questions?.length,
+              questionPoints: quizData.questions?.map(q => q.points)
+            });
+            
             setQuizResult({
               score: responseData.score || 0,
-              totalPoints: responseData.total || quizData.points || 100,
-              percentage: responseData.percentage || Math.round(((responseData.score || 0) / (responseData.total || quizData.points || 100)) * 100),
+              totalPoints: calculatedTotal,
+              percentage: responseData.percentage || Math.round(((responseData.score || 0) / calculatedTotal) * 100),
               timeSpent: responseData.timeSpent || 0,
               submittedAt: responseData.submittedAt || null,
             });
+            
             if (Array.isArray(responseData.checkedAnswers)) {
+              console.log('Checked answers array length:', responseData.checkedAnswers.length);
+              // Log each checked answer for debugging
+              responseData.checkedAnswers.forEach((check, idx) => {
+                console.log(`Question ${idx + 1} check:`, {
+                  correct: check.correct,
+                  studentAnswer: check.studentAnswer,
+                  correctAnswer: check.correctAnswer,
+                  type: typeof check.correctAnswer,
+                  isArray: Array.isArray(check.correctAnswer)
+                });
+              });
               setQuizCheckedAnswers(responseData.checkedAnswers);
+            } else {
+              console.log('No checked answers array found');
+              setQuizCheckedAnswers([]);
             }
+            
+            // Load the student's previous answers
+            if (responseData.answers && Array.isArray(responseData.answers)) {
+              const previousAnswers = {};
+              responseData.answers.forEach((answerObj, index) => {
+                // Extract the actual answer value from the answer object
+                let answerValue = answerObj.answer;
+                
+                // If answer is undefined/null, try alternative fields
+                if (answerValue === undefined || answerValue === null) {
+                  answerValue = answerObj.value || answerObj.text || answerObj.choice || '';
+                }
+                
+                // Ensure we store the answer value, not the object
+                previousAnswers[index] = answerValue;
+                
+                console.log(`Loading answer for question ${index + 1}:`, {
+                  originalAnswerObj: answerObj,
+                  extractedAnswer: answerValue,
+                  type: typeof answerValue
+                });
+              });
+              console.log('Previous answers loaded:', previousAnswers);
+              setAnswers(previousAnswers);
+            } else {
+              // If no answers array, try to extract from checkedAnswers
+              if (responseData.checkedAnswers && Array.isArray(responseData.checkedAnswers)) {
+                const extractedAnswers = {};
+                responseData.checkedAnswers.forEach((check, index) => {
+                  if (check.studentAnswer !== undefined && check.studentAnswer !== null) {
+                    extractedAnswers[index] = check.studentAnswer;
+                    console.log(`Extracted answer from checkedAnswers for Q${index + 1}:`, check.studentAnswer);
+                  }
+                });
+                if (Object.keys(extractedAnswers).length > 0) {
+                  console.log('Extracted answers from checkedAnswers:', extractedAnswers);
+                  setAnswers(extractedAnswers);
+                }
+              }
+              
+              // Final fallback: if we still have no answers, create a basic structure
+              if (Object.keys(answers).length === 0 && quizData.questions) {
+                console.log('Creating fallback answer structure');
+                const fallbackAnswers = {};
+                quizData.questions.forEach((_, index) => {
+                  fallbackAnswers[index] = 'Answer not loaded';
+                });
+                setAnswers(fallbackAnswers);
+              }
+            }
+            
             // If explicitly in review mode, render full quiz with answers (no modal)
             if (review) {
+              console.log('Setting review mode from navigation prop');
               setIsReviewMode(true);
+              
+              // Ensure we have quizResult set for review mode
+              if (!quizResult) {
+                console.log('Setting quizResult for review mode');
+                setQuizResult({
+                  score: responseData.score || 0,
+                  totalPoints: calculatedTotal,
+                  percentage: responseData.percentage || Math.round(((responseData.score || 0) / calculatedTotal) * 100),
+                  timeSpent: responseData.timeSpent || 0,
+                  submittedAt: responseData.submittedAt || null,
+                });
+              }
             } else {
+              console.log('Setting review mode from quiz submission');
               setShowResultsModal(true);
               setIsReviewMode(true);
             }
           }
+        } else {
+          console.log('Response not ok:', responseRes.status);
+          
+          // If in review mode but no response, create a basic quizResult
+          if (review) {
+            console.log('Creating fallback quizResult for review mode');
+            const calculatedTotal = quizData.questions.reduce((sum, q) => sum + (q.points || 1), 0);
+            setQuizResult({
+              score: 0,
+              totalPoints: calculatedTotal,
+              percentage: 0,
+              timeSpent: 0,
+              submittedAt: null,
+            });
+            
+            // Also create fallback answers for review mode
+            const fallbackAnswers = {};
+            quizData.questions.forEach((_, index) => {
+              fallbackAnswers[index] = 'Answer not loaded';
+            });
+            setAnswers(fallbackAnswers);
+            
+            // Create fallback checkedAnswers for review mode
+            const fallbackCheckedAnswers = [];
+            quizData.questions.forEach((_, index) => {
+              fallbackCheckedAnswers.push({
+                correct: false,
+                studentAnswer: 'Answer not loaded',
+                correctAnswer: null
+              });
+            });
+            setQuizCheckedAnswers(fallbackCheckedAnswers);
+          }
         }
       } catch (responseError) {
         console.log('Error checking quiz response:', responseError);
+        
+        // If in review mode but error occurred, create a basic quizResult
+        if (review) {
+          console.log('Creating fallback quizResult due to error');
+          const calculatedTotal = quizData.questions.reduce((sum, q) => sum + (q.points || 1), 0);
+          setQuizResult({
+            score: 0,
+            totalPoints: calculatedTotal,
+            percentage: 0,
+            timeSpent: 0,
+            submittedAt: null,
+          });
+          
+          // Also create fallback answers for review mode
+          const fallbackAnswers = {};
+          quizData.questions.forEach((_, index) => {
+            fallbackAnswers[index] = 'Answer not loaded';
+          });
+          setAnswers(fallbackAnswers);
+          
+          // Create fallback checkedAnswers for review mode
+          const fallbackCheckedAnswers = [];
+          quizData.questions.forEach((_, index) => {
+            fallbackCheckedAnswers.push({
+              correct: false,
+              studentAnswer: 'Answer not loaded',
+              correctAnswer: null
+            });
+          });
+          setQuizCheckedAnswers(fallbackCheckedAnswers);
+        }
       }
     } catch (error) {
       console.error('Error fetching quiz:', error);
@@ -200,6 +424,40 @@ export default function QuizView() {
         [questionIndex]: value
       }));
     }
+  };
+
+  const handleChoiceSelect = (choice, questionType) => {
+    if (isReviewMode) return; // Disable in review mode
+    
+    if (questionType === 'multiple') {
+      // For multiple choice, toggle the selection
+      const currentAnswers = answers[currentQuestionIndex] || [];
+      if (currentAnswers.includes(choice)) {
+        setAnswers(prev => ({
+          ...prev,
+          [currentQuestionIndex]: currentAnswers.filter(ans => ans !== choice)
+        }));
+      } else {
+        setAnswers(prev => ({
+          ...prev,
+          [currentQuestionIndex]: [...currentAnswers, choice]
+        }));
+      }
+    } else {
+      // For single choice (true/false, etc.)
+      setAnswers(prev => ({
+        ...prev,
+        [currentQuestionIndex]: choice
+      }));
+    }
+  };
+
+  const handleTextInput = (text, questionIndex) => {
+    if (isReviewMode) return; // Disable in review mode
+    setAnswers(prev => ({
+      ...prev,
+      [questionIndex]: text
+    }));
   };
 
   const handleSubmitQuiz = async () => {
@@ -330,7 +588,25 @@ export default function QuizView() {
     const checked = Array.isArray(quizCheckedAnswers) ? quizCheckedAnswers[index] : null;
     const revealAnswers = isReviewMode && !!checked;
 
-    if (!isCurrentQuestion) return null;
+    // Debug logging
+    if (isReviewMode) {
+      console.log(`Question ${index + 1}:`, {
+        question: question.question,
+        currentAnswer,
+        checked,
+        revealAnswers,
+        questionType: question.type,
+        checkedAnswersArray: quizCheckedAnswers,
+        currentChecked: checked
+      });
+    }
+
+    // In review mode, show all questions, not just current
+    if (!isReviewMode && !isCurrentQuestion) return null;
+
+    // Fallback: if no checked data but in review mode, create a basic structure
+    const safeChecked = checked || (isReviewMode ? { correct: false, studentAnswer: currentAnswer, correctAnswer: null } : null);
+    const safeRevealAnswers = isReviewMode && !!safeChecked;
 
     return (
       <View style={styles.questionContainer}>
@@ -338,126 +614,149 @@ export default function QuizView() {
           <Text style={styles.questionNumber}>Question {index + 1} of {quiz.questions.length}</Text>
           <Text style={styles.questionPoints}>{question.points || 1} point{question.points !== 1 ? 's' : ''}</Text>
         </View>
-
+        
         <Text style={styles.questionText}>{question.question}</Text>
-
-        {question.image && (
-          <View style={styles.imageContainer}>
-            <Text style={styles.imageText}>[Image: {question.image}]</Text>
+        
+        {/* Show student's answer and correct answer in review mode */}
+        {safeRevealAnswers && safeChecked && (
+          <View style={styles.answerFeedback}>
+            <Text style={styles.answerLabel}>Your answer: </Text>
+            <Text style={[
+              styles.answerText, 
+              { color: safeChecked.correct ? '#4CAF50' : '#F44336' }
+            ]}>
+              {(() => {
+                if (Array.isArray(currentAnswer)) {
+                  return currentAnswer.join(', ') || 'No answer';
+                } else if (currentAnswer === undefined || currentAnswer === null || currentAnswer === '') {
+                  return 'No answer';
+                } else {
+                  return currentAnswer;
+                }
+              })()}
+            </Text>
+            {!safeChecked.correct && safeChecked.correctAnswer && (
+              <>
+                <Text style={styles.answerLabel}>Correct answer: </Text>
+                <Text style={[styles.answerText, { color: '#4CAF50' }]}>
+                  {(() => {
+                    if (question.type === 'multiple') {
+                      if (Array.isArray(safeChecked.correctAnswer)) {
+                        return safeChecked.correctAnswer.join(', ');
+                      } else {
+                        return safeChecked.correctAnswer;
+                      }
+                    } else {
+                      return safeChecked.correctAnswer;
+                    }
+                  })()}
+                </Text>
+              </>
+            )}
           </View>
         )}
 
         {question.type === 'multiple' && (
           <View style={styles.choicesContainer}>
-            {question.choices.map((choice, choiceIndex) => (
-              <TouchableOpacity
-                key={choiceIndex}
-                style={[
-                  styles.choiceButton,
-                  (Array.isArray(currentAnswer) && currentAnswer.includes(choice)) && styles.selectedChoice,
-                  revealAnswers && checked && Array.isArray(checked.correctAnswer) && checked.correctAnswer.includes(choice) && { borderColor: '#4CAF50' },
-                  revealAnswers && checked && Array.isArray(currentAnswer) && currentAnswer.includes(choice) && !checked.correct && { borderColor: '#F44336' }
-                ]}
-                onPress={!isReviewMode ? () => handleAnswerChange(index, choice, true) : undefined}
-              >
-                <MaterialIcons
-                  name={(Array.isArray(currentAnswer) && currentAnswer.includes(choice)) ? 'check-circle' : 'radio-button-unchecked'}
-                  size={24}
-                  color={(Array.isArray(currentAnswer) && currentAnswer.includes(choice)) ? '#00418b' : '#ccc'}
-                />
-                <Text style={[
-                  styles.choiceText,
-                  (Array.isArray(currentAnswer) && currentAnswer.includes(choice)) && styles.selectedChoiceText
-                ]}>
-                  {choice}
-                </Text>
-              </TouchableOpacity>
-            ))}
-            {revealAnswers && (
-              <View style={{ marginTop: 6 }}>
-                <Text style={{ fontSize: 12, color: checked?.correct ? '#4CAF50' : '#F44336' }}>
-                  {checked?.correct ? 'Correct' : 'Incorrect'}
-                </Text>
-                {Array.isArray(checked?.correctAnswer) && (
-                  <Text style={{ fontSize: 12, color: '#4CAF50' }}>Correct answer: {checked.correctAnswer.join(', ')}</Text>
-                )}
-              </View>
-            )}
-          </View>
-        )}
+            {question.choices.map((choice, choiceIndex) => {
+              // Handle both cases: student answer might be stored as choice text or choice index
+              const isSelected = Array.isArray(currentAnswer) 
+                ? currentAnswer.includes(choiceIndex) || currentAnswer.includes(choice)
+                : currentAnswer === choiceIndex || currentAnswer === choice;
+              
+              // For multiple choice, check if this choice is the correct answer
+              let isCorrectAnswer = false;
+              if (safeRevealAnswers && safeChecked && safeChecked.correctAnswer !== undefined) {
+                if (Array.isArray(safeChecked.correctAnswer)) {
+                  // Multiple correct answers (array of values)
+                  isCorrectAnswer = safeChecked.correctAnswer.includes(choice);
+                } else if (typeof safeChecked.correctAnswer === 'string') {
+                  // Single correct answer (text)
+                  isCorrectAnswer = safeChecked.correctAnswer === choice;
+                }
+              }
 
-        {question.type === 'identification' && (
-          <TextInput
-            style={styles.textInput}
-            placeholder="Enter your answer"
-            value={currentAnswer || ''}
-            onChangeText={!isReviewMode ? (text) => handleAnswerChange(index, text) : undefined}
-            multiline
-          />
-        )}
-        {isReviewMode && question.type === 'identification' && (
-          <View style={{ marginTop: 8, padding: 12, backgroundColor: '#f7fbff', borderRadius: 8 }}>
-            <Text style={{ fontSize: 12, color: '#333' }}>Your answer: {String(currentAnswer || '')}</Text>
-            {checked?.correctAnswer !== undefined && (
-              <Text style={{ fontSize: 12, color: '#4CAF50', marginTop: 4 }}>Correct answer: {String(checked.correctAnswer)}</Text>
-            )}
+              const choiceStyle = [
+                styles.choice,
+                isSelected && styles.selectedChoice,
+                safeRevealAnswers && isCorrectAnswer && styles.correctChoice,
+                safeRevealAnswers && isSelected && !safeChecked.correct && styles.incorrectChoice
+              ];
+
+              return (
+                <View key={choiceIndex} style={styles.choiceRow}>
+                  <TouchableOpacity
+                    style={choiceStyle}
+                    disabled={isReviewMode} // Disable in review mode
+                    onPress={() => !isReviewMode && handleChoiceSelect(choiceIndex, question.type)}
+                  >
+                    <Text style={[
+                      styles.choiceText,
+                      isSelected && styles.selectedChoiceText,
+                      safeRevealAnswers && isCorrectAnswer && styles.correctChoiceText,
+                      safeRevealAnswers && isSelected && !safeChecked.correct && styles.incorrectChoiceText
+                    ]}>
+                      {choice}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              );
+            })}
           </View>
         )}
 
         {question.type === 'truefalse' && (
           <View style={styles.choicesContainer}>
-            <TouchableOpacity
-              style={[
-                styles.choiceButton,
-                currentAnswer === 'true' && styles.selectedChoice,
-                revealAnswers && checked && checked.correctAnswer === 'true' && { borderColor: '#4CAF50' },
-                revealAnswers && checked && currentAnswer === 'true' && !checked.correct && { borderColor: '#F44336' }
-              ]}
-              onPress={!isReviewMode ? () => handleAnswerChange(index, 'true') : undefined}
-            >
-              <MaterialIcons
-                name={currentAnswer === 'true' ? 'check-circle' : 'radio-button-unchecked'}
-                size={24}
-                color={currentAnswer === 'true' ? '#00418b' : '#ccc'}
-              />
-              <Text style={[
-                styles.choiceText,
-                currentAnswer === 'true' && styles.selectedChoiceText
-              ]}>
-                True
-              </Text>
-            </TouchableOpacity>
+            {['True', 'False'].map((choice, choiceIndex) => {
+              const isSelected = currentAnswer === choice;
+              const isCorrectAnswer = safeRevealAnswers && safeChecked && safeChecked.correctAnswer === choice;
+              
+              const choiceStyle = [
+                styles.choice,
+                isSelected && styles.selectedChoice,
+                safeRevealAnswers && isCorrectAnswer && styles.correctChoice,
+                safeRevealAnswers && isSelected && !safeChecked.correct && styles.incorrectChoice
+              ];
 
-            <TouchableOpacity
-              style={[
-                styles.choiceButton,
-                currentAnswer === 'false' && styles.selectedChoice,
-                revealAnswers && checked && checked.correctAnswer === 'false' && { borderColor: '#4CAF50' },
-                revealAnswers && checked && currentAnswer === 'false' && !checked.correct && { borderColor: '#F44336' }
-              ]}
-              onPress={!isReviewMode ? () => handleAnswerChange(index, 'false') : undefined}
-            >
-              <MaterialIcons
-                name={currentAnswer === 'false' ? 'check-circle' : 'radio-button-unchecked'}
-                size={24}
-                color={currentAnswer === 'false' ? '#00418b' : '#ccc'}
-              />
-              <Text style={[
-                styles.choiceText,
-                currentAnswer === 'false' && styles.selectedChoiceText
-              ]}>
-                False
-              </Text>
-            </TouchableOpacity>
+              return (
+                <View key={choiceIndex} style={styles.choiceRow}>
+                  <TouchableOpacity
+                    style={choiceStyle}
+                    disabled={isReviewMode} // Disable in review mode
+                    onPress={() => !isReviewMode && handleChoiceSelect(choice, question.type)}
+                  >
+                    <Text style={[
+                      styles.choiceText,
+                      isSelected && styles.selectedChoiceText,
+                      safeRevealAnswers && isCorrectAnswer && styles.correctChoiceText,
+                      safeRevealAnswers && isSelected && !safeChecked.correct && styles.incorrectChoiceText
+                    ]}>
+                      {choice}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              );
+            })}
           </View>
         )}
-        {revealAnswers && question.type !== 'multiple' && (
-          <View style={{ marginTop: 6 }}>
-            <Text style={{ fontSize: 12, color: checked?.correct ? '#4CAF50' : '#F44336' }}>
-              {checked?.correct ? 'Correct' : 'Incorrect'}
-            </Text>
-            {checked?.correctAnswer && (
-              <Text style={{ fontSize: 12, color: '#4CAF50' }}>Correct answer: {String(checked.correctAnswer)}</Text>
+
+        {question.type === 'identification' && (
+          <View style={styles.identificationContainer}>
+            <TextInput
+              style={[
+                styles.identificationInput,
+                safeRevealAnswers && safeChecked && safeChecked.correct && styles.correctAnswer,
+                safeRevealAnswers && safeChecked && !safeChecked.correct && styles.incorrectAnswer
+              ]}
+              placeholder="Type your answer..."
+              value={currentAnswer || ''}
+              onChangeText={(text) => !isReviewMode && handleTextInput(text, index)}
+              editable={!isReviewMode} // Disable in review mode
+            />
+            {safeRevealAnswers && safeChecked && safeChecked.correctAnswer && (
+              <Text style={{ fontSize: 14, color: '#4CAF50', marginTop: 4 }}>
+                Correct answer: {safeChecked.correctAnswer}
+              </Text>
             )}
           </View>
         )}
@@ -498,7 +797,9 @@ export default function QuizView() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#00418b" />
-        <Text style={styles.loadingText}>Loading quiz...</Text>
+        <Text style={styles.loadingText}>
+          {isReviewMode ? 'Loading quiz review...' : 'Loading quiz...'}
+        </Text>
       </View>
     );
   }
@@ -510,6 +811,15 @@ export default function QuizView() {
       </View>
     );
   }
+
+  // Debug render state
+  console.log('QuizView render state:', {
+    isReviewMode,
+    hasQuizResult: !!quizResult,
+    quizResultData: quizResult,
+    quizLoaded: !!quiz,
+    questionsCount: quiz.questions?.length
+  });
 
   // Check quiz availability
   if (!isAvailable()) {
@@ -570,7 +880,7 @@ export default function QuizView() {
           <MaterialIcons name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{quiz.title}</Text>
-        {timeLeft !== null && (
+        {!isReviewMode && timeLeft !== null && (
           <View style={styles.timerContainer}>
             <MaterialIcons name="timer" size={20} color="white" />
             <Text style={styles.timerText}>{formatTime(timeLeft)}</Text>
@@ -578,60 +888,135 @@ export default function QuizView() {
         )}
       </View>
 
-      {/* Progress Bar */}
-      <View style={styles.progressContainer}>
-        <View style={styles.progressBar}>
-          <View 
-            style={[
-              styles.progressFill, 
-              { width: `${((currentQuestionIndex + 1) / quiz.questions.length) * 100}%` }
-            ]} 
-          />
+      {/* Score Header - Show in review mode when quiz result exists */}
+      {isReviewMode && quizResult && (
+        <View style={styles.scoreHeader}>
+          <View style={styles.scoreContainer}>
+            <Text style={styles.scoreTitle}>Quiz Results</Text>
+            <View style={styles.scoreRow}>
+              <Text style={styles.scoreLabel}>Score:</Text>
+              <Text style={styles.scoreValue}>
+                {quizResult.score || 0} / {quizResult.totalPoints || 0}
+              </Text>
+            </View>
+            <View style={styles.scoreRow}>
+              <Text style={styles.scoreLabel}>Percentage:</Text>
+              <Text style={styles.scoreValue}>
+                {quizResult.percentage || 0}%
+              </Text>
+            </View>
+            {quizResult.timeSpent && (
+              <View style={styles.scoreRow}>
+                <Text style={styles.scoreLabel}>Time Spent:</Text>
+                <Text style={styles.scoreValue}>
+                  {formatTime(quizResult.timeSpent || 0)}
+                </Text>
+              </View>
+            )}
+          </View>
         </View>
-        <Text style={styles.progressText}>
-          {currentQuestionIndex + 1} / {quiz.questions.length}
-        </Text>
-      </View>
+      )}
 
-      {/* Question */}
+      {/* Fallback score display for review mode */}
+      {isReviewMode && !quizResult && (
+        <View style={styles.scoreHeader}>
+          <View style={styles.scoreContainer}>
+            <Text style={styles.scoreTitle}>Quiz Review Mode</Text>
+            <Text style={styles.scoreText}>Loading quiz results...</Text>
+          </View>
+        </View>
+      )}
+
+      {/* Progress Bar - Only show in quiz mode */}
+      {!isReviewMode && (
+        <View style={styles.progressContainer}>
+          <View style={styles.progressBar}>
+            <View 
+              style={[
+                styles.progressFill, 
+                { width: `${((currentQuestionIndex + 1) / quiz.questions.length) * 100}%` }
+              ]} 
+            />
+          </View>
+          <Text style={styles.progressText}>
+            {currentQuestionIndex + 1} / {quiz.questions.length}
+          </Text>
+        </View>
+      )}
+
+      {/* Questions */}
       <ScrollView style={styles.contentContainer} showsVerticalScrollIndicator={false}>
-        {renderQuestion(quiz.questions[currentQuestionIndex], currentQuestionIndex)}
+        {isReviewMode ? (
+          // In review mode, show all questions
+          quiz.questions.map((question, index) => renderQuestion(question, index))
+        ) : (
+          // In quiz mode, show only current question
+          renderQuestion(quiz.questions[currentQuestionIndex], currentQuestionIndex)
+        )}
       </ScrollView>
 
-      {/* Navigation */}
-      <View style={styles.navigationContainer}>
-        <TouchableOpacity
-          style={[
-            styles.navButton,
-            currentQuestionIndex === 0 && styles.disabledButton
-          ]}
-          onPress={goToPreviousQuestion}
-          disabled={currentQuestionIndex === 0}
-        >
-          <MaterialIcons name="navigate-before" size={24} color="white" />
-          <Text style={styles.navButtonText}>Previous</Text>
-        </TouchableOpacity>
+      {/* Navigation - Only show in quiz mode */}
+      {!isReviewMode && (
+        <View style={styles.navigationContainer}>
+          <TouchableOpacity
+            style={[
+              styles.navButton,
+              currentQuestionIndex === 0 && styles.disabledButton
+            ]}
+            onPress={goToPreviousQuestion}
+            disabled={currentQuestionIndex === 0}
+          >
+            <MaterialIcons name="navigate-before" size={24} color="white" />
+            <Text style={styles.navButtonText}>Previous</Text>
+          </TouchableOpacity>
 
-        {currentQuestionIndex === quiz.questions.length - 1 ? (
-          <TouchableOpacity
-            style={[styles.submitButton, submitting && styles.disabledButton]}
-            onPress={() => setShowSubmitModal(true)}
-            disabled={submitting}
-          >
-            <Text style={styles.submitButtonText}>
-              {submitting ? 'Submitting...' : 'Submit Quiz'}
-            </Text>
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity
-            style={styles.navButton}
-            onPress={goToNextQuestion}
-          >
-            <Text style={styles.navButtonText}>Next</Text>
-            <MaterialIcons name="navigate-next" size={24} color="white" />
-          </TouchableOpacity>
-        )}
-      </View>
+          {currentQuestionIndex === quiz.questions.length - 1 ? (
+            <TouchableOpacity
+              style={[styles.submitButton, submitting && styles.disabledButton]}
+              onPress={() => setShowSubmitModal(true)}
+              disabled={submitting}
+            >
+              <Text style={styles.submitButtonText}>
+                {submitting ? 'Submitting...' : 'Submit Quiz'}
+              </Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={styles.navButton}
+              onPress={goToNextQuestion}
+            >
+              <Text style={styles.navButtonText}>Next</Text>
+              <MaterialIcons name="navigate-next" size={24} color="white" />
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+
+      {/* Question Navigation for Review Mode */}
+      {isReviewMode && (
+        <View style={styles.reviewNavigationContainer}>
+          <Text style={styles.reviewNavigationTitle}>Navigate to Question:</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.questionNumbersContainer}>
+            {quiz.questions.map((_, index) => (
+              <TouchableOpacity
+                key={index}
+                style={[
+                  styles.questionNumberButton,
+                  currentQuestionIndex === index && styles.currentQuestionButton
+                ]}
+                onPress={() => setCurrentQuestionIndex(index)}
+              >
+                <Text style={[
+                  styles.questionNumberText,
+                  currentQuestionIndex === index && styles.currentQuestionNumberText
+                ]}>
+                  {index + 1}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      )}
 
       {/* Submit Confirmation Modal */}
       <Modal
@@ -988,17 +1373,16 @@ const styles = {
   },
   selectedChoice: {
     borderColor: '#00418b',
-    backgroundColor: '#f0f8ff',
+    backgroundColor: '#e3f2fd',
   },
   choiceText: {
     fontSize: 16,
     color: '#333',
     marginLeft: 12,
-    flex: 1,
   },
   selectedChoiceText: {
     color: '#00418b',
-    fontWeight: '500',
+    fontWeight: 'bold',
   },
   textInput: {
     borderWidth: 1,
@@ -1227,5 +1611,162 @@ const styles = {
     paddingVertical: 12,
     borderRadius: 8,
     marginTop: 20,
+  },
+  scoreHeader: {
+    backgroundColor: '#f0f8ff', // Light blue background
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 20,
+    alignItems: 'center',
+  },
+  scoreContainer: {
+    width: '100%',
+  },
+  scoreTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  scoreText: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+  },
+  scoreRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  scoreLabel: {
+    fontSize: 16,
+    color: '#666',
+    fontWeight: '500',
+  },
+  scoreValue: {
+    fontSize: 16,
+    color: '#333',
+    fontWeight: 'bold',
+  },
+  reviewNavigationContainer: {
+    marginTop: 20,
+    marginBottom: 20,
+    paddingHorizontal: 20,
+    backgroundColor: 'white',
+    borderRadius: 12,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    alignItems: 'center',
+  },
+  reviewNavigationTitle: {
+    fontSize: 16,
+    color: '#666',
+    marginBottom: 12,
+    fontWeight: '500',
+  },
+  questionNumbersContainer: {
+    flexDirection: 'row',
+  },
+  questionNumberButton: {
+    backgroundColor: '#e0e0e0',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginHorizontal: 8,
+  },
+  currentQuestionButton: {
+    backgroundColor: '#00418b',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  questionNumberText: {
+    fontSize: 14,
+    color: '#333',
+    fontWeight: 'bold',
+  },
+  currentQuestionNumberText: {
+    color: 'white',
+  },
+  answerFeedback: {
+    marginTop: 16,
+    padding: 12,
+    backgroundColor: '#f7fbff',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  answerLabel: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 4,
+  },
+  answerText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  correctChoice: {
+    borderColor: '#4CAF50',
+    backgroundColor: '#e8f5e8',
+  },
+  incorrectChoice: {
+    borderColor: '#F44336',
+    backgroundColor: '#ffebee',
+  },
+  correctChoiceText: {
+    color: '#4CAF50',
+    fontWeight: 'bold',
+  },
+  incorrectChoiceText: {
+    color: '#F44336',
+    fontWeight: 'bold',
+  },
+  identificationContainer: {
+    marginTop: 16,
+    padding: 12,
+    backgroundColor: '#f7fbff',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  identificationInput: {
+    fontSize: 16,
+    minHeight: 100,
+    textAlignVertical: 'top',
+  },
+  correctAnswer: {
+    borderColor: '#4CAF50',
+    backgroundColor: '#e8f5e8',
+  },
+  incorrectAnswer: {
+    borderColor: '#F44336',
+    backgroundColor: '#ffebee',
+  },
+  choiceRow: {
+    marginBottom: 8,
+  },
+  choice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderWidth: 2,
+    borderColor: '#e0e0e0',
+    borderRadius: 8,
+    backgroundColor: 'white',
+  },
+  selectedChoice: {
+    borderColor: '#00418b',
+    backgroundColor: '#e3f2fd',
+  },
+  choiceText: {
+    fontSize: 16,
+    color: '#333',
+    marginLeft: 12,
+  },
+  selectedChoiceText: {
+    color: '#00418b',
+    fontWeight: 'bold',
   },
 };

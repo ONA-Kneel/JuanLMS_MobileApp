@@ -99,17 +99,30 @@ export default function AdminProfile() {
       </TouchableOpacity>
       {/* Top curved background */}
       <View style={AdminProfileStyle.topBackground} />
-      {/* Profile Image */}
+      {/* Profile Image / Initials */}
       <View style={AdminProfileStyle.avatarWrapper}>
-        <Image
-          source={
-            user.profilePic 
-              ? { uri: user.profilePic.startsWith('http') ? user.profilePic : API_URL + user.profilePic }
-              : require('../../assets/profile-icon (2).png')
-          }
-          style={AdminProfileStyle.avatar}
-          resizeMode="cover"
-        />
+        {user.profilePic ? (
+          <Image
+            source={{ uri: user.profilePic.startsWith('http') ? user.profilePic : API_URL + user.profilePic }}
+            style={AdminProfileStyle.avatar}
+            resizeMode="cover"
+          />
+        ) : (
+          <View
+            style={{
+              width: AdminProfileStyle.avatar?.width || 100,
+              height: AdminProfileStyle.avatar?.height || 100,
+              borderRadius: (AdminProfileStyle.avatar?.width || 100) / 2,
+              backgroundColor: '#e3f2fd',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Text style={{ fontSize: 36, fontWeight: 'bold', color: '#00418b' }}>
+              {(user.firstname?.[0] || '').toUpperCase()}{(user.lastname?.[0] || '').toUpperCase()}
+            </Text>
+          </View>
+        )}
         <TouchableOpacity onPress={() => setIsEditModalVisible(true)} style={AdminProfileStyle.editAvatarBtn}>
           <Feather name="edit" size={20} color="#00418b" />
         </TouchableOpacity>

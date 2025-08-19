@@ -210,42 +210,47 @@ export default function StudentActs() {
                 headers: { Authorization: `Bearer ${token}` }
               });
               if (response.ok) {
-                const quizResponse = await response.json();
-                console.log('DEBUG: Quiz response for', activity._id, ':', quizResponse);
-                if (quizResponse && quizResponse.score !== undefined) {
-                  const updatedActivity = { 
-                    ...activity, 
-                    submittedAt: quizResponse.submittedAt ? new Date(quizResponse.submittedAt) : new Date(),
-                    status: 'submitted',
-                    score: quizResponse.score,
-                    totalPoints: quizResponse.total,
-                    percentage: quizResponse.percentage,
-                    timeSpent: quizResponse.timeSpent,
-                    graded: quizResponse.graded,
-                    isSubmitted: true
-                  };
-                  console.log('DEBUG: Updated quiz activity:', updatedActivity._id, 'score:', updatedActivity.score, 'totalPoints:', updatedActivity.totalPoints, 'percentage:', updatedActivity.percentage);
-                  return updatedActivity;
+                const responseData = await response.json();
+                console.log('Quiz response for', activity._id, ':', responseData);
+                
+                // Calculate percentage if not provided
+                let percentage = responseData.percentage;
+                if (percentage === undefined && responseData.score !== undefined && responseData.total !== undefined) {
+                  percentage = Math.round((responseData.score / responseData.total) * 100);
                 }
+                
+                // Update the activity with submission info
+                activity.submittedAt = responseData.submittedAt || new Date();
+                activity.status = 'submitted';
+                activity.isSubmitted = true;
+                activity.score = responseData.score || 0;
+                activity.totalPoints = responseData.total || activity.points || 10;
+                activity.percentage = percentage || 0; // Ensure percentage is always a number
+                
+                console.log('Updated quiz activity:', activity._id, 'score:', activity.score, 'totalPoints:', activity.totalPoints, 'percentage:', activity.percentage);
               } else if (response.status === 404) {
-                console.log('DEBUG: Quiz not submitted (404) for:', activity._id);
-                return { 
-                  ...activity, 
-                  isSubmitted: false,
-                  status: 'not_submitted',
-                  points: activity.points || 0
-                };
+                // Quiz not submitted yet
+                console.log('Quiz not submitted (404) for:', activity._id);
+                activity.isSubmitted = false;
+                activity.status = 'not_submitted';
+                activity.score = 0;
+                activity.totalPoints = activity.points || 10;
+                activity.percentage = 0;
               } else {
-                console.log('DEBUG: Quiz response not OK for:', activity._id, 'status:', response.status);
+                console.log('Quiz response not OK for:', activity._id, 'status:', response.status);
+                activity.isSubmitted = false;
+                activity.status = 'error';
+                activity.score = 0;
+                activity.totalPoints = activity.points || 10;
+                activity.percentage = 0;
               }
             } catch (error) {
-              console.error('Error checking quiz response status:', error);
-              return { 
-                ...activity, 
-                isSubmitted: false,
-                status: 'error',
-                points: activity.points || 0
-              };
+              console.log('Error checking quiz submission for', activity._id, ':', error);
+              activity.isSubmitted = false;
+              activity.status = 'error';
+              activity.score = 0;
+              activity.totalPoints = activity.points || 10;
+              activity.percentage = 0;
             }
           }
           return { ...activity, isSubmitted: false };

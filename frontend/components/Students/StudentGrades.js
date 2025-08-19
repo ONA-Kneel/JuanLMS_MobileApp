@@ -28,6 +28,8 @@ const StudentGrades = () => {
   const [selectedTerm, setSelectedTerm] = useState('current');
   const [academicYear, setAcademicYear] = useState('');
   const [currentTerm, setCurrentTerm] = useState('');
+  const [user, setUser] = useState(null);
+  const [profilePicError, setProfilePicError] = useState(false);
 
   const API_BASE = 'https://juanlms-webapp-server.onrender.com';
 
@@ -50,6 +52,10 @@ const StudentGrades = () => {
       if (!user) {
         throw new Error('User data not found');
       }
+
+      // Set user state for use in render function
+      setUser(user);
+      setProfilePicError(false);
 
       // Fetch academic year and term
       const yearResponse = await fetch(`${API_BASE}/api/schoolyears/active`, {
@@ -124,6 +130,16 @@ const StudentGrades = () => {
 
       setGrades(filtered);
       setError('');
+      
+      // Debug logging to verify remarks values
+      console.log('Grades data received:', {
+        totalGrades: filtered.length,
+        remarksValues: filtered.map(g => g.remarks),
+        normalizedRemarks: filtered.map(g => normalizeRemarks(g.remarks)),
+        passedCount: filtered.filter(g => normalizeRemarks(g.remarks) === 'passed').length,
+        conditionalCount: filtered.filter(g => normalizeRemarks(g.remarks) === 'conditional').length,
+        failedCount: filtered.filter(g => normalizeRemarks(g.remarks) === 'failed').length
+      });
     } catch (err) {
       console.error('Error fetching grades:', err);
       setError('Failed to load grades');
@@ -172,6 +188,30 @@ const StudentGrades = () => {
       case 'Failed': return '#f44336';
       default: return '#999';
     }
+  };
+
+  // Helper function to normalize remarks for consistent comparison
+  const normalizeRemarks = (remarks) => {
+    if (!remarks || remarks === '-') return '';
+    
+    // Handle common variations
+    const normalized = remarks.toLowerCase().trim();
+    
+    // Map common variations to standard values
+    const remarksMap = {
+      'passed': 'passed',
+      'pass': 'passed',
+      'p': 'passed',
+      'conditional': 'conditional',
+      'cond': 'conditional',
+      'incomplete': 'conditional',
+      'failed': 'failed',
+      'fail': 'failed',
+      'f': 'failed',
+      'repeat': 'failed'
+    };
+    
+    return remarksMap[normalized] || normalized;
   };
 
   const getQuarterLabels = () => {
@@ -273,12 +313,29 @@ const StudentGrades = () => {
                         </View>
           
           <TouchableOpacity onPress={() => navigation.navigate('SProfile')}>
-                            <Image 
-                                source={require('../../assets/profile-icon (2).png')} 
-              style={styles.profileImage}
-                                resizeMode="cover"
-                            />
-                        </TouchableOpacity>
+            {loading ? (
+              <View style={styles.profileInitialsContainer}>
+                <ActivityIndicator size="small" color="white" />
+              </View>
+            ) : user?.profilePic && !profilePicError ? (
+              <Image 
+                source={{ uri: user.profilePic }} 
+                style={styles.profileImage}
+                resizeMode="cover"
+                onError={() => setProfilePicError(true)}
+              />
+            ) : user ? (
+              <View style={styles.profileInitialsContainer}>
+                <Text style={styles.profileInitialsText}>
+                  {`${user.firstname?.charAt(0) || ''}${user.lastname?.charAt(0) || ''}`}
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.profileInitialsContainer}>
+                <Text style={styles.profileInitialsText}>U</Text>
+              </View>
+            )}
+          </TouchableOpacity>
                     </View>
                 </View>
 
@@ -349,22 +406,22 @@ const StudentGrades = () => {
               <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>Passed:</Text>
                 <Text style={styles.summaryValue}>
-                  {grades.filter(g => g.remarks === 'Passed').length}
+                  {grades.filter(g => normalizeRemarks(g.remarks) === 'passed').length}
                 </Text>
               </View>
               <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>Conditional:</Text>
                 <Text style={styles.summaryValue}>
-                  {grades.filter(g => g.remarks === 'Conditional').length}
+                  {grades.filter(g => normalizeRemarks(g.remarks) === 'conditional').length}
                 </Text>
               </View>
               <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>Failed:</Text>
                 <Text style={styles.summaryValue}>
-                  {grades.filter(g => g.remarks === 'Failed').length}
+                  {grades.filter(g => normalizeRemarks(g.remarks) === 'failed').length}
                 </Text>
               </View>
-                        </View>
+            </View>
                     </ScrollView>
         ) : (
           renderEmptyState()
@@ -389,6 +446,22 @@ const styles = {
     width: 36,
     height: 36,
     borderRadius: 18,
+  },
+  profileInitialsContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#00418b',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  profileInitialsText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: 'bold',
+    textTransform: 'uppercase',
   },
   termSelector: {
     flexDirection: 'row',

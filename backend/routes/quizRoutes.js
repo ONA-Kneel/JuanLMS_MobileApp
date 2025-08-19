@@ -71,7 +71,12 @@ router.get('/', /*authenticateToken,*/ async (req, res) => {
     
     let quizzes;
     if (classID) {
-      quizzes = await Quiz.find({ 'assignedTo.classID': classID });
+      quizzes = await Quiz.find({
+        $or: [
+          { classID: classID }, // For backward compatibility with old quizzes
+          { 'assignedTo.classID': classID } // For new quizzes with correct structure
+        ]
+      });
     } else {
       // if (role === 'faculty') {
       //   // For faculty, get quizzes from all their classes
@@ -206,44 +211,113 @@ router.delete('/:id', /*authenticateToken,*/ async (req, res) => {
 router.post('/:quizId/submit', /*authenticateToken,*/ async (req, res) => {
   try {
     const { quizId } = req.params;
-    // const studentId = req.user ? req.user._id : req.body.studentId;
     const studentId = req.body.studentId;
     const { answers } = req.body;
+    
     if (!Array.isArray(answers) || answers.length === 0) {
       return res.status(400).json({ error: 'Answers are required.' });
     }
+    
     const existing = await QuizResponse.findOne({ quizId, studentId });
     if (existing) {
       return res.status(400).json({ error: 'You have already submitted this quiz. You cannot submit again.' });
     }
+    
     const quiz = await Quiz.findById(quizId);
+    if (!quiz) {
+      return res.status(404).json({ error: 'Quiz not found' });
+    }
+    
     let score = 0;
     let checkedAnswers = [];
+    
+    // Process each question and answer
     quiz.questions.forEach((q, i) => {
       const studentAnswer = answers[i]?.answer;
       let correct = false;
+      let correctAnswerForStorage;
+      
+      console.log(`Processing question ${i + 1}:`, {
+        questionType: q.type,
+        studentAnswer: studentAnswer,
+        questionText: q.question,
+        correctAnswers: q.correctAnswers,
+        correctAnswer: q.correctAnswer
+      });
+      
       if (q.type === 'multiple') {
-        if (Array.isArray(q.correctAnswers) && q.correctAnswers.length === 1) {
-          correct = studentAnswer === q.correctAnswers[0];
+        // For multiple choice questions
+        if (Array.isArray(q.correctAnswers) && q.correctAnswers.length > 0) {
+          // Check if student answer matches any of the correct answers
+          if (Array.isArray(studentAnswer)) {
+            correct = studentAnswer.length === q.correctAnswers.length &&
+              studentAnswer.every(a => q.correctAnswers.includes(a));
+          } else {
+            correct = q.correctAnswers.includes(studentAnswer);
+          }
+          // Store the actual correct answer TEXT values for frontend highlighting
+          // q.correctAnswers contains indices, so convert them to actual choice text
+          correctAnswerForStorage = q.correctAnswers.map(index => q.choices[index]).filter(Boolean);
         } else {
-          correct = Array.isArray(studentAnswer) && Array.isArray(q.correctAnswers) &&
-            studentAnswer.length === q.correctAnswers.length &&
-            studentAnswer.every(a => q.correctAnswers.includes(a));
+          correct = false;
+          correctAnswerForStorage = [];
         }
-      } else {
+      } else if (q.type === 'truefalse') {
+        // For true/false questions
         correct = studentAnswer === q.correctAnswer;
+        correctAnswerForStorage = q.correctAnswer;
+      } else {
+        // For identification questions
+        correct = studentAnswer === q.correctAnswer;
+        correctAnswerForStorage = q.correctAnswer;
       }
+      
       if (correct) score += q.points || 1;
-      checkedAnswers.push({ correct, studentAnswer, correctAnswer: q.correctAnswers || q.correctAnswer });
+      
+      checkedAnswers.push({ 
+        correct, 
+        studentAnswer, 
+        correctAnswer: correctAnswerForStorage 
+      });
+      
+      console.log(`Question ${i + 1} result:`, {
+        correct,
+        score: correct ? (q.points || 1) : 0,
+        storedStudentAnswer: studentAnswer,
+        storedCorrectAnswer: correctAnswerForStorage,
+        // Add debugging for multiple choice
+        questionType: q.type,
+        originalCorrectAnswers: q.correctAnswers,
+        choices: q.choices,
+        convertedCorrectAnswers: q.type === 'multiple' ? q.correctAnswers.map(index => q.choices[index]) : 'N/A'
+      });
     });
-    const response = new QuizResponse({ quizId, studentId, answers, score, checkedAnswers });
+    
+    // Create the quiz response with proper data structure
+    const response = new QuizResponse({ 
+      quizId, 
+      studentId, 
+      answers, 
+      score, 
+      checkedAnswers 
+    });
+    
     await response.save();
+    
     const total = Array.isArray(quiz.questions)
       ? quiz.questions.reduce((sum, q) => sum + (q.points || 1), 0)
       : 0;
     const percentage = total > 0 ? Math.round((score / total) * 100) : 0;
-    res.status(201).json({ message: 'Quiz submitted successfully.', score, total, percentage, submittedAt: response.submittedAt });
+    
+    res.status(201).json({ 
+      message: 'Quiz submitted successfully.', 
+      score, 
+      total, 
+      percentage, 
+      submittedAt: response.submittedAt 
+    });
   } catch (err) {
+    console.error('Error submitting quiz:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -292,16 +366,33 @@ router.post('/students/by-ids', /*authenticateToken,*/ async (req, res) => {
 router.get('/:quizId/myscore', /*authenticateToken,*/ async (req, res) => {
   try {
     const { quizId } = req.params;
-    // const studentId = req.user._id;
     const { studentId, revealAnswers } = req.query;
+    
+    if (!studentId) {
+      return res.status(400).json({ error: 'Student ID is required' });
+    }
+    
     const response = await QuizResponse.findOne({ quizId, studentId });
-    if (!response) return res.status(404).json({ error: 'No submission found' });
+    if (!response) {
+      return res.status(404).json({ error: 'No submission found' });
+    }
 
     const quiz = await Quiz.findById(quizId);
-    const total = quiz && Array.isArray(quiz.questions)
+    if (!quiz) {
+      return res.status(404).json({ error: 'Quiz not found' });
+    }
+    
+    const total = Array.isArray(quiz.questions)
       ? quiz.questions.reduce((sum, q) => sum + (q.points || 1), 0)
       : 0;
     const percentage = total > 0 ? Math.round(((response.score ?? 0) / total) * 100) : 0;
+
+    console.log('=== CALCULATING TOTAL POINTS ===');
+    console.log('Quiz questions:', quiz.questions?.length);
+    console.log('Individual question points:', quiz.questions?.map(q => ({ question: q.question.substring(0, 30) + '...', points: q.points })));
+    console.log('Calculated total:', total);
+    console.log('Response score:', response.score);
+    console.log('Calculated percentage:', percentage);
 
     const payload = {
       score: response.score ?? 0,
@@ -312,11 +403,113 @@ router.get('/:quizId/myscore', /*authenticateToken,*/ async (req, res) => {
     };
 
     if (String(revealAnswers).toLowerCase() === 'true') {
-      payload.checkedAnswers = response.checkedAnswers || [];
+      console.log('=== REVEALING ANSWERS ===');
+      console.log('Original response:', {
+        answers: response.answers,
+        checkedAnswers: response.checkedAnswers,
+        answersLength: response.answers?.length
+      });
+      
+      // Check if checkedAnswers exists, if not, regenerate them
+      if (!response.checkedAnswers || response.checkedAnswers.length === 0) {
+        console.log('Regenerating checkedAnswers for quiz response');
+        
+        const regeneratedCheckedAnswers = [];
+        quiz.questions.forEach((q, i) => {
+          const studentAnswer = response.answers[i]?.answer;
+          let correct = false;
+          let correctAnswerForStorage;
+          
+          console.log(`Regenerating question ${i + 1}:`, {
+            questionType: q.type,
+            storedAnswerObj: response.answers[i],
+            extractedStudentAnswer: studentAnswer,
+            questionText: q.question,
+            correctAnswers: q.correctAnswers,
+            correctAnswer: q.correctAnswer
+          });
+          
+          if (q.type === 'multiple') {
+            if (Array.isArray(q.correctAnswers) && q.correctAnswers.length > 0) {
+              if (Array.isArray(studentAnswer)) {
+                correct = studentAnswer.length === q.correctAnswers.length &&
+                  studentAnswer.every(a => q.correctAnswers.includes(a));
+              } else {
+                correct = q.correctAnswers.includes(studentAnswer);
+              }
+              // Convert indices to actual answer text for frontend highlighting
+              correctAnswerForStorage = q.correctAnswers.map(index => q.choices[index]).filter(Boolean);
+            } else {
+              correct = false;
+              correctAnswerForStorage = [];
+            }
+          } else if (q.type === 'truefalse') {
+            correct = studentAnswer === q.correctAnswer;
+            correctAnswerForStorage = q.correctAnswer;
+          } else {
+            correct = studentAnswer === q.correctAnswer;
+            correctAnswerForStorage = q.correctAnswer;
+          }
+          
+          regeneratedCheckedAnswers.push({ 
+            correct, 
+            studentAnswer, 
+            correctAnswer: correctAnswerForStorage 
+          });
+          
+          console.log(`Regenerated question ${i + 1}:`, {
+            correct,
+            storedStudentAnswer: studentAnswer,
+            storedCorrectAnswer: correctAnswerForStorage,
+            // Add debugging for multiple choice
+            questionType: q.type,
+            originalCorrectAnswers: q.correctAnswers,
+            choices: q.choices,
+            convertedCorrectAnswers: q.type === 'multiple' ? q.correctAnswers.map(index => q.choices[index]) : 'N/A'
+          });
+        });
+        
+        // Update the database with regenerated data
+        try {
+          await QuizResponse.findByIdAndUpdate(response._id, { 
+            checkedAnswers: regeneratedCheckedAnswers 
+          });
+          console.log('Updated quiz response with regenerated checkedAnswers');
+        } catch (updateErr) {
+          console.error('Failed to update quiz response:', updateErr);
+        }
+        
+        payload.checkedAnswers = regeneratedCheckedAnswers;
+      } else {
+        console.log('Using existing checkedAnswers from database');
+        payload.checkedAnswers = response.checkedAnswers;
+      }
+      
+      // Always include the answers array
+      payload.answers = response.answers || [];
+      
+      console.log('Final payload for frontend:', {
+        checkedAnswers: payload.checkedAnswers,
+        answers: payload.answers,
+        answersLength: payload.answers?.length,
+        score: payload.score,
+        total: payload.total,
+        percentage: payload.percentage
+      });
     }
+
+    console.log('=== FINAL RESPONSE PAYLOAD ===');
+    console.log('Sending to frontend:', {
+      score: payload.score,
+      total: payload.total,
+      percentage: payload.percentage,
+      hasCheckedAnswers: !!payload.checkedAnswers,
+      hasAnswers: !!payload.answers
+    });
 
     res.json(payload);
   } catch (err) {
+    console.error('Error in myscore endpoint:', err);
     res.status(500).json({ error: err.message });
   }
 });

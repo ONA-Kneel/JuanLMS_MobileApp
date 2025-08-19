@@ -593,52 +593,30 @@ export default function VPEChats() {
                 </Text>
               </View>
             ) : (
-              <View style={{ gap: 12 }}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12 }}>
                 {filteredRecentChats.map((chat) => {
                   const partner = users.find(u => u._id === chat.partnerId);
                   if (!partner) return null;
-                  
+                  const initials = `${partner.firstname?.[0] || ''}${partner.lastname?.[0] || ''}`;
+
                   return (
-                    <TouchableOpacity
-                      key={chat._id}
-                      style={{
-                        backgroundColor: '#fff',
-                        borderRadius: 16,
-                        padding: 16,
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        gap: 12,
-                        shadowColor: '#000',
-                        shadowOpacity: 0.05,
-                        shadowRadius: 5,
-                        elevation: 2,
-                      }}
-                      onPress={() => setSelectedChat(partner)}
-                    >
+                    <TouchableOpacity key={chat._id} onPress={() => setSelectedChat(partner)}>
                       <View style={{
-                        width: 48,
-                        height: 48,
-                        borderRadius: 24,
+                        width: 56,
+                        height: 56,
+                        borderRadius: 28,
                         backgroundColor: '#e3f2fd',
                         justifyContent: 'center',
                         alignItems: 'center',
+                        borderWidth: 1,
+                        borderColor: '#dbeafe',
                       }}>
-                        <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#00418b' }}>
-                          {partner.firstname?.[0]}{partner.lastname?.[0]}
-                        </Text>
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={{ fontSize: 16, fontWeight: '600', color: '#333', marginBottom: 4 }}>
-                          {partner.firstname} {partner.lastname}
-                        </Text>
-                        <Text style={{ fontSize: 14, color: '#666' }}>
-                          {lastMessages[chat._id]?.text || 'Start a conversation...'}
-                        </Text>
+                        <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#00418b' }}>{initials}</Text>
                       </View>
                     </TouchableOpacity>
                   );
                 })}
-              </View>
+              </ScrollView>
             )}
           </View>
 

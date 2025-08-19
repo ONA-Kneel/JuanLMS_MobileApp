@@ -39,7 +39,7 @@ export default function VPEDashboard() {
         
         // Fetch audit logs
         const token = await AsyncStorage.getItem('jwtToken');
-        const auditResponse = await fetch('https://juanlms-webapp-server.onrender.com/audit-logs?page=1&limit=5', {
+        const auditResponse = await fetch('http://localhost:5000/audit-logs?page=1&limit=5', {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'

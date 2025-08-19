@@ -14,7 +14,7 @@ import { useIsFocused } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { formatDate } from '../../utils/dateUtils';
 
-const API_BASE_URL = 'https://juanlms-webapp-server.onrender.com';
+const API_BASE_URL = 'http://localhost:5000';
 
 const getFilterColor = (category) => {
   switch (category.toLowerCase()) {

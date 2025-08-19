@@ -247,9 +247,12 @@ export default function StudentModule(){
 
     const toAbsoluteUrl = (url) => {
         if (!url) return url;
-        if (url.startsWith('http://') || url.startsWith('https://')) return url;
+        // Ensure we return a valid, encoded URL that works even when filenames contain spaces or special characters
+        if (url.startsWith('http://') || url.startsWith('https://')) {
+            return encodeURI(url);
+        }
         const path = url.startsWith('/') ? url : `/${url}`;
-        return `${API_BASE}${path}`;
+        return encodeURI(`${API_BASE}${path}`);
     };
 
     const handleFilePress = (file) => {

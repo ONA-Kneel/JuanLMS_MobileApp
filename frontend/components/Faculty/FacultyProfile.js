@@ -100,14 +100,30 @@ export default function FacultyProfile() {
       </TouchableOpacity>
       {/* Top curved background */}
       <View style={FacultyProfileStyle.topBackground} />
-      {/* Profile Image */}
+      {/* Profile Image / Initials */}
       <View style={FacultyProfileStyle.avatarWrapper}>
-        <Image
-          source={user.profilePic ? { uri: API_URL + user.profilePic } : require('../../assets/profile-icon (2).png')}
-          style={FacultyProfileStyle.avatar}
-          resizeMode="cover"
-        />
-        
+        {user.profilePic ? (
+          <Image
+            source={{ uri: API_URL + user.profilePic }}
+            style={FacultyProfileStyle.avatar}
+            resizeMode="cover"
+          />
+        ) : (
+          <View
+            style={{
+              width: FacultyProfileStyle.avatar?.width || 100,
+              height: FacultyProfileStyle.avatar?.height || 100,
+              borderRadius: (FacultyProfileStyle.avatar?.width || 100) / 2,
+              backgroundColor: '#e3f2fd',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Text style={{ fontSize: 36, fontWeight: 'bold', color: '#00418b' }}>
+              {(user.firstname?.[0] || '').toUpperCase()}{(user.lastname?.[0] || '').toUpperCase()}
+            </Text>
+          </View>
+        )}
       </View>
       <Modal
         visible={isEditModalVisible}
