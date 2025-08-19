@@ -51,7 +51,7 @@ const StudentsProfileStyle = StyleSheet.create({
     name: {
         fontSize: 22,
         fontWeight: 'bold',
-        fontFamily: 'Poppins_700Bold',
+        fontFamily: 'Poppins-Bold',
         color: '#222',
         marginBottom: 2,
     },
@@ -61,7 +61,7 @@ const StudentsProfileStyle = StyleSheet.create({
     email: {
         fontSize: 14,
         color: '#888',
-        fontFamily: 'Poppins_400Regular',
+        fontFamily: 'Poppins-Regular',
         marginBottom: 10,
     },
     row: {
@@ -77,13 +77,13 @@ const StudentsProfileStyle = StyleSheet.create({
     infoLabel: {
         fontSize: 13,
         color: '#888',
-        fontFamily: 'Poppins_400Regular',
+        fontFamily: 'Poppins-Regular',
     },
     infoValue: {
         fontSize: 16,
         fontWeight: 'bold',
         color: '#00418b',
-        fontFamily: 'Poppins_600SemiBold',
+        fontFamily: 'Poppins-SemiBold',
     },
     actionRow: {
         flexDirection: 'row',
@@ -100,7 +100,7 @@ const StudentsProfileStyle = StyleSheet.create({
     actionText: {
         fontSize: 12,
         color: '#00418b',
-        fontFamily: 'Poppins_500Medium',
+        fontFamily: 'Poppins-Medium',
         marginTop: 2,
     },
     settingsList: {
@@ -119,7 +119,7 @@ const StudentsProfileStyle = StyleSheet.create({
     settingsText: {
         fontSize: 15,
         color: '#222',
-        fontFamily: 'Poppins_500Medium',
+        fontFamily: 'Poppins-Medium',
     },
     logout: {
         backgroundColor: '#00418b',
@@ -132,7 +132,7 @@ const StudentsProfileStyle = StyleSheet.create({
     },
     logoutText: {
         color: 'white',
-        fontFamily: 'Poppins_600SemiBold',
+        fontFamily: 'Poppins-SemiBold',
         fontSize: 16,
     },
     modalContainer: {
