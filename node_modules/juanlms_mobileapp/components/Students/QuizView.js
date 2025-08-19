@@ -24,7 +24,7 @@ export default function QuizView() {
   const navigation = useNavigation();
   const route = useRoute();
   const { user } = useUser();
-  const { quizId } = route.params;
+  const { quizId, review } = route.params;
 
   const [quiz, setQuiz] = useState(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -34,7 +34,12 @@ export default function QuizView() {
   const [timeLeft, setTimeLeft] = useState(null);
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [showResultsModal, setShowResultsModal] = useState(false);
+  const [showRevealModal, setShowRevealModal] = useState(false);
+  const [revealScoreNow, setRevealScoreNow] = useState(false);
+  const [revealAnswersNow, setRevealAnswersNow] = useState(false);
   const [quizResult, setQuizResult] = useState(null);
+  const [quizCheckedAnswers, setQuizCheckedAnswers] = useState(null);
+  const [isReviewMode, setIsReviewMode] = useState(!!review);
   const [violationCount, setViolationCount] = useState(0);
   const [violationEvents, setViolationEvents] = useState([]);
   const [questionTimes, setQuestionTimes] = useState([]);
@@ -43,6 +48,7 @@ export default function QuizView() {
   const [unansweredQuestions, setUnansweredQuestions] = useState([]);
 
   useEffect(() => {
+    setIsReviewMode(!!review);
     fetchQuiz();
   }, [quizId]);
 
@@ -130,9 +136,9 @@ export default function QuizView() {
         setTimeLeft(quizData.timeLimit * 60); // Convert minutes to seconds
       }
 
-      // Check if student has already submitted this quiz (similar to web version)
+      // Check if student has already submitted this quiz (and fetch answers for review)
       try {
-        const responseRes = await fetch(`${API_BASE}/api/quizzes/${quizId}/myscore?studentId=${user._id}`, {
+        const responseRes = await fetch(`${API_BASE}/api/quizzes/${quizId}/myscore?studentId=${user._id}&revealAnswers=true`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         
@@ -145,9 +151,19 @@ export default function QuizView() {
               score: responseData.score || 0,
               totalPoints: responseData.total || quizData.points || 100,
               percentage: responseData.percentage || Math.round(((responseData.score || 0) / (responseData.total || quizData.points || 100)) * 100),
-              timeSpent: responseData.timeSpent || 0
+              timeSpent: responseData.timeSpent || 0,
+              submittedAt: responseData.submittedAt || null,
             });
-            setShowResultsModal(true);
+            if (Array.isArray(responseData.checkedAnswers)) {
+              setQuizCheckedAnswers(responseData.checkedAnswers);
+            }
+            // If explicitly in review mode, render full quiz with answers (no modal)
+            if (review) {
+              setIsReviewMode(true);
+            } else {
+              setShowResultsModal(true);
+              setIsReviewMode(true);
+            }
           }
         }
       } catch (responseError) {
@@ -279,18 +295,21 @@ export default function QuizView() {
       const result = await response.json();
       console.log('Quiz submission result:', result);
       
-      // Calculate score and percentage
+      // Use backend totals when provided
       const calculatedScore = result.score || 0;
-      const totalPoints = quiz.points || 100;
-      const percentage = Math.round((calculatedScore / totalPoints) * 100);
-      
+      const totalPoints = typeof result.total === 'number' ? result.total : (quiz.points || 100);
+      const percentage = typeof result.percentage === 'number' ? result.percentage : Math.round((calculatedScore / (totalPoints || 1)) * 100);
+
       setQuizResult({
         score: calculatedScore,
         totalPoints: totalPoints,
         percentage: percentage,
-        timeSpent: result.timeSpent || 0
+        timeSpent: result.timeSpent || 0,
+        submittedAt: result.submittedAt || new Date().toISOString(),
       });
-      setShowResultsModal(true);
+
+      // Ask user whether to reveal now
+      setShowRevealModal(true);
     } catch (error) {
       console.error('Error submitting quiz:', error);
       Alert.alert('Error', 'Failed to submit quiz');
@@ -308,6 +327,8 @@ export default function QuizView() {
   const renderQuestion = (question, index) => {
     const isCurrentQuestion = index === currentQuestionIndex;
     const currentAnswer = answers[index];
+    const checked = Array.isArray(quizCheckedAnswers) ? quizCheckedAnswers[index] : null;
+    const revealAnswers = isReviewMode && !!checked;
 
     if (!isCurrentQuestion) return null;
 
@@ -333,23 +354,35 @@ export default function QuizView() {
                 key={choiceIndex}
                 style={[
                   styles.choiceButton,
-                  currentAnswer && currentAnswer.includes(choice) && styles.selectedChoice
+                  (Array.isArray(currentAnswer) && currentAnswer.includes(choice)) && styles.selectedChoice,
+                  revealAnswers && checked && Array.isArray(checked.correctAnswer) && checked.correctAnswer.includes(choice) && { borderColor: '#4CAF50' },
+                  revealAnswers && checked && Array.isArray(currentAnswer) && currentAnswer.includes(choice) && !checked.correct && { borderColor: '#F44336' }
                 ]}
-                onPress={() => handleAnswerChange(index, choice, true)}
+                onPress={!isReviewMode ? () => handleAnswerChange(index, choice, true) : undefined}
               >
                 <MaterialIcons
-                  name={currentAnswer && currentAnswer.includes(choice) ? 'check-circle' : 'radio-button-unchecked'}
+                  name={(Array.isArray(currentAnswer) && currentAnswer.includes(choice)) ? 'check-circle' : 'radio-button-unchecked'}
                   size={24}
-                  color={currentAnswer && currentAnswer.includes(choice) ? '#00418b' : '#ccc'}
+                  color={(Array.isArray(currentAnswer) && currentAnswer.includes(choice)) ? '#00418b' : '#ccc'}
                 />
                 <Text style={[
                   styles.choiceText,
-                  currentAnswer && currentAnswer.includes(choice) && styles.selectedChoiceText
+                  (Array.isArray(currentAnswer) && currentAnswer.includes(choice)) && styles.selectedChoiceText
                 ]}>
                   {choice}
                 </Text>
               </TouchableOpacity>
             ))}
+            {revealAnswers && (
+              <View style={{ marginTop: 6 }}>
+                <Text style={{ fontSize: 12, color: checked?.correct ? '#4CAF50' : '#F44336' }}>
+                  {checked?.correct ? 'Correct' : 'Incorrect'}
+                </Text>
+                {Array.isArray(checked?.correctAnswer) && (
+                  <Text style={{ fontSize: 12, color: '#4CAF50' }}>Correct answer: {checked.correctAnswer.join(', ')}</Text>
+                )}
+              </View>
+            )}
           </View>
         )}
 
@@ -358,9 +391,17 @@ export default function QuizView() {
             style={styles.textInput}
             placeholder="Enter your answer"
             value={currentAnswer || ''}
-            onChangeText={(text) => handleAnswerChange(index, text)}
+            onChangeText={!isReviewMode ? (text) => handleAnswerChange(index, text) : undefined}
             multiline
           />
+        )}
+        {isReviewMode && question.type === 'identification' && (
+          <View style={{ marginTop: 8, padding: 12, backgroundColor: '#f7fbff', borderRadius: 8 }}>
+            <Text style={{ fontSize: 12, color: '#333' }}>Your answer: {String(currentAnswer || '')}</Text>
+            {checked?.correctAnswer !== undefined && (
+              <Text style={{ fontSize: 12, color: '#4CAF50', marginTop: 4 }}>Correct answer: {String(checked.correctAnswer)}</Text>
+            )}
+          </View>
         )}
 
         {question.type === 'truefalse' && (
@@ -368,9 +409,11 @@ export default function QuizView() {
             <TouchableOpacity
               style={[
                 styles.choiceButton,
-                currentAnswer === 'true' && styles.selectedChoice
+                currentAnswer === 'true' && styles.selectedChoice,
+                revealAnswers && checked && checked.correctAnswer === 'true' && { borderColor: '#4CAF50' },
+                revealAnswers && checked && currentAnswer === 'true' && !checked.correct && { borderColor: '#F44336' }
               ]}
-              onPress={() => handleAnswerChange(index, 'true')}
+              onPress={!isReviewMode ? () => handleAnswerChange(index, 'true') : undefined}
             >
               <MaterialIcons
                 name={currentAnswer === 'true' ? 'check-circle' : 'radio-button-unchecked'}
@@ -388,9 +431,11 @@ export default function QuizView() {
             <TouchableOpacity
               style={[
                 styles.choiceButton,
-                currentAnswer === 'false' && styles.selectedChoice
+                currentAnswer === 'false' && styles.selectedChoice,
+                revealAnswers && checked && checked.correctAnswer === 'false' && { borderColor: '#4CAF50' },
+                revealAnswers && checked && currentAnswer === 'false' && !checked.correct && { borderColor: '#F44336' }
               ]}
-              onPress={() => handleAnswerChange(index, 'false')}
+              onPress={!isReviewMode ? () => handleAnswerChange(index, 'false') : undefined}
             >
               <MaterialIcons
                 name={currentAnswer === 'false' ? 'check-circle' : 'radio-button-unchecked'}
@@ -404,6 +449,16 @@ export default function QuizView() {
                 False
               </Text>
             </TouchableOpacity>
+          </View>
+        )}
+        {revealAnswers && question.type !== 'multiple' && (
+          <View style={{ marginTop: 6 }}>
+            <Text style={{ fontSize: 12, color: checked?.correct ? '#4CAF50' : '#F44336' }}>
+              {checked?.correct ? 'Correct' : 'Incorrect'}
+            </Text>
+            {checked?.correctAnswer && (
+              <Text style={{ fontSize: 12, color: '#4CAF50' }}>Correct answer: {String(checked.correctAnswer)}</Text>
+            )}
           </View>
         )}
       </View>
@@ -691,6 +746,16 @@ export default function QuizView() {
                     {formatTime(quizResult.timeSpent || 0)}
                   </Text>
                 </View>
+                {Array.isArray(quizCheckedAnswers) && quizCheckedAnswers.length > 0 && (
+                  <View style={{ marginTop: 8 }}>
+                    <Text style={[styles.resultLabel, { marginBottom: 8 }]}>Answers:</Text>
+                    {quizCheckedAnswers.map((it, idx) => (
+                      <View key={idx} style={{ paddingVertical: 6 }}>
+                        <Text style={{ fontSize: 14, color: '#333' }}>Q{idx + 1}: {it.correct ? 'Correct' : 'Incorrect'}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
               </View>
             )}
 
@@ -703,6 +768,96 @@ export default function QuizView() {
             >
               <Text style={styles.resultsButtonText}>Done</Text>
             </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Reveal Options Modal */}
+      <Modal
+        visible={showRevealModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => {
+          setShowRevealModal(false);
+          setShowResultsModal(true);
+        }}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modal}>
+            <Text style={styles.modalTitle}>View Results</Text>
+            <Text style={styles.modalText}>Choose what to reveal now.</Text>
+
+            <TouchableOpacity
+              onPress={() => setRevealScoreNow(!revealScoreNow)}
+              style={[styles.choiceButton, revealScoreNow && styles.selectedChoice]}
+            >
+              <MaterialIcons
+                name={revealScoreNow ? 'check-circle' : 'radio-button-unchecked'}
+                size={24}
+                color={revealScoreNow ? '#00418b' : '#ccc'}
+              />
+              <Text style={[styles.choiceText, revealScoreNow && styles.selectedChoiceText]}>
+                Show score now
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => setRevealAnswersNow(!revealAnswersNow)}
+              style={[styles.choiceButton, revealAnswersNow && styles.selectedChoice]}
+            >
+              <MaterialIcons
+                name={revealAnswersNow ? 'check-circle' : 'radio-button-unchecked'}
+                size={24}
+                color={revealAnswersNow ? '#00418b' : '#ccc'}
+              />
+              <Text style={[styles.choiceText, revealAnswersNow && styles.selectedChoiceText]}>
+                Show correct answers now
+              </Text>
+            </TouchableOpacity>
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={styles.modalButtonCancel}
+                onPress={() => {
+                  setShowRevealModal(false);
+                  setShowResultsModal(true);
+                }}
+              >
+                <Text style={styles.modalButtonText}>Later</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalButtonSubmit}
+                onPress={async () => {
+                  try {
+                    setShowRevealModal(false);
+                    if (!revealScoreNow && !revealAnswersNow) {
+                      setShowResultsModal(true);
+                      return;
+                    }
+                    const token = await AsyncStorage.getItem('jwtToken');
+                    const res = await fetch(`${API_BASE}/api/quizzes/${quizId}/myscore?studentId=${user._id}&revealAnswers=${revealAnswersNow ? 'true' : 'false'}`, {
+                      headers: { Authorization: `Bearer ${token}` }
+                    });
+                    if (res.ok) {
+                      const data = await res.json();
+                      setQuizResult({
+                        score: data.score || 0,
+                        totalPoints: typeof data.total === 'number' ? data.total : (quizResult?.totalPoints || 0),
+                        percentage: typeof data.percentage === 'number' ? data.percentage : (quizResult?.percentage || 0),
+                        timeSpent: data.timeSpent || quizResult?.timeSpent || 0,
+                        submittedAt: data.submittedAt || quizResult?.submittedAt,
+                      });
+                      setQuizCheckedAnswers(revealAnswersNow ? (data.checkedAnswers || []) : null);
+                    }
+                    setShowResultsModal(true);
+                  } catch (e) {
+                    setShowResultsModal(true);
+                  }
+                }}
+              >
+                <Text style={styles.modalButtonText}>Show</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>

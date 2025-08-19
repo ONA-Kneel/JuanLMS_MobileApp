@@ -55,7 +55,7 @@ export default function AdminCalendar() {
     startOfWeek.setDate(today.getDate() - currentDay);
     return timeToString(startOfWeek);
   });
-  const [showMonthCalendar, setShowMonthCalendar] = useState(false);
+  const [showMonthCalendar, setShowMonthCalendar] = useState(true);
   
   // New state variables for enhanced functionality
   const [academicYear, setAcademicYear] = useState(null);
@@ -277,6 +277,19 @@ export default function AdminCalendar() {
   // Week view: get week dates for the current week
   const weekDates = getCurrentWeekDates(weekStartDate);
 
+  // Month navigation
+  const changeMonth = (direction) => {
+    const date = new Date(selectedDate);
+    if (direction === 'prev') {
+      date.setMonth(date.getMonth() - 1);
+    } else {
+      date.setMonth(date.getMonth() + 1);
+    }
+    const newDateStr = timeToString(date);
+    setSelectedDate(newDateStr);
+    setCurrentMonth(getMonthYearString(newDateStr));
+  };
+
   // Handlers for week navigation
   const goToPrevWeek = () => {
     setWeekStartDate(addDays(weekStartDate, -7));
@@ -355,18 +368,18 @@ export default function AdminCalendar() {
           </Text>
         </View>
 
-        {/* Month Navigation */}
+        {/* Month Navigation (always visible) */}
         <View style={AdminCalendarStyle.monthNavigation}>
-          <TouchableOpacity onPress={() => setShowMonthCalendar(!showMonthCalendar)} style={AdminCalendarStyle.navButton}>
-            <Ionicons name={showMonthCalendar ? 'chevron-up' : 'chevron-down'} size={24} color="#00418b" />
+          <TouchableOpacity onPress={() => changeMonth('prev')} style={AdminCalendarStyle.navButton}>
+            <Ionicons name="chevron-back" size={24} color="#00418b" />
           </TouchableOpacity>
           <Text style={AdminCalendarStyle.monthText}>{getMonthYearString(selectedDate)}</Text>
-          <TouchableOpacity style={AdminCalendarStyle.navButton}>
-            <Ionicons name="calendar" size={24} color="#00418b" />
+          <TouchableOpacity onPress={() => changeMonth('next')} style={AdminCalendarStyle.navButton}>
+            <Ionicons name="chevron-forward" size={24} color="#00418b" />
           </TouchableOpacity>
         </View>
 
-        {/* Collapsible Month Calendar */}
+        {/* Month Calendar */}
         {showMonthCalendar && (
           <View style={AdminCalendarStyle.calendarContainer}>
             <View style={AdminCalendarStyle.dayHeaders}>

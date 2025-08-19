@@ -28,6 +28,21 @@ export default function StudentsProfile() {
   const fileInputRef = useRef(null);
   const [webPreviewUrl, setWebPreviewUrl] = useState(null);
 
+  const computeTrack = (u) => {
+    if (!u) return 'General';
+    if (u.track && typeof u.track === 'string') return u.track;
+    const source = [u.strand, u.course, u.program, u.section, u.gradeLevel]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase();
+    if (!source) return 'General';
+    const tvlKeywords = ['tvl', 'ict', 'home economics', 'he', 'industrial arts', 'ia', 'agri', 'agri-fishery', 'af'];
+    const academicKeywords = ['academic', 'stem', 'abm', 'humss', 'gas'];
+    if (tvlKeywords.some(k => source.includes(k))) return 'TVL Track';
+    if (academicKeywords.some(k => source.includes(k))) return 'Academic Track';
+    return 'General';
+  };
+
   const logout = async () => {
     try {
       if (user) {
@@ -188,12 +203,12 @@ export default function StudentsProfile() {
         <Text style={StudentsProfileStyle.email}>{user.email}</Text>
         <View style={StudentsProfileStyle.row}>
           <View style={StudentsProfileStyle.infoBox}>
-            <Text style={StudentsProfileStyle.infoLabel}>College</Text>
-            <Text style={StudentsProfileStyle.infoValue}>{user.college || 'N/A'}</Text>
+            <Text style={[StudentsProfileStyle.infoLabel, { fontFamily: 'Poppins-Regular' }]}>Track</Text>
+            <Text style={[StudentsProfileStyle.infoValue, { fontFamily: 'Poppins-SemiBold' }]}>{computeTrack(user)}</Text>
           </View>
           <View style={StudentsProfileStyle.infoBox}>
-            <Text style={StudentsProfileStyle.infoLabel}>Role</Text>
-            <Text style={StudentsProfileStyle.infoValue}>Student</Text>
+            <Text style={[StudentsProfileStyle.infoLabel, { fontFamily: 'Poppins-Regular' }]}>Role</Text>
+            <Text style={[StudentsProfileStyle.infoValue, { fontFamily: 'Poppins-SemiBold' }]}>Student</Text>
           </View>
         </View>
         <View style={StudentsProfileStyle.actionRow}>

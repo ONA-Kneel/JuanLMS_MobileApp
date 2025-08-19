@@ -422,7 +422,7 @@ export default function StudentCalendar() {
           </TouchableOpacity>
         </View>
 
-        {/* Month Calendar - Always Visible */}
+        {/* Month Calendar - Match VPE style */}
         <View style={StudentCalendarStyle.calendarContainer}>
           <View style={StudentCalendarStyle.dayHeaders}>
             {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (

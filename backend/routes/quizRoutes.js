@@ -238,7 +238,11 @@ router.post('/:quizId/submit', /*authenticateToken,*/ async (req, res) => {
     });
     const response = new QuizResponse({ quizId, studentId, answers, score, checkedAnswers });
     await response.save();
-    res.status(201).json({ message: 'Quiz submitted successfully.', score });
+    const total = Array.isArray(quiz.questions)
+      ? quiz.questions.reduce((sum, q) => sum + (q.points || 1), 0)
+      : 0;
+    const percentage = total > 0 ? Math.round((score / total) * 100) : 0;
+    res.status(201).json({ message: 'Quiz submitted successfully.', score, total, percentage, submittedAt: response.submittedAt });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -289,19 +293,29 @@ router.get('/:quizId/myscore', /*authenticateToken,*/ async (req, res) => {
   try {
     const { quizId } = req.params;
     // const studentId = req.user._id;
-    const { studentId } = req.query;
+    const { studentId, revealAnswers } = req.query;
     const response = await QuizResponse.findOne({ quizId, studentId });
     if (!response) return res.status(404).json({ error: 'No submission found' });
 
     const quiz = await Quiz.findById(quizId);
     const total = quiz && Array.isArray(quiz.questions)
       ? quiz.questions.reduce((sum, q) => sum + (q.points || 1), 0)
-      : null;
+      : 0;
+    const percentage = total > 0 ? Math.round(((response.score ?? 0) / total) * 100) : 0;
 
-    res.json({
+    const payload = {
       score: response.score ?? 0,
-      total: total ?? 0
-    });
+      total,
+      percentage,
+      submittedAt: response.submittedAt,
+      graded: !!response.graded,
+    };
+
+    if (String(revealAnswers).toLowerCase() === 'true') {
+      payload.checkedAnswers = response.checkedAnswers || [];
+    }
+
+    res.json(payload);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

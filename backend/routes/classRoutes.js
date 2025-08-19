@@ -203,85 +203,18 @@ router.get('/student-classes', async (req, res) => {
             lastname: user.lastname
         } : 'Not found');
 
-        // Try multiple approaches to find the student
+        // Use userID for membership matching since class members store userID values
         let classes = [];
-
-        // Approach 1: Try with ObjectId conversion first (most likely to work)
-        try {
-            const objectId = new ObjectId(studentID);
-            classes = await db.collection('Classes')
-                .find({ 
-                    "members": objectId
-                })
-                .toArray();
-            console.log('Approach 1 (ObjectId direct match):', classes.length, 'classes found');
-        } catch (e) {
-            console.log('Could not convert to ObjectId for direct match:', e.message);
-        }
-
-        // Approach 2: Try with ObjectId in array
-        if (classes.length === 0) {
-            try {
-                const objectId = new ObjectId(studentID);
-                classes = await db.collection('Classes')
-                    .find({ 
-                        "members": { $elemMatch: { $eq: objectId } }
-                    })
-                    .toArray();
-                console.log('Approach 2 (ObjectId in array):', classes.length, 'classes found');
-            } catch (e) {
-                console.log('Could not convert to ObjectId for array match:', e.message);
-            }
-        }
-
-        // Approach 3: Check if members array contains the studentID string
-        if (classes.length === 0) {
-            classes = await db.collection('Classes')
-                .find({ 
-                    "members": { $elemMatch: { $eq: studentID } }
-                })
-                .toArray();
-            console.log('Approach 3 (string in array):', classes.length, 'classes found');
-        }
-
-        // Approach 4: Check if members array contains the studentID as direct match
-        if (classes.length === 0) {
-            classes = await db.collection('Classes')
-                .find({ 
-                    "members": studentID
-                })
-                .toArray();
-            console.log('Approach 4 (string direct match):', classes.length, 'classes found');
-        }
-
-        // Approach 5: Try with userID if available
-        if (classes.length === 0 && user && user.userID) {
+        if (user && user.userID) {
             classes = await db.collection('Classes')
                 .find({ 
                     "members": user.userID
                 })
                 .toArray();
-            console.log('Approach 5 (userID match):', classes.length, 'classes found');
-        }
-
-        // Approach 6: Try with email if available
-        if (classes.length === 0 && user && user.email) {
-            classes = await db.collection('Classes')
-                .find({ 
-                    "members": user.email
-                })
-                .toArray();
-            console.log('Approach 6 (email match):', classes.length, 'classes found');
-        }
-
-        // Approach 7: Try with userID in array
-        if (classes.length === 0 && user && user.userID) {
-            classes = await db.collection('Classes')
-                .find({ 
-                    "members": { $elemMatch: { $eq: user.userID } }
-                })
-                .toArray();
-            console.log('Approach 7 (userID in array):', classes.length, 'classes found');
+            console.log('Classes found for student using userID:', classes.length);
+        } else {
+            console.log('No userID found for student, cannot fetch classes');
+            classes = [];
         }
 
         console.log('Final classes found:', classes.length);

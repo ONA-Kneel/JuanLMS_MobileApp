@@ -10,6 +10,8 @@ import { useFonts } from 'expo-font';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MaterialIcons } from '@expo/vector-icons';
 
+const API_BASE = 'https://juanlms-webapp-server.onrender.com';
+
 function formatDateHeader(date) {
   if (!date) return 'No due date';
   const d = new Date(date);
@@ -79,7 +81,32 @@ export default function StudentModule(){
             const assignments = assignmentsRes.data.map(item => ({ ...item, type: 'assignment' }));
             const quizzes = quizzesRes.data.map(item => ({ ...item, type: 'quiz' }));
             
-            const allClasswork = [...assignments, ...quizzes];
+            // Check submission statuses for quizzes to enrich items
+            let enrichedQuizzes = quizzes;
+            try {
+                const userStr = await AsyncStorage.getItem('user');
+                const userObj = userStr ? JSON.parse(userStr) : null;
+                const userId = userObj?._id;
+                if (userId) {
+                    const entries = await Promise.all(quizzes.map(async (q) => {
+                        try {
+                            const res = await fetch(`${API_BASE}/api/quizzes/${q._id}/myscore?studentId=${userId}` , {
+                                headers: { Authorization: `Bearer ${token}` }
+                            });
+                            if (res.ok) {
+                                const data = await res.json();
+                                return { ...q, isSubmitted: true, score: data.score, totalPoints: data.total, percentage: data.percentage };
+                            }
+                        } catch (_) {}
+                        return { ...q, isSubmitted: false };
+                    }));
+                    enrichedQuizzes = entries;
+                }
+            } catch (e) {
+                console.log('Failed to enrich quizzes with submission state', e);
+            }
+
+            const allClasswork = [...assignments, ...enrichedQuizzes];
             setClasswork(allClasswork);
             console.log('Fetched classwork (Student):', allClasswork); // Debug log
         } catch (err) {
@@ -218,6 +245,13 @@ export default function StudentModule(){
         return lowerFileName.endsWith('.pdf');
     };
 
+    const toAbsoluteUrl = (url) => {
+        if (!url) return url;
+        if (url.startsWith('http://') || url.startsWith('https://')) return url;
+        const path = url.startsWith('/') ? url : `/${url}`;
+        return `${API_BASE}${path}`;
+    };
+
     const handleFilePress = (file) => {
         console.log('File pressed:', file);
         if (isImageFile(file.fileName)) {
@@ -229,30 +263,34 @@ export default function StudentModule(){
             
             // Test if the image URL is accessible
             console.log('Opening image viewer for:', file.fileName);
-            console.log('Image URL:', file.fileUrl);
+            const absoluteUrl = toAbsoluteUrl(file.fileUrl);
+            console.log('Image URL:', absoluteUrl);
             
             // Set loading state first
             setImageLoading(true);
-            setSelectedFile(file);
+            setSelectedFile({ ...file, fileUrl: absoluteUrl });
             setShowFileViewer(true);
         } else if (isVideoFile(file.fileName)) {
             // For videos, we'll try to open them in the device's default video player
             if (file.fileUrl) {
-                Linking.openURL(file.fileUrl).catch(() => {
+                const absoluteUrl = toAbsoluteUrl(file.fileUrl);
+                Linking.openURL(absoluteUrl).catch(() => {
                     Alert.alert('Error', 'Unable to open video file');
                 });
             }
         } else if (isPdfFile(file.fileName)) {
             // For PDFs, try to open in browser or download
             if (file.fileUrl) {
-                Linking.openURL(file.fileUrl).catch(() => {
+                const absoluteUrl = toAbsoluteUrl(file.fileUrl);
+                Linking.openURL(absoluteUrl).catch(() => {
                     Alert.alert('Error', 'Unable to open PDF file');
                 });
             }
         } else {
             // For other files, download them
             if (file.fileUrl) {
-                Linking.openURL(file.fileUrl).catch(() => {
+                const absoluteUrl = toAbsoluteUrl(file.fileUrl);
+                Linking.openURL(absoluteUrl).catch(() => {
                     Alert.alert('Error', 'Unable to download file');
                 });
             }
@@ -473,25 +511,24 @@ export default function StudentModule(){
                                                             elevation: 1
                                                         }}
                                                         onPress={() => {
-                                                            // Check if activity is already completed
-                                                            if (item.isSubmitted) {
-                                                                Alert.alert(
-                                                                    'Already Completed',
-                                                                    `You have already completed this ${item.type === 'quiz' ? 'quiz' : 'assignment'}.`,
-                                                                    [
-                                                                        { text: 'OK', style: 'default' }
-                                                                    ]
-                                                                );
-                                                                return;
-                                                            }
-                                                            
                                                             if (item.type === 'quiz') {
-                                                                navigation.navigate('QuizView', { quizId: item._id });
+                                                                if (item.isSubmitted) {
+                                                                    navigation.navigate('QuizView', { quizId: item._id, review: true });
+                                                                } else {
+                                                                    navigation.navigate('QuizView', { quizId: item._id });
+                                                                }
                                                             } else {
+                                                                if (item.isSubmitted) {
+                                                                    Alert.alert(
+                                                                        'Already Completed',
+                                                                        'You have already completed this assignment.',
+                                                                        [{ text: 'OK', style: 'default' }]
+                                                                    );
+                                                                    return;
+                                                                }
                                                                 navigation.navigate('AssignmentDetail', { 
                                                                     assignmentId: item._id,
                                                                     onSubmissionComplete: () => {
-                                                                        // Refresh classwork when returning from submission
                                                                         fetchClasswork(classID);
                                                                     }
                                                                 });

@@ -84,6 +84,18 @@ const profileService = {
       throw new Error('Network error while uploading profile picture');
     }
   },
+
+  async updateTrack(userId, track) {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const response = await axios.post(`${API_URL}/users/${userId}/track`, { track }, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
 };
 
 export default profileService; 

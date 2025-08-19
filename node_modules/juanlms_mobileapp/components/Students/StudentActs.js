@@ -33,6 +33,7 @@ const formatDateTime = (dateString) => {
 
 // Activity Card Component
 function ActivityCard({ activity, onActivityPress }) {
+  const navigation = useNavigation();
   const getActivityIcon = (type) => {
     switch (type) {
       case 'quiz':
@@ -114,16 +115,28 @@ function ActivityCard({ activity, onActivityPress }) {
             </View>
           )}
         </View>
-        
-        <TouchableOpacity 
-          style={[styles.actionButton, styles.viewButton]}
-          onPress={() => onActivityPress(activity)}
-        >
-          <MaterialIcons name="visibility" size={16} color="#2196F3" />
-          <Text style={styles.viewButtonText}>
-            {activity.isSubmitted ? 'View Details' : 'Start'}
-          </Text>
-        </TouchableOpacity>
+
+        <View style={styles.actionButtonsRow}>
+          {activity.type === 'quiz' && activity.isSubmitted && (
+            <TouchableOpacity 
+              style={[styles.actionButton, styles.resultsButton]}
+              onPress={() => navigation.navigate('QuizView', { quizId: activity._id, review: true })}
+            >
+              <MaterialIcons name="check-circle" size={16} color="#4CAF50" />
+              <Text style={styles.resultsButtonText}>View Results</Text>
+            </TouchableOpacity>
+          )}
+
+          <TouchableOpacity 
+            style={[styles.actionButton, styles.viewButton]}
+            onPress={() => onActivityPress(activity)}
+          >
+            <MaterialIcons name="visibility" size={16} color="#2196F3" />
+            <Text style={styles.viewButtonText}>
+              {activity.isSubmitted ? 'View Details' : 'Start'}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
@@ -144,8 +157,10 @@ export default function StudentActs() {
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
-    fetchActivities();
-  }, []);
+    if (user && user._id) {
+      fetchActivities();
+    }
+  }, [user]);
 
   // Add focus listener to refresh activities when returning to this screen
   useEffect(() => {
@@ -252,7 +267,9 @@ export default function StudentActs() {
       const token = await AsyncStorage.getItem('jwtToken');
       
       if (!user || !user._id) {
-        throw new Error('User data not found');
+        console.warn('User not ready, skipping activities fetch');
+        setLoading(false);
+        return;
       }
 
       console.log('DEBUG: Fetching activities for student:', user._id);
@@ -276,15 +293,28 @@ export default function StudentActs() {
           if (!classItem || !classItem.members) return false;
           
           const isMember = classItem.members.some(member => {
-            const memberId = typeof member === 'object' ? member.toString() : member;
             const userId = user._id.toString();
-            
-            if (memberId === userId) return true;
-            if (user.studentCode && memberId === user.studentCode) return true;
-            if (user.id && memberId === user.id) return true;
-            if (memberId.startsWith('S') && user.studentCode && memberId === user.studentCode) return true;
-            
-            return false;
+            const candidateIds = [
+              userId,
+              user.userID?.toString?.(),
+              user.id?.toString?.(),
+              user.schoolID?.toString?.(),
+              user.studentID?.toString?.(),
+              user.studentCode?.toString?.(),
+            ].filter(Boolean);
+            if (typeof member === 'object') {
+              const maybeId = member?._id || member?.id || member?.userID || member?.schoolID || member?.studentCode;
+              if (maybeId && candidateIds.includes(maybeId.toString())) return true;
+              const memberStr = member?.toString?.();
+              if (typeof memberStr === 'string') {
+                if (candidateIds.includes(memberStr)) return true;
+              }
+              return false;
+            } else {
+              const memberId = String(member);
+              if (candidateIds.includes(memberId)) return true;
+              return false;
+            }
           });
           
           return isMember;
@@ -294,15 +324,28 @@ export default function StudentActs() {
           if (!classItem || !classItem.members) return false;
           
           const isMember = classItem.members.some(member => {
-            const memberId = typeof member === 'object' ? member.toString() : member;
             const userId = user._id.toString();
-            
-            if (memberId === userId) return true;
-            if (user.studentCode && memberId === user.studentCode) return true;
-            if (user.id && memberId === user.id) return true;
-            if (memberId.startsWith('S') && user.studentCode && memberId === user.studentCode) return true;
-            
-            return false;
+            const candidateIds = [
+              userId,
+              user.userID?.toString?.(),
+              user.id?.toString?.(),
+              user.schoolID?.toString?.(),
+              user.studentID?.toString?.(),
+              user.studentCode?.toString?.(),
+            ].filter(Boolean);
+            if (typeof member === 'object') {
+              const maybeId = member?._id || member?.id || member?.userID || member?.schoolID || member?.studentCode;
+              if (maybeId && candidateIds.includes(maybeId.toString())) return true;
+              const memberStr = member?.toString?.();
+              if (typeof memberStr === 'string') {
+                if (candidateIds.includes(memberStr)) return true;
+              }
+              return false;
+            } else {
+              const memberId = String(member);
+              if (candidateIds.includes(memberId)) return true;
+              return false;
+            }
           });
           
           return isMember;
@@ -355,6 +398,9 @@ export default function StudentActs() {
         const activitiesWithStatus = await checkSubmissionStatuses(postedActivities);
         activitiesWithStatus.sort((a, b) => new Date(a.dueDate || 0) - new Date(b.dueDate || 0));
         setActivities(activitiesWithStatus);
+        if (activitiesWithStatus.length === 0) {
+          console.warn('DEBUG: Fallback produced 0 activities. Check if endpoints return data and item types include className/dates.');
+        }
         setLoading(false);
         return;
       }
@@ -727,7 +773,14 @@ export default function StudentActs() {
   };
 
   const handleActivityPress = (activity) => {
-    if (activity.isSubmitted) {
+    // If quiz is already submitted, open the modal with a View Results action
+    if (activity.type === 'quiz' && activity.isSubmitted) {
+      setSelectedActivity(activity);
+      setShowActivityModal(true);
+      return;
+    }
+    // For assignments already submitted, keep the info modal notice
+    if (activity.type !== 'quiz' && activity.isSubmitted) {
       Alert.alert(
         'Already Completed',
         `You have already completed this ${activity.type === 'quiz' ? 'quiz' : 'assignment'}.`,
@@ -735,7 +788,6 @@ export default function StudentActs() {
       );
       return;
     }
-    
     setSelectedActivity(activity);
     setShowActivityModal(true);
   };
@@ -743,17 +795,13 @@ export default function StudentActs() {
   const navigateToActivity = (activity) => {
     setShowActivityModal(false);
     
-    if (activity.isSubmitted) {
-      Alert.alert(
-        'Already Completed',
-        `You have already completed this ${activity.type === 'quiz' ? 'quiz' : 'assignment'}.`,
-        [{ text: 'OK', style: 'default' }]
-      );
-      return;
-    }
-    
+    // If quiz is already submitted, open in review mode
     if (activity.type === 'quiz') {
-      navigation.navigate('QuizView', { quizId: activity._id });
+      if (activity.isSubmitted) {
+        navigation.navigate('QuizView', { quizId: activity._id, review: true });
+      } else {
+        navigation.navigate('QuizView', { quizId: activity._id });
+      }
     } else {
       navigation.navigate('AssignmentDetail', { 
         assignmentId: activity._id,
@@ -774,10 +822,12 @@ export default function StudentActs() {
                          (activity.className && activity.className.toLowerCase().includes(searchQuery.toLowerCase()));
 
     if (activeTab === 'upcoming') {
+      if (!activity.dueDate) return matchesSearch && !activity.isSubmitted; // include items without dueDate
       const now = new Date();
       const dueDate = new Date(activity.dueDate);
       return dueDate > now && !activity.isSubmitted && matchesSearch;
     } else if (activeTab === 'pastDue') {
+      if (!activity.dueDate) return false; // keep pastDue strict
       const now = new Date();
       const dueDate = new Date(activity.dueDate);
       return dueDate < now && !activity.isSubmitted && matchesSearch;
@@ -828,8 +878,8 @@ export default function StudentActs() {
         <View style={styles.activityTabsBar}>
           {[
             { key: 'all', label: 'All', count: activities.length },
-            { key: 'upcoming', label: 'Upcoming', count: activities.filter(a => !a.isSubmitted && new Date(a.dueDate) > new Date()).length },
-            { key: 'pastDue', label: 'Past Due', count: activities.filter(a => !a.isSubmitted && new Date(a.dueDate) < new Date()).length },
+            { key: 'upcoming', label: 'Upcoming', count: activities.filter(a => !a.isSubmitted && (!a.dueDate || new Date(a.dueDate) > new Date())).length },
+            { key: 'pastDue', label: 'Past Due', count: activities.filter(a => !a.isSubmitted && a.dueDate && new Date(a.dueDate) < new Date()).length },
             { key: 'completed', label: 'Completed', count: activities.filter(a => a.isSubmitted).length }
           ].map((tab) => (
             <TouchableOpacity
@@ -974,7 +1024,9 @@ export default function StudentActs() {
                   onPress={() => navigateToActivity(selectedActivity)}
                 >
                   <Text style={styles.modalActionButtonText}>
-                    {selectedActivity.type === 'quiz' ? 'Take Quiz' : 'View Assignment'}
+                    {selectedActivity.type === 'quiz'
+                      ? (selectedActivity.isSubmitted ? 'View Results' : 'Take Quiz')
+                      : 'View Assignment'}
                   </Text>
                 </TouchableOpacity>
               </ScrollView>
@@ -1170,6 +1222,21 @@ const styles = {
   },
   viewButtonText: {
     color: '#2196F3',
+    fontSize: 10,
+    marginLeft: 2,
+    fontFamily: 'Poppins-Medium',
+  },
+  actionButtonsRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 8,
+  },
+  resultsButton: {
+    backgroundColor: '#e8f5e9',
+    marginRight: 8,
+  },
+  resultsButtonText: {
+    color: '#4CAF50',
     fontSize: 10,
     marginLeft: 2,
     fontFamily: 'Poppins-Medium',

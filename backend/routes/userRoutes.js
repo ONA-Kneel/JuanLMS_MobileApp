@@ -67,6 +67,7 @@ userRoutes.post("/users", async (req, res) => {
         emailHash: hashEmail(email),
         contactno: req.body.contactno,
         password: req.body.password, // 🔐 optionally hash this
+        track: req.body.track, // store track if provided (e.g., 'TVL Track' or 'Academic Track')
     };
     const result = await db.collection("users").insertOne(mongoObject);
     res.json(result);
@@ -85,6 +86,7 @@ userRoutes.post("/users/:id", async (req, res) => {
             emailHash: hashEmail(email),
             contactno: req.body.contactno,
             password: req.body.password,
+            ...(req.body.track ? { track: req.body.track } : {}),
         },
     };
     const result = await db.collection("users").updateOne({ _id: new ObjectId(req.params.id) }, updateObject);
@@ -177,13 +179,14 @@ userRoutes.put("/users/:id/profile-picture", upload.single('profilePicture'), as
 userRoutes.post("/users/:id/profile", async (req, res) => {
     try {
         const db = database.getDb();
-        const { firstname, lastname, college } = req.body;
+        const { firstname, lastname, college, track } = req.body;
         
         const updateObject = {
             $set: {
                 firstname,
                 lastname,
                 college,
+                ...(track ? { track } : {}),
             },
         };
         
@@ -207,6 +210,35 @@ userRoutes.post("/users/:id/profile", async (req, res) => {
     } catch (error) {
         console.error('Profile update error:', error);
         res.status(500).json({ success: false, message: "Failed to update profile" });
+    }
+});
+
+// Set track explicitly
+userRoutes.post("/users/:id/track", async (req, res) => {
+    try {
+        const db = database.getDb();
+        const { track } = req.body;
+        if (!track) {
+            return res.status(400).json({ success: false, message: "track is required" });
+        }
+        const result = await db.collection("users").updateOne(
+            { _id: new ObjectId(req.params.id) },
+            { $set: { track } }
+        );
+        if (result.matchedCount === 0) {
+            return res.status(404).json({ success: false, message: "User not found" });
+        }
+        const updatedUser = await db.collection("users").findOne({ _id: new ObjectId(req.params.id) });
+        if (updatedUser && updatedUser.email) {
+            updatedUser.email = decrypt(updatedUser.email, process.env.ENCRYPTION_KEY);
+        }
+        if (updatedUser && updatedUser.profilePic) {
+            updatedUser.profilePic = decrypt(updatedUser.profilePic, process.env.ENCRYPTION_KEY);
+        }
+        res.json({ success: true, user: updatedUser });
+    } catch (error) {
+        console.error('Set track error:', error);
+        res.status(500).json({ success: false, message: "Failed to set track" });
     }
 });
 
