@@ -30,6 +30,7 @@ export default function QuizView() {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState({});
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [timeLeft, setTimeLeft] = useState(null);
   const [showSubmitModal, setShowSubmitModal] = useState(false);
@@ -128,10 +129,60 @@ export default function QuizView() {
       
       const token = await AsyncStorage.getItem('jwtToken');
       console.log('Fetching quiz data for ID:', quizId);
-      const response = await fetch(`${API_BASE}/api/quizzes/${quizId}`);
+      console.log('Token retrieved:', token ? 'Token exists' : 'No token found');
+      console.log('API URL:', `${API_BASE}/api/quizzes/${quizId}`);
+      
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+      
+      // Test API connectivity first
+      try {
+        const testResponse = await fetch(`${API_BASE}/api/quizzes`, {
+          headers: { 
+            Authorization: `Bearer ${token}`,
+            'Accept': 'application/json'
+          }
+        });
+        console.log('API connectivity test - Status:', testResponse.status);
+      } catch (testError) {
+        console.log('API connectivity test failed:', testError.message);
+      }
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      
+      const response = await fetch(`${API_BASE}/api/quizzes/${quizId}`, {
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
+      console.log('Response status:', response.status);
+      console.log('Response status text:', response.statusText);
+      console.log('Response headers:', response.headers);
       
       if (!response.ok) {
-        throw new Error('Failed to fetch quiz');
+        const errorText = await response.text();
+        console.error('API Error Response:', errorText);
+        
+        // Try to provide more specific error information
+        if (response.status === 404) {
+          throw new Error('Quiz not found. It may have been deleted or you may not have permission to access it.');
+        } else if (response.status === 401) {
+          throw new Error('Authentication failed. Please log in again.');
+        } else if (response.status === 403) {
+          throw new Error('Access denied. You do not have permission to view this quiz.');
+        } else if (response.status === 500) {
+          throw new Error('Server error. Please try again later.');
+        } else {
+          throw new Error(`Failed to fetch quiz: ${response.status} ${response.statusText}`);
+        }
       }
       
       const quizData = await response.json();
@@ -143,6 +194,10 @@ export default function QuizView() {
         quizPoints: quizData.points,
         questionPoints: quizData.questions?.map(q => ({ question: q.question.substring(0, 30) + '...', points: q.points }))
       });
+      
+      if (!quizData || !quizData.questions || !Array.isArray(quizData.questions)) {
+        throw new Error('Invalid quiz data received from server');
+      }
       
       setQuiz(quizData);
       
@@ -393,13 +448,33 @@ export default function QuizView() {
           setQuizCheckedAnswers(fallbackCheckedAnswers);
         }
       }
-    } catch (error) {
-      console.error('Error fetching quiz:', error);
-      Alert.alert('Error', 'Failed to load quiz');
-      navigation.goBack();
-    } finally {
-      setLoading(false);
-    }
+          } catch (error) {
+        console.error('Error fetching quiz:', error);
+        
+        // Handle specific error types
+        let errorMessage = error.message || 'Failed to load quiz';
+        
+        if (error.name === 'AbortError') {
+          errorMessage = 'Request timed out. Please check your internet connection and try again.';
+        } else if (error.message.includes('Network request failed')) {
+          errorMessage = 'Network error. Please check your internet connection and try again.';
+        }
+        
+        // Log additional debugging information
+        console.log('Quiz fetch error details:', {
+          quizId,
+          error: error.message,
+          errorName: error.name,
+          user: user ? { id: user._id, name: user.firstname } : null,
+          timestamp: new Date().toISOString()
+        });
+        
+        // Set error state for better user experience
+        setError(errorMessage);
+        setLoading(false);
+        
+        // Don't navigate back immediately, let user see the error and retry
+      }
   };
 
   const handleAnswerChange = (questionIndex, value, isMultipleChoice = false) => {
@@ -793,13 +868,39 @@ export default function QuizView() {
     return true;
   };
 
-  if (loading) {
+  if (loading && !error) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#00418b" />
         <Text style={styles.loadingText}>
           {isReviewMode ? 'Loading quiz review...' : 'Loading quiz...'}
         </Text>
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.errorContainer}>
+        <MaterialIcons name="error-outline" size={64} color="#f44336" />
+        <Text style={styles.errorTitle}>Failed to Load Quiz</Text>
+        <Text style={styles.errorText}>{error}</Text>
+        <TouchableOpacity
+          style={styles.retryButton}
+          onPress={() => {
+            setError(null);
+            setLoading(true);
+            fetchQuiz();
+          }}
+        >
+          <Text style={styles.retryButtonText}>Retry</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
+          <Text style={styles.backButtonText}>Go Back</Text>
+        </TouchableOpacity>
       </View>
     );
   }
