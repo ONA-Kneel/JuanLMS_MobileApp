@@ -12,7 +12,6 @@ export default function PrincipalDashboard() {
   const navigation = useNavigation();
   const { user } = useUser();
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
-  const [recentLogs, setRecentLogs] = useState([]);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [calendarDays, setCalendarDays] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -36,22 +35,9 @@ export default function PrincipalDashboard() {
       try {
         setLoading(true);
         setError(null);
-        
-        // Fetch audit logs
-        const token = await AsyncStorage.getItem('jwtToken');
-        const auditResponse = await fetch('http://localhost:5000/audit-logs?page=1&limit=5', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
-
-        if (auditResponse.ok) {
-          const auditData = await auditResponse.json();
-          setRecentLogs(auditData.data?.logs || []);
-        }
 
         // Fetch academic year info
+        const token = await AsyncStorage.getItem('jwtToken');
         const academicResponse = await fetch('https://juanlms-webapp-server.onrender.com/api/academic-year/active', {
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -61,25 +47,14 @@ export default function PrincipalDashboard() {
 
         if (academicResponse.ok) {
           const academicData = await academicResponse.json();
-          if (academicData.success && academicData.academicYear) {
-            setAcademicYear(academicData.academicYear.year || '2025-2026');
-            setCurrentTerm(academicData.academicYear.currentTerm || 'Term 1');
-            setAcademicContext(`${academicData.academicYear.year || '2025-2026'} | ${academicData.academicYear.currentTerm || 'Term 1'}`);
-          }
+          setAcademicYear(academicData.data.academicYear || '2025-2026');
+          setCurrentTerm(academicData.data.currentTerm || 'Term 1');
+          setAcademicContext(`${academicData.data.academicYear || '2025-2026'} | ${academicData.data.currentTerm || 'Term 1'}`);
         }
 
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
         setError('Failed to load dashboard data');
-        
-        // Fallback to mock data
-        setRecentLogs([
-          { timestamp: '2025-08-03T12:43:56', userName: 'Will Bianca', action: 'Login' },
-          { timestamp: '2025-07-22T00:06:11', userName: 'Rochelle Borre', action: 'Login' },
-          { timestamp: '2025-07-20T23:23:40', userName: 'Niel Nathan Borre', action: 'Login' },
-          { timestamp: '2025-07-13T01:59:20', userName: 'Roman Cyril Panganiban', action: 'Login' },
-          { timestamp: '2025-07-05T19:04:07', userName: 'hatdog asd', action: 'Login' },
-        ]);
       } finally {
         setLoading(false);
       }
@@ -121,21 +96,8 @@ export default function PrincipalDashboard() {
       setLoading(true);
       setError(null);
       
-      // Fetch audit logs
-      const token = await AsyncStorage.getItem('jwtToken');
-              const auditResponse = await fetch('http://localhost:5000/audit-logs?page=1&limit=5', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
-
-      if (auditResponse.ok) {
-        const auditData = await auditResponse.json();
-        setRecentLogs(auditData.data?.logs || []);
-      }
-
       // Fetch academic year info
+      const token = await AsyncStorage.getItem('jwtToken');
       const academicResponse = await fetch('https://juanlms-webapp-server.onrender.com/api/academic-year/active', {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -215,21 +177,6 @@ export default function PrincipalDashboard() {
     });
   };
 
-  const formatDate = (dateString) => {
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true
-      });
-    } catch (error) {
-      return 'Invalid date';
-    }
-  };
-
   if (loading) {
     return (
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
@@ -295,43 +242,6 @@ export default function PrincipalDashboard() {
         }
         showsVerticalScrollIndicator={false}
       >
-        {/* Audit Preview Section */}
-        <View style={styles.sectionContainer}>
-          <Text style={styles.sectionTitle}>Audit Preview</Text>
-          <View style={styles.tableCard}>
-            <View style={styles.tableHeader}>
-              <Text style={styles.tableHeaderText}>Timestamp</Text>
-              <Text style={styles.tableHeaderText}>User</Text>
-              <Text style={styles.tableHeaderText}>Details</Text>
-            </View>
-            {recentLogs.length > 0 ? (
-              recentLogs.map((log, index) => (
-                <View 
-                  key={index} 
-                  style={[
-                    styles.tableRow, 
-                    { backgroundColor: index % 2 === 0 ? '#ffffff' : '#f8f9fa' }
-                  ]}
-                >
-                  <Text style={styles.tableCellText} numberOfLines={1}>
-                    {formatDate(log.timestamp)}
-                  </Text>
-                  <Text style={styles.tableCellText} numberOfLines={1}>
-                    {log.userName}
-                  </Text>
-                  <Text style={styles.tableCellText} numberOfLines={1}>
-                    {log.action}
-                  </Text>
-                </View>
-              ))
-            ) : (
-              <View style={styles.emptyState}>
-                <Text style={styles.emptyStateText}>No logs found</Text>
-              </View>
-            )}
-          </View>
-        </View>
-
         {/* Academic Calendar Section */}
         <View style={styles.sectionContainer}>
           <Text style={styles.sectionTitle}>Academic Calendar</Text>
@@ -471,55 +381,6 @@ const styles = {
     color: '#333',
     marginBottom: 16,
     marginLeft: 4,
-  },
-
-  // Table section
-  tableCard: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
-    overflow: 'hidden',
-  },
-  tableHeader: {
-    flexDirection: 'row',
-    backgroundColor: '#f8f9fa',
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
-  },
-  tableHeaderText: {
-    flex: 1,
-    fontSize: 14,
-    fontFamily: 'Poppins-SemiBold',
-    color: '#495057',
-    textAlign: 'center',
-  },
-  tableRow: {
-    flexDirection: 'row',
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f1f3f4',
-  },
-  tableCellText: {
-    flex: 1,
-    fontSize: 14,
-    fontFamily: 'Poppins-Regular',
-    color: '#333',
-    textAlign: 'center',
-  },
-  emptyState: {
-    padding: 40,
-    alignItems: 'center',
-  },
-  emptyStateText: {
-    fontSize: 16,
-    fontFamily: 'Poppins-Regular',
-    color: '#666',
   },
 
   // Calendar section

@@ -74,8 +74,6 @@ import VPECalendar from './components/VPE/VPECalendar';
 import VPEChats from './components/VPE/VPEChats';
 import VPESupportCenter from './components/VPE/VPESupportCenter';
 import VPEProfile from './components/VPE/VPEProfile';
-import VPEAuditTrail from './components/VPE/VPEAuditTrail';
-
 
 //Principal
 import PrincipalDashboard from './components/Principal/PrincipalDashboard';
@@ -83,7 +81,6 @@ import PrincipalCalendar from './components/Principal/PrincipalCalendar';
 import PrincipalChats from './components/Principal/PrincipalChats';
 import PrincipalSupportCenter from './components/Principal/PrincipalSupportCenter';
 import PrincipalProfile from './components/Principal/PrincipalProfile';
-import PrincipalAuditTrail from './components/Principal/PrincipalAuditTrail';
 import PrincipalGrades from './components/Principal/PrincipalGrades';
 
 
@@ -168,8 +165,6 @@ const vpeNavItems = [
   { label: 'Dashboard', icon: 'view-dashboard', route: 'VPEDash' },
   { label: 'Calendar', icon: 'calendar', route: 'VPECalendar' },
   { label: 'Chats', icon: 'chat', route: 'VPEChats' },
-  { label: 'Audit', icon: 'history', route: 'VPEAudit' },
-   
 ];
 
 function VPETabs() {
@@ -180,9 +175,7 @@ function VPETabs() {
     >
       <Tabs.Screen name='VPEDash' component={VPEDashboard} />
       <Tabs.Screen name='VPECalendar' component={VPECalendar} />
-              <Tabs.Screen name='VPEChats' component={VPEChats} />
-        <Tabs.Screen name='VPEAudit' component={VPEAuditTrail} />
-      
+      <Tabs.Screen name='VPEChats' component={VPEChats} />
     </Tabs.Navigator>
   );
 }
@@ -192,7 +185,6 @@ const principalNavItems = [
   { label: 'Calendar', icon: 'calendar', route: 'PrincipalCalendar' },
   { label: 'Chats', icon: 'chat', route: 'PrincipalChats' },
   { label: 'Grades', icon: 'star', route: 'PrincipalGrades' },
-  { label: 'Audit', icon: 'history', route: 'PrincipalAudit' },
 ];
 
 function PrincipalTabs() {
@@ -205,7 +197,6 @@ function PrincipalTabs() {
       <Tabs.Screen name='PrincipalCalendar' component={PrincipalCalendar} />
       <Tabs.Screen name='PrincipalChats' component={PrincipalChats} />
       <Tabs.Screen name='PrincipalGrades' component={PrincipalGrades} />
-      <Tabs.Screen name='PrincipalAudit' component={PrincipalAuditTrail} />
     </Tabs.Navigator>
   );
 }
