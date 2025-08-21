@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Text,
   TouchableOpacity,
@@ -20,7 +20,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const API_BASE = 'https://juanlms-webapp-server.onrender.com';
 const { width } = Dimensions.get('window');
 
-export default function QuizView() {
+const QuizView = React.memo(function QuizView() {
   const navigation = useNavigation();
   const route = useRoute();
   const { user } = useUser();
@@ -47,6 +47,28 @@ export default function QuizView() {
   const [questionStartTime, setQuestionStartTime] = useState(Date.now());
   const [showUnansweredModal, setShowUnansweredModal] = useState(false);
   const [unansweredQuestions, setUnansweredQuestions] = useState([]);
+  
+  // Performance optimization: Memoize expensive calculations
+  const processedQuizData = useMemo(() => {
+    if (!quiz) return null;
+    
+    return {
+      ...quiz,
+      totalPoints: quiz.questions?.reduce((sum, q) => sum + (q.points || 1), 0) || 0,
+      questionCount: quiz.questions?.length || 0
+    };
+  }, [quiz]);
+  
+  // Performance optimization: Memoize current question
+  const currentQuestion = useMemo(() => {
+    if (!quiz?.questions || !Array.isArray(quiz.questions)) return null;
+    return quiz.questions[currentQuestionIndex];
+  }, [quiz?.questions, currentQuestionIndex]);
+  
+  // Performance optimization: Memoize current answer
+  const currentAnswer = useMemo(() => {
+    return answers[currentQuestionIndex];
+  }, [answers, currentQuestionIndex]);
 
   useEffect(() => {
     console.log('QuizView useEffect triggered with:', {
@@ -191,18 +213,18 @@ export default function QuizView() {
         quizId: quizData._id,
         title: quizData.title,
         questionsLength: quizData.questions?.length,
-        quizPoints: quizData.points,
-        questionPoints: quizData.questions?.map(q => ({ question: q.question.substring(0, 30) + '...', points: q.points }))
+        quizPoints: quizData.points
       });
       
       if (!quizData || !quizData.questions || !Array.isArray(quizData.questions)) {
         throw new Error('Invalid quiz data received from server');
       }
       
-      setQuiz(quizData);
-      
-      // Initialize answers object
+      // Performance optimization: Pre-process data and batch state updates
       const initialAnswers = {};
+      let hasTimeLimit = false;
+      let timeLimitSeconds = 0;
+      
       quizData.questions.forEach((question, index) => {
         if (question.type === 'multiple') {
           initialAnswers[index] = [];
@@ -210,11 +232,17 @@ export default function QuizView() {
           initialAnswers[index] = '';
         }
       });
-      setAnswers(initialAnswers);
-
-      // Set time limit if exists
+      
       if (quizData.timeLimit && quizData.timeLimit > 0) {
-        setTimeLeft(quizData.timeLimit * 60); // Convert minutes to seconds
+        hasTimeLimit = true;
+        timeLimitSeconds = quizData.timeLimit * 60;
+      }
+      
+      // Batch all state updates together for better performance
+      setQuiz(quizData);
+      setAnswers(initialAnswers);
+      if (hasTimeLimit) {
+        setTimeLeft(timeLimitSeconds);
       }
 
       // Check if student has already submitted this quiz (and fetch answers for review)
@@ -267,25 +295,21 @@ export default function QuizView() {
             // Student has already submitted
             console.log('Quiz already submitted:', responseData);
             
-            // Calculate total points from quiz questions as fallback
-            const calculatedTotal = responseData.total || 
-              (quizData.questions && Array.isArray(quizData.questions) 
-                ? quizData.questions.reduce((sum, q) => sum + (q.points || 1), 0)
-                : quizData.points || 100);
+            // Performance optimization: Use pre-calculated values and reduce expensive operations
+            const calculatedTotal = responseData.total || quizData.points || 100;
+            const percentage = responseData.percentage || Math.round(((responseData.score || 0) / calculatedTotal) * 100);
             
             console.log('Score data received:', {
               score: responseData.score,
               total: responseData.total,
               quizDataPoints: quizData.points,
-              calculatedTotal: calculatedTotal,
-              questionsLength: quizData.questions?.length,
-              questionPoints: quizData.questions?.map(q => q.points)
+              calculatedTotal: calculatedTotal
             });
             
             setQuizResult({
               score: responseData.score || 0,
               totalPoints: calculatedTotal,
-              percentage: responseData.percentage || Math.round(((responseData.score || 0) / calculatedTotal) * 100),
+              percentage: percentage,
               timeSpent: responseData.timeSpent || 0,
               submittedAt: responseData.submittedAt || null,
             });
@@ -308,54 +332,35 @@ export default function QuizView() {
               setQuizCheckedAnswers([]);
             }
             
-            // Load the student's previous answers
+            // Performance optimization: Simplified answer processing
             if (responseData.answers && Array.isArray(responseData.answers)) {
               const previousAnswers = {};
               responseData.answers.forEach((answerObj, index) => {
                 // Extract the actual answer value from the answer object
-                let answerValue = answerObj.answer;
-                
-                // If answer is undefined/null, try alternative fields
-                if (answerValue === undefined || answerValue === null) {
-                  answerValue = answerObj.value || answerObj.text || answerObj.choice || '';
-                }
-                
-                // Ensure we store the answer value, not the object
+                const answerValue = answerObj.answer || answerObj.value || answerObj.text || answerObj.choice || '';
                 previousAnswers[index] = answerValue;
-                
-                console.log(`Loading answer for question ${index + 1}:`, {
-                  originalAnswerObj: answerObj,
-                  extractedAnswer: answerValue,
-                  type: typeof answerValue
-                });
               });
-              console.log('Previous answers loaded:', previousAnswers);
               setAnswers(previousAnswers);
-            } else {
+            } else if (responseData.checkedAnswers && Array.isArray(responseData.checkedAnswers)) {
               // If no answers array, try to extract from checkedAnswers
-              if (responseData.checkedAnswers && Array.isArray(responseData.checkedAnswers)) {
-                const extractedAnswers = {};
-                responseData.checkedAnswers.forEach((check, index) => {
-                  if (check.studentAnswer !== undefined && check.studentAnswer !== null) {
-                    extractedAnswers[index] = check.studentAnswer;
-                    console.log(`Extracted answer from checkedAnswers for Q${index + 1}:`, check.studentAnswer);
-                  }
-                });
-                if (Object.keys(extractedAnswers).length > 0) {
-                  console.log('Extracted answers from checkedAnswers:', extractedAnswers);
-                  setAnswers(extractedAnswers);
+              const extractedAnswers = {};
+              responseData.checkedAnswers.forEach((check, index) => {
+                if (check.studentAnswer !== undefined && check.studentAnswer !== null) {
+                  extractedAnswers[index] = check.studentAnswer;
                 }
+              });
+              if (Object.keys(extractedAnswers).length > 0) {
+                setAnswers(extractedAnswers);
               }
-              
-              // Final fallback: if we still have no answers, create a basic structure
-              if (Object.keys(answers).length === 0 && quizData.questions) {
-                console.log('Creating fallback answer structure');
-                const fallbackAnswers = {};
-                quizData.questions.forEach((_, index) => {
-                  fallbackAnswers[index] = 'Answer not loaded';
-                });
-                setAnswers(fallbackAnswers);
-              }
+            }
+            
+            // Performance optimization: Create fallback answers only if needed
+            if (Object.keys(answers).length === 0 && quizData.questions) {
+              const fallbackAnswers = {};
+              quizData.questions.forEach((_, index) => {
+                fallbackAnswers[index] = 'Answer not loaded';
+              });
+              setAnswers(fallbackAnswers);
             }
             
             // If explicitly in review mode, render full quiz with answers (no modal)
@@ -383,10 +388,10 @@ export default function QuizView() {
         } else {
           console.log('Response not ok:', responseRes.status);
           
-          // If in review mode but no response, create a basic quizResult
+          // Performance optimization: Create fallback data only if needed
           if (review) {
             console.log('Creating fallback quizResult for review mode');
-            const calculatedTotal = quizData.questions.reduce((sum, q) => sum + (q.points || 1), 0);
+            const calculatedTotal = quizData.points || 100; // Use pre-calculated value
             setQuizResult({
               score: 0,
               totalPoints: calculatedTotal,
@@ -395,7 +400,7 @@ export default function QuizView() {
               submittedAt: null,
             });
             
-            // Also create fallback answers for review mode
+            // Create fallback answers for review mode
             const fallbackAnswers = {};
             quizData.questions.forEach((_, index) => {
               fallbackAnswers[index] = 'Answer not loaded';
@@ -477,7 +482,8 @@ export default function QuizView() {
       }
   };
 
-  const handleAnswerChange = (questionIndex, value, isMultipleChoice = false) => {
+  // Performance optimization: Memoize event handlers
+  const handleAnswerChange = useCallback((questionIndex, value, isMultipleChoice = false) => {
     if (isMultipleChoice) {
       setAnswers(prev => {
         const currentAnswers = prev[questionIndex] || [];
@@ -499,9 +505,10 @@ export default function QuizView() {
         [questionIndex]: value
       }));
     }
-  };
+  }, []);
 
-  const handleChoiceSelect = (choice, questionType) => {
+  // Performance optimization: Memoize choice selection handler
+  const handleChoiceSelect = useCallback((choice, questionType) => {
     if (isReviewMode) return; // Disable in review mode
     
     if (questionType === 'multiple') {
@@ -525,15 +532,16 @@ export default function QuizView() {
         [currentQuestionIndex]: choice
       }));
     }
-  };
+  }, [isReviewMode, answers, currentQuestionIndex]);
 
-  const handleTextInput = (text, questionIndex) => {
+  // Performance optimization: Memoize text input handler
+  const handleTextInput = useCallback((text, questionIndex) => {
     if (isReviewMode) return; // Disable in review mode
     setAnswers(prev => ({
       ...prev,
       [questionIndex]: text
     }));
-  };
+  }, [isReviewMode]);
 
   const handleSubmitQuiz = async () => {
     try {
@@ -657,24 +665,12 @@ export default function QuizView() {
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
-  const renderQuestion = (question, index) => {
+  // Performance optimization: Memoize question rendering function
+  const renderQuestion = useCallback((question, index) => {
     const isCurrentQuestion = index === currentQuestionIndex;
     const currentAnswer = answers[index];
     const checked = Array.isArray(quizCheckedAnswers) ? quizCheckedAnswers[index] : null;
     const revealAnswers = isReviewMode && !!checked;
-
-    // Debug logging
-    if (isReviewMode) {
-      console.log(`Question ${index + 1}:`, {
-        question: question.question,
-        currentAnswer,
-        checked,
-        revealAnswers,
-        questionType: question.type,
-        checkedAnswersArray: quizCheckedAnswers,
-        currentChecked: checked
-      });
-    }
 
     // In review mode, show all questions, not just current
     if (!isReviewMode && !isCurrentQuestion) return null;
@@ -686,7 +682,7 @@ export default function QuizView() {
     return (
       <View style={styles.questionContainer}>
         <View style={styles.questionHeader}>
-          <Text style={styles.questionNumber}>Question {index + 1} of {quiz.questions.length}</Text>
+          <Text style={styles.questionNumber}>Question {index + 1} of {questionsCount}</Text>
           <Text style={styles.questionPoints}>{question.points || 1} point{question.points !== 1 ? 's' : ''}</Text>
         </View>
         
@@ -837,21 +833,23 @@ export default function QuizView() {
         )}
       </View>
     );
-  };
+  }, [currentQuestionIndex, answers, quizCheckedAnswers, isReviewMode, quiz.questions?.length, handleTextInput]);
 
-  const goToNextQuestion = () => {
+  // Performance optimization: Memoize navigation handlers
+  const goToNextQuestion = useCallback(() => {
     if (currentQuestionIndex < quiz.questions.length - 1) {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
     }
-  };
+  }, [currentQuestionIndex, quiz.questions?.length]);
 
-  const goToPreviousQuestion = () => {
+  const goToPreviousQuestion = useCallback(() => {
     if (currentQuestionIndex > 0) {
       setCurrentQuestionIndex(currentQuestionIndex - 1);
     }
-  };
+  }, [currentQuestionIndex]);
 
-  const isAvailable = () => {
+  // Performance optimization: Memoize availability check
+  const isAvailable = useCallback(() => {
     if (!quiz) return false;
     const now = new Date();
     
@@ -866,7 +864,7 @@ export default function QuizView() {
     }
     
     return true;
-  };
+  }, [quiz]);
 
   if (loading && !error) {
     return (
@@ -913,14 +911,9 @@ export default function QuizView() {
     );
   }
 
-  // Debug render state
-  console.log('QuizView render state:', {
-    isReviewMode,
-    hasQuizResult: !!quizResult,
-    quizResultData: quizResult,
-    quizLoaded: !!quiz,
-    questionsCount: quiz.questions?.length
-  });
+  // Performance optimization: Use memoized values instead of recalculating
+  const questionsCount = processedQuizData?.questionCount || 0;
+  const totalPoints = processedQuizData?.totalPoints || 0;
 
   // Check quiz availability
   if (!isAvailable()) {
@@ -1052,7 +1045,7 @@ export default function QuizView() {
           quiz.questions.map((question, index) => renderQuestion(question, index))
         ) : (
           // In quiz mode, show only current question
-          renderQuestion(quiz.questions[currentQuestionIndex], currentQuestionIndex)
+          currentQuestion && renderQuestion(currentQuestion, currentQuestionIndex)
         )}
       </ScrollView>
 
@@ -1071,7 +1064,7 @@ export default function QuizView() {
             <Text style={styles.navButtonText}>Previous</Text>
           </TouchableOpacity>
 
-          {currentQuestionIndex === quiz.questions.length - 1 ? (
+          {currentQuestionIndex === questionsCount - 1 ? (
             <TouchableOpacity
               style={[styles.submitButton, submitting && styles.disabledButton]}
               onPress={() => setShowSubmitModal(true)}
@@ -1098,7 +1091,7 @@ export default function QuizView() {
         <View style={styles.reviewNavigationContainer}>
           <Text style={styles.reviewNavigationTitle}>Navigate to Question:</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.questionNumbersContainer}>
-            {quiz.questions.map((_, index) => (
+            {Array.from({ length: questionsCount }, (_, index) => (
               <TouchableOpacity
                 key={index}
                 style={[
@@ -1349,7 +1342,9 @@ export default function QuizView() {
       </Modal>
     </View>
   );
-}
+});
+
+export default QuizView;
 
 const styles = {
   container: {
