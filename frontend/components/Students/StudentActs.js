@@ -169,10 +169,21 @@ export default function StudentActs() {
     });
     return unsubscribe;
   }, [navigation]);
+  
+  // Debug activities state changes
+  useEffect(() => {
+    console.log('DEBUG: Activities state changed:', {
+      total: activities.length,
+      upcoming: activities.filter(a => !a.isSubmitted && (!a.dueDate || new Date(a.dueDate) > new Date())).length,
+      pastDue: activities.filter(a => !a.isSubmitted && a.dueDate && new Date(a.dueDate) < new Date()).length,
+      completed: activities.filter(a => a.isSubmitted).length
+    });
+  }, [activities]);
 
   // Add submission status checking for each activity
   const checkSubmissionStatuses = async (activitiesList) => {
     try {
+      console.log('DEBUG: checkSubmissionStatuses called with', activitiesList.length, 'activities');
       const token = await AsyncStorage.getItem('jwtToken');
       const updatedActivities = await Promise.all(
         activitiesList.map(async (activity) => {
@@ -183,10 +194,24 @@ export default function StudentActs() {
               });
               if (response.ok) {
                 const submissions = await response.json();
+                console.log(`DEBUG: Submissions for assignment ${activity._id}:`, submissions);
                 const studentSubmission = submissions.find(sub => {
-                  const submissionStudentId = sub.student._id || sub.student;
-                  const userId = user._id;
-                  return submissionStudentId === userId || submissionStudentId === userId.toString();
+                  // Backend populates student with User object, so check both cases
+                  let submissionStudentId;
+                  if (sub.student && typeof sub.student === 'object' && sub.student._id) {
+                    // student is populated User object
+                    submissionStudentId = sub.student._id;
+                  } else {
+                    // student is direct ID
+                    submissionStudentId = sub.student;
+                  }
+                  
+                  const userId = user.userID || user._id; // Use school ID if available, fallback to MongoDB ID
+                  const matches = submissionStudentId === userId || submissionStudentId === userId.toString();
+                  
+                  console.log(`DEBUG: Checking submission ${sub._id}: student=${sub.student}, submissionStudentId=${submissionStudentId}, userId=${userId}, matches=${matches}`);
+                  
+                  return matches;
                 });
                 
                 if (studentSubmission) {
@@ -198,6 +223,14 @@ export default function StudentActs() {
                     isSubmitted: true,
                     score: studentSubmission.grade || 0
                   };
+                } else {
+                  // No submission found, mark as not submitted
+                  return {
+                    ...activity,
+                    isSubmitted: false,
+                    status: 'not_submitted',
+                    score: 0
+                  };
                 }
               }
             } catch (error) {
@@ -206,36 +239,78 @@ export default function StudentActs() {
                     } else if (activity.type === 'quiz') {
             try {
               console.log('DEBUG: Checking quiz submission for:', activity._id, 'user:', user._id, 'activity points:', activity.points);
-              const response = await fetch(`${API_BASE}/api/quizzes/${activity._id}/myscore?studentId=${user._id}`, {
+              // Use the same approach as web app: fetch all responses and filter
+              const response = await fetch(`${API_BASE}/api/quizzes/${activity._id}/responses`, {
                 headers: { Authorization: `Bearer ${token}` }
               });
               if (response.ok) {
                 const responseData = await response.json();
-                console.log('Quiz response for', activity._id, ':', responseData);
+                console.log('Quiz responses for', activity._id, ':', responseData);
+                console.log('DEBUG: Raw quiz response data structure:', responseData.map(r => ({
+                  _id: r._id,
+                  quizId: r.quizId,
+                  studentId: r.studentId,
+                  score: r.score,
+                  total: r.total
+                })));
                 
-                // Calculate percentage if not provided
-                let percentage = responseData.percentage;
-                if (percentage === undefined && responseData.score !== undefined && responseData.total !== undefined) {
-                  percentage = Math.round((responseData.score / responseData.total) * 100);
+                if (Array.isArray(responseData)) {
+                  // Find responses by this student (using correct field names from QuizResponse model)
+                  const studentResponse = responseData.find(resp => {
+                    // QuizResponse model uses quizId and studentId fields
+                    // Backend populates studentId with User object, so check both cases
+                    const matchesQuiz = resp.quizId === activity._id || resp.quizId === activity._id.toString();
+                    
+                    // Check if studentId is populated (User object) or direct ID
+                    let matchesStudent = false;
+                    const userId = user.userID || user._id; // Use school ID if available, fallback to MongoDB ID
+                    if (resp.studentId && typeof resp.studentId === 'object' && resp.studentId._id) {
+                      // studentId is populated User object
+                      matchesStudent = resp.studentId._id === userId || resp.studentId._id === userId.toString();
+                    } else {
+                      // studentId is direct ID
+                      matchesStudent = resp.studentId === userId || resp.studentId === userId.toString();
+                    }
+                    
+                    console.log(`DEBUG: Checking response ${resp._id}: quizId=${resp.quizId}, studentId=${resp.studentId}, activity._id=${activity._id}, user.userID=${user.userID}, user._id=${user._id}, matchesQuiz=${matchesQuiz}, matchesStudent=${matchesStudent}`);
+                    
+                    return matchesQuiz && matchesStudent;
+                  });
+                  
+                  if (studentResponse) {
+                    console.log('Found student response for quiz:', activity._id, studentResponse);
+                    
+                    // Calculate percentage if not provided
+                    let percentage = studentResponse.percentage;
+                    if (percentage === undefined && studentResponse.score !== undefined && studentResponse.total !== undefined) {
+                      percentage = Math.round((studentResponse.score / studentResponse.total) * 100);
+                    }
+                    
+                    // Update the activity with submission info
+                    activity.submittedAt = studentResponse.submittedAt || new Date();
+                    activity.status = 'submitted';
+                    activity.isSubmitted = true;
+                    activity.score = studentResponse.score || 0;
+                    activity.totalPoints = studentResponse.total || activity.points || 10;
+                    activity.percentage = percentage || 0;
+                    
+                    console.log('Updated quiz activity:', activity._id, 'score:', activity.score, 'totalPoints:', activity.totalPoints, 'percentage:', activity.percentage);
+                  } else {
+                    console.log('No student response found for quiz:', activity._id);
+                    activity.isSubmitted = false;
+                    activity.status = 'not_submitted';
+                    activity.score = 0;
+                    activity.totalPoints = activity.points || 10;
+                    activity.percentage = 0;
+                  }
+                } else {
+                  console.log('Quiz response data is not an array for:', activity._id);
+                  activity.isSubmitted = false;
+                  activity.status = 'not_submitted';
+                  activity.score = 0;
+                  activity.totalPoints = activity.points || 10;
+                  activity.percentage = 0;
                 }
-                
-                // Update the activity with submission info
-                activity.submittedAt = responseData.submittedAt || new Date();
-                activity.status = 'submitted';
-                activity.isSubmitted = true;
-                activity.score = responseData.score || 0;
-                activity.totalPoints = responseData.total || activity.points || 10;
-                activity.percentage = percentage || 0; // Ensure percentage is always a number
-                
-                console.log('Updated quiz activity:', activity._id, 'score:', activity.score, 'totalPoints:', activity.totalPoints, 'percentage:', activity.percentage);
-              } else if (response.status === 404) {
-                // Quiz not submitted yet
-                console.log('Quiz not submitted (404) for:', activity._id);
-                activity.isSubmitted = false;
-                activity.status = 'not_submitted';
-                activity.score = 0;
-                activity.totalPoints = activity.points || 10;
-                activity.percentage = 0;
               } else {
                 console.log('Quiz response not OK for:', activity._id, 'status:', response.status);
                 activity.isSubmitted = false;
@@ -253,10 +328,19 @@ export default function StudentActs() {
               activity.percentage = 0;
             }
           }
-          return { ...activity, isSubmitted: false };
+          
+          // Return the activity with its current state
+          return activity;
         })
       );
       
+      console.log('DEBUG: checkSubmissionStatuses returning', updatedActivities.length, 'activities');
+      console.log('DEBUG: Sample activities with status:', updatedActivities.slice(0, 3).map(a => ({
+        title: a.title,
+        type: a.type,
+        isSubmitted: a.isSubmitted,
+        status: a.status
+      })));
       return updatedActivities;
     } catch (error) {
       console.error('Error checking submission statuses:', error);
@@ -278,6 +362,7 @@ export default function StudentActs() {
       }
 
       console.log('DEBUG: Fetching activities for student:', user._id);
+      console.log('DEBUG: User object:', { userID: user.userID, _id: user._id, firstname: user.firstname, lastname: user.lastname });
 
       // Get classes where this student is enrolled using the my-classes endpoint
       const classesResponse = await fetch(`${API_BASE}/api/classes/my-classes`, {
@@ -311,12 +396,22 @@ export default function StudentActs() {
         
         if (allAssignmentsResponse.ok) {
           const assignments = await allAssignmentsResponse.json();
-          allActivities.push(...assignments.map(item => ({ ...item, type: 'assignment' })));
+          // Filter assignments assigned to this student
+          const studentAssignments = assignments.filter(assignment => {
+            const entry = assignment.assignedTo?.find?.(e => e.classID);
+            return entry && Array.isArray(entry.studentIDs) && entry.studentIDs.includes(user.userID);
+          });
+          allActivities.push(...studentAssignments.map(item => ({ ...item, type: 'assignment' })));
         }
         
         if (allQuizzesResponse.ok) {
           const quizzes = await allQuizzesResponse.json();
-          allActivities.push(...quizzes.map(item => ({ ...item, type: 'quiz' })));
+          // Filter quizzes assigned to this student
+          const studentQuizzes = quizzes.filter(quiz => {
+            const entry = quiz.assignedTo?.find?.(e => e.classID);
+            return entry && Array.isArray(entry.studentIDs) && entry.studentIDs.includes(user.userID);
+          });
+          allActivities.push(...studentQuizzes.map(item => ({ ...item, type: 'quiz' })));
         }
         
         // Filter for posted activities only
@@ -336,8 +431,17 @@ export default function StudentActs() {
           return false;
         });
         
-        const activitiesWithStatus = await checkSubmissionStatuses(postedActivities);
+        // Add basic class info for fallback activities
+        const postedActivitiesWithClassInfo = postedActivities.map(item => ({
+          ...item,
+          className: item.className || 'Unknown Class',
+          classCode: item.classCode || 'N/A',
+          classID: item.classID || (item.assignedTo && item.assignedTo[0]?.classID)
+        }));
+        
+        const activitiesWithStatus = await checkSubmissionStatuses(postedActivitiesWithClassInfo);
         activitiesWithStatus.sort((a, b) => new Date(a.dueDate || 0) - new Date(b.dueDate || 0));
+        console.log('DEBUG: Setting activities state (fallback):', activitiesWithStatus.length);
         setActivities(activitiesWithStatus);
         if (activitiesWithStatus.length === 0) {
           console.warn('DEBUG: Fallback produced 0 activities. Check if endpoints return data and item types include className/dates.');
@@ -357,7 +461,13 @@ export default function StudentActs() {
           .then(res => (res.ok ? res.json() : []))
           .then(assignments => {
             console.log('DEBUG: Assignments fetched for class', cid, ':', assignments);
-            return assignments.map(item => ({ ...item, type: 'assignment' }));
+            // Filter assignments assigned to this student (same logic as web app)
+            const studentAssignments = assignments.filter(assignment => {
+              const entry = assignment.assignedTo?.find?.(e => e.classID === cid);
+              return entry && Array.isArray(entry.studentIDs) && entry.studentIDs.includes(user.userID);
+            });
+            console.log('DEBUG: Student assignments for class', cid, ':', studentAssignments.length);
+            return studentAssignments.map(item => ({ ...item, type: 'assignment' }));
           })
           .catch(() => []),
         fetch(`${API_BASE}/api/quizzes?classID=${encodeURIComponent(cid)}`, {
@@ -366,7 +476,13 @@ export default function StudentActs() {
           .then(res => (res.ok ? res.json() : []))
           .then(quizzes => {
             console.log('DEBUG: Quizzes fetched for class', cid, ':', quizzes);
-            return quizzes.map(item => {
+            // Filter quizzes assigned to this student (same logic as web app)
+            const studentQuizzes = quizzes.filter(quiz => {
+              const entry = quiz.assignedTo?.find?.(e => e.classID === cid);
+              return entry && Array.isArray(entry.studentIDs) && entry.studentIDs.includes(user.userID);
+            });
+            console.log('DEBUG: Student quizzes for class', cid, ':', studentQuizzes.length);
+            return studentQuizzes.map(item => {
               console.log('DEBUG: Individual quiz item:', item._id, 'title:', item.title, 'points:', item.points, 'questions:', item.questions?.length);
               return { ...item, type: 'quiz' };
             });
@@ -418,15 +534,24 @@ export default function StudentActs() {
       // Normalize and enrich with class info for display
       const normalized = postedActivities.map(item => {
         console.log('DEBUG: Normalizing item:', item._id, 'type:', item.type, 'points:', item.points, 'questions:', item.questions?.length, 'timing:', item.timing);
+        
+        // Find the class info for this activity
+        let classInfo = null;
+        if (item.classID) {
+          classInfo = studentClasses.find(cls => cls.classID === item.classID);
+        } else if (item.assignedTo && item.assignedTo[0]?.classID) {
+          classInfo = studentClasses.find(cls => cls.classID === item.assignedTo[0].classID);
+        }
+        
         const normalizedItem = {
           ...item,
           type: item.type || (item.questions ? 'quiz' : 'assignment'),
-          className: item.classInfo?.className || item.className || 'Unknown Class',
-          classCode: item.classInfo?.classCode || item.classCode || 'N/A',
+          className: classInfo?.className || item.classInfo?.className || item.className || 'Unknown Class',
+          classCode: classInfo?.classCode || item.classInfo?.classCode || item.classCode || 'N/A',
           classID: item.classID || item.classInfo?.classID || (item.assignedTo && item.assignedTo[0]?.classID),
           points: item.points !== undefined ? item.points : (item.type === 'quiz' ? 100 : 0)
         };
-        console.log('DEBUG: Normalized item:', normalizedItem._id, 'final type:', normalizedItem.type, 'final points:', normalizedItem.points);
+        console.log('DEBUG: Normalized item:', normalizedItem._id, 'final type:', normalizedItem.type, 'final points:', normalizedItem.points, 'className:', normalizedItem.className);
         return normalizedItem;
       });
 
@@ -441,9 +566,21 @@ export default function StudentActs() {
       allActivities.sort((a, b) => new Date(a.dueDate || 0) - new Date(b.dueDate || 0));
       
       // Check submission statuses for posted activities only
+      console.log('DEBUG: About to check submission statuses for', allActivities.length, 'activities');
       const activitiesWithStatus = await checkSubmissionStatuses(allActivities);
       
       console.log('DEBUG: Final activities with status:', activitiesWithStatus);
+      
+      // Debug completion status
+      console.log('DEBUG: Completion status breakdown:');
+      activitiesWithStatus.forEach(activity => {
+        console.log(`- ${activity.title} (${activity.type}): isSubmitted=${activity.isSubmitted}, status=${activity.status}, score=${activity.score}`);
+      });
+      
+      // Summary of completion status
+      const completedCount = activitiesWithStatus.filter(a => a.isSubmitted).length;
+      const pendingCount = activitiesWithStatus.filter(a => !a.isSubmitted).length;
+      console.log(`DEBUG: Summary - Total: ${activitiesWithStatus.length}, Completed: ${completedCount}, Pending: ${pendingCount}`);
       
       // Log quiz-specific information
       const quizActivities = activitiesWithStatus.filter(a => a.type === 'quiz');
@@ -698,6 +835,7 @@ export default function StudentActs() {
         })));
       }
       
+      console.log('DEBUG: Setting activities state (main):', activitiesWithStatus.length);
       setActivities(activitiesWithStatus);
     } catch (err) {
       console.error('Error fetching activities:', err);
@@ -763,17 +901,30 @@ export default function StudentActs() {
                          (activity.className && activity.className.toLowerCase().includes(searchQuery.toLowerCase()));
 
     if (activeTab === 'upcoming') {
-      if (!activity.dueDate) return matchesSearch && !activity.isSubmitted; // include items without dueDate
+      if (!activity.dueDate) {
+        const result = matchesSearch && !activity.isSubmitted;
+        console.log(`DEBUG: ${activity.title} in upcoming tab (no due date): isSubmitted=${activity.isSubmitted}, result=${result}`);
+        return result;
+      }
       const now = new Date();
       const dueDate = new Date(activity.dueDate);
-      return dueDate > now && !activity.isSubmitted && matchesSearch;
+      const result = dueDate > now && !activity.isSubmitted && matchesSearch;
+      console.log(`DEBUG: ${activity.title} in upcoming tab: dueDate=${activity.dueDate}, isSubmitted=${activity.isSubmitted}, result=${result}`);
+      return result;
     } else if (activeTab === 'pastDue') {
-      if (!activity.dueDate) return false; // keep pastDue strict
+      if (!activity.dueDate) {
+        console.log(`DEBUG: ${activity.title} in pastDue tab (no due date): excluded`);
+        return false; // keep pastDue strict
+      }
       const now = new Date();
       const dueDate = new Date(activity.dueDate);
-      return dueDate < now && !activity.isSubmitted && matchesSearch;
+      const result = dueDate < now && !activity.isSubmitted && matchesSearch;
+      console.log(`DEBUG: ${activity.title} in pastDue tab: dueDate=${activity.dueDate}, isSubmitted=${activity.isSubmitted}, result=${result}`);
+      return result;
     } else if (activeTab === 'completed') {
-      return activity.isSubmitted && matchesSearch;
+      const result = activity.isSubmitted && matchesSearch;
+      console.log(`DEBUG: ${activity.title} in completed tab: isSubmitted=${activity.isSubmitted}, result=${result}`);
+      return result;
     }
     
     return matchesSearch; // activeTab === 'all'
@@ -819,7 +970,13 @@ export default function StudentActs() {
         <View style={styles.activityTabsBar}>
           {[
             { key: 'all', label: 'All', count: activities.length },
-            { key: 'upcoming', label: 'Upcoming', count: activities.filter(a => !a.isSubmitted && (!a.dueDate || new Date(a.dueDate) > new Date())).length },
+            { key: 'upcoming', label: 'Upcoming', count: activities.filter(a => {
+              if (!a.isSubmitted) {
+                if (!a.dueDate) return true; // include items without dueDate
+                return new Date(a.dueDate) > new Date();
+              }
+              return false;
+            }).length },
             { key: 'pastDue', label: 'Past Due', count: activities.filter(a => !a.isSubmitted && a.dueDate && new Date(a.dueDate) < new Date()).length },
             { key: 'completed', label: 'Completed', count: activities.filter(a => a.isSubmitted).length }
           ].map((tab) => (
