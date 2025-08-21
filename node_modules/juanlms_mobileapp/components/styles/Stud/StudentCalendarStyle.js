@@ -253,10 +253,10 @@ const StudentCalendarStyle = StyleSheet.create({
         fontFamily: 'Poppins-Regular',
     },
     logo: {
-        width: 100,
-        height: 50,
+        width: 120,
+        height: 120,
+        alignSelf: 'center',
         marginBottom: 20,
-        resizeMode: 'contain',
     },
     blueHeader: {
         backgroundColor: '#00418b',

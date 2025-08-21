@@ -28,8 +28,6 @@ const LoginStyle = StyleSheet.create({
   logo: {
     height: height * 0.15,
     width: width * 0.55,
-    
-    resizeMode: 'contain',
     marginBottom: 2, // reduced from 10 for closer text
   },
   text1: {
@@ -49,10 +47,7 @@ const LoginStyle = StyleSheet.create({
     paddingBottom: 16,
     paddingHorizontal: 28,
     marginTop: 56,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 12,
+    boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.12)',
     elevation: 8,
     alignItems: 'center',
     minHeight: height * 0.62,

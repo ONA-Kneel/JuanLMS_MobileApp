@@ -11,6 +11,7 @@ export function UserProvider({ children }) {
     AsyncStorage.getItem('user').then(storedUser => {
       if (storedUser) setUser(JSON.parse(storedUser));
     });
+    console.log('UserProvider rendered');
   }, []);
 
   // Function to update user data
@@ -38,8 +39,6 @@ export function UserProvider({ children }) {
       return { success: false, error: error.message };
     }
   };
-
-  console.log('UserProvider rendered');
 
   return (
     <UserContext.Provider value={{ user, setUser, updateUser, setUserAndToken }}>

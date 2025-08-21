@@ -11,9 +11,10 @@ const StudentSCMainStyle = StyleSheet.create({
     marginBottom: 20,
   },
   logo: {
-    width: 80,
-    height: 25,
-    resizeMode: 'contain',
+    width: 120,
+    height: 120,
+    alignSelf: 'center',
+    marginBottom: 20,
   },
   card: {
     backgroundColor: '#4A74A5',
@@ -40,7 +41,6 @@ const StudentSCMainStyle = StyleSheet.create({
   icon: {
     width: 60,
     height: 60,
-    resizeMode: 'contain',
   },
   sectionTitle: {
     fontSize: 14,
@@ -72,7 +72,6 @@ const StudentSCMainStyle = StyleSheet.create({
     width: 20,
     height: 20,
     marginRight: 10,
-    resizeMode: 'contain',
   },
   messageTextBold: {
     fontWeight: '700',

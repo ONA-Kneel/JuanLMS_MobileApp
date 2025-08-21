@@ -374,10 +374,10 @@ const AdminDashStyle = StyleSheet.create({
     marginBottom: 10,
   },
   logo: {
-    width: 100,
-    height: 50,
+    width: 120,
+    height: 120,
+    alignSelf: 'center',
     marginBottom: 20,
-    resizeMode: 'contain',
   },
   iconsContainer: {
     flexDirection: 'row',

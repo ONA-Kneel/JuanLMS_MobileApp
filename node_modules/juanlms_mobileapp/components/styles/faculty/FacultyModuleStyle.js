@@ -25,7 +25,6 @@ const FacultyModuleStyle = StyleSheet.create({
       lessonImage: {
         width: '100%',
         height: 150,
-        resizeMode: 'cover',
         marginBottom: 10,
       },
       link: {
@@ -50,6 +49,12 @@ const FacultyModuleStyle = StyleSheet.create({
       nextText: {
         color: 'white',
         fontWeight: 'bold',
+      },
+      logo: {
+        width: 120,
+        height: 120,
+        alignSelf: 'center',
+        marginBottom: 20,
       },
 
 });

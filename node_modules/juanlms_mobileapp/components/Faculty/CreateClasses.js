@@ -163,7 +163,7 @@ export default function CreateClasses() {
                     </ScrollView>
                     {/* Dropdown */}
                     {dropdownVisible && filteredStudents.length > 0 && (
-                        <View style={{ position: 'absolute', left: 30, right: 30, top: 230, backgroundColor: 'white', borderRadius: 8, elevation: 20, zIndex: 9999, maxHeight: 200, borderWidth: 1, borderColor: '#eee', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 8 }}>
+                        <View style={{ position: 'absolute', left: 30, right: 30, top: 230, backgroundColor: 'white', borderRadius: 8, elevation: 20, zIndex: 9999, maxHeight: 200, borderWidth: 1, borderColor: '#eee', boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.3)' }}>
                             <ScrollView keyboardShouldPersistTaps="handled">
                                 {filteredStudents.map(s => (
                                     <TouchableOpacity key={s._id} onPress={() => addMember(s)} style={{ padding: 10, borderBottomWidth: 1, borderBottomColor: '#eee' }}>

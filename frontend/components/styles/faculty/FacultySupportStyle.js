@@ -15,8 +15,9 @@ const FacultySupportStyle = StyleSheet.create({
   },
   logo: {
     width: 120,
-    height: 40,
-    resizeMode: 'contain',
+    height: 120,
+    alignSelf: 'center',
+    marginBottom: 20,
   },
   card: {
     backgroundColor: '#4B79A1',
