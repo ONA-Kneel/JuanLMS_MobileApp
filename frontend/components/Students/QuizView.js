@@ -110,6 +110,13 @@ const QuizView = React.memo(function QuizView() {
     }
   }, [quiz]);
 
+  // Safety check: ensure current question index is valid when quiz changes
+  useEffect(() => {
+    if (quiz?.questions && Array.isArray(quiz.questions) && currentQuestionIndex >= quiz.questions.length) {
+      setCurrentQuestionIndex(0);
+    }
+  }, [quiz, currentQuestionIndex]);
+
   // Monitor app state changes (similar to web version's focus/blur monitoring)
   useEffect(() => {
     const handleAppStateChange = (nextAppState) => {
@@ -243,6 +250,11 @@ const QuizView = React.memo(function QuizView() {
       setAnswers(initialAnswers);
       if (hasTimeLimit) {
         setTimeLeft(timeLimitSeconds);
+      }
+
+      // Safety check: ensure current question index is within bounds
+      if (currentQuestionIndex >= quizData.questions.length) {
+        setCurrentQuestionIndex(0);
       }
 
       // Check if student has already submitted this quiz (and fetch answers for review)
@@ -667,6 +679,12 @@ const QuizView = React.memo(function QuizView() {
 
   // Performance optimization: Memoize question rendering function
   const renderQuestion = useCallback((question, index) => {
+    // Defensive programming: check if question exists
+    if (!question || !question.question) {
+      console.warn('Invalid question data:', question);
+      return null;
+    }
+
     const isCurrentQuestion = index === currentQuestionIndex;
     const currentAnswer = answers[index];
     const checked = Array.isArray(quizCheckedAnswers) ? quizCheckedAnswers[index] : null;
@@ -727,7 +745,7 @@ const QuizView = React.memo(function QuizView() {
           </View>
         )}
 
-        {question.type === 'multiple' && (
+        {question.type === 'multiple' && question.choices && Array.isArray(question.choices) && (
           <View style={styles.choicesContainer}>
             {question.choices.map((choice, choiceIndex) => {
               // Handle both cases: student answer might be stored as choice text or choice index
@@ -811,7 +829,7 @@ const QuizView = React.memo(function QuizView() {
           </View>
         )}
 
-        {question.type === 'identification' && (
+        {question.type === 'identification' && question.question && (
           <View style={styles.identificationContainer}>
             <TextInput
               style={[
@@ -833,14 +851,14 @@ const QuizView = React.memo(function QuizView() {
         )}
       </View>
     );
-  }, [currentQuestionIndex, answers, quizCheckedAnswers, isReviewMode, quiz.questions?.length, handleTextInput]);
+  }, [currentQuestionIndex, answers, quizCheckedAnswers, isReviewMode, quiz?.questions?.length, handleTextInput]);
 
   // Performance optimization: Memoize navigation handlers
   const goToNextQuestion = useCallback(() => {
-    if (currentQuestionIndex < quiz.questions.length - 1) {
+    if (quiz?.questions && currentQuestionIndex < quiz.questions.length - 1) {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
     }
-  }, [currentQuestionIndex, quiz.questions?.length]);
+  }, [currentQuestionIndex, quiz?.questions?.length]);
 
   const goToPreviousQuestion = useCallback(() => {
     if (currentQuestionIndex > 0) {
@@ -915,6 +933,27 @@ const QuizView = React.memo(function QuizView() {
   const questionsCount = processedQuizData?.questionCount || 0;
   const totalPoints = processedQuizData?.totalPoints || 0;
 
+  // Additional safety check for quiz questions
+  if (!quiz.questions || !Array.isArray(quiz.questions) || quiz.questions.length === 0) {
+    return (
+      <View style={styles.errorContainer}>
+        <Text style={styles.errorTitle}>Invalid Quiz Data</Text>
+        <Text style={styles.errorText}>This quiz has no questions or invalid data.</Text>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
+          <Text style={styles.backButtonText}>Go Back</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  // Safety check for current question index
+  if (currentQuestionIndex >= quiz.questions.length) {
+    setCurrentQuestionIndex(0);
+  }
+
   // Check quiz availability
   if (!isAvailable()) {
     const openTime = quiz.timing?.open ? new Date(quiz.timing.open) : null;
@@ -962,6 +1001,32 @@ const QuizView = React.memo(function QuizView() {
             </TouchableOpacity>
           </View>
         </View>
+      </View>
+    );
+  }
+
+  // Final safety check: ensure all required data exists
+  if (!quiz || !quiz.title || !quiz.questions) {
+    return (
+      <View style={styles.errorContainer}>
+        <Text style={styles.errorTitle}>Quiz Data Error</Text>
+        <Text style={styles.errorText}>Unable to load quiz data. Please try again.</Text>
+        <TouchableOpacity
+          style={styles.retryButton}
+          onPress={() => {
+            setError(null);
+            setLoading(true);
+            fetchQuiz();
+          }}
+        >
+          <Text style={styles.retryButtonText}>Retry</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
+          <Text style={styles.backButtonText}>Go Back</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -1028,12 +1093,12 @@ const QuizView = React.memo(function QuizView() {
             <View 
               style={[
                 styles.progressFill, 
-                { width: `${((currentQuestionIndex + 1) / quiz.questions.length) * 100}%` }
+                { width: `${((currentQuestionIndex + 1) / questionsCount) * 100}%` }
               ]} 
             />
           </View>
           <Text style={styles.progressText}>
-            {currentQuestionIndex + 1} / {quiz.questions.length}
+            {currentQuestionIndex + 1} / {quiz?.questions?.length || 0}
           </Text>
         </View>
       )}
@@ -1042,7 +1107,7 @@ const QuizView = React.memo(function QuizView() {
       <ScrollView style={styles.contentContainer} showsVerticalScrollIndicator={false}>
         {isReviewMode ? (
           // In review mode, show all questions
-          quiz.questions.map((question, index) => renderQuestion(question, index))
+          quiz?.questions?.map((question, index) => renderQuestion(question, index)) || []
         ) : (
           // In quiz mode, show only current question
           currentQuestion && renderQuestion(currentQuestion, currentQuestionIndex)
