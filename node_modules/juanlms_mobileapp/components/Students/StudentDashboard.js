@@ -74,8 +74,8 @@ export default function StudentDashboard() {
       // Update academic context for display
       setAcademicContext(`${activeYear} | ${activeTerm}`);
       
-      // Use the student-classes endpoint to get only classes where the student is enrolled
-      const response = await fetch(`https://juanlms-webapp-server.onrender.com/api/classes/student-classes?studentID=${user._id}`, {
+      // Use the web app's my-classes endpoint to get only the student's registered classes
+      const response = await fetch(`https://juanlms-webapp-server.onrender.com/api/classes/my-classes`, {
         method: 'GET',
         headers: {
           'Accept': 'application/json',
@@ -89,28 +89,13 @@ export default function StudentDashboard() {
       }
       
       const data = await response.json();
-      console.log('API Response from /student-classes:', data);
+      console.log('API Response from /my-classes:', data);
       
-      let userClasses = [];
-      if (data.success && Array.isArray(data.classes)) {
-        userClasses = data.classes;
-      } else if (Array.isArray(data)) {
-        userClasses = data;
-      } else {
-        console.log('No classes found or invalid response structure');
-        userClasses = [];
-      }
+      // The my-classes endpoint already filters classes based on user role and membership
+      // No need for additional filtering - just set the classes directly
+      setClasses(Array.isArray(data) ? data : []);
+      console.log('Classes set for student:', Array.isArray(data) ? data.length : 0);
       
-      console.log('Classes where student is enrolled:', userClasses.length);
-      
-      // Only show classes where the student is actually enrolled
-      if (userClasses.length === 0) {
-        console.log('No classes found where student is enrolled');
-        setClasses([]);
-      } else {
-        console.log('Classes where student is enrolled:', userClasses.length);
-        setClasses(userClasses);
-      }
       setError(null);
       
       // No completion percentage needed for active classes

@@ -45,7 +45,7 @@ export default function StudentClasses() {
 
         console.log('Fetching classes for student:', user._id);
         
-      const response = await fetch(`${API_BASE}/api/classes/student-classes?studentID=${user._id}`, {
+      const response = await fetch(`${API_BASE}/api/classes/my-classes`, {
           method: 'GET',
           headers: {
             'Accept': 'application/json',
@@ -59,22 +59,12 @@ export default function StudentClasses() {
         }
         
         const data = await response.json();
-        console.log('API Response from /student-classes:', data);
+        console.log('API Response from /my-classes:', data);
         
-        let userClasses = [];
-        if (data.success && Array.isArray(data.classes)) {
-          userClasses = data.classes;
-        } else if (Array.isArray(data)) {
-          userClasses = data;
-        } else {
-          console.log('No classes found or invalid response structure');
-          userClasses = [];
-        }
-        
-        console.log('Classes where student is enrolled:', userClasses.length);
-        
-      console.log('User classes:', userClasses);
-      setClasses(userClasses);
+        // The my-classes endpoint already filters classes based on user role and membership
+        const userClasses = Array.isArray(data) ? data : [];
+        console.log('User classes:', userClasses);
+        setClasses(userClasses);
       
       // Fetch class statistics for each class
       await fetchClassStats(userClasses, token);

@@ -279,8 +279,8 @@ export default function StudentActs() {
 
       console.log('DEBUG: Fetching activities for student:', user._id);
 
-      // First, get classes where this student is enrolled using the student-classes endpoint
-      const classesResponse = await fetch(`${API_BASE}/api/classes/student-classes?studentID=${user._id}`, {
+      // Get classes where this student is enrolled using the my-classes endpoint
+      const classesResponse = await fetch(`${API_BASE}/api/classes/my-classes`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
@@ -290,14 +290,8 @@ export default function StudentActs() {
 
       const classesData = await classesResponse.json();
       
-      // The student-classes endpoint already returns only classes where the student is enrolled
-      let studentClasses = [];
-      
-      if (Array.isArray(classesData)) {
-        studentClasses = classesData;
-      } else if (classesData.success && classesData.classes) {
-        studentClasses = classesData.classes;
-      }
+      // The my-classes endpoint already filters classes based on user role and membership
+      const studentClasses = Array.isArray(classesData) ? classesData : [];
 
       console.log('DEBUG: Student classes found:', studentClasses.length);
 
