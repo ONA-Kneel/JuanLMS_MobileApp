@@ -134,19 +134,28 @@ export default function StudentModule(){
         try {
             const token = await AsyncStorage.getItem('jwtToken');
             console.log('DEBUG StudentModule: fetchSpecificClass targetClassId:', targetClassId);
-            // Fetch all classes and find the one with the exact classID
-            const classesRes = await axios.get(`https://juanlms-webapp-server.onrender.com/api/classes`, {
+            
+            // First, get classes where the student is enrolled to verify access
+            const classesRes = await axios.get(`https://juanlms-webapp-server.onrender.com/api/classes/student-classes?studentID=${user._id}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            console.log('DEBUG StudentModule: API returned:', classesRes.data);
+            console.log('DEBUG StudentModule: Student classes API returned:', classesRes.data);
+            
             let classObj = null;
             if (Array.isArray(classesRes.data)) {
                 classObj = classesRes.data.find(c => c.classID === targetClassId);
             } else if (classesRes.data.success && Array.isArray(classesRes.data.classes)) {
                 classObj = classesRes.data.classes.find(c => c.classID === targetClassId);
             }
+            
             console.log('DEBUG StudentModule: selected classObj:', classObj);
             if (classObj) {
+                // Verify the student is actually enrolled in this class
+                const isEnrolled = classObj.members && classObj.members.includes(user._id);
+                if (!isEnrolled) {
+                    throw new Error('Access denied: Student not enrolled in this class');
+                }
+                
                 setClassID(classObj.classID);
                 setClassInfo({
                     className: classObj.className,
@@ -157,7 +166,7 @@ export default function StudentModule(){
                 fetchClasswork(classObj.classID); // Fetch classwork
                 fetchMaterials(classObj.classID); // Fetch materials
             } else {
-                throw new Error('Class not found');
+                throw new Error('Class not found or access denied');
             }
         } catch (err) {
             console.log('Error fetching specific class:', err);
@@ -169,8 +178,8 @@ export default function StudentModule(){
     const fetchAvailableClasses = async () => {
         try {
             const token = await AsyncStorage.getItem('jwtToken');
-            // First, get all available classes
-            const classesRes = await axios.get(`https://juanlms-webapp-server.onrender.com/api/classes`, {
+            // First, get classes where the student is enrolled
+            const classesRes = await axios.get(`https://juanlms-webapp-server.onrender.com/api/classes/student-classes?studentID=${user._id}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             if (classesRes.data.success && classesRes.data.classes.length > 0) {

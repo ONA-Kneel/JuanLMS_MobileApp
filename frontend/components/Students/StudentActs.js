@@ -279,8 +279,8 @@ export default function StudentActs() {
 
       console.log('DEBUG: Fetching activities for student:', user._id);
 
-      // First, get all classes where this student is enrolled
-      const classesResponse = await fetch(`${API_BASE}/api/classes`, {
+      // First, get classes where this student is enrolled using the student-classes endpoint
+      const classesResponse = await fetch(`${API_BASE}/api/classes/student-classes?studentID=${user._id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
@@ -290,71 +290,13 @@ export default function StudentActs() {
 
       const classesData = await classesResponse.json();
       
-      // For students, we need to find classes where they are enrolled
+      // The student-classes endpoint already returns only classes where the student is enrolled
       let studentClasses = [];
       
       if (Array.isArray(classesData)) {
-        studentClasses = classesData.filter(classItem => {
-          if (!classItem || !classItem.members) return false;
-          
-          const isMember = classItem.members.some(member => {
-            const userId = user._id.toString();
-            const candidateIds = [
-              userId,
-              user.userID?.toString?.(),
-              user.id?.toString?.(),
-              user.schoolID?.toString?.(),
-              user.studentID?.toString?.(),
-              user.studentCode?.toString?.(),
-            ].filter(Boolean);
-            if (typeof member === 'object') {
-              const maybeId = member?._id || member?.id || member?.userID || member?.schoolID || member?.studentCode;
-              if (maybeId && candidateIds.includes(maybeId.toString())) return true;
-              const memberStr = member?.toString?.();
-              if (typeof memberStr === 'string') {
-                if (candidateIds.includes(memberStr)) return true;
-              }
-              return false;
-            } else {
-              const memberId = String(member);
-              if (candidateIds.includes(memberId)) return true;
-              return false;
-            }
-          });
-          
-          return isMember;
-        });
+        studentClasses = classesData;
       } else if (classesData.success && classesData.classes) {
-        studentClasses = classesData.classes.filter(classItem => {
-          if (!classItem || !classItem.members) return false;
-          
-          const isMember = classItem.members.some(member => {
-            const userId = user._id.toString();
-            const candidateIds = [
-              userId,
-              user.userID?.toString?.(),
-              user.id?.toString?.(),
-              user.schoolID?.toString?.(),
-              user.studentID?.toString?.(),
-              user.studentCode?.toString?.(),
-            ].filter(Boolean);
-            if (typeof member === 'object') {
-              const maybeId = member?._id || member?.id || member?.userID || member?.schoolID || member?.studentCode;
-              if (maybeId && candidateIds.includes(maybeId.toString())) return true;
-              const memberStr = member?.toString?.();
-              if (typeof memberStr === 'string') {
-                if (candidateIds.includes(memberStr)) return true;
-              }
-              return false;
-            } else {
-              const memberId = String(member);
-              if (candidateIds.includes(memberId)) return true;
-              return false;
-            }
-          });
-          
-          return isMember;
-        });
+        studentClasses = classesData.classes;
       }
 
       console.log('DEBUG: Student classes found:', studentClasses.length);

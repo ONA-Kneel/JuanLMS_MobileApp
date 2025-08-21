@@ -74,7 +74,7 @@ export default function StudentDashboard() {
       // Update academic context for display
       setAcademicContext(`${activeYear} | ${activeTerm}`);
       
-      // Use the correct backend URL for student classes
+      // Use the student-classes endpoint to get only classes where the student is enrolled
       const response = await fetch(`https://juanlms-webapp-server.onrender.com/api/classes/student-classes?studentID=${user._id}`, {
         method: 'GET',
         headers: {
@@ -97,31 +97,20 @@ export default function StudentDashboard() {
       } else if (Array.isArray(data)) {
         userClasses = data;
       } else {
-        throw new Error('Invalid response structure');
+        console.log('No classes found or invalid response structure');
+        userClasses = [];
       }
       
-      console.log('Total classes fetched for student:', userClasses.length);
+      console.log('Classes where student is enrolled:', userClasses.length);
       
-      // Filter classes by current academic year and term
-      const currentTermClasses = userClasses.filter(classItem => {
-        if (!classItem) return false;
-        
-        // Check if class matches current academic year and term
-        const classYear = classItem.academicYear || classItem.year;
-        const classTerm = classItem.termName || classItem.term;
-        
-        console.log('Checking class:', classItem.className || classItem.classID);
-        console.log('Class year/term:', classYear, classTerm);
-        console.log('Current year/term:', activeYear, activeTerm);
-        
-        const isCurrentTerm = classYear === activeYear && classTerm === activeTerm;
-        console.log('Is current term:', isCurrentTerm);
-        
-        return isCurrentTerm;
-      });
-      
-      console.log('Classes for current term:', currentTermClasses.length);
-      setClasses(currentTermClasses);
+      // Only show classes where the student is actually enrolled
+      if (userClasses.length === 0) {
+        console.log('No classes found where student is enrolled');
+        setClasses([]);
+      } else {
+        console.log('Classes where student is enrolled:', userClasses.length);
+        setClasses(userClasses);
+      }
       setError(null);
       
       // No completion percentage needed for active classes

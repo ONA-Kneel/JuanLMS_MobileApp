@@ -45,7 +45,7 @@ export default function StudentClasses() {
 
         console.log('Fetching classes for student:', user._id);
         
-              const response = await fetch(`${API_BASE}/api/classes/student-classes?studentID=${user._id}`, {
+      const response = await fetch(`${API_BASE}/api/classes/student-classes?studentID=${user._id}`, {
           method: 'GET',
           headers: {
             'Accept': 'application/json',
@@ -67,10 +67,11 @@ export default function StudentClasses() {
         } else if (Array.isArray(data)) {
           userClasses = data;
         } else {
-          throw new Error('Invalid response structure');
+          console.log('No classes found or invalid response structure');
+          userClasses = [];
         }
         
-        console.log('Total classes fetched for student:', userClasses.length);
+        console.log('Classes where student is enrolled:', userClasses.length);
         
       console.log('User classes:', userClasses);
       setClasses(userClasses);
