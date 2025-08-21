@@ -255,6 +255,14 @@ export default function StudentModule(){
         return encodeURI(`${API_BASE}${path}`);
     };
 
+    const handleOpenExternalLink = (rawUrl) => {
+        if (!rawUrl) return;
+        const absoluteUrl = toAbsoluteUrl(rawUrl);
+        Linking.openURL(absoluteUrl).catch(() => {
+            Alert.alert('Error', 'Unable to open link');
+        });
+    };
+
     const handleFilePress = (file) => {
         console.log('File pressed:', file);
         if (isImageFile(file.fileName)) {
@@ -725,6 +733,34 @@ export default function StudentModule(){
                                     <View style={{ flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 8, borderBottomWidth: 1, borderColor: '#e0e0e0', backgroundColor: '#f9f9f9' }}>
                                         <Text style={{ fontFamily: 'Poppins-Bold', color: '#222', fontSize: 14, flex: 1 }}>Module</Text>
                                     </View>
+                                    {/* External link (if provided) */}
+                                    {lesson.link && (
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#e0e0e0', backgroundColor: '#fff' }}>
+                                            <View style={{ marginRight: 12 }}>
+                                                <MaterialIcons name="link" size={20} color="#1976d2" />
+                                            </View>
+                                            <TouchableOpacity style={{ flex: 1, marginRight: 12 }} onPress={() => handleOpenExternalLink(lesson.link)}>
+                                                <Text style={{ fontFamily: 'Poppins-Regular', color: '#1976d2', fontSize: 14, textDecorationLine: 'underline' }} numberOfLines={2}>
+                                                    {lesson.link}
+                                                </Text>
+                                            </TouchableOpacity>
+                                            <TouchableOpacity 
+                                                style={{
+                                                    backgroundColor: '#1976d2',
+                                                    paddingHorizontal: 12,
+                                                    paddingVertical: 6,
+                                                    borderRadius: 6,
+                                                    flexDirection: 'row',
+                                                    alignItems: 'center',
+                                                    gap: 4
+                                                }}
+                                                onPress={() => handleOpenExternalLink(lesson.link)}
+                                            >
+                                                <MaterialIcons name="open-in-new" size={16} color="white" />
+                                                <Text style={{ color: 'white', fontSize: 12, fontWeight: 'bold' }}>Open</Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                    )}
                                     {/* File rows */}
                                     {lesson.files && lesson.files.map(file => (
                                         <View key={file.fileUrl} style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#e0e0e0', backgroundColor: '#fff' }}>
@@ -742,7 +778,7 @@ export default function StudentModule(){
                                             </View>
                                             
                                             {/* File info */}
-                                            <View style={{ flex: 1, marginRight: 12 }}>
+                                            <TouchableOpacity style={{ flex: 1, marginRight: 12 }} onPress={() => handleFilePress(file)}>
                                                 <Text style={{ fontFamily: 'Poppins-Regular', color: '#1976d2', fontSize: 14, textDecorationLine: 'underline', marginBottom: 2 }}>
                                                     {file.fileName}
                                                 </Text>
@@ -751,7 +787,7 @@ export default function StudentModule(){
                                                      isVideoFile(file.fileName) ? 'Video File' : 
                                                      isPdfFile(file.fileName) ? 'PDF Document' : 'Document'}
                                                 </Text>
-                                            </View>
+                                            </TouchableOpacity>
                                             
                                             {/* Action button */}
                                             <TouchableOpacity 
