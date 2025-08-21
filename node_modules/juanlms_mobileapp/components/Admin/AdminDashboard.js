@@ -72,15 +72,47 @@ export default function AdminDashboard() {
            { userName: 'Roman Cyril Panganiban', role: 'faculty' },
            { userName: 'hatdog asd', role: 'students' },
          ]);
-        setRecentLogs([
+        setRecentLogins([
           { timestamp: '2025-08-03T12:43:56', userName: 'Will Bianca', action: 'Login' },
           { timestamp: '2025-07-22T00:06:11', userName: 'Rochelle Borre', action: 'Login' },
           { timestamp: '2025-07-20T23:23:40', userName: 'Niel Nathan Borre', action: 'Login' },
           { timestamp: '2025-07-13T01:59:20', userName: 'Roman Cyril Panganiban', action: 'Login' },
           { timestamp: '2025-07-05T19:04:07', userName: 'hatdog asd', action: 'Login' },
         ]);
-        setSchoolYearProgress(18);
-        setTermProgress(100);
+        
+        // Calculate fallback progress using the same logic as web app
+        const now = new Date();
+        const schoolYearStart = new Date('2025-06-01');
+        const schoolYearEnd = new Date('2026-04-30');
+        const termStart = new Date('2025-08-01');
+        const termEnd = new Date('2025-12-15');
+        
+        // Calculate school year progress like web app
+        let schoolYearPercent = 0;
+        if (now < schoolYearStart) {
+            schoolYearPercent = 0;
+        } else if (now > schoolYearEnd) {
+            schoolYearPercent = 100;
+        } else {
+            const schoolYearTotal = schoolYearEnd - schoolYearStart;
+            const schoolYearElapsed = now - schoolYearStart;
+            schoolYearPercent = Math.floor((schoolYearElapsed / schoolYearTotal) * 100);
+        }
+        
+        // Calculate term progress like web app
+        let termPercent = 0;
+        if (now < termStart) {
+            termPercent = 0;
+        } else if (now > termEnd) {
+            termPercent = 100;
+        } else {
+            const termTotal = termEnd - termStart;
+            const termElapsed = now - termStart;
+            termPercent = Math.floor((termElapsed / termTotal) * 100);
+        }
+        
+        setSchoolYearProgress(schoolYearPercent);
+        setTermProgress(termPercent);
       } finally {
         setLoading(false);
       }

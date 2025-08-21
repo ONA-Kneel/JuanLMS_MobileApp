@@ -7,8 +7,8 @@ import adminService from '../../services/adminService';
 
 export default function AdminProgress() {
     const navigation = useNavigation();
-    const [schoolYearProgress, setSchoolYearProgress] = useState(18); // Set default value
-    const [termProgress, setTermProgress] = useState(100); // Set default value
+    const [schoolYearProgress, setSchoolYearProgress] = useState(0); // Set default value
+    const [termProgress, setTermProgress] = useState(0); // Set default value
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
@@ -17,29 +17,45 @@ export default function AdminProgress() {
             try {
                 setLoading(true);
                 const data = await adminService.getAcademicProgress();
-                setSchoolYearProgress(data.schoolYear.progress || 18);
-                setTermProgress(data.term.progress || 100);
+                setSchoolYearProgress(data.schoolYear || 0);
+                setTermProgress(data.term || 0);
                 setError(null);
             } catch (error) {
                 console.error('Error fetching progress data:', error);
                 setError('Failed to load progress data');
-                // Fallback to calculated values
+                // Fallback to calculated values using the same logic as web app
                 const now = new Date();
                 const schoolYearStart = new Date('2025-06-01');
                 const schoolYearEnd = new Date('2026-04-30');
-                const termStart = new Date('2025-08-02');
-                const termEnd = new Date('2025-08-03');
+                const termStart = new Date('2025-08-01');
+                const termEnd = new Date('2025-12-15');
                 
-                const schoolYearTotal = schoolYearEnd - schoolYearStart;
-                const schoolYearElapsed = Math.max(0, now - schoolYearStart);
-                const schoolYearPercent = Math.min(100, (schoolYearElapsed / schoolYearTotal) * 100);
+                // Calculate school year progress like web app
+                let schoolYearPercent = 0;
+                if (now < schoolYearStart) {
+                    schoolYearPercent = 0;
+                } else if (now > schoolYearEnd) {
+                    schoolYearPercent = 100;
+                } else {
+                    const schoolYearTotal = schoolYearEnd - schoolYearStart;
+                    const schoolYearElapsed = now - schoolYearStart;
+                    schoolYearPercent = Math.floor((schoolYearElapsed / schoolYearTotal) * 100);
+                }
                 
-                const termTotal = termEnd - termStart;
-                const termElapsed = Math.max(0, now - termStart);
-                const termPercent = Math.min(100, (termElapsed / termTotal) * 100);
+                // Calculate term progress like web app
+                let termPercent = 0;
+                if (now < termStart) {
+                    termPercent = 0;
+                } else if (now > termEnd) {
+                    termPercent = 100;
+                } else {
+                    const termTotal = termEnd - termStart;
+                    const termElapsed = now - termStart;
+                    termPercent = Math.floor((termElapsed / termTotal) * 100);
+                }
                 
-                setSchoolYearProgress(Math.round(schoolYearPercent) || 18);
-                setTermProgress(Math.round(termPercent) || 100);
+                setSchoolYearProgress(schoolYearPercent);
+                setTermProgress(termPercent);
             } finally {
                 setLoading(false);
             }

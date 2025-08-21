@@ -114,8 +114,8 @@ adminRoutes.get("/admin/academic-progress", async (req, res) => {
         // Academic year dates (configurable)
         const schoolYearStart = new Date('2025-06-01');
         const schoolYearEnd = new Date('2026-04-30');
-        const termStart = new Date('2025-08-02');
-        const termEnd = new Date('2025-08-03');
+        const termStart = new Date('2025-08-01');
+        const termEnd = new Date('2025-12-15');
         
         // Calculate progress percentages
         const schoolYearTotal = schoolYearEnd - schoolYearStart;
@@ -257,8 +257,8 @@ adminRoutes.get("/api/admin/dashboard-summary", async (req, res) => {
                 const now = new Date();
                 const schoolYearStart = new Date('2025-06-01');
                 const schoolYearEnd = new Date('2026-04-30');
-                const termStart = new Date('2025-08-02');
-                const termEnd = new Date('2025-08-03');
+                const termStart = new Date('2025-08-01');
+                const termEnd = new Date('2025-12-15');
                 
                 const schoolYearTotal = schoolYearEnd - schoolYearStart;
                 const schoolYearElapsed = Math.max(0, now - schoolYearStart);

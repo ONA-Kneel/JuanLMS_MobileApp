@@ -156,14 +156,21 @@ class AdminService {
       const yearRes = await this.makeRequest('/api/schoolyears/active');
       if (!yearRes) return { schoolYear: 0, term: 0 };
 
-      const schoolYearStart = new Date(yearRes.schoolYearStart);
-      const schoolYearEnd = new Date(yearRes.schoolYearEnd);
-      const now = new Date();
-
-      // Calculate school year progress
-      const schoolYearTotal = schoolYearEnd - schoolYearStart;
-      const schoolYearElapsed = Math.max(0, now - schoolYearStart);
-      const schoolYearProgress = Math.min(100, (schoolYearElapsed / schoolYearTotal) * 100);
+      // Use the same calculation logic as the web app
+      const startDate = new Date(yearRes.startDate || `${yearRes.schoolYearStart}-06-01`);
+      const endDate = new Date(yearRes.endDate || `${yearRes.schoolYearEnd}-04-30`);
+      const today = new Date();
+      
+      let schoolYearProgress = 0;
+      if (today < startDate) {
+        schoolYearProgress = 0;
+      } else if (today > endDate) {
+        schoolYearProgress = 100;
+      } else {
+        const totalDuration = endDate - startDate;
+        const elapsed = today - startDate;
+        schoolYearProgress = Math.floor((elapsed / totalDuration) * 100);
+      }
 
       // Get current term
       const schoolYearName = `${yearRes.schoolYearStart}-${yearRes.schoolYearEnd}`;
@@ -175,15 +182,23 @@ class AdminService {
         if (activeTerm) {
           const termStart = new Date(activeTerm.startDate);
           const termEnd = new Date(activeTerm.endDate);
-          const termTotal = termEnd - termStart;
-          const termElapsed = Math.max(0, now - termStart);
-          termProgress = Math.min(100, (termElapsed / termTotal) * 100);
+          const today = new Date();
+          
+          if (today < termStart) {
+            termProgress = 0;
+          } else if (today > termEnd) {
+            termProgress = 100;
+          } else {
+            const totalDuration = termEnd - termStart;
+            const elapsed = today - termStart;
+            termProgress = Math.floor((elapsed / totalDuration) * 100);
+          }
         }
       }
 
       return {
-        schoolYear: Math.round(schoolYearProgress),
-        term: Math.round(termProgress)
+        schoolYear: schoolYearProgress,
+        term: termProgress
       };
     } catch (error) {
       console.error('Error fetching academic progress:', error);
