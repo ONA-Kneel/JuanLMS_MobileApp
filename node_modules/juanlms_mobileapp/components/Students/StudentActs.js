@@ -196,20 +196,34 @@ export default function StudentActs() {
                 const submissions = await response.json();
                 console.log(`DEBUG: Submissions for assignment ${activity._id}:`, submissions);
                 const studentSubmission = submissions.find(sub => {
-                  // Backend populates student with User object, so check both cases
-                  let submissionStudentId;
-                  if (sub.student && typeof sub.student === 'object' && sub.student._id) {
-                    // student is populated User object
-                    submissionStudentId = sub.student._id;
-                  } else {
-                    // student is direct ID
-                    submissionStudentId = sub.student;
+                  // Use web app logic for assignment submission matching
+                  let matches = false;
+                  
+                  // Check assignment field matching (multiple possible field names)
+                  const assignmentMatches = sub.assignment === activity._id || 
+                                          sub.assignment?._id === activity._id ||
+                                          sub.assignmentId === activity._id;
+                  
+                  if (!assignmentMatches) {
+                    return false;
                   }
                   
-                  const userId = user.userID || user._id; // Use school ID if available, fallback to MongoDB ID
-                  const matches = submissionStudentId === userId || submissionStudentId === userId.toString();
+                  // Check student field matching
+                  if (sub.student && typeof sub.student === 'object' && sub.student._id) {
+                    // student is populated User object - check multiple possible ID fields
+                    matches = sub.student._id === user.userID || 
+                             sub.student._id === user._id ||
+                             sub.student.userID === user.userID ||
+                             sub.student.studentID === user.userID;
+                  } else {
+                    // student is direct ID
+                    matches = sub.student === user.userID || 
+                             sub.student === user._id ||
+                             sub.student === user.userID.toString() || 
+                             sub.student === user._id.toString();
+                  }
                   
-                  console.log(`DEBUG: Checking submission ${sub._id}: student=${sub.student}, submissionStudentId=${submissionStudentId}, userId=${userId}, matches=${matches}`);
+                  console.log(`DEBUG: Checking submission ${sub._id}: student=${sub.student}, assignment=${sub.assignment}, assignmentMatches=${assignmentMatches}, studentMatches=${matches}`);
                   
                   return matches;
                 });
@@ -255,24 +269,31 @@ export default function StudentActs() {
                 })));
                 
                 if (Array.isArray(responseData)) {
-                  // Find responses by this student (using correct field names from QuizResponse model)
+                  // Find responses by this student (using web app logic for compatibility)
                   const studentResponse = responseData.find(resp => {
-                    // QuizResponse model uses quizId and studentId fields
-                    // Backend populates studentId with User object, so check both cases
-                    const matchesQuiz = resp.quizId === activity._id || resp.quizId === activity._id.toString();
+                    console.log('Checking response:', resp);
+                    console.log('Response studentId field:', resp.studentId);
+                    console.log('Response student field:', resp.student);
+                    console.log('Current userId:', user.userID);
+                    console.log('Current userObjectId:', user._id);
                     
-                    // Check if studentId is populated (User object) or direct ID
-                    let matchesStudent = false;
-                    const userId = user.userID || user._id; // Use school ID if available, fallback to MongoDB ID
-                    if (resp.studentId && typeof resp.studentId === 'object' && resp.studentId._id) {
-                      // studentId is populated User object
-                      matchesStudent = resp.studentId._id === userId || resp.studentId._id === userId.toString();
-                    } else {
-                      // studentId is direct ID
-                      matchesStudent = resp.studentId === userId || resp.studentId === userId.toString();
-                    }
+                    // Check both student and studentId fields for compatibility (like web app)
+                    const studentField = resp.student || resp.studentId;
+                    const matchesQuiz = resp.quiz === activity._id || 
+                                       resp.quiz?._id === activity._id ||
+                                       resp.quizId === activity._id;
+                                       
+                    const matchesStudent = studentField && (
+                      studentField._id === user.userID ||           // Match with student ID (S441)
+                      studentField._id === user._id ||              // Match with MongoDB ObjectId
+                      studentField === user.userID ||               // Direct match with student ID
+                      studentField === user._id ||                  // Direct match with ObjectId
+                      studentField.userID === user.userID ||        // Match userID field
+                      studentField.studentID === user.userID        // Match studentID field
+                    );
                     
-                    console.log(`DEBUG: Checking response ${resp._id}: quizId=${resp.quizId}, studentId=${resp.studentId}, activity._id=${activity._id}, user.userID=${user.userID}, user._id=${user._id}, matchesQuiz=${matchesQuiz}, matchesStudent=${matchesStudent}`);
+                    console.log('Response matches current student:', matchesStudent);
+                    console.log(`DEBUG: Quiz match: ${matchesQuiz}, Student match: ${matchesStudent}`);
                     
                     return matchesQuiz && matchesStudent;
                   });
@@ -293,6 +314,7 @@ export default function StudentActs() {
                     activity.score = studentResponse.score || 0;
                     activity.totalPoints = studentResponse.total || activity.points || 10;
                     activity.percentage = percentage || 0;
+                    activity.timeSpent = studentResponse.timeSpent || 'N/A';
                     
                     console.log('Updated quiz activity:', activity._id, 'score:', activity.score, 'totalPoints:', activity.totalPoints, 'percentage:', activity.percentage);
                   } else {
