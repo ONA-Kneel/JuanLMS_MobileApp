@@ -45,7 +45,7 @@ export default function StudentClasses() {
 
         console.log('Fetching classes for student:', user._id);
         
-      const response = await fetch(`${API_BASE}/api/classes`, {
+              const response = await fetch(`${API_BASE}/api/classes/student-classes?studentID=${user._id}`, {
           method: 'GET',
           headers: {
             'Accept': 'application/json',
@@ -59,68 +59,18 @@ export default function StudentClasses() {
         }
         
         const data = await response.json();
-        console.log('API Response from /classes:', data);
+        console.log('API Response from /student-classes:', data);
         
-        let allClasses = [];
+        let userClasses = [];
         if (data.success && Array.isArray(data.classes)) {
-          allClasses = data.classes;
+          userClasses = data.classes;
         } else if (Array.isArray(data)) {
-          allClasses = data;
+          userClasses = data;
         } else {
           throw new Error('Invalid response structure');
         }
         
-        console.log('Total classes fetched:', allClasses.length);
-        
-        // Filter classes where the student is a member
-        const userClasses = allClasses.filter(classItem => {
-          if (!classItem || !classItem.members) {
-            console.log('Class has no members array:', classItem?.className || classItem?.classID);
-            return false;
-          }
-          
-        console.log('Checking class:', classItem.className || classItem?.classID);
-          console.log('Class members:', classItem.members);
-          console.log('User ID:', user._id);
-          
-          // Try multiple matching strategies
-          const isMember = classItem.members.some(member => {
-            const memberId = typeof member === 'object' ? member.toString() : member;
-            const userId = user._id.toString();
-            
-            // Strategy 1: Direct ID match
-            if (memberId === userId) {
-              console.log('Direct ID match found');
-              return true;
-            }
-            
-            // Strategy 2: Check if user has a studentCode property that matches
-            if (user.studentCode && memberId === user.studentCode) {
-              console.log('Student code match found');
-              return true;
-            }
-            
-            // Strategy 3: Check if user has an id property that matches
-            if (user.id && memberId === user.id) {
-              console.log('User ID match found');
-              return true;
-            }
-            
-            // Strategy 4: Check if member is a student code pattern (starts with 'S')
-            if (memberId.startsWith('S') && user.studentCode && memberId === user.studentCode) {
-              console.log('Student code pattern match found');
-              return true;
-            }
-            
-            return false;
-          });
-          
-          if (isMember) {
-          console.log('User is member of class:', classItem.className || classItem?.classID);
-          }
-          
-          return isMember;
-        });
+        console.log('Total classes fetched for student:', userClasses.length);
         
       console.log('User classes:', userClasses);
       setClasses(userClasses);

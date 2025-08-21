@@ -74,8 +74,8 @@ export default function StudentDashboard() {
       // Update academic context for display
       setAcademicContext(`${activeYear} | ${activeTerm}`);
       
-      // Use the correct backend URL for the web app backend
-      const response = await fetch(`https://juanlms-webapp-server.onrender.com/api/classes`, {
+      // Use the correct backend URL for student classes
+      const response = await fetch(`https://juanlms-webapp-server.onrender.com/api/classes/student-classes?studentID=${user._id}`, {
         method: 'GET',
         headers: {
           'Accept': 'application/json',
@@ -89,90 +89,39 @@ export default function StudentDashboard() {
       }
       
       const data = await response.json();
-      console.log('API Response from /classes:', data);
+      console.log('API Response from /student-classes:', data);
       
-      let allClasses = [];
+      let userClasses = [];
       if (data.success && Array.isArray(data.classes)) {
-        allClasses = data.classes;
+        userClasses = data.classes;
       } else if (Array.isArray(data)) {
-        allClasses = data;
+        userClasses = data;
       } else {
         throw new Error('Invalid response structure');
       }
       
-      console.log('Total classes fetched:', allClasses.length);
+      console.log('Total classes fetched for student:', userClasses.length);
       
-      // Filter classes where the student is a member
-      const userClasses = allClasses.filter(classItem => {
-        if (!classItem || !classItem.members) {
-          console.log('Class has no members array:', classItem?.className || classItem?.classID);
-          return false;
-        }
+      // Filter classes by current academic year and term
+      const currentTermClasses = userClasses.filter(classItem => {
+        if (!classItem) return false;
+        
+        // Check if class matches current academic year and term
+        const classYear = classItem.academicYear || classItem.year;
+        const classTerm = classItem.termName || classItem.term;
         
         console.log('Checking class:', classItem.className || classItem.classID);
-        console.log('Class members:', classItem.members);
-        console.log('User ID:', user._id);
-        console.log('User ID type:', typeof user._id);
+        console.log('Class year/term:', classYear, classTerm);
+        console.log('Current year/term:', activeYear, activeTerm);
         
-        // Try multiple matching strategies
-        const isMember = classItem.members.some(member => {
-          const memberId = typeof member === 'object' ? member.toString() : member;
-          const userId = user._id.toString();
-          
-          console.log('Comparing member ID:', memberId, 'with user ID:', userId);
-          console.log('Member ID type:', typeof memberId);
-          console.log('User ID type:', typeof userId);
-          
-          // Strategy 1: Direct ID match
-          if (memberId === userId) {
-            console.log('Direct ID match found');
-            return true;
-          }
-          
-          // Strategy 2: Check if user has a studentCode property that matches
-          if (user.studentCode && memberId === user.studentCode) {
-            console.log('Student code match found');
-            return true;
-          }
-          
-          // Strategy 3: Check if user has an id property that matches
-          if (user.id && memberId === user.id) {
-            console.log('User ID match found');
-            return true;
-          }
-          
-          // Strategy 4: Check if member is a student code pattern (starts with 'S')
-          if (memberId.startsWith('S') && user.studentCode && memberId === user.studentCode) {
-            console.log('Student code pattern match found');
-            return true;
-          }
-          
-          return false;
-        });
+        const isCurrentTerm = classYear === activeYear && classTerm === activeTerm;
+        console.log('Is current term:', isCurrentTerm);
         
-        if (isMember) {
-          console.log('User is member of class:', classItem.className || classItem.classID);
-        } else {
-          console.log('User is NOT member of class:', classItem.className || classItem.classID);
-        }
-        
-        return isMember;
+        return isCurrentTerm;
       });
       
-      // If no classes found with strict matching, try a more lenient approach
-      if (userClasses.length === 0) {
-        console.log('No classes found with strict matching, trying lenient approach...');
-        
-        // For now, show all classes as a fallback (you can adjust this logic)
-        const fallbackClasses = allClasses.filter(classItem => {
-          return classItem && classItem.className; // Just ensure it's a valid class
-        });
-        
-        console.log('Fallback classes found:', fallbackClasses.length);
-        setClasses(fallbackClasses);
-      } else {
-        setClasses(userClasses);
-      }
+      console.log('Classes for current term:', currentTermClasses.length);
+      setClasses(currentTermClasses);
       setError(null);
       
       // No completion percentage needed for active classes
