@@ -4,18 +4,22 @@ import { MaterialIcons, Feather } from '@expo/vector-icons';
 import FacultyProfileStyle from '../styles/faculty/FacultyProfileStyle';
 import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../UserContext';
+import { useNotifications } from '../../NotificationContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { addAuditLog } from '../Admin/auditTrailUtils';
 import profileService from '../../services/profileService';
 import { updateUser } from '../UserContext';
 import * as ImagePicker from 'expo-image-picker';
+import NotificationCenter from '../NotificationCenter';
 
 export default function FacultyProfile() {
   const { user } = useUser();
+  const { unreadCount } = useNotifications();
   const navigation = useNavigation();
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [editedUser, setEditedUser] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [showNotificationCenter, setShowNotificationCenter] = useState(false);
 
   const logout = async () => {
     if (user) {
@@ -195,9 +199,35 @@ export default function FacultyProfile() {
             <Feather name="lock" size={20} color="#00418b" />
             <Text style={FacultyProfileStyle.actionText}>Password</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={FacultyProfileStyle.actionBtn}>
-            <Feather name="bell" size={20} color="#00418b" />
-            <Text style={FacultyProfileStyle.actionText}>Notification</Text>
+          <TouchableOpacity 
+            style={FacultyProfileStyle.actionBtn}
+            onPress={() => setShowNotificationCenter(true)}
+          >
+            <View style={{ position: 'relative' }}>
+              <Feather name="bell" size={20} color="#00418b" />
+              {unreadCount > 0 && (
+                <View style={{
+                  position: 'absolute',
+                  top: -5,
+                  right: -5,
+                  backgroundColor: '#dc3545',
+                  borderRadius: 10,
+                  width: 20,
+                  height: 20,
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}>
+                  <Text style={{
+                    color: '#fff',
+                    fontSize: 12,
+                    fontFamily: 'Poppins-Bold',
+                  }}>
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </Text>
+                </View>
+              )}
+            </View>
+            <Text style={FacultyProfileStyle.actionText}>Notifications</Text>
           </TouchableOpacity>
           <TouchableOpacity style={FacultyProfileStyle.actionBtn} onPress={goToSupportCenter}>
             <Feather name="help-circle" size={20} color="#00418b" />
@@ -228,6 +258,10 @@ export default function FacultyProfile() {
       <TouchableOpacity style={FacultyProfileStyle.logout} onPress={logout}>
         <Text style={FacultyProfileStyle.logoutText}>Log Out</Text>
       </TouchableOpacity>
+      <NotificationCenter
+        visible={showNotificationCenter}
+        onClose={() => setShowNotificationCenter(false)}
+      />
     </View>
   );
 }

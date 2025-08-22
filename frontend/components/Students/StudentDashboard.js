@@ -1,24 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { Text, TouchableOpacity, View, ScrollView, Image, ActivityIndicator } from 'react-native';
-import StudentDashStyle from '../styles/Stud/StudentDashStyle';
+import { Text, TouchableOpacity, View, ScrollView, Image, Dimensions, ActivityIndicator, RefreshControl, StyleSheet } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
-import CustomBottomNav from '../CustomBottomNav';
-import StudentDashboardStyle from '../styles/Stud/StudentDashStyle';
 import { useUser } from '../UserContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import moment from 'moment';
+
+const { width } = Dimensions.get('window');
 
 export default function StudentDashboard() {
-  const changeScreen = useNavigation();
+  const navigation = useNavigation();
   const { user } = useUser();
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
-  const [classes, setClasses] = useState([]);
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [calendarDays, setCalendarDays] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [completedClassesPercent, setCompletedClassesPercent] = useState(0);
-  const [completedAssignmentsPercent, setCompletedAssignmentsPercent] = useState(0);
-  const [assignmentsToday, setAssignmentsToday] = useState([]);
-  const [assignmentsCompletedToday, setAssignmentsCompletedToday] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
+  const [academicYear, setAcademicYear] = useState('2025-2026');
+  const [currentTerm, setCurrentTerm] = useState('Term 1');
   const [academicContext, setAcademicContext] = useState('2025-2026 | Term 1');
 
   useEffect(() => {
@@ -29,392 +29,400 @@ export default function StudentDashboard() {
     return () => clearInterval(timer);
   }, []);
 
+  // Fetch dashboard data
   useEffect(() => {
-    // Fetch classes for the logged-in student
-      const fetchClasses = async () => {
-    if (!user || !user._id) return;
-    
-    setLoading(true);
-    setError(null);
-    
-    try {
-      console.log('Fetching classes for student:', user._id);
-      const token = await AsyncStorage.getItem('jwtToken');
-      
-      // First, get the current active academic year and term
-      const academicResponse = await fetch(`https://juanlms-webapp-server.onrender.com/api/academic-year/active`, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-      });
-
-      let activeYear = '2025-2026';
-      let activeTerm = 'Term 1';
-      
-      if (academicResponse.ok) {
-        const academicData = await academicResponse.json();
-        console.log('Academic year API response:', academicData);
-        if (academicData.success && academicData.academicYear) {
-          activeYear = academicData.academicYear.year;
-          activeTerm = academicData.academicYear.currentTerm;
-          console.log('Using academic year data:', activeYear, activeTerm);
-        } else {
-          console.log('Academic year data not in expected format:', academicData);
-        }
-      } else {
-        console.log('Academic year API not available, using default values');
-        console.log('Response status:', academicResponse.status);
-      }
-
-      console.log('Active Academic Year:', activeYear, 'Term:', activeTerm);
-      
-      // Update academic context for display
-      setAcademicContext(`${activeYear} | ${activeTerm}`);
-      
-      // Use the correct backend URL for the web app backend
-      const response = await fetch(`https://juanlms-webapp-server.onrender.com/api/classes`, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      console.log('API Response from /classes:', data);
-      
-      let allClasses = [];
-      if (data.success && Array.isArray(data.classes)) {
-        allClasses = data.classes;
-      } else if (Array.isArray(data)) {
-        allClasses = data;
-      } else {
-        throw new Error('Invalid response structure');
-      }
-      
-      console.log('Total classes fetched:', allClasses.length);
-      
-      // Filter classes where the student is a member
-      const userClasses = allClasses.filter(classItem => {
-        if (!classItem || !classItem.members) {
-          console.log('Class has no members array:', classItem?.className || classItem?.classID);
-          return false;
-        }
-        
-        console.log('Checking class:', classItem.className || classItem.classID);
-        console.log('Class members:', classItem.members);
-        console.log('User ID:', user._id);
-        console.log('User ID type:', typeof user._id);
-        
-        // Try multiple matching strategies
-        const isMember = classItem.members.some(member => {
-          const memberId = typeof member === 'object' ? member.toString() : member;
-          const userId = user._id.toString();
-          
-          console.log('Comparing member ID:', memberId, 'with user ID:', userId);
-          console.log('Member ID type:', typeof memberId);
-          console.log('User ID type:', typeof userId);
-          
-          // Strategy 1: Direct ID match
-          if (memberId === userId) {
-            console.log('Direct ID match found');
-            return true;
-          }
-          
-          // Strategy 2: Check if user has a studentCode property that matches
-          if (user.studentCode && memberId === user.studentCode) {
-            console.log('Student code match found');
-            return true;
-          }
-          
-          // Strategy 3: Check if user has an id property that matches
-          if (user.id && memberId === user.id) {
-            console.log('User ID match found');
-            return true;
-          }
-          
-          // Strategy 4: Check if member is a student code pattern (starts with 'S')
-          if (memberId.startsWith('S') && user.studentCode && memberId === user.studentCode) {
-            console.log('Student code pattern match found');
-            return true;
-          }
-          
-          return false;
-        });
-        
-        if (isMember) {
-          console.log('User is member of class:', classItem.className || classItem.classID);
-        } else {
-          console.log('User is NOT member of class:', classItem.className || classItem.classID);
-        }
-        
-        return isMember;
-      });
-      
-      // If no classes found with strict matching, try a more lenient approach
-      if (userClasses.length === 0) {
-        console.log('No classes found with strict matching, trying lenient approach...');
-        
-        // For now, show all classes as a fallback (you can adjust this logic)
-        const fallbackClasses = allClasses.filter(classItem => {
-          return classItem && classItem.className; // Just ensure it's a valid class
-        });
-        
-        console.log('Fallback classes found:', fallbackClasses.length);
-        setClasses(fallbackClasses);
-      } else {
-        setClasses(userClasses);
-      }
-      setError(null);
-      
-      // No completion percentage needed for active classes
-      setCompletedClassesPercent(0);
-    } catch (error) {
-      console.error('Network error fetching classes:', error);
-      setClasses([]);
-      setCompletedClassesPercent(0);
-      setError('Network error occurred: ' + error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-    
-    fetchClasses();
-  }, [user]);
-
-  useEffect(() => {
-    // Fetch assignments for today and calculate completion
-    const fetchAssignments = async () => {
-      if (!user || !user._id) return;
-      
+    const fetchDashboardData = async () => {
       try {
-        const today = new Date();
-        const yyyy = today.getFullYear();
-        const mm = String(today.getMonth() + 1).padStart(2, '0');
-        const dd = String(today.getDate()).padStart(2, '0');
-        const todayStr = `${yyyy}-${mm}-${dd}`;
-        
+        setLoading(true);
+        setError(null);
+
+        // Fetch academic year info
         const token = await AsyncStorage.getItem('jwtToken');
-        const response = await fetch(`https://juanlms-webapp-server.onrender.com/api/student-assignments?studentID=${user._id}&date=${todayStr}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
+        const academicResponse = await fetch('https://juanlms-webapp-server.onrender.com/api/academic-year/active', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
         });
-        const data = await response.json();
-        
-        if (data.success) {
-          setAssignmentsToday(data.assignments);
-          setAssignmentsCompletedToday(0);
-          setCompletedAssignmentsPercent(0);
-        } else {
-          setAssignmentsToday([]);
-          setAssignmentsCompletedToday(0);
-          setCompletedAssignmentsPercent(0);
+
+        if (academicResponse.ok) {
+          const academicData = await academicResponse.json();
+          setAcademicYear(academicData.data.academicYear || '2025-2026');
+          setCurrentTerm(academicData.data.currentTerm || 'Term 1');
+          setAcademicContext(`${academicData.data.academicYear || '2025-2026'} | ${academicData.data.currentTerm || 'Term 1'}`);
         }
+
       } catch (error) {
-        setAssignmentsToday([]);
-        setAssignmentsCompletedToday(0);
-        setCompletedAssignmentsPercent(0);
+        console.error('Error fetching dashboard data:', error);
+        setError('Failed to load dashboard data');
+      } finally {
+        setLoading(false);
       }
     };
+
+    fetchDashboardData();
+    generateCalendarDays();
+  }, []);
+
+  const generateCalendarDays = () => {
+    const year = currentMonth.getFullYear();
+    const month = currentMonth.getMonth();
     
-    fetchAssignments();
-  }, [user]);
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const startDate = new Date(firstDay);
+    startDate.setDate(startDate.getDate() - firstDay.getDay());
+    
+    const days = [];
+    const currentDate = new Date(startDate);
+    
+    while (currentDate <= lastDay || days.length < 42) {
+      days.push(new Date(currentDate));
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+    
+    setCalendarDays(days);
+  };
+
+  const navigateToScreen = (screenName) => {
+    navigation.navigate(screenName);
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      // await refreshNotifications(); // This line was removed as per the edit hint
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    } catch (error) {
+      console.error('Error refreshing dashboard:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const formatDateTime = (date) => {
-    return date.toLocaleString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: true
+    return moment(date).format('dddd, MMMM D, YYYY | h:mm:ss A');
+  };
+
+  const isToday = (date) => {
+    const today = new Date();
+    return date.getDate() === today.getDate() && 
+           date.getMonth() === today.getMonth() && 
+           date.getFullYear() === today.getFullYear();
+  };
+
+  const isCurrentMonth = (date) => {
+    return date.getMonth() === currentMonth.getMonth();
+  };
+
+  const goToPreviousMonth = () => {
+    setCurrentMonth(prev => {
+      const newMonth = new Date(prev);
+      newMonth.setMonth(newMonth.getMonth() - 1);
+      return newMonth;
     });
   };
 
-  const modules = (course) => {
-    // Find the exact class by classID to avoid wrong navigation
-    const exactClass = classes.find(c => c.classID === course.classID);
-    if (exactClass) {
-      changeScreen.navigate("SModule", { classId: exactClass.classID });
-    } else {
-      changeScreen.navigate("SModule", { classId: course.classID || course.classId || course._id });
-    }
+  const goToNextMonth = () => {
+    setCurrentMonth(prev => {
+      const newMonth = new Date(prev);
+      newMonth.setMonth(newMonth.getMonth() + 1);
+      return newMonth;
+    });
   };
 
+  const goToToday = () => {
+    setCurrentMonth(new Date());
+  };
+
+  if (loading) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color="#00418b" />
+        <Text style={{ marginTop: 16, fontFamily: 'Poppins-Regular', color: '#666' }}>
+          Loading dashboard...
+        </Text>
+      </View>
+    );
+  }
+
   return (
-    <View style={StudentDashboardStyle.container}>
+    <View style={styles.container}>
       {/* Blue background */}
-      <View style={StudentDashboardStyle.blueHeaderBackground} />
+      <View style={styles.blueBackground} />
       
-      {/* White card header */}
-      <View style={StudentDashboardStyle.whiteHeaderCard}>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+      {/* Header */}
+      <View style={styles.headerCard}>
+        <View style={styles.headerContent}>
           <View>
-            <Text style={StudentDashboardStyle.headerTitle}>
-              Hello, <Text style={{ fontWeight: 'bold', fontFamily: 'Poppins-Bold' }}>{user?.firstname || 'Student'}!</Text>
+            <Text style={styles.greetingText}>
+              Hello, <Text style={styles.userName}>{user?.firstname || 'Student'}!</Text>
             </Text>
-                         <Text style={StudentDashboardStyle.headerSubtitle}>{academicContext}</Text>
-             <Text style={StudentDashboardStyle.headerSubtitle2}>{formatDateTime(currentDateTime)}</Text>
+            <Text style={styles.academicContext}>
+              {academicContext}
+            </Text>
+            <Text style={styles.dateText}>
+              {formatDateTime(currentDateTime)}
+            </Text>
           </View>
-          <TouchableOpacity onPress={() => changeScreen.navigate('SProfile')}>
+          <TouchableOpacity onPress={() => navigateToScreen('SProfile')}>
             {user?.profilePicture ? (
               <Image 
                 source={{ uri: user.profilePicture }} 
-                style={{ width: 36, height: 36, borderRadius: 18 }}
+                style={styles.profileImage}
                 resizeMode="cover"
               />
             ) : (
               <Image 
                 source={require('../../assets/profile-icon (2).png')} 
-                style={{ width: 36, height: 36, borderRadius: 18 }}
-                resizeMode="cover"
+                style={styles.profileImage}
               />
             )}
           </TouchableOpacity>
         </View>
       </View>
 
-      <ScrollView
-        contentContainerStyle={{
-          paddingBottom: 80,
-          paddingHorizontal: 20,
-          paddingTop: 10,
-        }}
+      {error && (
+        <View style={{ backgroundColor: '#fee', padding: 12, marginHorizontal: 20, borderRadius: 8, marginBottom: 10 }}>
+          <Text style={{ color: '#c33', fontFamily: 'Poppins-Regular', fontSize: 14 }}>
+            {error}
+          </Text>
+        </View>
+      )}
+
+      <ScrollView 
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#00418b']}
+            tintColor="#00418b"
+          />
+        }
+        showsVerticalScrollIndicator={false}
       >
-        {/* Stats Row */}
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 }}>
-          <View style={{ flex: 1, backgroundColor: '#00418b', borderRadius: 16, alignItems: 'center', padding: 16, marginRight: 8, elevation: 2 }}>
-            <Icon name="book" size={32} color="#fff" style={{ marginBottom: 8 }} />
-            <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 20, fontFamily: 'Poppins-Bold' }}>{classes.length}</Text>
-            <Text style={{ color: '#fff', fontSize: 12, textAlign: 'center', fontFamily: 'Poppins-Regular' }}>Active Classes</Text>
-          </View>
-          <View style={{ flex: 1, backgroundColor: '#00418b', borderRadius: 16, alignItems: 'center', padding: 16, marginLeft: 8, elevation: 2 }}>
-            <Icon name="pencil" size={32} color="#fff" style={{ marginBottom: 8 }} />
-            <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 20, fontFamily: 'Poppins-Bold' }}>{assignmentsToday.length}</Text>
-            <Text style={{ color: '#fff', fontSize: 12, textAlign: 'center', fontFamily: 'Poppins-Regular' }}>Due Today</Text>
+        {/* Academic Calendar Section */}
+        <View style={styles.sectionContainer}>
+          <Text style={styles.sectionTitle}>Academic Calendar</Text>
+          <View style={styles.calendarCard}>
+            {/* Calendar Navigation */}
+            <View style={styles.calendarNavigation}>
+              <TouchableOpacity style={styles.calendarNavButton} onPress={goToToday}>
+                <Text style={styles.calendarNavButtonText}>today</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.calendarNavButton} onPress={goToPreviousMonth}>
+                <Text style={styles.calendarNavButtonText}>{'<'}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.calendarNavButton} onPress={goToNextMonth}>
+                <Text style={styles.calendarNavButtonText}>{'>'}</Text>
+              </TouchableOpacity>
+              <Text style={styles.calendarMonthText}>
+                {currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+              </Text>
+            </View>
+
+            {/* Calendar Grid */}
+            <View style={styles.calendarGrid}>
+              {/* Day Headers */}
+              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, index) => (
+                <View key={index} style={styles.calendarDayHeader}>
+                  <Text style={styles.calendarDayHeaderText}>{day}</Text>
+                </View>
+              ))}
+
+              {/* Calendar Days */}
+              {calendarDays.map((date, index) => (
+                <TouchableOpacity
+                  key={index}
+                  style={[
+                    styles.calendarDay,
+                    isToday(date) && styles.calendarDayToday,
+                    !isCurrentMonth(date) && styles.calendarDayOtherMonth
+                  ]}
+                >
+                  <Text style={[
+                    styles.calendarDayText,
+                    isToday(date) && styles.calendarDayTextToday,
+                    !isCurrentMonth(date) && styles.calendarDayTextOtherMonth
+                  ]}>
+                    {date.getDate()}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
         </View>
-
-        {/* Assignment Due Card */}
-        {assignmentsToday.length > 0 && (
-          <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#e0e0e0', borderRadius: 16, padding: 16, marginBottom: 16 }}>
-            <Icon name="calendar" size={32} color="#00418b" />
-            <Text style={{ marginLeft: 12, color: '#222', fontSize: 15, fontWeight: 'bold', fontFamily: 'Poppins-Bold' }}>You have a due assignment today</Text>
-          </View>
-        )}
-
-        {/* Your Classes Section */}
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 24, marginBottom: 8 }}>
-          <Text style={{ fontSize: 16, fontWeight: 'bold', fontFamily: 'Poppins-Bold' }}>Your Classes</Text>
-          {classes.length > 3 && (
-            <TouchableOpacity
-              onPress={() => changeScreen.navigate('SClasses')}
-              style={{
-                backgroundColor: '#00418b',
-                paddingHorizontal: 12,
-                paddingVertical: 6,
-                borderRadius: 8
-              }}>
-              <Text style={{ color: '#fff', fontSize: 12, fontFamily: 'Poppins-Bold' }}>View All</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {classes.slice(0, 3).map((course, index) => (
-          <TouchableOpacity
-            key={index}
-            style={{
-              backgroundColor: '#fff',
-              borderRadius: 16,
-              padding: 20,
-              marginBottom: 18,
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.1,
-              shadowRadius: 4,
-              elevation: 3,
-            }}
-            onPress={() => modules(course)}
-          >
-            {/* Class Image Placeholder */}
-            <View style={{
-              height: 120,
-              backgroundColor: '#e3eefd',
-              borderRadius: 12,
-              marginBottom: 16,
-              alignItems: 'center',
-              justifyContent: 'center',
-              overflow: 'hidden'
-            }}>
-              {course.image ? (
-                <Image
-                  source={{ uri: course.image }}
-                  style={{ width: '100%', height: '100%', resizeMode: 'cover' }}
-                />
-              ) : (
-                <Icon name="book-open-page-variant" size={48} color="#00418b" />
-              )}
-            </View>
-            {/* Class Info */}
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-              <View style={{ flex: 1 }}>
-                <Text style={{
-                  fontSize: 18,
-                  fontWeight: 'bold',
-                  color: '#333',
-                  fontFamily: 'Poppins-Bold',
-                  marginBottom: 4
-                }}>
-                  {course.className || course.name}
-                </Text>
-                <Text style={{
-                  fontSize: 14,
-                  color: '#666',
-                  fontFamily: 'Poppins-Regular',
-                  marginBottom: 8
-                }}>
-                  {course.classCode || course.code}
-                </Text>
-                <Text style={{
-                  fontSize: 12,
-                  color: '#888',
-                  fontFamily: 'Poppins-Regular'
-                }}>
-                  {course.members ? course.members.length : 0} Students
-                </Text>
-              </View>
-              <Icon name="chevron-right" size={24} color="#00418b" />
-            </View>
-          </TouchableOpacity>
-        ))}
-
-        {classes.length > 3 && (
-          <TouchableOpacity
-            onPress={() => changeScreen.navigate('SClasses')}
-            style={{
-              alignItems: 'center',
-              padding: 16,
-              backgroundColor: '#f0f0f0',
-              borderRadius: 12,
-              marginTop: 8
-            }}>
-            <Text style={{ color: '#00418b', fontFamily: 'Poppins-Bold' }}>
-              View {classes.length - 3} more classes
-            </Text>
-          </TouchableOpacity>
-        )}
-
-
       </ScrollView>
     </View>
   );
-} 
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f3f3f3',
+  },
+  
+  // Blue background
+  blueBackground: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    height: 160,
+    backgroundColor: '#00418b',
+    borderBottomLeftRadius: 40,
+    borderBottomRightRadius: 40,
+    zIndex: 0,
+  },
+
+  // Header styles
+  headerCard: {
+    backgroundColor: '#fff',
+    borderRadius: 18,
+    marginTop: 20,
+    marginHorizontal: 20,
+    marginBottom: 10,
+    padding: 18,
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+    zIndex: 1,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  greetingText: {
+    fontFamily: 'Poppins-Bold',
+    fontSize: 20,
+    color: '#00418b',
+  },
+  userName: {
+    fontWeight: 'bold',
+  },
+  dateText: {
+    fontFamily: 'Poppins-Regular',
+    color: '#888',
+    fontSize: 13,
+    marginTop: 2,
+  },
+  academicContext: {
+    fontFamily: 'Poppins-Regular',
+    color: '#666',
+    fontSize: 14,
+    marginTop: 4,
+  },
+  profileImage: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+  },
+
+  // Scroll content
+  scrollContent: {
+    paddingBottom: 100,
+    paddingHorizontal: 20,
+    paddingTop: 10,
+  },
+
+  // Section container
+  sectionContainer: {
+    marginBottom: 24,
+  },
+
+  // Section title
+  sectionTitle: {
+    fontSize: 20,
+    fontFamily: 'Poppins-Bold',
+    color: '#333',
+    marginBottom: 16,
+    marginLeft: 4,
+  },
+
+  // Calendar section
+  calendarCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  calendarNavigation: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+    gap: 12,
+  },
+  calendarNavButton: {
+    backgroundColor: '#f8f9fa',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+  },
+  calendarNavButtonText: {
+    fontSize: 14,
+    fontFamily: 'Poppins-Medium',
+    color: '#666',
+  },
+  calendarMonthText: {
+    fontSize: 18,
+    fontFamily: 'Poppins-Bold',
+    color: '#333',
+    marginLeft: 8,
+    flex: 1,
+  },
+  calendarGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  calendarDayHeader: {
+    width: (width - 80) / 7,
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  calendarDayHeaderText: {
+    fontSize: 14,
+    fontFamily: 'Poppins-SemiBold',
+    color: '#666',
+  },
+  calendarDay: {
+    width: (width - 80) / 7,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  calendarDayText: {
+    fontSize: 14,
+    fontFamily: 'Poppins-Regular',
+    color: '#333',
+  },
+  calendarDayToday: {
+    backgroundColor: '#fff3cd',
+    borderRadius: 20,
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  calendarDayTextToday: {
+    color: '#856404',
+    fontFamily: 'Poppins-SemiBold',
+  },
+  calendarDayOtherMonth: {
+    opacity: 0.3,
+  },
+  calendarDayTextOtherMonth: {
+    color: '#999',
+  },
+}); 

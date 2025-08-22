@@ -1,0 +1,183 @@
+import Notification from '../models/Notification.js';
+import database from '../connect.cjs';
+
+// Create notifications for all students in a class
+export const createClassNotifications = async (classID, notificationData) => {
+  try {
+    // Get the class and its members
+    const db = database.getDb();
+    const classData = await db.collection('classes').findOne({ classID });
+    if (!classData) {
+      console.error(`Class ${classID} not found`);
+      return;
+    }
+
+    console.log(`Found class: ${classID} with ${classData.members ? classData.members.length : 0} members`);
+
+    // Get faculty name - try to find by userID first, then by schoolID, then by _id
+    let faculty = await db.collection('users').findOne({ userID: classData.facultyID });
+    if (!faculty) {
+      faculty = await db.collection('users').findOne({ schoolID: classData.facultyID });
+    }
+    if (!faculty) {
+      faculty = await db.collection('users').findOne({ _id: new database.ObjectId(classData.facultyID) });
+    }
+    const facultyName = faculty ? `${faculty.firstname} ${faculty.lastname}` : 'Unknown Faculty';
+
+    console.log(`Faculty: ${facultyName}`);
+
+    // Create notifications for all students in the class
+    const notifications = [];
+    if (classData.members) {
+      for (const memberId of classData.members) {
+        // Skip if the member is the faculty (they don't need notifications for their own posts)
+        if (memberId === classData.facultyID) {
+          console.log(`Skipping faculty member: ${memberId}`);
+          continue;
+        }
+
+        // Check if the member is a student - try to find by userID first, then by schoolID, then by _id
+        let member = await db.collection('users').findOne({ userID: memberId });
+        if (!member) {
+          member = await db.collection('users').findOne({ schoolID: memberId });
+        }
+        if (!member) {
+          member = await db.collection('users').findOne({ _id: new database.ObjectId(memberId) });
+        }
+        
+        if (member && member.role === 'students') {
+          console.log(`Creating notification for student: ${member.firstname} ${member.lastname} (ID: ${member._id})`);
+          const notification = new Notification({
+            recipientId: member._id, // Use the actual ObjectId
+            faculty: facultyName,
+            classID: classID,
+            className: classData.className, // Add class name
+            classCode: classData.classCode, // Add class code
+            ...notificationData
+          });
+          notifications.push(notification);
+        } else {
+          console.log(`Member ${memberId} is not a student or not found. Role: ${member?.role}`);
+        }
+      }
+    }
+
+    if (notifications.length > 0) {
+      await Notification.insertMany(notifications);
+      console.log(`Created ${notifications.length} notifications for class ${classID}`);
+    } else {
+      console.log(`No notifications created for class ${classID}`);
+    }
+  } catch (error) {
+    console.error('Error creating class notifications:', error);
+  }
+};
+
+// Create notification for announcement
+export const createAnnouncementNotification = async (classID, announcement) => {
+  const notificationData = {
+    type: 'announcement',
+    title: 'New Announcement Posted',
+    message: `"${announcement.title}" - ${announcement.content.substring(0, 100)}${announcement.content.length > 100 ? '...' : ''}`,
+    relatedItemId: announcement._id,
+    priority: 'normal'
+  };
+
+  await createClassNotifications(classID, notificationData);
+};
+
+// Create notification for assignment
+export const createAssignmentNotification = async (classID, assignment) => {
+  const notificationData = {
+    type: 'assignment',
+    title: 'New Assignment Available',
+    message: `"${assignment.title}" - ${assignment.description ? assignment.description.substring(0, 100) : 'New assignment posted'}${assignment.description && assignment.description.length > 100 ? '...' : ''}`,
+    relatedItemId: assignment._id,
+    priority: assignment.priority || 'high'
+  };
+
+  await createClassNotifications(classID, notificationData);
+};
+
+// Create notification for quiz
+export const createQuizNotification = async (classID, quiz) => {
+  const notificationData = {
+    type: 'quiz',
+    title: 'New Quiz Available',
+    message: `"${quiz.title}" - ${quiz.description ? quiz.description.substring(0, 100) : 'New quiz posted'}${quiz.description && quiz.description.length > 100 ? '...' : ''}`,
+    relatedItemId: quiz._id,
+    priority: 'high'
+  };
+
+  await createClassNotifications(classID, notificationData);
+};
+
+// Create notification for activity (general)
+export const createActivityNotification = async (classID, activity) => {
+  const notificationData = {
+    type: 'activity',
+    title: 'New Activity Posted',
+    message: `"${activity.title}" - ${activity.description ? activity.description.substring(0, 100) : 'New activity available'}${activity.description && activity.description.length > 100 ? '...' : ''}`,
+    relatedItemId: activity._id,
+    priority: 'normal'
+  };
+
+  await createClassNotifications(classID, notificationData);
+};
+
+// Create notification for new message
+export const createMessageNotification = async (senderId, receiverId, message) => {
+  try {
+    const db = database.getDb();
+    
+    // Get sender information
+    let sender = await db.collection('users').findOne({ userID: senderId });
+    if (!sender) {
+      sender = await db.collection('users').findOne({ schoolID: senderId });
+    }
+    if (!sender) {
+      sender = await db.collection('users').findOne({ _id: new database.ObjectId(senderId) });
+    }
+
+    if (!sender) {
+      console.error(`Sender ${senderId} not found`);
+      return;
+    }
+
+    // Get receiver information
+    let receiver = await db.collection('users').findOne({ userID: receiverId });
+    if (!receiver) {
+      receiver = await db.collection('users').findOne({ schoolID: receiverId });
+    }
+    if (!receiver) {
+      receiver = await db.collection('users').findOne({ _id: new database.ObjectId(receiverId) });
+    }
+
+    if (!receiver) {
+      console.error(`Receiver ${receiverId} not found`);
+      return;
+    }
+
+    const senderName = `${sender.firstname} ${sender.lastname}`;
+    const messageContent = message.getDecryptedMessage ? message.getDecryptedMessage() : message.message;
+    const truncatedMessage = messageContent.length > 50 ? messageContent.substring(0, 50) + '...' : messageContent;
+
+    const notification = new Notification({
+      recipientId: receiver._id,
+      type: 'message',
+      title: 'New Message Received',
+      message: `"${truncatedMessage}"`,
+      faculty: senderName,
+      classID: 'direct_message', // Special identifier for direct messages
+      className: 'Direct Message',
+      classCode: 'DM',
+      relatedItemId: message._id,
+      priority: 'normal'
+    });
+
+    await notification.save();
+    console.log(`Created message notification for ${receiver.firstname} ${receiver.lastname} from ${senderName}`);
+  } catch (error) {
+    console.error('Error creating message notification:', error);
+  }
+};

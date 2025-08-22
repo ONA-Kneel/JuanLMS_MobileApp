@@ -1,5 +1,5 @@
 import { Image } from 'react-native';
-import React from 'react';
+import React, { useState } from 'react';
 import { useFonts } from 'expo-font';
 import { View, ActivityIndicator } from 'react-native';
 
@@ -33,6 +33,7 @@ import StudentSupportCenter from './components/Students/StudentSupportCenter';
 import QuizView from './components/Students/QuizView';
 import AssignmentDetail from './components/Students/AssignmentDetail';
 import CustomBottomNav from './components/CustomBottomNav';
+import NotificationCenter from './components/NotificationCenter';
 
 //Faculty
 import FacultyDashboard from './components/Faculty/FacultyDashboard';
@@ -53,9 +54,6 @@ import FacultySCMain from './components/Faculty/FacultySCMain';
 import FacultySupportCenter from './components/Faculty/FacultySupportCenter';
 import FacultyActs from './components/Faculty/FacultyActs';
 import FacultyGrades from './components/Faculty/FacultyGrades';
-
-
-
 
 //Admin
 import AdminDashboard from './components/Admin/AdminDashboard';
@@ -83,51 +81,65 @@ import PrincipalSupportCenter from './components/Principal/PrincipalSupportCente
 import PrincipalProfile from './components/Principal/PrincipalProfile';
 import PrincipalGrades from './components/Principal/PrincipalGrades';
 
-
-
 //chats
 import { ChatProvider } from './ChatContext';
 import { UserProvider } from './components/UserContext';
+import { NotificationProvider } from './NotificationContext';
+import { AnnouncementProvider } from './AnnouncementContext';
+import NotificationToast from './components/NotificationToast';
 
 
 //Bottom Navigation Bar
 const Tabs = createBottomTabNavigator();
 
+const studentNavItems = [
+  { label: 'Dashboard', icon: 'view-dashboard', route: 'SDash' },
+  { label: 'Activities', icon: 'file-document', route: 'SActs' },
+  { label: 'Calendar', icon: 'calendar', route: 'SCalendar' },
+  { label: 'Grades', icon: 'star', route: 'SGrade' },
+];
+
 function StudentTabs() {
   return (
     <Tabs.Navigator
-      tabBar={props => <CustomBottomNav {...props} />}
+      tabBar={props => (
+        <CustomBottomNav 
+          {...props} 
+          navItems={studentNavItems} 
+        />
+      )}
       screenOptions={{ headerShown: false }}
     >
-      <Tabs.Screen name="StudentDashboard" component={StudentDashboard} />
-      <Tabs.Screen name="SActs" component={StudentActs} />
-      <Tabs.Screen name="SCalendar" component={StudentCalendar} />
-      <Tabs.Screen name="SGrade" component={StudentGrades} />
-      <Tabs.Screen name="SChat" component={StudentChats} />
+      <Tabs.Screen name='SDash' component={StudentDashboard} />
+      <Tabs.Screen name='SActs' component={StudentActs} />
+      <Tabs.Screen name='SCalendar' component={StudentCalendar} />
+      <Tabs.Screen name='SGrade' component={StudentGrades} />
     </Tabs.Navigator>
   );
 }
 
 const facultyNavItems = [
-  { label: 'Dashboard', icon: 'view-dashboard', route: 'FDashboard' },
+  { label: 'Dashboard', icon: 'view-dashboard', route: 'FDash' },
+  { label: 'Classes', icon: 'school', route: 'FClasses' },
   { label: 'Activities', icon: 'file-document', route: 'FActs' },
   { label: 'Grades', icon: 'star', route: 'FGrades' },
-  { label: 'Calendar', icon: 'calendar', route: 'FCalendar' },
-  { label: 'Chats', icon: 'chat', route: 'FChat' },
 ];
 
 function FacultyTabs() {
   return (
     <Tabs.Navigator
-      tabBar={props => <CustomBottomNav {...props} navItems={facultyNavItems} />}
+      tabBar={props => (
+        <CustomBottomNav 
+          {...props} 
+          navItems={facultyNavItems} 
+        />
+      )}
       screenOptions={{ headerShown: false }}
     >
-      <Tabs.Screen name="FDashboard" component={FacultyDashboard} />
-      <Tabs.Screen name="FActs" component={FacultyActs} />
-      <Tabs.Screen name="FGrades" component={FacultyGrades} />
-      <Tabs.Screen name="FCalendar" component={FacultyCalendar} />
-      <Tabs.Screen name="FChat" component={FacultyChats} />
-      {/* <Tabs.Screen name="FProfile" component={FacultyProfile} /> */}
+      <Tabs.Screen name='FDash' component={FacultyDashboard} />
+      <Tabs.Screen name='FClasses' component={FacultyClasses} />
+      <Tabs.Screen name='FActs' component={FacultyActs} />
+      <Tabs.Screen name='FGrades' component={FacultyGrades} />
     </Tabs.Navigator>
   );
 }
@@ -136,30 +148,27 @@ const adminNavItems = [
   { label: 'Dashboard', icon: 'view-dashboard', route: 'AdminDashB' },
   { label: 'Calendar', icon: 'calendar', route: 'ACalendar' },
   { label: 'Chats', icon: 'chat', route: 'AChat' },
-  { label: 'Audit Trail', icon: 'history', route: 'AAuditTrail' },
-  { label: 'Support Center', icon: 'help-circle', route: 'ASupportCenter' },
-  // { label: 'Profile', icon: 'account', route: 'AProfile' },
+  { label: 'Audit', icon: 'history', route: 'AAuditTrail' },
 ];
-
-
 
 function AdminDash() {
   return (
     <Tabs.Navigator
-      tabBar={props => <CustomBottomNav {...props} navItems={adminNavItems} />}
+      tabBar={props => (
+        <CustomBottomNav 
+          {...props} 
+          navItems={adminNavItems} 
+        />
+      )}
       screenOptions={{ headerShown: false }}
     >
       <Tabs.Screen name='AdminDashB' component={AdminDashboard} />
       <Tabs.Screen name='ACalendar' component={AdminCalendar} />
       <Tabs.Screen name='AChat' component={AdminChats} />
       <Tabs.Screen name='AAuditTrail' component={AdminAuditTrail} />
-      <Tabs.Screen name='ASupportCenter' component={AdminSupportCenter} />
-      {/* <Tabs.Screen name='AProfile' component={AdminProfile} /> */}
     </Tabs.Navigator>
   );
 }
-
-
 
 const vpeNavItems = [
   { label: 'Dashboard', icon: 'view-dashboard', route: 'VPEDash' },
@@ -170,7 +179,12 @@ const vpeNavItems = [
 function VPETabs() {
   return (
     <Tabs.Navigator
-      tabBar={props => <CustomBottomNav {...props} navItems={vpeNavItems} />}
+      tabBar={props => (
+        <CustomBottomNav 
+          {...props} 
+          navItems={vpeNavItems} 
+        />
+      )}
       screenOptions={{ headerShown: false }}
     >
       <Tabs.Screen name='VPEDash' component={VPEDashboard} />
@@ -190,7 +204,12 @@ const principalNavItems = [
 function PrincipalTabs() {
   return (
     <Tabs.Navigator
-      tabBar={props => <CustomBottomNav {...props} navItems={principalNavItems} />}
+      tabBar={props => (
+        <CustomBottomNav 
+          {...props} 
+          navItems={principalNavItems} 
+        />
+      )}
       screenOptions={{ headerShown: false }}
     >
       <Tabs.Screen name='PrincipalDash' component={PrincipalDashboard} />
@@ -224,7 +243,10 @@ export default function App() {
   return (
     <UserProvider>
     <ChatProvider>
+    <NotificationProvider>
+    <AnnouncementProvider>
     <NavigationContainer>
+      <NotificationToast />
       <Screens.Navigator initialRouteName='Login'>
 
         {/*Assisted lang daw dapat */}
@@ -296,6 +318,8 @@ export default function App() {
 
       </Screens.Navigator>
     </NavigationContainer>
+    </AnnouncementProvider>
+    </NotificationProvider>
     </ChatProvider>
     </UserProvider>
   );
