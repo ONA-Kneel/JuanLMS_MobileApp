@@ -2,7 +2,7 @@
   "expo": {
     "name": "JuanLMS_MobileApp",
     "slug": "JuanLMS_MobileApp",
-    "owner": "BossKneel",
+    "owner": "bosskneel",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/JuanLMS-LogoV1.png",
@@ -25,9 +25,10 @@
       "package": "com.juanlms.mobileapp",
       "versionCode": 1,
       "permissions": [
-        "CAMERA",
-        "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE"
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.RECORD_AUDIO"
       ],
       "softwareKeyboardLayoutMode": "pan",
       "allowBackup": true,
@@ -47,6 +48,11 @@
         }
       ],
       "@react-native-community/datetimepicker"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "e006a77e-efdf-4366-8809-ef4a56b4d973"
+      }
+    }
   }
 }
