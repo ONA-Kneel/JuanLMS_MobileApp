@@ -242,6 +242,36 @@ userRoutes.post("/users/:id/track", async (req, res) => {
     }
 });
 
+// Store push token for mobile notifications
+userRoutes.post("/users/:id/push-token", async (req, res) => {
+    try {
+        const db = database.getDb();
+        const { expoPushToken } = req.body;
+        
+        if (!expoPushToken) {
+            return res.status(400).json({ success: false, message: "expoPushToken is required" });
+        }
+        
+        const result = await db.collection("users").updateOne(
+            { _id: new ObjectId(req.params.id) },
+            { $set: { expoPushToken } }
+        );
+        
+        if (result.matchedCount === 0) {
+            return res.status(404).json({ success: false, message: "User not found" });
+        }
+        
+        res.json({ 
+            success: true, 
+            message: "Push token stored successfully",
+            expoPushToken 
+        });
+    } catch (error) {
+        console.error('Push token storage error:', error);
+        res.status(500).json({ success: false, message: "Failed to store push token" });
+    }
+});
+
 // ------------------ JWT LOGIN ROUTE ------------------
 
 userRoutes.post('/login', async (req, res) => {

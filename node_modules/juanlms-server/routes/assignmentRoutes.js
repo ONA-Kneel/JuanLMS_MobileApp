@@ -1,6 +1,9 @@
 //assignment routes
 import express from 'express';
 import Assignment from '../models/Assignment.js';
+import database from '../connect.cjs';
+import { ObjectId } from 'mongodb';
+import { createAssignmentNotification } from '../services/notificationService.js';
 // import { authenticateToken } from '../middleware/authMiddleware.js';
 import Submission from '../models/Submission.js';
 import multer from 'multer';
@@ -8,7 +11,6 @@ import path from 'path';
 import User from '../models/User.js';
 import Quiz from '../models/Quiz.js';
 import Class from '../models/Class.js';
-// import { createAssignmentNotification } from '../services/notificationService.js';
 
 const router = express.Router();
 
@@ -217,7 +219,7 @@ router.post('/', /*authenticateToken,*/ upload.single('attachmentFile'), async (
         assignments.push(assignment);
         
         // Create notifications for students in this class
-        // await createAssignmentNotification(cid, assignment);
+        await createAssignmentNotification(cid, assignment);
       }
       return res.status(201).json(assignments);
     } else if (classID) {
@@ -242,7 +244,7 @@ router.post('/', /*authenticateToken,*/ upload.single('attachmentFile'), async (
       await assignment.save();
       
       // Create notifications for students in this class
-      // await createAssignmentNotification(classID, assignment);
+      await createAssignmentNotification(classID, assignment);
       
       return res.status(201).json([assignment]);
     } else {
