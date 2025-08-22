@@ -2,6 +2,7 @@
   "expo": {
     "name": "JuanLMS_MobileApp",
     "slug": "JuanLMS_MobileApp",
+    "owner": "BossKneel",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/JuanLMS-LogoV1.png",
@@ -36,11 +37,6 @@
     },
     "web": {
       "icon": "./assets/JuanLMS-LogoV1.png"
-    },
-    "extra": {
-      "eas": {
-        "projectId": "juanlms-mobileapp"
-      }
     },
     "plugins": [
       [
