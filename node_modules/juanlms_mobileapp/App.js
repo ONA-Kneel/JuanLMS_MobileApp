@@ -74,6 +74,7 @@ import AdminSupportCenter from './components/Admin/AdminSupportCenter';
 import VPEDashboard from './components/VPE/VPEDashboard';
 import VPECalendar from './components/VPE/VPECalendar';
 import VPEChats from './components/VPE/VPEChats';
+import VPEAnnouncements from './components/VPE/VPEAnnouncements';
 import VPEMeeting from './components/VPE/VPEMeeting';
 import VPESupportCenter from './components/VPE/VPESupportCenter';
 import VPEProfile from './components/VPE/VPEProfile';
@@ -82,6 +83,7 @@ import VPEProfile from './components/VPE/VPEProfile';
 import PrincipalDashboard from './components/Principal/PrincipalDashboard';
 import PrincipalCalendar from './components/Principal/PrincipalCalendar';
 import PrincipalChats from './components/Principal/PrincipalChats';
+import PrincipalAnnouncements from './components/Principal/PrincipalAnnouncements';
 import PrincipalMeeting from './components/Principal/PrincipalMeeting';
 import PrincipalSupportCenter from './components/Principal/PrincipalSupportCenter';
 import PrincipalProfile from './components/Principal/PrincipalProfile';
@@ -172,6 +174,7 @@ const vpeNavItems = [
   { label: 'Dashboard', icon: 'view-dashboard', route: 'VPEDash' },
   { label: 'Calendar', icon: 'calendar', route: 'VPECalendar' },
   { label: 'Chats', icon: 'chat', route: 'VPEChats' },
+  { label: 'Announcements', icon: 'bullhorn', route: 'VPEAnnouncements' },
   { label: 'Meetings', icon: 'video', route: 'VPEMeeting' },
 ];
 
@@ -184,6 +187,7 @@ function VPETabs() {
       <Tabs.Screen name='VPEDash' component={VPEDashboard} />
       <Tabs.Screen name='VPECalendar' component={VPECalendar} />
       <Tabs.Screen name='VPEChats' component={VPEChats} />
+      <Tabs.Screen name='VPEAnnouncements' component={VPEAnnouncements} />
       <Tabs.Screen name='VPEMeeting' component={VPEMeeting} />
     </Tabs.Navigator>
   );
@@ -193,6 +197,7 @@ const principalNavItems = [
   { label: 'Dashboard', icon: 'view-dashboard', route: 'PrincipalDash' },
   { label: 'Calendar', icon: 'calendar', route: 'PrincipalCalendar' },
   { label: 'Chats', icon: 'chat', route: 'PrincipalChats' },
+  { label: 'Announcements', icon: 'bullhorn', route: 'PrincipalAnnouncements' },
   { label: 'Grades', icon: 'star', route: 'PrincipalGrades' },
   { label: 'Meetings', icon: 'video', route: 'PrincipalMeeting' },
 ];
@@ -206,6 +211,7 @@ function PrincipalTabs() {
       <Tabs.Screen name='PrincipalDash' component={PrincipalDashboard} />
       <Tabs.Screen name='PrincipalCalendar' component={PrincipalCalendar} />
       <Tabs.Screen name='PrincipalChats' component={PrincipalChats} />
+      <Tabs.Screen name='PrincipalAnnouncements' component={PrincipalAnnouncements} />
       <Tabs.Screen name='PrincipalGrades' component={PrincipalGrades} />
       <Tabs.Screen name='PrincipalMeeting' component={PrincipalMeeting} />
     </Tabs.Navigator>

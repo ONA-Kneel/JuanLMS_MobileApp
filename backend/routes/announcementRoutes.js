@@ -80,27 +80,43 @@ router.post('/test/create-sample-announcements', async (req, res) => {
 // Get all announcements for a class
 router.get('/', /*authenticateToken,*/ async (req, res) => {
   const { classID } = req.query;
-  const announcements = await Announcement.find({ classID }).sort({ createdAt: -1 });
-  res.json(announcements);
+  
+  if (classID) {
+    // Get announcements for a specific class
+    const announcements = await Announcement.find({ classID }).sort({ createdAt: -1 });
+    res.json(announcements);
+  } else {
+    // Get all announcements
+    const announcements = await Announcement.find({}).sort({ createdAt: -1 });
+    res.json(announcements);
+  }
 });
 
 // Create announcement
 router.post('/', /*authenticateToken,*/ async (req, res) => {
   try {
-    const { classID, title, content } = req.body;
-    console.log(`Creating announcement for class: ${classID}`);
-    console.log(`Announcement data:`, { title, content, createdBy: req.user?._id });
+    const { classID, title, content, priority, category, targetAudience, createdBy } = req.body;
+    console.log(`Creating announcement:`, { title, content, priority, category, targetAudience, createdBy });
     
     const announcement = new Announcement({
-      classID, title, content, createdBy: req.user?._id
+      classID: classID || null,
+      title, 
+      content, 
+      priority: priority || 'medium',
+      category: category || 'general',
+      targetAudience: targetAudience || ['everyone'],
+      createdBy: createdBy || req.user?._id,
+      isActive: true
     });
     await announcement.save();
     
     console.log(`Announcement saved with ID: ${announcement._id}`);
     
-    // Create notifications for students in the class
-    console.log(`Creating notifications for class: ${classID}`);
-    // await createAnnouncementNotification(classID, announcement);
+    // Create notifications for students in the class if classID is provided
+    if (classID) {
+      console.log(`Creating notifications for class: ${classID}`);
+      // await createAnnouncementNotification(classID, announcement);
+    }
     
     res.status(201).json(announcement);
   } catch (error) {
