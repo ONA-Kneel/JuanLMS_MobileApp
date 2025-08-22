@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Text, TouchableOpacity, View, ScrollView, Image, Dimensions, ActivityIndicator, RefreshControl, StyleSheet } from 'react-native';
+import { Text, TouchableOpacity, View, ScrollView, Image, Dimensions, ActivityIndicator, RefreshControl, StyleSheet, Alert } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../UserContext';
@@ -17,9 +17,10 @@ export default function StudentDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [academicYear, setAcademicYear] = useState('2025-2026');
-  const [currentTerm, setCurrentTerm] = useState('Term 1');
-  const [academicContext, setAcademicContext] = useState('2025-2026 | Term 1');
+  const [academicYear, setAcademicYear] = useState(null);
+  const [currentTerm, setCurrentTerm] = useState(null);
+  const [classes, setClasses] = useState([]);
+  const [classesLoading, setClassesLoading] = useState(true);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -38,7 +39,7 @@ export default function StudentDashboard() {
 
         // Fetch academic year info
         const token = await AsyncStorage.getItem('jwtToken');
-        const academicResponse = await fetch('https://juanlms-webapp-server.onrender.com/api/academic-year/active', {
+        const academicResponse = await fetch('https://juanlms-webapp-server.onrender.com/api/schoolyears/active', {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
@@ -47,9 +48,8 @@ export default function StudentDashboard() {
 
         if (academicResponse.ok) {
           const academicData = await academicResponse.json();
-          setAcademicYear(academicData.data.academicYear || '2025-2026');
-          setCurrentTerm(academicData.data.currentTerm || 'Term 1');
-          setAcademicContext(`${academicData.data.academicYear || '2025-2026'} | ${academicData.data.currentTerm || 'Term 1'}`);
+          console.log("Student Dashboard - Fetched academic year:", academicData);
+          setAcademicYear(academicData);
         }
 
       } catch (error) {
@@ -63,6 +63,188 @@ export default function StudentDashboard() {
     fetchDashboardData();
     generateCalendarDays();
   }, []);
+
+  // Fetch active term for the academic year
+  useEffect(() => {
+    const fetchActiveTermForYear = async () => {
+      if (!academicYear) return;
+      
+      try {
+        const schoolYearName = `${academicYear.schoolYearStart}-${academicYear.schoolYearEnd}`;
+        console.log("Student Dashboard - Fetching terms for school year:", schoolYearName);
+        
+        const token = await AsyncStorage.getItem('jwtToken');
+        const res = await fetch(`https://juanlms-webapp-server.onrender.com/api/terms/schoolyear/${schoolYearName}`, {
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+        
+        if (res.ok) {
+          const terms = await res.json();
+          console.log("Student Dashboard - Fetched terms:", terms);
+          const active = terms.find(term => term.status === 'active');
+          console.log("Student Dashboard - Active term:", active);
+          setCurrentTerm(active || null);
+        } else {
+          console.log("Student Dashboard - Failed to fetch terms, status:", res.status);
+          setCurrentTerm(null);
+        }
+      } catch (err) {
+        console.error("Student Dashboard - Error fetching terms:", err);
+        setCurrentTerm(null);
+      }
+    };
+
+    fetchActiveTermForYear();
+  }, [academicYear]);
+
+  // Fetch classes when we have both academic year and term
+  useEffect(() => {
+    const fetchClasses = async () => {
+      if (!academicYear || !currentTerm || !user) {
+        console.log('DEBUG: Cannot fetch classes yet:', {
+          hasAcademicYear: !!academicYear,
+          hasCurrentTerm: !!currentTerm,
+          hasUser: !!user,
+          user: user
+        });
+        return;
+      }
+      
+      try {
+        setClassesLoading(true);
+        const token = await AsyncStorage.getItem('jwtToken');
+        
+        // Try to get the correct user ID - the classes API expects userID, not the hashed _id
+        const userId = user.userID || user._id || await AsyncStorage.getItem('userID') || await extractUserIDFromToken();
+        
+        // Additional debugging for user ID
+        console.log('DEBUG: User ID resolution:', {
+          user_userID: user.userID,
+          user_id: user._id,
+          userID_from_storage: await AsyncStorage.getItem('userID'),
+          userID_from_token: await extractUserIDFromToken(),
+          final_userId: userId,
+          user_object: user
+        });
+        
+        if (!userId) {
+          console.error('DEBUG: No valid user ID found for classes fetch');
+          setError('User ID not found. Please log in again.');
+          setClassesLoading(false);
+          return;
+        }
+        
+        console.log('DEBUG: Fetching classes with:', {
+          academicYear: `${academicYear.schoolYearStart}-${academicYear.schoolYearEnd}`,
+          termName: currentTerm.termName,
+          userId: userId,
+          userObject: user
+        });
+        
+        // Try multiple endpoints for better reliability
+        let allClasses = [];
+        let endpointUsed = '';
+        
+        // Try /classes/my-classes first (more specific endpoint)
+        try {
+          const res1 = await fetch('https://juanlms-webapp-server.onrender.com/api/classes/my-classes', {
+            headers: {
+              "Authorization": `Bearer ${token}`,
+            },
+          });
+          
+          if (res1.ok) {
+            const data1 = await res1.json();
+            console.log('DEBUG: /classes/my-classes response:', data1);
+            
+            if (data1.success && Array.isArray(data1.classes)) {
+              allClasses = data1.classes;
+              endpointUsed = '/classes/my-classes';
+            } else if (Array.isArray(data1)) {
+              allClasses = data1;
+              endpointUsed = '/classes/my-classes';
+            }
+          }
+        } catch (error) {
+          console.log('DEBUG: /classes/my-classes failed, trying /classes:', error.message);
+        }
+        
+        // Fallback to /classes if my-classes didn't work
+        if (allClasses.length === 0) {
+          try {
+            const res2 = await fetch('https://juanlms-webapp-server.onrender.com/api/classes', {
+              headers: {
+                "Authorization": `Bearer ${token}`,
+              },
+            });
+            
+            if (res2.ok) {
+              const data2 = await res2.json();
+              console.log('DEBUG: /classes response:', data2);
+              
+              if (data2.success && Array.isArray(data2.classes)) {
+                allClasses = data2.classes;
+                endpointUsed = '/classes';
+              } else if (Array.isArray(data2)) {
+                allClasses = data2;
+                endpointUsed = '/classes';
+              }
+            }
+          } catch (error) {
+            console.log('DEBUG: /classes also failed:', error.message);
+          }
+        }
+        
+        if (allClasses.length === 0) {
+          throw new Error('No classes data received from any endpoint');
+        }
+        
+        console.log(`DEBUG: Successfully fetched ${allClasses.length} classes from ${endpointUsed}`);
+        
+        // Filter classes: only show classes from current term where student is a member
+        const filtered = allClasses.filter(cls => {
+          // Try multiple user ID matching strategies since the API might expect different formats
+          const isMember = cls.members && (
+            cls.members.includes(userId) || // Try the userID first
+            cls.members.includes(user._id) || // Fallback to _id
+            cls.members.includes(user.id) || // Fallback to id
+            (user.studentCode && cls.members.includes(user.studentCode)) // Try studentCode if available
+          );
+          
+          const isCurrentTerm = cls.academicYear === `${academicYear.schoolYearStart}-${academicYear.schoolYearEnd}` && 
+                               cls.termName === currentTerm.termName;
+          const isNotArchived = cls.isArchived !== true;
+          
+          console.log('DEBUG: Class filter check:', {
+            className: cls.className,
+            classId: cls._id || cls.classID,
+            isMember,
+            isCurrentTerm,
+            isNotArchived,
+            classAcademicYear: cls.academicYear,
+            classTermName: cls.termName,
+            classMembers: cls.members,
+            userId: userId,
+            user_id: user._id,
+            user_id_type: typeof user._id
+          });
+          
+          return isMember && isCurrentTerm && isNotArchived;
+        });
+        
+        console.log('DEBUG: Filtered classes for student:', filtered);
+        setClasses(filtered);
+        
+      } catch (error) {
+        console.error('Error fetching classes:', error);
+        setError('Failed to load classes: ' + error.message);
+      } finally {
+        setClassesLoading(false);
+      }
+    };
+    
+    fetchClasses();
+  }, [academicYear, currentTerm, user]);
 
   const generateCalendarDays = () => {
     const year = currentMonth.getFullYear();
@@ -91,7 +273,84 @@ export default function StudentDashboard() {
   const onRefresh = async () => {
     setRefreshing(true);
     try {
-      // await refreshNotifications(); // This line was removed as per the edit hint
+      // Refresh classes if we have the required data
+      if (academicYear && currentTerm && user) {
+        const token = await AsyncStorage.getItem('jwtToken');
+        
+        // Try to get the correct user ID - the classes API expects userID, not the hashed _id
+        const userId = user.userID || user._id || await AsyncStorage.getItem('userID') || await extractUserIDFromToken();
+        
+        if (!userId) {
+          console.error('DEBUG: No valid user ID found for classes refresh');
+          setRefreshing(false);
+          return;
+        }
+        
+        // Try multiple endpoints for better reliability
+        let allClasses = [];
+        
+        // Try /classes/my-classes first
+        try {
+          const res1 = await fetch('https://juanlms-webapp-server.onrender.com/api/classes/my-classes', {
+            headers: {
+              "Authorization": `Bearer ${token}`,
+            },
+          });
+          
+          if (res1.ok) {
+            const data1 = await res1.json();
+            if (data1.success && Array.isArray(data1.classes)) {
+              allClasses = data1.classes;
+            } else if (Array.isArray(data1)) {
+              allClasses = data1;
+            }
+          }
+        } catch (error) {
+          console.log('DEBUG: Refresh - /classes/my-classes failed, trying /classes');
+        }
+        
+        // Fallback to /classes if my-classes didn't work
+        if (allClasses.length === 0) {
+          try {
+            const res2 = await fetch('https://juanlms-webapp-server.onrender.com/api/classes', {
+              headers: {
+                "Authorization": `Bearer ${token}`,
+              },
+            });
+            
+            if (res2.ok) {
+              const data2 = await res2.json();
+              if (data2.success && Array.isArray(data2.classes)) {
+                allClasses = data2.classes;
+              } else if (Array.isArray(data2)) {
+                allClasses = data2;
+              }
+            }
+          } catch (error) {
+            console.log('DEBUG: Refresh - /classes also failed');
+          }
+        }
+        
+        if (allClasses.length > 0) {
+          const filtered = allClasses.filter(cls => {
+            // Try multiple user ID matching strategies
+            const isMember = cls.members && (
+              cls.members.includes(userId) || // Try the userID first
+              cls.members.includes(user._id) || // Fallback to _id
+              cls.members.includes(user.id) || // Fallback to id
+              (user.studentCode && cls.members.includes(user.studentCode)) // Try studentCode if available
+            );
+            
+            return isMember && 
+                   cls.isArchived !== true &&
+                   cls.academicYear === `${academicYear.schoolYearStart}-${academicYear.schoolYearEnd}` &&
+                   cls.termName === currentTerm.termName;
+          });
+          
+          setClasses(filtered);
+        }
+      }
+      
       await new Promise(resolve => setTimeout(resolve, 1000));
     } catch (error) {
       console.error('Error refreshing dashboard:', error);
@@ -135,6 +394,41 @@ export default function StudentDashboard() {
     setCurrentMonth(new Date());
   };
 
+  const debugAsyncStorage = async () => {
+    try {
+      const user = await AsyncStorage.getItem('user');
+      const userID = await AsyncStorage.getItem('userID');
+      const token = await AsyncStorage.getItem('jwtToken');
+      
+      console.log('DEBUG: AsyncStorage contents:', {
+        user: user ? JSON.parse(user) : null,
+        userID: userID,
+        hasToken: !!token
+      });
+      
+      return { user: user ? JSON.parse(user) : null, userID, hasToken: !!token };
+    } catch (error) {
+      console.error('DEBUG: Error reading AsyncStorage:', error);
+      return { error: error.message };
+    }
+  };
+
+  const extractUserIDFromToken = async () => {
+    try {
+      const token = await AsyncStorage.getItem('jwtToken');
+      if (!token) return null;
+      
+      // Decode JWT token to extract userID
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      console.log('DEBUG: JWT payload:', payload);
+      
+      return payload.userID || payload.id || null;
+    } catch (error) {
+      console.error('DEBUG: Error extracting userID from token:', error);
+      return null;
+    }
+  };
+
   if (loading) {
     return (
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
@@ -159,26 +453,56 @@ export default function StudentDashboard() {
               Hello, <Text style={styles.userName}>{user?.firstname || 'Student'}!</Text>
             </Text>
             <Text style={styles.academicContext}>
-              {academicContext}
+              {academicYear?.schoolYearStart || 'N/A'} - {academicYear?.schoolYearEnd || 'N/A'} | {currentTerm?.termName || 'N/A'}
             </Text>
             <Text style={styles.dateText}>
               {formatDateTime(currentDateTime)}
             </Text>
           </View>
-          <TouchableOpacity onPress={() => navigateToScreen('SProfile')}>
-            {user?.profilePicture ? (
-              <Image 
-                source={{ uri: user.profilePicture }} 
-                style={styles.profileImage}
-                resizeMode="cover"
-              />
-            ) : (
-              <Image 
-                source={require('../../assets/profile-icon (2).png')} 
-                style={styles.profileImage}
-              />
-            )}
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <TouchableOpacity 
+              style={styles.debugButton}
+              onPress={async () => {
+                const userId = user?.userID || user?._id || 'Not found';
+                const asyncStorageData = await debugAsyncStorage();
+                
+                console.log('DEBUG: Current dashboard state:', {
+                  academicYear,
+                  currentTerm,
+                  classesCount: classes.length,
+                  classesLoading,
+                  user: user,
+                  userId: userId,
+                  asyncStorageData: asyncStorageData
+                });
+                
+                Alert.alert('Debug Info', 
+                  `Academic Year: ${academicYear ? `${academicYear.schoolYearStart}-${academicYear.schoolYearEnd}` : 'Not loaded'}\n` +
+                  `Term: ${currentTerm?.termName || 'Not loaded'}\n` +
+                  `Classes: ${classes.length}\n` +
+                  `User ID: ${userId}\n` +
+                  `User Object: ${JSON.stringify(user, null, 2).substring(0, 100)}...\n` +
+                  `AsyncStorage userID: ${asyncStorageData.userID || 'Not found'}`
+                );
+              }}
+            >
+              <Icon name="bug" size={16} color="#666" />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => navigateToScreen('SProfile')}>
+              {user?.profilePicture ? (
+                <Image 
+                  source={{ uri: user.profilePicture }} 
+                  style={styles.profileImage}
+                  resizeMode="cover"
+                />
+              ) : (
+                <Image 
+                  source={require('../../assets/profile-icon (2).png')} 
+                  style={styles.profileImage}
+                />
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
@@ -253,6 +577,122 @@ export default function StudentDashboard() {
             </View>
           </View>
         </View>
+
+        {/* Classes Section */}
+        <View style={styles.sectionContainer}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Your Classes</Text>
+            <View style={styles.sectionActions}>
+              <TouchableOpacity 
+                style={styles.refreshClassesButton}
+                onPress={() => {
+                  console.log('DEBUG: Manual refresh of classes triggered');
+                  if (academicYear && currentTerm && user) {
+                    setClassesLoading(true);
+                    // Trigger a manual refresh by calling the effect again
+                    // The useEffect will handle the proper user ID logic
+                    setClasses([]);
+                    setTimeout(() => {
+                      setClassesLoading(false);
+                    }, 100);
+                  }
+                }}
+              >
+                <Icon name="refresh" size={16} color="#666" />
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.viewAllButton}
+                onPress={() => navigation.navigate('SClasses')}
+              >
+                <Text style={styles.viewAllButtonText}>View All</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+          {!academicYear || !currentTerm ? (
+            <View style={styles.classesLoadingContainer}>
+              <ActivityIndicator size="small" color="#00418b" />
+              <Text style={styles.classesLoadingText}>Loading academic context...</Text>
+            </View>
+          ) : classesLoading ? (
+            <View style={styles.classesLoadingContainer}>
+              <ActivityIndicator size="small" color="#00418b" />
+              <Text style={styles.classesLoadingText}>Loading classes...</Text>
+            </View>
+          ) : classes.length === 0 ? (
+            <View style={styles.noClassesContainer}>
+              <Icon name="school-outline" size={48} color="#ccc" />
+              <Text style={styles.noClassesText}>No classes found for this term.</Text>
+              <Text style={styles.noClassesSubtext}>Contact your administrator if you believe this is an error.</Text>
+              <View style={styles.debugInfo}>
+                <Text style={styles.debugInfoText}>
+                  Academic Year: {academicYear ? `${academicYear.schoolYearStart}-${academicYear.schoolYearEnd}` : 'N/A'}
+                </Text>
+                <Text style={styles.debugInfoText}>
+                  Term: {currentTerm?.termName || 'N/A'}
+                </Text>
+                <Text style={styles.debugInfoText}>
+                  User ID: {user?.userID || user?._id || 'N/A'}
+                </Text>
+                <Text style={styles.debugInfoText}>
+                  User Object: {user ? `${user.firstname || 'N/A'} ${user.lastname || 'N/A'}` : 'N/A'}
+                </Text>
+                <Text style={styles.debugInfoText}>
+                  Note: Classes API expects userID, not _id
+                </Text>
+              </View>
+            </View>
+          ) : (
+            <View style={styles.classesGrid}>
+              {classes.slice(0, 4).map((cls, index) => (
+                <TouchableOpacity
+                  key={cls._id || cls.classID || index}
+                  style={styles.classCard}
+                  onPress={() => navigation.navigate('StudentModule', { 
+                    classId: cls._id || cls.classID,
+                    className: cls.className 
+                  })}
+                >
+                  <View style={styles.classCardHeader}>
+                    <Text style={styles.className} numberOfLines={2}>
+                      {cls.className || 'Class Name'}
+                    </Text>
+                    <Text style={styles.classCode}>
+                      {cls.classCode || cls.subjectCode || 'N/A'}
+                    </Text>
+                  </View>
+                  <View style={styles.classCardDetails}>
+                    {cls.facultyName && (
+                      <Text style={styles.classFaculty} numberOfLines={1}>
+                        {cls.facultyName}
+                      </Text>
+                    )}
+                    {cls.schedule && (
+                      <Text style={styles.classSchedule} numberOfLines={1}>
+                        {cls.schedule}
+                      </Text>
+                    )}
+                    {cls.room && (
+                      <Text style={styles.classRoom} numberOfLines={1}>
+                        {cls.room}
+                      </Text>
+                    )}
+                  </View>
+                </TouchableOpacity>
+              ))}
+              {classes.length > 4 && (
+                <TouchableOpacity
+                  style={styles.moreClassesCard}
+                  onPress={() => navigation.navigate('SClasses')}
+                >
+                  <Icon name="more-horiz" size={32} color="#00418b" />
+                  <Text style={styles.moreClassesText}>
+                    +{classes.length - 4} more classes
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+        </View>
       </ScrollView>
     </View>
   );
@@ -295,6 +735,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  debugButton: {
+    backgroundColor: '#f8f9fa',
+    padding: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
   },
   greetingText: {
     fontFamily: 'Poppins-Bold',
@@ -341,6 +793,26 @@ const styles = StyleSheet.create({
     color: '#333',
     marginBottom: 16,
     marginLeft: 4,
+  },
+
+  // Section header
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  sectionActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  refreshClassesButton: {
+    backgroundColor: '#f8f9fa',
+    padding: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
   },
 
   // Calendar section
@@ -424,5 +896,135 @@ const styles = StyleSheet.create({
   },
   calendarDayTextOtherMonth: {
     color: '#999',
+  },
+
+  // Classes section styles
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  noClassesContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  noClassesText: {
+    fontFamily: 'Poppins-Regular',
+    color: '#666',
+    fontSize: 16,
+  },
+  noClassesSubtext: {
+    fontFamily: 'Poppins-Regular',
+    color: '#999',
+    fontSize: 13,
+    marginTop: 5,
+  },
+  classesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  classCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 15,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
+    width: (width - 40 - 12) / 2, // Two columns
+  },
+  classCardHeader: {
+    marginBottom: 8,
+  },
+  className: {
+    fontFamily: 'Poppins-Bold',
+    fontSize: 16,
+    color: '#333',
+    marginBottom: 4,
+  },
+  classCode: {
+    fontFamily: 'Poppins-Regular',
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 4,
+  },
+  classFaculty: {
+    fontFamily: 'Poppins-Medium',
+    fontSize: 13,
+    color: '#00418b',
+    marginBottom: 4,
+  },
+  classSchedule: {
+    fontFamily: 'Poppins-Regular',
+    fontSize: 13,
+    color: '#666',
+    marginBottom: 4,
+  },
+  classRoom: {
+    fontFamily: 'Poppins-Regular',
+    fontSize: 13,
+    color: '#666',
+  },
+  moreClassesCard: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+    padding: 15,
+    marginTop: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  moreClassesText: {
+    fontFamily: 'Poppins-Medium',
+    fontSize: 14,
+    color: '#00418b',
+    marginTop: 8,
+  },
+  viewAllButton: {
+    backgroundColor: '#e9ecef',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#dee2e6',
+  },
+  viewAllButtonText: {
+    fontSize: 14,
+    fontFamily: 'Poppins-Medium',
+    color: '#666',
+  },
+  classesLoadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 20,
+  },
+  classesLoadingText: {
+    fontFamily: 'Poppins-Regular',
+    color: '#666',
+    fontSize: 14,
+    marginTop: 10,
+  },
+  debugInfo: {
+    marginTop: 15,
+    padding: 10,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  debugInfoText: {
+    fontFamily: 'Poppins-Regular',
+    fontSize: 12,
+    color: '#555',
+    marginBottom: 2,
   },
 }); 

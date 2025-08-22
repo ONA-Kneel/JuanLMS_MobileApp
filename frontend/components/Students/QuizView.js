@@ -21,10 +21,36 @@ const API_BASE = 'https://juanlms-webapp-server.onrender.com';
 const { width } = Dimensions.get('window');
 
 export default function QuizView() {
-  const navigation = useNavigation();
-  const route = useRoute();
-  const { user } = useUser();
-  const { quizId, review } = route.params;
+  console.log('DEBUG: ==========================================');
+  console.log('DEBUG: QuizView component rendering...');
+  console.log('DEBUG: ==========================================');
+  
+  let navigation;
+  let route;
+  let user;
+  
+  try {
+    navigation = useNavigation();
+    route = useRoute();
+    user = useUser();
+    
+    console.log('DEBUG: Hooks initialized successfully');
+  } catch (error) {
+    console.error('DEBUG: Error initializing hooks:', error);
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <Text>Error initializing QuizView: {error.message}</Text>
+      </View>
+    );
+  }
+  
+  console.log('DEBUG: Route params received:', route.params);
+  console.log('DEBUG: Navigation object:', navigation);
+  console.log('DEBUG: User object:', user);
+  
+  const { quizId, review } = route.params || {};
+  
+  console.log('DEBUG: Extracted quizId:', quizId, 'review:', review);
 
   const [quiz, setQuiz] = useState(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -54,21 +80,36 @@ export default function QuizView() {
       user: user ? { id: user._id, name: user.firstname } : null
     });
     
+    // Check if quizId is missing
+    if (!quizId) {
+      console.error('ERROR: QuizView received no quizId parameter!');
+      Alert.alert('Error', 'Quiz ID is missing. Please try again.');
+      navigation.goBack();
+      return;
+    }
+    
     // Set review mode immediately if review prop is true
     if (review) {
       console.log('Setting review mode from navigation prop');
       setIsReviewMode(true);
     }
     
-    if (quizId) {
-      fetchQuiz();
-    }
+    console.log('DEBUG: Starting to fetch quiz with ID:', quizId);
+    fetchQuiz();
   }, [quizId, review]);
 
   // Debug state changes
   useEffect(() => {
     console.log('State changed - isReviewMode:', isReviewMode, 'quizResult:', !!quizResult, 'quiz:', !!quiz);
   }, [isReviewMode, quizResult, quiz]);
+  
+  // Debug component mount
+  useEffect(() => {
+    console.log('DEBUG: QuizView component mounted successfully');
+    return () => {
+      console.log('DEBUG: QuizView component unmounting');
+    };
+  }, []);
 
   useEffect(() => {
     if (quiz && quiz.timeLimit && quiz.timeLimit > 0) {
@@ -124,14 +165,16 @@ export default function QuizView() {
 
   const fetchQuiz = async () => {
     try {
+      console.log('DEBUG: fetchQuiz function called with quizId:', quizId);
       setLoading(true);
       
       const token = await AsyncStorage.getItem('jwtToken');
-      console.log('Fetching quiz data for ID:', quizId);
+      console.log('DEBUG: Token retrieved, fetching quiz data for ID:', quizId);
       const response = await fetch(`${API_BASE}/api/quizzes/${quizId}`);
       
       if (!response.ok) {
-        throw new Error('Failed to fetch quiz');
+        console.error('DEBUG: Quiz fetch failed with status:', response.status);
+        throw new Error(`Failed to fetch quiz: ${response.status} ${response.statusText}`);
       }
       
       const quizData = await response.json();
@@ -800,6 +843,21 @@ export default function QuizView() {
         <Text style={styles.loadingText}>
           {isReviewMode ? 'Loading quiz review...' : 'Loading quiz...'}
         </Text>
+      </View>
+    );
+  }
+  
+  // Add error boundary for missing quizId
+  if (!quizId) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text style={styles.loadingText}>Error: Quiz ID is missing</Text>
+        <TouchableOpacity 
+          style={{ marginTop: 20, padding: 10, backgroundColor: '#00418b', borderRadius: 8 }}
+          onPress={() => navigation.goBack()}
+        >
+          <Text style={{ color: 'white' }}>Go Back</Text>
+        </TouchableOpacity>
       </View>
     );
   }

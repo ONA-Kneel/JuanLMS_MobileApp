@@ -135,11 +135,13 @@ export default function Login() {
         const tokenPayload = JSON.parse(atob(data.token.split('.')[1]));
         console.log('Token payload:', {
           role: tokenPayload.role,
-          userId: tokenPayload.id
+          userId: tokenPayload.id,
+          userID: tokenPayload.userID
         });
 
         const role = tokenPayload.role;
         const userId = tokenPayload.id;
+        const userID = tokenPayload.userID; // This is the field the classes API expects
 
         console.log('Processing login for role:', role);
 
@@ -165,7 +167,17 @@ export default function Login() {
           lastname: userData.lastname
         });
 
+        // Add the userID field to the user data for classes API compatibility
+        if (userID) {
+          userData.userID = userID;
+        }
+
         await setUserAndToken(userData, data.token);
+        
+        // Also store userID separately for easy access
+        if (userID) {
+          await AsyncStorage.setItem('userID', userID);
+        }
 
         // Add audit log for login
         await addAuditLog({

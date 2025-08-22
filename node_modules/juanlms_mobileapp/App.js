@@ -32,6 +32,7 @@ import StudentSCMain from './components/Students/StudentSCMain';
 import StudentSupportCenter from './components/Students/StudentSupportCenter';
 import QuizView from './components/Students/QuizView';
 import AssignmentDetail from './components/Students/AssignmentDetail';
+import StudentMeeting from './components/Students/StudentMeeting';
 import CustomBottomNav from './components/CustomBottomNav';
 import NotificationCenter from './components/NotificationCenter';
 
@@ -39,21 +40,22 @@ import NotificationCenter from './components/NotificationCenter';
 import FacultyDashboard from './components/Faculty/FacultyDashboard';
 import FacultyClasses from './components/Faculty/FacultyClasses';
 import CreateClasses from './components/Faculty/CreateClasses';
-import FacultyStudentProgress from './components/Faculty/FacultyStudentProgress';
+import FacultyActs from './components/Faculty/FacultyActs';
+import FacultyGrades from './components/Faculty/FacultyGrades';
 import FacultyModule from './components/Faculty/FacultyModule';
+import FacultyChats from './components/Faculty/FacultyChats';
+import FacultyCalendar from './components/Faculty/FacultyCalendar';
+import FacultySCMain from './components/Faculty/FacultySCMain';
+import FacultySupportCenter from './components/Faculty/FacultySupportCenter';
+import FacultyMeeting from './components/Faculty/FacultyMeeting';
+import FacultyProfile from './components/Faculty/FacultyProfile';
+import FacultyStudentProgress from './components/Faculty/FacultyStudentProgress';
 import CreateModule from './components/Faculty/CreateModule';
 import CreateActivity from './components/Faculty/CreateActivity';
 import CreateAssignment from './components/Faculty/CreateAssignment';
 import CreateQuiz from './components/Faculty/CreateQuiz';
 import AssignmentSubmissions from './components/Faculty/AssignmentSubmissions';
 import QuizSubmissions from './components/Faculty/QuizSubmissions';
-import FacultyCalendar from './components/Faculty/FacultyCalendar';
-import FacultyChats from './components/Faculty/FacultyChats';
-import FacultyProfile from './components/Faculty/FacultyProfile';
-import FacultySCMain from './components/Faculty/FacultySCMain';
-import FacultySupportCenter from './components/Faculty/FacultySupportCenter';
-import FacultyActs from './components/Faculty/FacultyActs';
-import FacultyGrades from './components/Faculty/FacultyGrades';
 
 //Admin
 import AdminDashboard from './components/Admin/AdminDashboard';
@@ -97,6 +99,7 @@ const studentNavItems = [
   { label: 'Activities', icon: 'file-document', route: 'SActs' },
   { label: 'Calendar', icon: 'calendar', route: 'SCalendar' },
   { label: 'Grades', icon: 'star', route: 'SGrade' },
+  { label: 'Meet', icon: 'video', route: 'SMeet' },
 ];
 
 function StudentTabs() {
@@ -114,6 +117,7 @@ function StudentTabs() {
       <Tabs.Screen name='SActs' component={StudentActs} />
       <Tabs.Screen name='SCalendar' component={StudentCalendar} />
       <Tabs.Screen name='SGrade' component={StudentGrades} />
+      <Tabs.Screen name='SMeet' component={StudentMeeting} />
     </Tabs.Navigator>
   );
 }
@@ -123,6 +127,7 @@ const facultyNavItems = [
   { label: 'Classes', icon: 'school', route: 'FClasses' },
   { label: 'Activities', icon: 'file-document', route: 'FActs' },
   { label: 'Grades', icon: 'star', route: 'FGrades' },
+  { label: 'Meet', icon: 'video', route: 'FMeet' },
 ];
 
 function FacultyTabs() {
@@ -140,6 +145,7 @@ function FacultyTabs() {
       <Tabs.Screen name='FClasses' component={FacultyClasses} />
       <Tabs.Screen name='FActs' component={FacultyActs} />
       <Tabs.Screen name='FGrades' component={FacultyGrades} />
+      <Tabs.Screen name='FMeet' component={FacultyMeeting} />
     </Tabs.Navigator>
   );
 }
@@ -271,6 +277,7 @@ export default function App() {
         <Screens.Screen name ='SReq' component={StudentSupportCenter} options={{ headerShown: false }}/>
         <Screens.Screen name ='SProfile' component={StudentsProfile} options={{ headerShown: false }}/>
         <Screens.Screen name='QuizView' component={QuizView} options={{ headerShown: false }}/>
+        <Screens.Screen name='SMeet' component={StudentMeeting} options={{ headerShown: false }}/>
         <Screens.Screen name='AssignmentDetail' component={AssignmentDetail} options={{ headerShown: false }}/>
 
 
@@ -278,21 +285,15 @@ export default function App() {
         {/*Need tangalin ang "add a lesson" na naeedit, need daw upload lang and title lang ang editable*/}
         <Screens.Screen name='FDash' component={FacultyTabs} options={{ headerShown: false }}/>
         <Screens.Screen name='FClasses' component={FacultyClasses} options={{ headerShown: false }}/>
-        <Screens.Screen name ='CClass' component={CreateClasses} options={{ headerShown: false }}/>
-        <Screens.Screen name ='FSProg' component={FacultyStudentProgress} options={{ headerShown: false }}/>
-        <Screens.Screen name ='FMod' component={FacultyModule} options={{ headerShown: false }}/>
-        <Screens.Screen name ='CMod' component={CreateModule} options={{ headerShown: false }}/>
-        <Screens.Screen name ='CAct' component={CreateActivity} options={{ headerShown: false }}/>
-        <Screens.Screen name ='CreateAssignment' component={CreateAssignment} options={{ headerShown: false }}/>
-        <Screens.Screen name ='CreateQuiz' component={CreateQuiz} options={{ headerShown: false }}/>
-        <Screens.Screen name='AssignmentSubmissions' component={AssignmentSubmissions} options={{ headerShown: false }} />
-        <Screens.Screen name='QuizSubmissions' component={QuizSubmissions} options={{ headerShown: false }} />
-        <Screens.Screen name ='FActs' component={FacultyActs} options={{ headerShown: false }}/>
-        <Screens.Screen name ='FGrades' component={FacultyGrades} options={{ headerShown: false }}/>
-        <Screens.Screen name ='FMain' component={FacultySCMain} options={{ headerShown: false }}/>
-        <Screens.Screen name ='FReq' component={FacultySupportCenter} options={{ headerShown: false }}/>
-        <Screens.Screen name ='FProfile' component={FacultyProfile} options={{ headerShown: false }}/>
-
+        <Screens.Screen name='FModule' component={FacultyModule} options={{ headerShown: false }}/>
+        <Screens.Screen name='FGrade' component={FacultyGrades} options={{ headerShown: false }}/>
+        <Screens.Screen name='FActs' component={FacultyActs} options={{ headerShown: false }}/>
+        <Screens.Screen name='FProg' component={FacultyStudentProgress} options={{ headerShown: false }}/>
+        <Screens.Screen name='FCalendar' component={FacultyCalendar} options={{ headerShown: false }}/>
+        <Screens.Screen name='FMain' component={FacultySCMain} options={{ headerShown: false }}/>
+        <Screens.Screen name='FReq' component={FacultySupportCenter} options={{ headerShown: false }}/>
+        <Screens.Screen name='FProfile' component={FacultyProfile} options={{ headerShown: false }}/>
+        <Screens.Screen name='FMeet' component={FacultyMeeting} options={{ headerShown: false }}/>
 
 
         {/* Admininstrators */}

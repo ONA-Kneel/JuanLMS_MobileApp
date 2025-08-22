@@ -34,6 +34,13 @@ const formatDateTime = (dateString) => {
 // Activity Card Component
 function ActivityCard({ activity, onActivityPress }) {
   const navigation = useNavigation();
+  
+  // Safety check - ensure activity has required properties
+  if (!activity || !activity._id || !activity.type) {
+    console.warn('ActivityCard: Invalid activity data:', activity);
+    return null;
+  }
+  
   const getActivityIcon = (type) => {
     switch (type) {
       case 'quiz':
@@ -58,15 +65,15 @@ function ActivityCard({ activity, onActivityPress }) {
           />
         </View>
         <View style={styles.activityContent}>
-          <Text style={styles.activityTitle}>{activity.title}</Text>
+          <Text style={styles.activityTitle}>{activity.title || 'Untitled Activity'}</Text>
           <Text style={styles.activityClass}>{activity.className || 'Unknown Class'}</Text>
-          {activity.description && (
+          {activity.description && activity.description.trim() !== '' && (
             <Text style={styles.activityDescription} numberOfLines={2}>
               {activity.description}
             </Text>
           )}
           <Text style={styles.activityDueDate}>
-            Due: {formatDateTime(activity.dueDate)}
+            Due: {activity.dueDate ? formatDateTime(activity.dueDate) : 'No due date'}
           </Text>
           <Text style={styles.activityType}>
             Type: {activity.type ? activity.type.charAt(0).toUpperCase() + activity.type.slice(1) : 'Activity'}
@@ -74,10 +81,15 @@ function ActivityCard({ activity, onActivityPress }) {
         </View>
         <View style={styles.activityPoints}>
           <Text style={styles.pointsText}>
-            {activity.type === 'quiz' 
-              ? (activity.totalPoints || activity.points || 0) 
-              : (activity.points !== undefined && activity.points !== null ? activity.points : 0)
-            } pts
+            {(() => {
+              let points = 0;
+              if (activity.type === 'quiz') {
+                points = activity.totalPoints || activity.points || 0;
+              } else {
+                points = (activity.points !== undefined && activity.points !== null) ? activity.points : 0;
+              }
+              return `${points} pts`;
+            })()}
           </Text>
         </View>
       </View>
@@ -90,15 +102,23 @@ function ActivityCard({ activity, onActivityPress }) {
               {activity.isSubmitted ? 'Completed' : 'Pending'}
             </Text>
           </View>
-          {activity.isSubmitted && activity.score !== undefined && (
+          {activity.isSubmitted && activity.score !== undefined && activity.score !== null && (
             <View style={styles.statItem}>
               <MaterialIcons name="grade" size={16} color="#4CAF50" />
               <Text style={styles.statText}>
-                Score: {activity.score}/{activity.type === 'quiz' ? (activity.totalPoints || activity.points || 100) : (activity.points || 100)}
+                Score: {activity.score}/{(() => {
+                  let total = 100;
+                  if (activity.type === 'quiz') {
+                    total = activity.totalPoints || activity.points || 100;
+                  } else {
+                    total = activity.points || 100;
+                  }
+                  return total;
+                })()}
               </Text>
             </View>
           )}
-          {activity.isSubmitted && activity.type === 'quiz' && activity.percentage !== undefined && (
+          {activity.isSubmitted && activity.type === 'quiz' && activity.percentage !== undefined && activity.percentage !== null && (
             <View style={styles.statItem}>
               <MaterialIcons name="percent" size={16} color="#FF9800" />
               <Text style={styles.statText}>
@@ -106,7 +126,7 @@ function ActivityCard({ activity, onActivityPress }) {
               </Text>
             </View>
           )}
-          {activity.isSubmitted && activity.type === 'quiz' && activity.timeSpent !== undefined && (
+          {activity.isSubmitted && activity.type === 'quiz' && activity.timeSpent !== undefined && activity.timeSpent !== null && (
             <View style={styles.statItem}>
               <MaterialIcons name="schedule" size={16} color="#2196F3" />
               <Text style={styles.statText}>
@@ -155,6 +175,23 @@ export default function StudentActs() {
   const [showActivityModal, setShowActivityModal] = useState(false);
   const [activeTab, setActiveTab] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  
+  // Debug navigation object
+  useEffect(() => {
+    console.log('DEBUG: Navigation object initialized:', {
+      navigationType: typeof navigation,
+      hasNavigate: typeof navigation.navigate === 'function',
+      navigationKeys: Object.keys(navigation || {}),
+      navigationObject: navigation
+    });
+    
+    // Test if navigation is working
+    if (navigation && typeof navigation.navigate === 'function') {
+      console.log('DEBUG: Navigation object is properly initialized');
+    } else {
+      console.error('DEBUG: Navigation object is NOT properly initialized!');
+    }
+  }, [navigation]);
 
   useEffect(() => {
     if (user && user._id) {
@@ -401,8 +438,18 @@ export default function StudentActs() {
         });
         
         const activitiesWithStatus = await checkSubmissionStatuses(postedActivities);
-        activitiesWithStatus.sort((a, b) => new Date(a.dueDate || 0) - new Date(b.dueDate || 0));
-        setActivities(activitiesWithStatus);
+        
+        // Final validation for fallback activities
+        const finalValidActivities = activitiesWithStatus.filter(activity => {
+          if (!activity || !activity._id || !activity.type || !activity.title || !activity.className) {
+            console.warn('DEBUG: Fallback validation failed for activity:', activity);
+            return false;
+          }
+          return true;
+        });
+        
+        finalValidActivities.sort((a, b) => new Date(a.dueDate || 0) - new Date(b.dueDate || 0));
+        setActivities(finalValidActivities);
         if (activitiesWithStatus.length === 0) {
           console.warn('DEBUG: Fallback produced 0 activities. Check if endpoints return data and item types include className/dates.');
         }
@@ -418,24 +465,60 @@ export default function StudentActs() {
         fetch(`${API_BASE}/assignments?classID=${encodeURIComponent(cid)}`, {
           headers: { Authorization: `Bearer ${token}` }
         })
-          .then(res => (res.ok ? res.json() : []))
+          .then(res => {
+            if (!res.ok) {
+              console.warn(`DEBUG: Assignment fetch failed for class ${cid}, status:`, res.status);
+              return [];
+            }
+            return res.json();
+          })
           .then(assignments => {
             console.log('DEBUG: Assignments fetched for class', cid, ':', assignments);
-            return assignments.map(item => ({ ...item, type: 'assignment' }));
+            if (!Array.isArray(assignments)) {
+              console.warn('DEBUG: Assignments response is not an array:', assignments);
+              return [];
+            }
+            return assignments.map(item => {
+              if (!item || !item._id) {
+                console.warn('DEBUG: Invalid assignment item found:', item);
+                return null;
+              }
+              return { ...item, type: 'assignment' };
+            }).filter(Boolean); // Remove null items
           })
-          .catch(() => []),
+          .catch((error) => {
+            console.error(`DEBUG: Error fetching assignments for class ${cid}:`, error);
+            return [];
+          }),
         fetch(`${API_BASE}/api/quizzes?classID=${encodeURIComponent(cid)}`, {
           headers: { Authorization: `Bearer ${token}` }
         })
-          .then(res => (res.ok ? res.json() : []))
+          .then(res => {
+            if (!res.ok) {
+              console.warn(`DEBUG: Quiz fetch failed for class ${cid}, status:`, res.status);
+              return [];
+            }
+            return res.json();
+          })
           .then(quizzes => {
             console.log('DEBUG: Quizzes fetched for class', cid, ':', quizzes);
+            if (!Array.isArray(quizzes)) {
+              console.warn('DEBUG: Quizzes response is not an array:', quizzes);
+              return [];
+            }
             return quizzes.map(item => {
+              if (!item || !item._id) {
+                console.warn('DEBUG: Invalid quiz item found:', item);
+                return null;
+              }
               console.log('DEBUG: Individual quiz item:', item._id, 'title:', item.title, 'points:', item.points, 'questions:', item.questions?.length);
               return { ...item, type: 'quiz' };
-            });
+            }).filter(Boolean); // Remove null items
           })
-          .catch(() => [])
+          .catch((error) => {
+            console.error(`DEBUG: Error fetching quizzes for class ${cid}:`, error);
+            return [];
+          })
       ]);
 
       const flattenedPromises = perClassPromises.flat();
@@ -452,6 +535,12 @@ export default function StudentActs() {
       // Filter for ONLY POSTED activities
       const now = new Date();
       const postedActivities = merged.filter(item => {
+        // Ensure item is valid
+        if (!item || !item._id || !item.type) {
+          console.warn('DEBUG: Filtering out invalid item:', item);
+          return false;
+        }
+        
         if (item.type === 'assignment') {
           const scheduleEnabled = item?.schedulePost === true;
           const postAt = item?.postAt ? new Date(item.postAt) : null;
@@ -482,14 +571,29 @@ export default function StudentActs() {
       // Normalize and enrich with class info for display
       const normalized = postedActivities.map(item => {
         console.log('DEBUG: Normalizing item:', item._id, 'type:', item.type, 'points:', item.points, 'questions:', item.questions?.length, 'timing:', item.timing);
+        
+        // Ensure all required properties are present
         const normalizedItem = {
-          ...item,
+          _id: item._id || `temp_${Date.now()}_${Math.random()}`,
+          title: item.title || 'Untitled Activity',
+          description: item.description || '',
           type: item.type || (item.questions ? 'quiz' : 'assignment'),
           className: item.classInfo?.className || item.className || 'Unknown Class',
           classCode: item.classInfo?.classCode || item.classCode || 'N/A',
           classID: item.classID || item.classInfo?.classID || (item.assignedTo && item.assignedTo[0]?.classID),
-          points: item.points !== undefined ? item.points : (item.type === 'quiz' ? 100 : 0)
+          points: item.points !== undefined ? item.points : (item.type === 'quiz' ? 100 : 0),
+          dueDate: item.dueDate || null,
+          createdAt: item.createdAt || new Date(),
+          status: item.status || 'active',
+          isSubmitted: false, // Will be updated by checkSubmissionStatuses
+          // Quiz-specific properties
+          questions: item.questions || [],
+          timing: item.timing || {},
+          // Assignment-specific properties
+          schedulePost: item.schedulePost || false,
+          postAt: item.postAt || null
         };
+        
         console.log('DEBUG: Normalized item:', normalizedItem._id, 'final type:', normalizedItem.type, 'final points:', normalizedItem.points);
         return normalizedItem;
       });
@@ -762,7 +866,18 @@ export default function StudentActs() {
         })));
       }
       
-      setActivities(activitiesWithStatus);
+      // Final validation for main activities
+      const finalValidActivities = activitiesWithStatus.filter(activity => {
+        if (!activity || !activity._id || !activity.type || !activity.title || !activity.className) {
+          console.warn('DEBUG: Main validation failed for activity:', activity);
+          return false;
+        }
+        return true;
+      });
+      
+      console.log('DEBUG: Main validation passed for', finalValidActivities.length, 'out of', activitiesWithStatus.length, 'activities');
+      
+      setActivities(finalValidActivities);
     } catch (err) {
       console.error('Error fetching activities:', err);
       setError('Failed to load activities: ' + err.message);
@@ -778,14 +893,23 @@ export default function StudentActs() {
   };
 
   const handleActivityPress = (activity) => {
+    console.log('DEBUG: handleActivityPress called with:', {
+      activityId: activity._id,
+      activityType: activity.type,
+      isSubmitted: activity.isSubmitted,
+      title: activity.title
+    });
+    
     // If quiz is already submitted, open the modal with a View Results action
     if (activity.type === 'quiz' && activity.isSubmitted) {
+      console.log('DEBUG: Quiz is submitted, opening modal for View Results');
       setSelectedActivity(activity);
       setShowActivityModal(true);
       return;
     }
     // For assignments already submitted, keep the info modal notice
     if (activity.type !== 'quiz' && activity.isSubmitted) {
+      console.log('DEBUG: Assignment is submitted, showing alert');
       Alert.alert(
         'Already Completed',
         `You have already completed this ${activity.type === 'quiz' ? 'quiz' : 'assignment'}.`,
@@ -793,21 +917,33 @@ export default function StudentActs() {
       );
       return;
     }
+    console.log('DEBUG: Opening modal for activity:', activity.type);
     setSelectedActivity(activity);
     setShowActivityModal(true);
   };
 
   const navigateToActivity = (activity) => {
+    console.log('DEBUG: navigateToActivity called with:', {
+      activityId: activity._id,
+      activityType: activity.type,
+      isSubmitted: activity.isSubmitted,
+      title: activity.title
+    });
+    
     setShowActivityModal(false);
     
     // If quiz is already submitted, open in review mode
     if (activity.type === 'quiz') {
+      console.log('DEBUG: Navigating to QuizView with quizId:', activity._id);
       if (activity.isSubmitted) {
+        console.log('DEBUG: Quiz is submitted, opening in review mode');
         navigation.navigate('QuizView', { quizId: activity._id, review: true });
       } else {
+        console.log('DEBUG: Quiz is not submitted, opening in take mode');
         navigation.navigate('QuizView', { quizId: activity._id });
       }
     } else {
+      console.log('DEBUG: Navigating to AssignmentDetail with assignmentId:', activity._id);
       navigation.navigate('AssignmentDetail', { 
         assignmentId: activity._id,
         assignment: activity,
@@ -822,6 +958,12 @@ export default function StudentActs() {
 
   // Filter activities based on selected tab and search query
   const filteredActivities = activities.filter(activity => {
+    // Safety check - ensure activity has required properties
+    if (!activity || !activity._id || !activity.type || !activity.title || !activity.className) {
+      console.warn('DEBUG: Filtered activity is invalid:', activity);
+      return false;
+    }
+    
     const matchesSearch = activity.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          (activity.description && activity.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
                          (activity.className && activity.className.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -857,12 +999,28 @@ export default function StudentActs() {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>My Activities</Text>
-        <TouchableOpacity 
-          style={styles.refreshButton}
-          onPress={onRefresh}
-        >
-          <MaterialIcons name="refresh" size={24} color="#fff" />
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <TouchableOpacity 
+            style={[styles.refreshButton, { marginRight: 8 }]}
+            onPress={() => {
+              console.log('DEBUG: Testing navigation to QuizView...');
+              try {
+                navigation.navigate('QuizView', { quizId: 'test123', review: false });
+                console.log('DEBUG: Navigation call completed successfully');
+              } catch (error) {
+                console.error('DEBUG: Navigation error:', error);
+              }
+            }}
+          >
+            <MaterialIcons name="quiz" size={20} color="#fff" />
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.refreshButton}
+            onPress={onRefresh}
+          >
+            <MaterialIcons name="refresh" size={24} color="#fff" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Search */}
@@ -924,13 +1082,21 @@ export default function StudentActs() {
             </Text>
           </View>
         ) : (
-          filteredActivities.map((activity, index) => (
-            <ActivityCard
-              key={`${activity._id}_${index}`}
-              activity={activity}
-              onActivityPress={handleActivityPress}
-            />
-          ))
+          filteredActivities.map((activity, index) => {
+            // Additional safety check before rendering
+            if (!activity || !activity._id || !activity.type) {
+              console.warn('Filtered activity is invalid, skipping:', activity);
+              return null;
+            }
+            
+            return (
+              <ActivityCard
+                key={`${activity._id}_${index}`}
+                activity={activity}
+                onActivityPress={handleActivityPress}
+              />
+            );
+          })
         )}
       </ScrollView>
 
@@ -950,7 +1116,7 @@ export default function StudentActs() {
               </TouchableOpacity>
             </View>
 
-            {selectedActivity && (
+            {selectedActivity && selectedActivity._id && selectedActivity.type && (
               <ScrollView style={styles.modalContent}>
                 <View style={styles.modalActivityHeader}>
                   <MaterialIcons 
@@ -1024,16 +1190,24 @@ export default function StudentActs() {
                   </View>
                 )}
 
-                <TouchableOpacity
-                  style={styles.modalActionButton}
-                  onPress={() => navigateToActivity(selectedActivity)}
-                >
-                  <Text style={styles.modalActionButtonText}>
-                    {selectedActivity.type === 'quiz'
-                      ? (selectedActivity.isSubmitted ? 'View Results' : 'Take Quiz')
-                      : 'View Assignment'}
-                  </Text>
-                </TouchableOpacity>
+                                 <TouchableOpacity
+                   style={styles.modalActionButton}
+                   onPress={() => {
+                     console.log('DEBUG: Modal action button pressed for:', {
+                       activityId: selectedActivity._id,
+                       activityType: selectedActivity.type,
+                       isSubmitted: selectedActivity.isSubmitted,
+                       title: selectedActivity.title
+                     });
+                     navigateToActivity(selectedActivity);
+                   }}
+                 >
+                   <Text style={styles.modalActionButtonText}>
+                     {selectedActivity.type === 'quiz'
+                       ? (selectedActivity.isSubmitted ? 'View Results' : 'Take Quiz')
+                       : 'View Assignment'}
+                   </Text>
+                 </TouchableOpacity>
               </ScrollView>
             )}
           </View>
