@@ -8,6 +8,7 @@ const defaultNavItems = [
   { label: 'Calendar', icon: 'calendar', route: 'SCalendar' },
   { label: 'Grades', icon: 'star', route: 'SGrade' },
   { label: 'Chats', icon: 'chat', route: 'SChat' },
+  { label: 'Meetings', icon: 'video', route: 'SMeeting' },
 ];
 
 export default function CustomBottomNav({ state, descriptors, navigation, navItems = defaultNavItems }) {

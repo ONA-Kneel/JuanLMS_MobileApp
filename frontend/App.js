@@ -26,6 +26,7 @@ import StudentGrades from './components/Students/StudentGrades';
 import StudentActs from './components/Students/StudentActs';
 import StudentProgress from './components/Students/StudentProgress';
 import StudentChats from './components/Students/StudentsChats';
+import StudentMeeting from './components/Students/StudentMeeting';
 import StudentsProfile from './components/Students/StudentsProfile';
 import StudentCalendar from './components/Students/StudentsCalendar';
 import StudentSCMain from './components/Students/StudentSCMain';
@@ -48,6 +49,7 @@ import AssignmentSubmissions from './components/Faculty/AssignmentSubmissions';
 import QuizSubmissions from './components/Faculty/QuizSubmissions';
 import FacultyCalendar from './components/Faculty/FacultyCalendar';
 import FacultyChats from './components/Faculty/FacultyChats';
+import FacultyMeeting from './components/Faculty/FacultyMeeting';
 import FacultyProfile from './components/Faculty/FacultyProfile';
 import FacultySCMain from './components/Faculty/FacultySCMain';
 import FacultySupportCenter from './components/Faculty/FacultySupportCenter';
@@ -72,6 +74,7 @@ import AdminSupportCenter from './components/Admin/AdminSupportCenter';
 import VPEDashboard from './components/VPE/VPEDashboard';
 import VPECalendar from './components/VPE/VPECalendar';
 import VPEChats from './components/VPE/VPEChats';
+import VPEMeeting from './components/VPE/VPEMeeting';
 import VPESupportCenter from './components/VPE/VPESupportCenter';
 import VPEProfile from './components/VPE/VPEProfile';
 
@@ -79,6 +82,7 @@ import VPEProfile from './components/VPE/VPEProfile';
 import PrincipalDashboard from './components/Principal/PrincipalDashboard';
 import PrincipalCalendar from './components/Principal/PrincipalCalendar';
 import PrincipalChats from './components/Principal/PrincipalChats';
+import PrincipalMeeting from './components/Principal/PrincipalMeeting';
 import PrincipalSupportCenter from './components/Principal/PrincipalSupportCenter';
 import PrincipalProfile from './components/Principal/PrincipalProfile';
 import PrincipalGrades from './components/Principal/PrincipalGrades';
@@ -104,6 +108,7 @@ function StudentTabs() {
       <Tabs.Screen name="SCalendar" component={StudentCalendar} />
       <Tabs.Screen name="SGrade" component={StudentGrades} />
       <Tabs.Screen name="SChat" component={StudentChats} />
+      <Tabs.Screen name="SMeeting" component={StudentMeeting} />
     </Tabs.Navigator>
   );
 }
@@ -114,6 +119,7 @@ const facultyNavItems = [
   { label: 'Grades', icon: 'star', route: 'FGrades' },
   { label: 'Calendar', icon: 'calendar', route: 'FCalendar' },
   { label: 'Chats', icon: 'chat', route: 'FChat' },
+  { label: 'Meetings', icon: 'video', route: 'FMeeting' },
 ];
 
 function FacultyTabs() {
@@ -127,6 +133,7 @@ function FacultyTabs() {
       <Tabs.Screen name="FGrades" component={FacultyGrades} />
       <Tabs.Screen name="FCalendar" component={FacultyCalendar} />
       <Tabs.Screen name="FChat" component={FacultyChats} />
+      <Tabs.Screen name="FMeeting" component={FacultyMeeting} />
       {/* <Tabs.Screen name="FProfile" component={FacultyProfile} /> */}
     </Tabs.Navigator>
   );
@@ -165,6 +172,7 @@ const vpeNavItems = [
   { label: 'Dashboard', icon: 'view-dashboard', route: 'VPEDash' },
   { label: 'Calendar', icon: 'calendar', route: 'VPECalendar' },
   { label: 'Chats', icon: 'chat', route: 'VPEChats' },
+  { label: 'Meetings', icon: 'video', route: 'VPEMeeting' },
 ];
 
 function VPETabs() {
@@ -176,6 +184,7 @@ function VPETabs() {
       <Tabs.Screen name='VPEDash' component={VPEDashboard} />
       <Tabs.Screen name='VPECalendar' component={VPECalendar} />
       <Tabs.Screen name='VPEChats' component={VPEChats} />
+      <Tabs.Screen name='VPEMeeting' component={VPEMeeting} />
     </Tabs.Navigator>
   );
 }
@@ -185,6 +194,7 @@ const principalNavItems = [
   { label: 'Calendar', icon: 'calendar', route: 'PrincipalCalendar' },
   { label: 'Chats', icon: 'chat', route: 'PrincipalChats' },
   { label: 'Grades', icon: 'star', route: 'PrincipalGrades' },
+  { label: 'Meetings', icon: 'video', route: 'PrincipalMeeting' },
 ];
 
 function PrincipalTabs() {
@@ -197,6 +207,7 @@ function PrincipalTabs() {
       <Tabs.Screen name='PrincipalCalendar' component={PrincipalCalendar} />
       <Tabs.Screen name='PrincipalChats' component={PrincipalChats} />
       <Tabs.Screen name='PrincipalGrades' component={PrincipalGrades} />
+      <Tabs.Screen name='PrincipalMeeting' component={PrincipalMeeting} />
     </Tabs.Navigator>
   );
 }
