@@ -7,6 +7,8 @@ const defaultNavItems = [
   { label: 'Activities', icon: 'file-document', route: 'SActs' },
   { label: 'Calendar', icon: 'calendar', route: 'SCalendar' },
   { label: 'Grades', icon: 'star', route: 'SGrade' },
+  { label: 'Chats', icon: 'chat', route: 'SChat' },
+  { label: 'Meetings', icon: 'video', route: 'SMeeting' },
 ];
 
 export default function CustomBottomNav({ state, descriptors, navigation, navItems = defaultNavItems }) {
@@ -19,12 +21,11 @@ export default function CustomBottomNav({ state, descriptors, navigation, navIte
       borderTopWidth: 2,
       borderTopColor: '#e0e0e0',
       paddingVertical: 8,
-      padding: 5,
+      padding:5,
       elevation: 8,
     }}>
       {navItems.map((item, index) => {
         const isFocused = state.index === index;
-        
         return (
           <TouchableOpacity
             key={item.label}
