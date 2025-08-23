@@ -9,7 +9,7 @@ const API_BASE = 'https://juanlms-webapp-server.onrender.com';
 export default function QuizSubmissions() {
   const route = useRoute();
   const navigation = useNavigation();
-  const { quizId, quizTitle, className } = route.params || {};
+  const { quizId, quizTitle, className, onGradingComplete } = route.params || {};
 
   const [loading, setLoading] = useState(true);
   const [responses, setResponses] = useState([]);
@@ -22,6 +22,17 @@ export default function QuizSubmissions() {
     fetchQuizInfo();
     fetchResponses();
   }, [quizId]);
+
+  // Add blur listener to trigger grading status refresh when leaving
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('blur', () => {
+      console.log('DEBUG: QuizSubmissions screen blurred, triggering grading refresh');
+      if (onGradingComplete) {
+        onGradingComplete();
+      }
+    });
+    return unsubscribe;
+  }, [navigation, onGradingComplete]);
 
   const fetchQuizInfo = async () => {
     try {

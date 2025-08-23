@@ -90,8 +90,16 @@ function ActivityCard({ activity, onEdit, onDelete, onViewSubmissions }) {
           </View>
           <View style={styles.statItem}>
             <MaterialIcons name="grade" size={16} color="#FF9800" />
-            <Text style={styles.statText}>{activity.gradedCount || 0} graded</Text>
+            <Text style={styles.statText}>
+              {activity.gradedCount || 0}/{activity.submittedCount || 0} graded
+            </Text>
           </View>
+          {activity.isFullyGraded && (
+            <View style={styles.statItem}>
+              <MaterialIcons name="done-all" size={16} color="#4CAF50" />
+              <Text style={styles.statText}>Complete</Text>
+            </View>
+          )}
         </View>
         
         <View style={styles.actionButtons}>
@@ -100,7 +108,9 @@ function ActivityCard({ activity, onEdit, onDelete, onViewSubmissions }) {
             onPress={() => onViewSubmissions(activity)}
           >
             <MaterialIcons name="visibility" size={16} color="#2196F3" />
-            <Text style={styles.viewButtonText}>Grade</Text>
+            <Text style={styles.viewButtonText}>
+              {activity.isFullyGraded ? 'View Results' : 'Grade'}
+            </Text>
           </TouchableOpacity>
           
           <TouchableOpacity 
@@ -153,6 +163,17 @@ const FacultyActs = () => {
   useEffect(() => {
     fetchActivities();
   }, []);
+
+  // Add focus listener to refresh grading status when returning from grading submissions
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      console.log('DEBUG: FacultyActs screen focused, refreshing grading status...');
+      if (activities.length > 0) {
+        refreshGradingStatus();
+      }
+    });
+    return unsubscribe;
+  }, [navigation, activities]);
 
   const fetchActivities = async () => {
     try {
@@ -278,7 +299,7 @@ const FacultyActs = () => {
       setActivities(allActivities);
       
       // Categorize activities by grading status
-      categorizeActivities(allActivities);
+      await categorizeActivities(allActivities);
     } catch (error) {
       console.error('Error fetching activities:', error);
       setError(error.message);
@@ -288,25 +309,155 @@ const FacultyActs = () => {
   };
 
   // Function to categorize activities by grading status
-  const categorizeActivities = (allActivities) => {
-    // For now, we'll categorize based on due date and submission status
-    // In a real implementation, you'd check actual submission and grading data
-    const now = new Date();
-    
-    const readyToGrade = allActivities.filter(activity => {
-      const dueDate = new Date(activity.dueDate);
-      return dueDate < now; // Past due date - ready to grade
-    });
-    
-    const graded = allActivities.filter(activity => {
-      // This would check actual grading status from the database
-      // For now, we'll show activities that are not ready to grade
-      const dueDate = new Date(activity.dueDate);
-      return dueDate >= now; // Not yet due - considered "graded" for demo
-    });
-    
-    setReadyToGradeActivities(readyToGrade);
-    setGradedActivities(graded);
+  const categorizeActivities = async (allActivities) => {
+    try {
+      console.log('DEBUG: Categorizing activities by grading status...');
+      const token = await AsyncStorage.getItem('jwtToken');
+      
+      // Check actual grading status for each activity
+      const activitiesWithGradingStatus = await Promise.all(
+        allActivities.map(async (activity) => {
+          try {
+            if (activity.type === 'assignment') {
+              // Check assignment submissions and grading status
+              const submissionsResponse = await fetch(`${API_BASE}/assignments/${activity._id}/submissions`, {
+                headers: { Authorization: `Bearer ${token}` }
+              });
+              
+              if (submissionsResponse.ok) {
+                const submissions = await submissionsResponse.json();
+                const totalStudents = activity.totalStudents || 0;
+                const submittedCount = submissions.length;
+                const gradedCount = submissions.filter(sub => sub.status === 'graded').length;
+                
+                return {
+                  ...activity,
+                  totalStudents,
+                  submittedCount,
+                  gradedCount,
+                  isFullyGraded: submittedCount > 0 && submittedCount === gradedCount,
+                  hasSubmissions: submittedCount > 0
+                };
+              }
+            } else if (activity.type === 'quiz') {
+              // Check quiz responses and grading status
+              const responsesResponse = await fetch(`${API_BASE}/api/quizzes/${activity._id}/responses`, {
+                headers: { Authorization: `Bearer ${token}` }
+              });
+              
+              if (responsesResponse.ok) {
+                const responses = await responsesResponse.json();
+                const totalStudents = activity.totalStudents || 0;
+                const submittedCount = responses.length;
+                const gradedCount = responses.filter(resp => resp.graded).length;
+                
+                return {
+                  ...activity,
+                  totalStudents,
+                  submittedCount,
+                  gradedCount,
+                  isFullyGraded: submittedCount > 0 && submittedCount === gradedCount,
+                  hasSubmissions: submittedCount > 0
+                };
+              }
+            }
+            
+            // Default values if API calls fail
+            return {
+              ...activity,
+              totalStudents: 0,
+              submittedCount: 0,
+              gradedCount: 0,
+              isFullyGraded: false,
+              hasSubmissions: false
+            };
+          } catch (error) {
+            console.error(`Error checking grading status for ${activity._id}:`, error);
+            return {
+              ...activity,
+              totalStudents: 0,
+              submittedCount: 0,
+              gradedCount: 0,
+              isFullyGraded: false,
+              hasSubmissions: false
+            };
+          }
+        })
+      );
+      
+      console.log('DEBUG: Activities with grading status:', activitiesWithGradingStatus.map(a => ({
+        id: a._id,
+        title: a.title,
+        type: a.type,
+        submittedCount: a.submittedCount,
+        gradedCount: a.gradedCount,
+        isFullyGraded: a.isFullyGraded
+      })));
+      
+      // Categorize based on actual grading status
+      const now = new Date();
+      
+      const readyToGrade = activitiesWithGradingStatus.filter(activity => {
+        const dueDate = new Date(activity.dueDate);
+        const isPastDue = dueDate < now;
+        const hasSubmissions = activity.hasSubmissions;
+        const isNotFullyGraded = !activity.isFullyGraded;
+        
+        // Ready to grade if: past due date, has submissions, and not fully graded
+        return isPastDue && hasSubmissions && isNotFullyGraded;
+      });
+      
+      const graded = activitiesWithGradingStatus.filter(activity => {
+        // Graded if: fully graded OR no submissions yet (not ready to grade)
+        return activity.isFullyGraded || !activity.hasSubmissions;
+      });
+      
+      console.log('DEBUG: Categorization results:', {
+        readyToGrade: readyToGrade.length,
+        graded: graded.length,
+        total: activitiesWithGradingStatus.length
+      });
+      
+      setReadyToGradeActivities(readyToGrade);
+      setGradedActivities(graded);
+      
+      // Update activities with grading status
+      setActivities(activitiesWithGradingStatus);
+      
+      // Log any activities that moved between tabs
+      console.log('DEBUG: Tab movement summary:');
+      readyToGrade.forEach(activity => {
+        console.log(`- ${activity.title} (${activity.type}) moved to READY tab - ${activity.submittedCount} submitted, ${activity.gradedCount} graded`);
+      });
+      graded.forEach(activity => {
+        if (activity.isFullyGraded) {
+          console.log(`- ${activity.title} (${activity.type}) moved to GRADED tab - Fully graded (${activity.gradedCount}/${activity.submittedCount})`);
+        } else if (!activity.hasSubmissions) {
+          console.log(`- ${activity.title} (${activity.type}) moved to GRADED tab - No submissions yet`);
+        }
+      });
+    } catch (error) {
+      console.error('Error categorizing activities:', error);
+      // Fallback to simple categorization
+      const now = new Date();
+      const readyToGrade = allActivities.filter(activity => {
+        const dueDate = new Date(activity.dueDate);
+        return dueDate < now;
+      });
+      const graded = allActivities.filter(activity => {
+        const dueDate = new Date(activity.dueDate);
+        return dueDate >= now;
+      });
+      
+      setReadyToGradeActivities(readyToGrade);
+      setGradedActivities(graded);
+    }
+  };
+
+  // Function to refresh grading status after grading submissions
+  const refreshGradingStatus = async () => {
+    console.log('DEBUG: Refreshing grading status...');
+    await categorizeActivities(activities);
   };
 
   const onRefresh = () => {
@@ -320,13 +471,15 @@ const FacultyActs = () => {
       navigation.navigate('QuizSubmissions', { 
         quizId: activity._id, 
         quizTitle: activity.title,
-        className: activity.className 
+        className: activity.className,
+        onGradingComplete: refreshGradingStatus
       });
     } else {
       navigation.navigate('AssignmentSubmissions', { 
         assignmentId: activity._id, 
         assignmentTitle: activity.title,
-        className: activity.className 
+        className: activity.className,
+        onGradingComplete: refreshGradingStatus
       });
     }
   };
@@ -457,13 +610,22 @@ const FacultyActs = () => {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>My Activities</Text>
-        <TouchableOpacity 
-          style={styles.createButton}
-          onPress={() => setCreateMenuVisible(v => !v)}
-        >
-          <MaterialIcons name="add" size={24} color="#fff" />
-          <Text style={styles.createButtonText}>Create</Text>
-        </TouchableOpacity>
+        <View style={styles.headerButtons}>
+          <TouchableOpacity 
+            style={styles.refreshButton}
+            onPress={refreshGradingStatus}
+          >
+            <MaterialIcons name="refresh" size={20} color="#fff" />
+            <Text style={styles.refreshButtonText}>Refresh</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.createButton}
+            onPress={() => setCreateMenuVisible(v => !v)}
+          >
+            <MaterialIcons name="add" size={24} color="#fff" />
+            <Text style={styles.createButtonText}>Create</Text>
+          </TouchableOpacity>
+        </View>
         {createMenuVisible && (
           <View style={styles.createMenu}>
             <TouchableOpacity style={styles.createMenuItem} onPress={() => { setCreateMenuVisible(false); navigation.navigate('CreateAssignment'); }}>
@@ -471,7 +633,7 @@ const FacultyActs = () => {
             </TouchableOpacity>
             <TouchableOpacity style={styles.createMenuItem} onPress={() => { setCreateMenuVisible(false); navigation.navigate('CreateQuiz'); }}>
               <Text style={styles.createMenuItemText}>Quiz</Text>
-        </TouchableOpacity>
+            </TouchableOpacity>
           </View>
         )}
       </View>
@@ -686,6 +848,25 @@ const styles = {
     fontWeight: 'bold',
     color: '#333',
     fontFamily: 'Poppins-Bold',
+  },
+  headerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  refreshButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#00418b',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    marginRight: 8,
+  },
+  refreshButtonText: {
+    color: '#fff',
+    marginLeft: 4,
+    fontWeight: '600',
+    fontFamily: 'Poppins-Medium',
   },
   createButton: {
     flexDirection: 'row',
