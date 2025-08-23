@@ -139,7 +139,7 @@ export default function StudentCalendar() {
     const fetchAssignmentEvents = async () => {
       try {
         const token = await AsyncStorage.getItem('jwtToken');
-        const res = await fetch('https://juanlms-webapp-server.onrender.com/api/assignments', {
+        const res = await fetch('https://juanlms-webapp-server.onrender.com/assignments', {
           headers: { Authorization: `Bearer ${token}` }
         });
         if (res.ok) {

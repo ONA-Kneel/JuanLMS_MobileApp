@@ -99,8 +99,8 @@ export default function StudentClasses() {
           };
         }
         
-        // Fetch assignments count
-        const assignmentsResponse = await fetch(`${API_BASE}/assignments?classID=${classId}`, {
+              // Fetch assignments count
+      const assignmentsResponse = await fetch(`${API_BASE}/assignments?classID=${classId}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         

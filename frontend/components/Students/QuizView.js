@@ -155,66 +155,54 @@ const QuizView = React.memo(function QuizView() {
   const fetchQuiz = async () => {
     try {
       setLoading(true);
+      setError(null);
       
       const token = await AsyncStorage.getItem('jwtToken');
       console.log('Fetching quiz data for ID:', quizId);
-      console.log('Token retrieved:', token ? 'Token exists' : 'No token found');
-      console.log('API URL:', `${API_BASE}/api/quizzes/${quizId}`);
       
       if (!token) {
         throw new Error('No authentication token found');
       }
       
-      // Test API connectivity first
-      try {
-        const testResponse = await fetch(`${API_BASE}/api/quizzes`, {
+      // Performance optimization: Use Promise.all to fetch quiz and response simultaneously
+      const [quizResponse, responseResponse] = await Promise.allSettled([
+        // Fetch quiz data
+        fetch(`${API_BASE}/api/quizzes/${quizId}`, {
           headers: { 
             Authorization: `Bearer ${token}`,
-            'Accept': 'application/json'
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
           }
-        });
-        console.log('API connectivity test - Status:', testResponse.status);
-      } catch (testError) {
-        console.log('API connectivity test failed:', testError.message);
+        }),
+        // Fetch student response data (if exists)
+        fetch(`${API_BASE}/api/quizzes/${quizId}/myscore?studentId=${user._id}&revealAnswers=true`, {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+      ]);
+      
+      // Handle quiz data
+      if (quizResponse.status === 'rejected') {
+        throw new Error(`Failed to fetch quiz: ${quizResponse.reason.message}`);
       }
       
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
-      
-      const response = await fetch(`${API_BASE}/api/quizzes/${quizId}`, {
-        headers: { 
-          Authorization: `Bearer ${token}`,
-          'Accept': 'application/json',
-          'Content-Type': 'application/json'
-        },
-        signal: controller.signal
-      });
-      
-      clearTimeout(timeoutId);
-      
-      console.log('Response status:', response.status);
-      console.log('Response status text:', response.statusText);
-      console.log('Response headers:', response.headers);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('API Error Response:', errorText);
+      if (!quizResponse.value.ok) {
+        const errorText = await quizResponse.value.text();
+        console.error('Quiz API Error Response:', errorText);
         
-        // Try to provide more specific error information
-        if (response.status === 404) {
+        if (quizResponse.value.status === 404) {
           throw new Error('Quiz not found. It may have been deleted or you may not have permission to access it.');
-        } else if (response.status === 401) {
+        } else if (quizResponse.value.status === 401) {
           throw new Error('Authentication failed. Please log in again.');
-        } else if (response.status === 403) {
+        } else if (quizResponse.value.status === 403) {
           throw new Error('Access denied. You do not have permission to view this quiz.');
-        } else if (response.status === 500) {
+        } else if (quizResponse.value.status === 500) {
           throw new Error('Server error. Please try again later.');
         } else {
-          throw new Error(`Failed to fetch quiz: ${response.status} ${response.statusText}`);
+          throw new Error(`Failed to fetch quiz: ${quizResponse.value.status} ${quizResponse.value.statusText}`);
         }
       }
       
-      const quizData = await response.json();
+      const quizData = await quizResponse.value.json();
       
       console.log('Quiz data loaded:', {
         quizId: quizData._id,
@@ -257,241 +245,67 @@ const QuizView = React.memo(function QuizView() {
         setCurrentQuestionIndex(0);
       }
 
-      // Check if student has already submitted this quiz (and fetch answers for review)
-      try {
-        const responseRes = await fetch(`${API_BASE}/api/quizzes/${quizId}/myscore?studentId=${user._id}&revealAnswers=true`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+      // Handle student response data (if exists)
+      if (responseResponse.status === 'fulfilled' && responseResponse.value.ok) {
+        const responseData = await responseResponse.value.json();
+        console.log('=== QUIZ RESPONSE DEBUG ===');
+        console.log('Quiz response data:', responseData);
         
-        if (responseRes.ok) {
-          const responseData = await responseRes.json();
-          console.log('=== QUIZ RESPONSE DEBUG ===');
-          console.log('Quiz response data:', responseData);
-          console.log('Checked answers structure:', responseData.checkedAnswers);
-          console.log('Answers structure:', responseData.answers);
+        if (responseData && responseData.score !== undefined) {
+          // Student has already submitted
+          console.log('Quiz already submitted:', responseData);
           
-          // Deep dive into the data structure
-          if (responseData.answers && Array.isArray(responseData.answers)) {
-            console.log('=== ANSWERS ARRAY ANALYSIS ===');
-            responseData.answers.forEach((answerObj, index) => {
-              console.log(`Answer ${index + 1}:`, {
-                fullObject: answerObj,
-                keys: Object.keys(answerObj),
-                answer: answerObj.answer,
-                value: answerObj.value,
-                text: answerObj.text,
-                choice: answerObj.choice,
-                type: typeof answerObj.answer,
-                isNull: answerObj.answer === null,
-                isUndefined: answerObj.answer === undefined
-              });
-            });
-          }
+          // Performance optimization: Use pre-calculated values and reduce expensive operations
+          const calculatedTotal = responseData.total || quizData.points || 100;
+          const percentage = responseData.percentage || Math.round(((responseData.score || 0) / calculatedTotal) * 100);
           
-          if (responseData.checkedAnswers && Array.isArray(responseData.checkedAnswers)) {
-            console.log('=== CHECKED ANSWERS ANALYSIS ===');
-            responseData.checkedAnswers.forEach((check, index) => {
-              console.log(`Checked Answer ${index + 1}:`, {
-                fullObject: check,
-                keys: Object.keys(check),
-                correct: check.correct,
-                studentAnswer: check.studentAnswer,
-                correctAnswer: check.correctAnswer,
-                studentAnswerType: typeof check.studentAnswer,
-                correctAnswerType: typeof check.correctAnswer
-              });
-            });
-          }
-          
-          if (responseData && responseData.score !== undefined) {
-            // Student has already submitted
-            console.log('Quiz already submitted:', responseData);
-            
-            // Performance optimization: Use pre-calculated values and reduce expensive operations
-            const calculatedTotal = responseData.total || quizData.points || 100;
-            const percentage = responseData.percentage || Math.round(((responseData.score || 0) / calculatedTotal) * 100);
-            
-            console.log('Score data received:', {
-              score: responseData.score,
-              total: responseData.total,
-              quizDataPoints: quizData.points,
-              calculatedTotal: calculatedTotal
-            });
-            
-            setQuizResult({
-              score: responseData.score || 0,
-              totalPoints: calculatedTotal,
-              percentage: percentage,
-              timeSpent: responseData.timeSpent || 0,
-              submittedAt: responseData.submittedAt || null,
-            });
-            
-            if (Array.isArray(responseData.checkedAnswers)) {
-              console.log('Checked answers array length:', responseData.checkedAnswers.length);
-              // Log each checked answer for debugging
-              responseData.checkedAnswers.forEach((check, idx) => {
-                console.log(`Question ${idx + 1} check:`, {
-                  correct: check.correct,
-                  studentAnswer: check.studentAnswer,
-                  correctAnswer: check.correctAnswer,
-                  type: typeof check.correctAnswer,
-                  isArray: Array.isArray(check.correctAnswer)
-                });
-              });
-              setQuizCheckedAnswers(responseData.checkedAnswers);
-            } else {
-              console.log('No checked answers array found');
-              setQuizCheckedAnswers([]);
-            }
-            
-            // Performance optimization: Simplified answer processing
-            if (responseData.answers && Array.isArray(responseData.answers)) {
-              const previousAnswers = {};
-              responseData.answers.forEach((answerObj, index) => {
-                // Extract the actual answer value from the answer object
-                const answerValue = answerObj.answer || answerObj.value || answerObj.text || answerObj.choice || '';
-                previousAnswers[index] = answerValue;
-              });
-              setAnswers(previousAnswers);
-            } else if (responseData.checkedAnswers && Array.isArray(responseData.checkedAnswers)) {
-              // If no answers array, try to extract from checkedAnswers
-              const extractedAnswers = {};
-              responseData.checkedAnswers.forEach((check, index) => {
-                if (check.studentAnswer !== undefined && check.studentAnswer !== null) {
-                  extractedAnswers[index] = check.studentAnswer;
-                }
-              });
-              if (Object.keys(extractedAnswers).length > 0) {
-                setAnswers(extractedAnswers);
-              }
-            }
-            
-            // Performance optimization: Create fallback answers only if needed
-            if (Object.keys(answers).length === 0 && quizData.questions) {
-              const fallbackAnswers = {};
-              quizData.questions.forEach((_, index) => {
-                fallbackAnswers[index] = 'Answer not loaded';
-              });
-              setAnswers(fallbackAnswers);
-            }
-            
-            // If explicitly in review mode, render full quiz with answers (no modal)
-            if (review) {
-              console.log('Setting review mode from navigation prop');
-              setIsReviewMode(true);
-              
-              // Ensure we have quizResult set for review mode
-              if (!quizResult) {
-                console.log('Setting quizResult for review mode');
-                setQuizResult({
-                  score: responseData.score || 0,
-                  totalPoints: calculatedTotal,
-                  percentage: responseData.percentage || Math.round(((responseData.score || 0) / calculatedTotal) * 100),
-                  timeSpent: responseData.timeSpent || 0,
-                  submittedAt: responseData.submittedAt || null,
-                });
-              }
-            } else {
-              console.log('Setting review mode from quiz submission');
-              setShowResultsModal(true);
-              setIsReviewMode(true);
-            }
-          }
-        } else {
-          console.log('Response not ok:', responseRes.status);
-          
-          // Performance optimization: Create fallback data only if needed
-          if (review) {
-            console.log('Creating fallback quizResult for review mode');
-            const calculatedTotal = quizData.points || 100; // Use pre-calculated value
-            setQuizResult({
-              score: 0,
-              totalPoints: calculatedTotal,
-              percentage: 0,
-              timeSpent: 0,
-              submittedAt: null,
-            });
-            
-            // Create fallback answers for review mode
-            const fallbackAnswers = {};
-            quizData.questions.forEach((_, index) => {
-              fallbackAnswers[index] = 'Answer not loaded';
-            });
-            setAnswers(fallbackAnswers);
-            
-            // Create fallback checkedAnswers for review mode
-            const fallbackCheckedAnswers = [];
-            quizData.questions.forEach((_, index) => {
-              fallbackCheckedAnswers.push({
-                correct: false,
-                studentAnswer: 'Answer not loaded',
-                correctAnswer: null
-              });
-            });
-            setQuizCheckedAnswers(fallbackCheckedAnswers);
-          }
-        }
-      } catch (responseError) {
-        console.log('Error checking quiz response:', responseError);
-        
-        // If in review mode but error occurred, create a basic quizResult
-        if (review) {
-          console.log('Creating fallback quizResult due to error');
-          const calculatedTotal = quizData.questions.reduce((sum, q) => sum + (q.points || 1), 0);
           setQuizResult({
-            score: 0,
+            score: responseData.score || 0,
             totalPoints: calculatedTotal,
-            percentage: 0,
-            timeSpent: 0,
-            submittedAt: null,
+            percentage: percentage,
+            timeSpent: responseData.timeSpent || 0,
+            submittedAt: responseData.submittedAt || null,
           });
           
-          // Also create fallback answers for review mode
-          const fallbackAnswers = {};
-          quizData.questions.forEach((_, index) => {
-            fallbackAnswers[index] = 'Answer not loaded';
-          });
-          setAnswers(fallbackAnswers);
+          if (Array.isArray(responseData.checkedAnswers)) {
+            setQuizCheckedAnswers(responseData.checkedAnswers);
+          } else {
+            setQuizCheckedAnswers([]);
+          }
           
-          // Create fallback checkedAnswers for review mode
-          const fallbackCheckedAnswers = [];
-          quizData.questions.forEach((_, index) => {
-            fallbackCheckedAnswers.push({
-              correct: false,
-              studentAnswer: 'Answer not loaded',
-              correctAnswer: null
+          // Performance optimization: Simplified answer processing
+          if (responseData.answers && Array.isArray(responseData.answers)) {
+            const previousAnswers = {};
+            responseData.answers.forEach((answerObj, index) => {
+              const answerValue = answerObj.answer || answerObj.value || answerObj.text || answerObj.choice || '';
+              previousAnswers[index] = answerValue;
             });
-          });
-          setQuizCheckedAnswers(fallbackCheckedAnswers);
+            setAnswers(previousAnswers);
+          }
+          
+          // If explicitly in review mode, render full quiz with answers (no modal)
+          if (review) {
+            console.log('Setting review mode from navigation prop');
+            setIsReviewMode(true);
+          } else {
+            console.log('Setting review mode from quiz submission');
+            setShowResultsModal(true);
+            setIsReviewMode(true);
+          }
         }
+      } else {
+        console.log('No previous quiz response found or error occurred');
+        setQuizCheckedAnswers([]);
       }
-          } catch (error) {
-        console.error('Error fetching quiz:', error);
-        
-        // Handle specific error types
-        let errorMessage = error.message || 'Failed to load quiz';
-        
-        if (error.name === 'AbortError') {
-          errorMessage = 'Request timed out. Please check your internet connection and try again.';
-        } else if (error.message.includes('Network request failed')) {
-          errorMessage = 'Network error. Please check your internet connection and try again.';
-        }
-        
-        // Log additional debugging information
-        console.log('Quiz fetch error details:', {
-          quizId,
-          error: error.message,
-          errorName: error.name,
-          user: user ? { id: user._id, name: user.firstname } : null,
-          timestamp: new Date().toISOString()
-        });
-        
-        // Set error state for better user experience
-        setError(errorMessage);
-        setLoading(false);
-        
-        // Don't navigate back immediately, let user see the error and retry
-      }
+      
+    } catch (error) {
+      console.error('Error fetching quiz:', error);
+      setError(error.message);
+      setQuiz(null);
+      setAnswers({});
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Performance optimization: Memoize event handlers

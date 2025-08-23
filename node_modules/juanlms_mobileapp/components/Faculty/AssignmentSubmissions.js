@@ -28,7 +28,7 @@ export default function AssignmentSubmissions() {
     try {
       setLoading(true);
       const token = await AsyncStorage.getItem('jwtToken');
-      const res = await fetch(`${API_BASE}/api/assignments/${assignmentId}/submissions`, {
+      const res = await fetch(`${API_BASE}/assignments/${assignmentId}/submissions`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error('Failed to load submissions');
@@ -55,7 +55,7 @@ export default function AssignmentSubmissions() {
       }
       setSaving(prev => ({ ...prev, [submission._id]: true }));
       const token = await AsyncStorage.getItem('jwtToken');
-      const res = await fetch(`${API_BASE}/api/assignments/${assignmentId}/grade`, {
+      const res = await fetch(`${API_BASE}/assignments/${assignmentId}/grade`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ submissionId: submission._id, grade: gradeVal, feedback: '' }),
