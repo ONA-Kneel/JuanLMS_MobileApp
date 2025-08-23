@@ -18,7 +18,7 @@ export const AnnouncementProvider = ({ children }) => {
   const [loadingAcknowledged, setLoadingAcknowledged] = useState(false);
 
   // API base URL - Use the same render server as the web application
-  const API_BASE = 'https://juanlms-webapp-server.onrender.com/api';
+  const API_BASE = 'https://juanlms-webapp-server.onrender.com';
 
   // Fetch announcements based on user role
   const fetchAnnouncements = async () => {
@@ -28,7 +28,7 @@ export const AnnouncementProvider = ({ children }) => {
       
       if (!token) return;
       
-      const response = await fetch(`${API_BASE}/general-announcements`, {
+      const response = await fetch(`${API_BASE}/api/general-announcements`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -58,7 +58,7 @@ export const AnnouncementProvider = ({ children }) => {
       
       if (!token) return;
       
-      const response = await fetch(`${API_BASE}/general-announcements/acknowledged`, {
+      const response = await fetch(`${API_BASE}/api/general-announcements/acknowledged`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -87,7 +87,7 @@ export const AnnouncementProvider = ({ children }) => {
       
       if (!token) return false;
       
-      const response = await fetch(`${API_BASE}/general-announcements/${announcementId}/acknowledge`, {
+      const response = await fetch(`${API_BASE}/api/general-announcements/${announcementId}/acknowledge`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

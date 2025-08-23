@@ -16,8 +16,44 @@ export const NotificationProvider = ({ children }) => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
 
+  // Auto-fetch notifications when context is initialized
+  useEffect(() => {
+    const initializeNotifications = async () => {
+      try {
+        const user = await AsyncStorage.getItem('user');
+        if (user) {
+          const userData = JSON.parse(user);
+          if (userData._id) {
+            await fetchNotifications(userData._id);
+          }
+        }
+      } catch (error) {
+        console.error('Error initializing notifications:', error);
+      }
+    };
+
+    initializeNotifications();
+    
+    // Set up interval to refresh notifications every 30 seconds (like web app)
+    const interval = setInterval(async () => {
+      try {
+        const user = await AsyncStorage.getItem('user');
+        if (user) {
+          const userData = JSON.parse(user);
+          if (userData._id) {
+            await fetchNotifications(userData._id);
+          }
+        }
+      } catch (error) {
+        console.error('Error refreshing notifications:', error);
+      }
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, []);
+
   // API base URL - Use the same render server as the web application
-  const API_BASE = 'https://juanlms-webapp-server.onrender.com/api';
+  const API_BASE = 'https://juanlms-webapp-server.onrender.com';
 
   // Fetch notifications for a user
   const fetchNotifications = async (userId) => {
@@ -39,7 +75,7 @@ export const NotificationProvider = ({ children }) => {
         setNotifications(data);
         updateUnreadCount(data);
       } else {
-        console.error('Failed to fetch notifications');
+        console.error('Failed to fetch notifications:', response.status);
         setNotifications([]);
         setUnreadCount(0);
       }
@@ -123,9 +159,32 @@ export const NotificationProvider = ({ children }) => {
   };
 
   // Refresh notifications
-  const refreshNotifications = (userId) => {
-    if (userId) {
-      fetchNotifications(userId);
+  const refreshNotifications = async () => {
+    try {
+      const user = await AsyncStorage.getItem('user');
+      if (user) {
+        const userData = JSON.parse(user);
+        if (userData._id) {
+          await fetchNotifications(userData._id);
+        }
+      }
+    } catch (error) {
+      console.error('Error refreshing notifications:', error);
+    }
+  };
+
+  // Get current user ID
+  const getCurrentUserId = async () => {
+    try {
+      const user = await AsyncStorage.getItem('user');
+      if (user) {
+        const userData = JSON.parse(user);
+        return userData._id;
+      }
+      return null;
+    } catch (error) {
+      console.error('Error getting user ID:', error);
+      return null;
     }
   };
 
@@ -137,6 +196,7 @@ export const NotificationProvider = ({ children }) => {
     markAsRead,
     markAllAsRead,
     refreshNotifications,
+    getCurrentUserId,
   };
 
   return (
