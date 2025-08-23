@@ -138,7 +138,7 @@ export default function FacultyProfile() {
       >
         <View style={FacultyProfileStyle.modalContainer}>
           <View style={FacultyProfileStyle.modalContent}>
-            <Text style={FacultyProfileStyle.modalTitle}>Edit Profile</Text>
+            <Text style={[FacultyProfileStyle.modalTitle, { fontFamily: 'Poppins-Bold' }]}>Edit Profile</Text>
             <TouchableOpacity onPress={pickImage} style={FacultyProfileStyle.imagePicker}>
               <Image
                 source={editedUser?.newProfilePicAsset
@@ -149,7 +149,7 @@ export default function FacultyProfile() {
                 style={FacultyProfileStyle.avatar}
                 resizeMode="cover"
               />
-              <Text style={FacultyProfileStyle.imagePickerText}>change photo</Text>
+              <Text style={[FacultyProfileStyle.imagePickerText, { fontFamily: 'Poppins-Regular' }]}>change photo</Text>
             </TouchableOpacity>
             <View style={FacultyProfileStyle.modalButtons}>
               <TouchableOpacity 
@@ -157,7 +157,7 @@ export default function FacultyProfile() {
                 onPress={() => setIsEditModalVisible(false)}
                 disabled={isLoading}
               >
-                <Text style={FacultyProfileStyle.buttonText}>cancel</Text>
+                <Text style={[FacultyProfileStyle.buttonText, { fontFamily: 'Poppins-Regular' }]}>cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity 
                 style={[FacultyProfileStyle.modalButton, FacultyProfileStyle.saveButton]} 
@@ -167,7 +167,7 @@ export default function FacultyProfile() {
                 {isLoading ? (
                   <ActivityIndicator size="small" color="#00418b" />
                 ) : (
-                  <Text style={FacultyProfileStyle.buttonText}>save changes</Text>
+                  <Text style={[FacultyProfileStyle.buttonText, { fontFamily: 'Poppins-Regular' }]}>save changes</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -178,18 +178,20 @@ export default function FacultyProfile() {
       <View style={FacultyProfileStyle.card}>
         <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }} onPress={pickImage}>
           <Feather name="edit" size={15} color="#00418b" style={{ marginRight: 6 }} />
-          <Text style={FacultyProfileStyle.actionText}>Change Photo</Text>
+          <Text style={[FacultyProfileStyle.actionText, { fontFamily: 'Poppins-Regular' }]}>Change Photo</Text>
         </TouchableOpacity>
-        <Text style={FacultyProfileStyle.name}>{user.firstname} {user.lastname} <Text style={FacultyProfileStyle.emoji}>🎓</Text></Text>
-        <Text style={FacultyProfileStyle.email}>{user.email}</Text>
+        <Text style={[FacultyProfileStyle.name, { fontFamily: 'Poppins-Bold' }]}>
+          {user.firstname} {user.lastname} <Text style={FacultyProfileStyle.emoji}>🎓</Text>
+        </Text>
+        <Text style={[FacultyProfileStyle.email, { fontFamily: 'Poppins-Regular' }]}>{user.email}</Text>
         <View style={FacultyProfileStyle.row}>
           <View style={FacultyProfileStyle.infoBox}>
-            <Text style={FacultyProfileStyle.infoLabel}>College</Text>
-            <Text style={FacultyProfileStyle.infoValue}>{user.college || 'N/A'}</Text>
+            <Text style={[FacultyProfileStyle.infoLabel, { fontFamily: 'Poppins-Regular' }]}>College</Text>
+            <Text style={[FacultyProfileStyle.infoValue, { fontFamily: 'Poppins-SemiBold' }]}>{user.college || 'N/A'}</Text>
           </View>
           <View style={FacultyProfileStyle.infoBox}>
-            <Text style={FacultyProfileStyle.infoLabel}>Role</Text>
-            <Text style={FacultyProfileStyle.infoValue}>Faculty</Text>
+            <Text style={[FacultyProfileStyle.infoLabel, { fontFamily: 'Poppins-Regular' }]}>Role</Text>
+            <Text style={[FacultyProfileStyle.infoValue, { fontFamily: 'Poppins-SemiBold' }]}>Faculty</Text>
           </View>
         </View>
         <View style={FacultyProfileStyle.actionRow}>
@@ -199,14 +201,14 @@ export default function FacultyProfile() {
           </TouchableOpacity> */}
           <TouchableOpacity style={FacultyProfileStyle.actionBtn}>
             <Feather name="lock" size={20} color="#00418b" />
-            <Text style={FacultyProfileStyle.actionText}>Password</Text>
+            <Text style={[FacultyProfileStyle.actionText, { fontFamily: 'Poppins-Regular' }]}>Password</Text>
           </TouchableOpacity>
           <TouchableOpacity 
             style={FacultyProfileStyle.actionBtn}
             onPress={() => setShowNotificationCenter(true)}
           >
             <Feather name="bell" size={20} color="#00418b" />
-            <Text style={FacultyProfileStyle.actionText}>Notifications</Text>
+            <Text style={[FacultyProfileStyle.actionText, { fontFamily: 'Poppins-Regular' }]}>Notifications</Text>
             {unreadCount > 0 && (
               <View style={{
                 position: 'absolute',
@@ -231,7 +233,7 @@ export default function FacultyProfile() {
           </TouchableOpacity>
           <TouchableOpacity style={FacultyProfileStyle.actionBtn} onPress={goToSupportCenter}>
             <Feather name="help-circle" size={20} color="#00418b" />
-            <Text style={FacultyProfileStyle.actionText}>Support Center</Text>
+            <Text style={[FacultyProfileStyle.actionText, { fontFamily: 'Poppins-Regular' }]}>Support Center</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -256,7 +258,7 @@ export default function FacultyProfile() {
       </ScrollView> */}
       {/* Logout Button */}
       <TouchableOpacity style={FacultyProfileStyle.logout} onPress={logout}>
-        <Text style={FacultyProfileStyle.logoutText}>Log Out</Text>
+        <Text style={[FacultyProfileStyle.logoutText, { fontFamily: 'Poppins-Regular' }]}>Log Out</Text>
       </TouchableOpacity>
       
       {/* Notification Center */}
