@@ -1,7 +1,44 @@
-# Auto detect text files and perform LF normalization
-* text=auto
+# Auto detect text files and enforce LF normalization
+* text=auto eol=lf
+
+# Shell scripts
 *.sh text eol=lf
+
+# Gradle / Android
 *.gradle text eol=lf
+*.properties text eol=lf
+*.pro text eol=lf
+*.xml text eol=lf
+
+# Kotlin / Java
 *.kt text eol=lf
 *.java text eol=lf
-*.xml text eol=lf
+
+# JavaScript / TypeScript
+*.js text eol=lf
+*.jsx text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+
+# Config / Data files
+*.json text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.md text eol=lf
+*.txt text eol=lf
+
+# OS / IDE files (keep binary as-is)
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.lock binary
+*.zip binary
+*.jar binary
+*.keystore binary
+*.jks binary
+*.p8 binary
+*.p12 binary
+*.key binary
+*.mobileprovision binary
