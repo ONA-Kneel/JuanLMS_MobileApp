@@ -4,11 +4,14 @@ import { MaterialIcons, Feather } from '@expo/vector-icons';
 import AdminProfileStyle from '../styles/administrator/AdminProfileStyle';
 import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../UserContext';
+import { useNotifications } from '../../NotificationContext';
+import { useAnnouncements } from '../../AnnouncementContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { addAuditLog } from './auditTrailUtils';
 import profileService from '../../services/profileService';
 import { updateUser } from '../UserContext';
 import * as ImagePicker from 'expo-image-picker';
+import NotificationCenter from '../NotificationCenter';
 
 const API_URL = 'https://juanlms-webapp-server.onrender.com';
 
@@ -16,7 +19,10 @@ const API_URL = 'https://juanlms-webapp-server.onrender.com';
 export default function AdminProfile() {
   const { user } = useUser();
   const navigation = useNavigation();
+  const { unreadCount } = useNotifications();
+  const { announcements } = useAnnouncements();
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
+  const [showNotificationCenter, setShowNotificationCenter] = useState(false);
   const [editedUser, setEditedUser] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -134,7 +140,7 @@ export default function AdminProfile() {
       >
         <View style={AdminProfileStyle.modalContainer}>
           <View style={AdminProfileStyle.modalContent}>
-            <Text style={AdminProfileStyle.modalTitle}>Edit Profile</Text>
+            <Text style={[AdminProfileStyle.modalTitle, { fontFamily: 'Poppins-Bold' }]}>Edit Profile</Text>
             <TouchableOpacity onPress={pickImage} style={AdminProfileStyle.imagePicker}>
               <Image
                 source={editedUser?.newProfilePicAsset
@@ -145,7 +151,7 @@ export default function AdminProfile() {
                 style={AdminProfileStyle.avatar}
                 resizeMode="cover"
               />
-              <Text style={AdminProfileStyle.imagePickerText}>change photo</Text>
+              <Text style={[AdminProfileStyle.imagePickerText, { fontFamily: 'Poppins-Regular' }]}>change photo</Text>
             </TouchableOpacity>
             <View style={AdminProfileStyle.modalButtons}>
               <TouchableOpacity 
@@ -153,7 +159,7 @@ export default function AdminProfile() {
                 onPress={() => setIsEditModalVisible(false)}
                 disabled={isLoading}
               >
-                <Text style={AdminProfileStyle.buttonText}>cancel</Text>
+                <Text style={[AdminProfileStyle.buttonText, { fontFamily: 'Poppins-Regular' }]}>cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity 
                 style={[AdminProfileStyle.modalButton, AdminProfileStyle.saveButton]} 
@@ -163,7 +169,7 @@ export default function AdminProfile() {
                 {isLoading ? (
                   <ActivityIndicator size="small" color="#00418b" />
                 ) : (
-                  <Text style={AdminProfileStyle.buttonText}>save changes</Text>
+                  <Text style={[AdminProfileStyle.buttonText, { fontFamily: 'Poppins-Regular' }]}>save changes</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -172,32 +178,53 @@ export default function AdminProfile() {
       </Modal>
       {/* Card */}
       <View style={AdminProfileStyle.card}>
-        <Text style={AdminProfileStyle.name}>{user.firstname} {user.lastname} <Text style={AdminProfileStyle.emoji}>🎓</Text></Text>
-        <Text style={AdminProfileStyle.email}>{user.email}</Text>
+        <Text style={[AdminProfileStyle.name, { fontFamily: 'Poppins-Bold' }]}>{user.firstname} {user.lastname} <Text style={AdminProfileStyle.emoji}>🎓</Text></Text>
+        <Text style={[AdminProfileStyle.email, { fontFamily: 'Poppins-Regular' }]}>{user.email}</Text>
         
-                  <View style={AdminProfileStyle.actionRow}>
-            <TouchableOpacity 
-              style={AdminProfileStyle.actionBtn}
-              onPress={() => setIsEditModalVisible(true)}
-            >
-              <Feather name="edit" size={20} color="#00418b" />
-              <Text style={AdminProfileStyle.actionText}>Edit</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={AdminProfileStyle.actionBtn}
-              onPress={() => navigation.navigate('ChangePassword')}
-            >
-              <Feather name="lock" size={20} color="#00418b" />
-              <Text style={AdminProfileStyle.actionText}>Password</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={AdminProfileStyle.actionBtn}
-              onPress={() => navigation.navigate('Notifications')}
-            >
-              <Feather name="bell" size={20} color="#00418b" />
-              <Text style={AdminProfileStyle.actionText}>Notify</Text>
-            </TouchableOpacity>
-          </View>
+        <View style={AdminProfileStyle.actionRow}>
+          <TouchableOpacity 
+            style={AdminProfileStyle.actionBtn}
+            onPress={() => setIsEditModalVisible(true)}
+          >
+            <Feather name="edit" size={20} color="#00418b" />
+            <Text style={[AdminProfileStyle.actionText, { fontFamily: 'Poppins-Regular' }]}>Edit</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={AdminProfileStyle.actionBtn}
+            onPress={() => navigation.navigate('ChangePassword')}
+          >
+            <Feather name="lock" size={20} color="#00418b" />
+            <Text style={[AdminProfileStyle.actionText, { fontFamily: 'Poppins-Regular' }]}>Password</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={AdminProfileStyle.actionBtn}
+            onPress={() => setShowNotificationCenter(true)}
+          >
+            <Feather name="bell" size={20} color="#00418b" />
+            <Text style={[AdminProfileStyle.actionText, { fontFamily: 'Poppins-Regular' }]}>Notifications</Text>
+            {unreadCount > 0 && (
+              <View style={{
+                position: 'absolute',
+                top: -5,
+                right: -5,
+                backgroundColor: '#ff4444',
+                borderRadius: 10,
+                minWidth: 20,
+                height: 20,
+                justifyContent: 'center',
+                alignItems: 'center',
+              }}>
+                <Text style={{
+                  color: 'white',
+                  fontSize: 12,
+                  fontFamily: 'Poppins-Bold',
+                }}>
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
       {/* Settings List (optional) */}
       {/* <ScrollView style={AdminProfileStyle.settingsList}>
@@ -220,8 +247,14 @@ export default function AdminProfile() {
       </ScrollView> */}
       {/* Logout Button */}
       <TouchableOpacity style={AdminProfileStyle.logout} onPress={logout}>
-        <Text style={AdminProfileStyle.logoutText}>Log Out</Text>
+        <Text style={[AdminProfileStyle.logoutText, { fontFamily: 'Poppins-Regular' }]}>Log Out</Text>
       </TouchableOpacity>
+      
+      {/* Notification Center */}
+      <NotificationCenter 
+        visible={showNotificationCenter} 
+        onClose={() => setShowNotificationCenter(false)} 
+      />
     </View>
   );
 }
