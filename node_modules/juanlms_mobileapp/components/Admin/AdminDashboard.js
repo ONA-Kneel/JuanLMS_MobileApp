@@ -1,5 +1,5 @@
 import { Text, TouchableOpacity, View, ScrollView, Image, Dimensions, ActivityIndicator, RefreshControl } from 'react-native';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import AdminDashStyle from '../styles/administrator/AdminDashStyle';
 import { useUser } from '../UserContext';
@@ -15,7 +15,7 @@ export default function AdminDashboard() {
   const { user } = useUser();
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
   const [recentLogs, setRecentLogs] = useState([]);
-     const [userStats, setUserStats] = useState({ admin: 0, faculty: 0, student: 0 });
+  const [userStats, setUserStats] = useState({ admin: 0, faculty: 0, student: 0 });
   const [schoolYearProgress, setSchoolYearProgress] = useState(0);
   const [termProgress, setTermProgress] = useState(0);
   const [lastLogins, setLastLogins] = useState([]);
@@ -36,91 +36,133 @@ export default function AdminDashboard() {
     return () => clearInterval(timer);
   }, []);
 
-  // Fetch dashboard data
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
+  // Test function to debug admin access
+  const testAdminAccess = async () => {
+    try {
+      console.log('DEBUG: Testing admin access...');
+      const token = await AsyncStorage.getItem('jwtToken');
+      const userData = await AsyncStorage.getItem('user');
+      
+      console.log('DEBUG: Stored token:', token ? 'Present' : 'Missing');
+      console.log('DEBUG: Stored user data:', userData ? JSON.parse(userData) : 'Missing');
+      
+      if (token) {
+        // Test API call
+        const response = await fetch('https://juanlms-webapp-server.onrender.com/api/admin/user-stats', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
         
-        // Fetch from admin service
-        const data = await adminService.getDashboardSummary();
-        
-        if (data && data.userStats) {
-          setUserStats(data.userStats);
-        }
-        if (data && data.recentLogins) {
-          setLastLogins(data.recentLogins);
-        }
-        if (data && data.auditPreview) {
-          setRecentLogs(data.auditPreview);
-        }
-        if (data && data.academicProgress) {
-          setSchoolYearProgress(data.academicProgress.schoolYear || 0);
-          setTermProgress(data.academicProgress.term || 0);
-        }
-        
-      } catch (error) {
-        console.error('Error fetching dashboard data:', error);
-        setError('Failed to load dashboard data');
-        
-                 // Fallback to mock data if all else fails
-         setUserStats({ admin: 1, faculty: 8, student: 17 });
-         setLastLogins([
-           { userName: 'Rochelle Borre', role: 'students' },
-           { userName: 'Niel Nathan Borre', role: 'faculty' },
-           { userName: 'Roman Cyril Panganiban', role: 'faculty' },
-           { userName: 'hatdog asd', role: 'students' },
-         ]);
-        setRecentLogins([
-          { timestamp: '2025-08-03T12:43:56', userName: 'Will Bianca', action: 'Login' },
-          { timestamp: '2025-07-22T00:06:11', userName: 'Rochelle Borre', action: 'Login' },
-          { timestamp: '2025-07-20T23:23:40', userName: 'Niel Nathan Borre', action: 'Login' },
-          { timestamp: '2025-07-13T01:59:20', userName: 'Roman Cyril Panganiban', action: 'Login' },
-          { timestamp: '2025-07-05T19:04:07', userName: 'hatdog asd', action: 'Login' },
-        ]);
-        
-        // Calculate fallback progress using the same logic as web app
-        const now = new Date();
-        const schoolYearStart = new Date('2025-06-01');
-        const schoolYearEnd = new Date('2026-04-30');
-        const termStart = new Date('2025-08-01');
-        const termEnd = new Date('2025-12-15');
-        
-        // Calculate school year progress like web app
-        let schoolYearPercent = 0;
-        if (now < schoolYearStart) {
-            schoolYearPercent = 0;
-        } else if (now > schoolYearEnd) {
-            schoolYearPercent = 100;
+        console.log('DEBUG: API test response status:', response.status);
+        if (response.ok) {
+          const data = await response.json();
+          console.log('DEBUG: API test response data:', data);
         } else {
-            const schoolYearTotal = schoolYearEnd - schoolYearStart;
-            const schoolYearElapsed = now - schoolYearStart;
-            schoolYearPercent = Math.floor((schoolYearElapsed / schoolYearTotal) * 100);
+          console.log('DEBUG: API test failed:', response.statusText);
         }
-        
-        // Calculate term progress like web app
-        let termPercent = 0;
-        if (now < termStart) {
-            termPercent = 0;
-        } else if (now > termEnd) {
-            termPercent = 100;
-        } else {
-            const termTotal = termEnd - termStart;
-            const termElapsed = now - termStart;
-            termPercent = Math.floor((termElapsed / termTotal) * 100);
-        }
-        
-        setSchoolYearProgress(schoolYearPercent);
-        setTermProgress(termPercent);
-      } finally {
-        setLoading(false);
       }
-    };
+    } catch (error) {
+      console.error('DEBUG: Admin access test failed:', error);
+    }
+  };
 
-    fetchDashboardData();
-    fetchAcademicYear();
+  // Call test function on mount in development
+  useEffect(() => {
+    if (__DEV__) {
+      testAdminAccess();
+    }
   }, []);
+
+  // Fetch dashboard data
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      console.log('DEBUG: Fetching admin dashboard data...');
+      
+      // Fetch from admin service
+      const data = await adminService.getDashboardSummary();
+      console.log('DEBUG: Dashboard data received:', data);
+      
+      if (data && data.userStats) {
+        console.log('DEBUG: Setting user stats:', data.userStats);
+        setUserStats(data.userStats);
+      }
+      if (data && data.recentLogins) {
+        console.log('DEBUG: Setting recent logins:', data.recentLogins);
+        setLastLogins(data.recentLogins);
+      }
+      if (data && data.auditPreview) {
+        console.log('DEBUG: Setting audit preview:', data.auditPreview);
+        setRecentLogs(data.auditPreview);
+      }
+      if (data && data.academicProgress) {
+        console.log('DEBUG: Setting academic progress:', data.academicProgress);
+        setSchoolYearProgress(data.academicProgress.schoolYear || 0);
+        setTermProgress(data.academicProgress.term || 0);
+      }
+      
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+      setError('Failed to load dashboard data');
+      
+      // Fallback to mock data if all else fails
+      console.log('DEBUG: Using fallback data due to API error');
+      setUserStats({ admin: 1, faculty: 8, student: 17 });
+      setLastLogins([
+        { userName: 'Rochelle Borre', role: 'students' },
+        { userName: 'Niel Nathan Borre', role: 'faculty' },
+        { userName: 'Roman Cyril Panganiban', role: 'faculty' },
+        { userName: 'hatdog asd', role: 'students' },
+      ]);
+      setRecentLogs([
+        { timestamp: '2025-08-03T12:43:56', userName: 'Will Bianca', action: 'Login' },
+        { timestamp: '2025-07-22T00:06:11', userName: 'Rochelle Borre', action: 'Login' },
+        { timestamp: '2025-07-20T23:23:40', userName: 'Niel Nathan Borre', action: 'Login' },
+        { timestamp: '2025-07-13T01:59:20', userName: 'Roman Cyril Panganiban', action: 'Login' },
+        { timestamp: '2025-07-05T19:04:07', userName: 'hatdog asd', action: 'Login' },
+      ]);
+      
+      // Calculate fallback progress using the same logic as web app
+      const now = new Date();
+      const schoolYearStart = new Date('2025-06-01');
+      const schoolYearEnd = new Date('2026-04-30');
+      const termStart = new Date('2025-08-01');
+      const termEnd = new Date('2025-12-15');
+      
+      // Calculate school year progress like web app
+      let schoolYearPercent = 0;
+      if (now < schoolYearStart) {
+          schoolYearPercent = 0;
+      } else if (now > schoolYearEnd) {
+          schoolYearPercent = 100;
+      } else {
+          const schoolYearTotal = schoolYearEnd - schoolYearStart;
+          const schoolYearElapsed = now - schoolYearStart;
+          schoolYearPercent = Math.floor((schoolYearElapsed / schoolYearTotal) * 100);
+      }
+      
+      // Calculate term progress like web app
+      let termPercent = 0;
+      if (now < termStart) {
+          termPercent = 0;
+      } else if (now > termEnd) {
+          termPercent = 100;
+      } else {
+          const termTotal = termEnd - termStart;
+          const termElapsed = now - termStart;
+          termPercent = Math.floor((termElapsed / termTotal) * 100);
+      }
+      
+      setSchoolYearProgress(schoolYearPercent);
+      setTermProgress(termPercent);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchAcademicYear = async () => {
     try {
@@ -160,6 +202,12 @@ export default function AdminDashboard() {
       console.error('Error fetching academic year:', error);
     }
   };
+
+  // Fetch dashboard data on mount
+  useEffect(() => {
+    fetchDashboardData();
+    fetchAcademicYear();
+  }, []);
 
   // Generate calendar days
   useEffect(() => {
@@ -254,8 +302,6 @@ export default function AdminDashboard() {
     }
   };
 
-  
-
   // Format date for display
   const formatDate = (dateString) => {
     if (!dateString) return 'Never';
@@ -272,50 +318,111 @@ export default function AdminDashboard() {
 
   if (loading) {
     return (
-      <View style={[AdminDashStyle.container, { justifyContent: 'center', alignItems: 'center' }]}>
+      <View style={AdminDashStyle.loadingContainer}>
         <ActivityIndicator size="large" color="#00418b" />
-        <Text style={{ marginTop: 16, fontFamily: 'Poppins-Regular', color: '#666' }}>
-          Loading dashboard...
-        </Text>
+        <Text style={AdminDashStyle.loadingText}>Loading Admin Dashboard...</Text>
       </View>
     );
   }
 
+  if (error) {
+    return (
+      <View style={AdminDashStyle.errorContainer}>
+        <MaterialIcons name="error" size={64} color="#f44336" />
+        <Text style={AdminDashStyle.errorTitle}>Dashboard Error</Text>
+        <Text style={AdminDashStyle.errorText}>{error}</Text>
+        <TouchableOpacity style={AdminDashStyle.retryButton} onPress={() => {
+          setError(null);
+          setLoading(true);
+          // Trigger a refresh by calling the data fetching functions
+          fetchDashboardData();
+          fetchAcademicYear();
+        }}>
+          <Text style={AdminDashStyle.retryButtonText}>Retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  // Debug info (remove in production)
+  console.log('DEBUG: AdminDashboard render state:', {
+    hasUser: !!user,
+    userId: user?._id,
+    userRole: user?.role,
+    userStats,
+    lastLogins: lastLogins?.length,
+    recentLogs: recentLogs?.length
+  });
+
   return (
     <View style={AdminDashStyle.container}>
       {/* Blue background */}
-      <View style={AdminDashStyle.blueBackground} />
+      <View style={AdminDashStyle.blueHeaderBackground} />
       
-      {/* Header */}
-      <View style={AdminDashStyle.headerCard}>
-        <View style={AdminDashStyle.headerContent}>
+      {/* White card header */}
+      <View style={AdminDashStyle.whiteHeaderCard}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <View>
-            <Text style={AdminDashStyle.greetingText}>
-              Hello, <Text style={AdminDashStyle.userName}>{user?.firstname || 'Admin'}!</Text>
+            <Text style={AdminDashStyle.headerTitle}>
+              Hello, <Text style={{ fontWeight: 'bold', fontFamily: 'Poppins-Bold' }}>{user?.firstname || 'Admin'}!</Text>
             </Text>
-            <Text style={AdminDashStyle.academicContext}>
-              {academicContext}
-            </Text>
-            <Text style={AdminDashStyle.dateText}>
-              {formatDateTime(currentDateTime)}
-            </Text>
+            <Text style={AdminDashStyle.headerSubtitle}>{academicContext}</Text>
+            <Text style={AdminDashStyle.headerSubtitle2}>{formatDateTime(currentDateTime)}</Text>
           </View>
           <TouchableOpacity onPress={() => navigateToScreen('AProfile')}>
             {user?.profilePicture ? (
               <Image 
                 source={{ uri: user.profilePicture }} 
-                style={AdminDashStyle.profileImage}
+                style={{ width: 36, height: 36, borderRadius: 18 }}
                 resizeMode="cover"
               />
             ) : (
               <Image 
                 source={require('../../assets/profile-icon (2).png')} 
-                style={AdminDashStyle.profileImage}
+                style={{ width: 36, height: 36, borderRadius: 18 }}
+                resizeMode="cover"
               />
             )}
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* Debug Info - Remove in production */}
+      {__DEV__ && (
+        <View style={{ padding: 10, backgroundColor: '#f0f0f0', margin: 10, borderRadius: 8 }}>
+          <Text style={{ fontFamily: 'Poppins-Bold', fontSize: 12, color: '#666' }}>DEBUG INFO:</Text>
+          <Text style={{ fontFamily: 'Poppins-Regular', fontSize: 10, color: '#666' }}>
+            User: {user?._id ? 'Logged In' : 'Not Logged In'}
+          </Text>
+          <Text style={{ fontFamily: 'Poppins-Regular', fontSize: 10, color: '#666' }}>
+            Role: {user?.role || 'Unknown'}
+          </Text>
+          <Text style={{ fontFamily: 'Poppins-Regular', fontSize: 10, color: '#666' }}>
+            Stats: {userStats ? 'Loaded' : 'Not Loaded'}
+          </Text>
+          <TouchableOpacity 
+            style={{ 
+              backgroundColor: '#00418b', 
+              padding: 8, 
+              borderRadius: 6, 
+              marginTop: 8,
+              alignSelf: 'center'
+            }}
+            onPress={() => {
+              console.log('DEBUG: Manual refresh triggered');
+              setLoading(true);
+              setError(null);
+              // Trigger a refresh by calling the data fetching functions
+              fetchDashboardData();
+              fetchAcademicYear();
+            }}
+          >
+            <Text style={{ color: '#fff', fontFamily: 'Poppins-Regular', fontSize: 12 }}>
+              Refresh Dashboard
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {error && (
         <View style={{ backgroundColor: '#fee', padding: 12, marginHorizontal: 20, borderRadius: 8, marginBottom: 10 }}>
@@ -336,55 +443,55 @@ export default function AdminDashboard() {
           />
         }
       >
-                 {/* Summary Cards */}
-         <View style={AdminDashStyle.summaryCardsContainer}>
-           {/* First Row - 3 cards */}
-           <View style={AdminDashStyle.summaryCard}>
-             <Icon name="account-cog" size={24} color="#00418b" />
-             <Text style={AdminDashStyle.summaryNumber}>{userStats.admin}</Text>
-             <Text style={AdminDashStyle.summaryLabel}>Admins</Text>
-           </View>
-           <View style={AdminDashStyle.summaryCard}>
-             <Icon name="account-tie" size={24} color="#00418b" />
-             <Text style={AdminDashStyle.summaryNumber}>{userStats.faculty}</Text>
-             <Text style={AdminDashStyle.summaryLabel}>Faculty</Text>
-           </View>
-           <View style={AdminDashStyle.summaryCard}>
-             <Icon name="school" size={24} color="#00418b" />
-             <Text style={AdminDashStyle.summaryNumber}>{userStats.student}</Text>
-             <Text style={AdminDashStyle.summaryLabel}>Students</Text>
-           </View>
-         </View>
+        {/* Summary Cards */}
+        <View style={AdminDashStyle.summaryCardsContainer}>
+          {/* First Row - 3 cards */}
+          <View style={AdminDashStyle.summaryCard}>
+            <MaterialIcons name="admin-panel-settings" size={24} color="#00418b" />
+            <Text style={AdminDashStyle.summaryNumber}>{userStats.admin}</Text>
+            <Text style={AdminDashStyle.summaryLabel}>Admins</Text>
+          </View>
+          <View style={AdminDashStyle.summaryCard}>
+            <MaterialIcons name="person" size={24} color="#00418b" />
+            <Text style={AdminDashStyle.summaryNumber}>{userStats.faculty}</Text>
+            <Text style={AdminDashStyle.summaryLabel}>Faculty</Text>
+          </View>
+          <View style={AdminDashStyle.summaryCard}>
+            <MaterialIcons name="school" size={24} color="#00418b" />
+            <Text style={AdminDashStyle.summaryNumber}>{userStats.student}</Text>
+            <Text style={AdminDashStyle.summaryLabel}>Students</Text>
+          </View>
+        </View>
 
-         {/* Debug Info - Temporary */}
-         <View style={{ backgroundColor: '#f0f8ff', padding: 16, borderRadius: 12, marginBottom: 20 }}>
-           <Text style={{ fontFamily: 'Poppins-Bold', color: '#00418b', marginBottom: 8 }}>Debug Info</Text>
-           <Text style={{ fontFamily: 'Poppins-Regular', color: '#666', fontSize: 12 }}>
-             Admin: {userStats.admin} | Faculty: {userStats.faculty} | Student: {userStats.student}
-           </Text>
-           <TouchableOpacity 
-             style={{ 
-               backgroundColor: '#00418b', 
-               padding: 8, 
-               borderRadius: 6, 
-               marginTop: 8,
-               alignSelf: 'center'
-             }}
-             onPress={async () => {
-               try {
-                 const data = await adminService.getUserStats();
-                 console.log('Manual refresh user stats:', data);
-                 setUserStats(data);
-               } catch (error) {
-                 console.error('Manual refresh failed:', error);
-               }
-             }}
-           >
-             <Text style={{ color: '#fff', fontFamily: 'Poppins-Regular', fontSize: 12 }}>
-               Refresh User Stats
-             </Text>
-           </TouchableOpacity>
-         </View>
+        {/* Debug Info - Temporary */}
+        <View style={{ backgroundColor: '#f0f8ff', padding: 16, borderRadius: 12, marginBottom: 20 }}>
+          <Text style={{ fontFamily: 'Poppins-Bold', color: '#00418b', marginBottom: 8 }}>Debug Info</Text>
+          <Text style={{ fontFamily: 'Poppins-Regular', color: '#666', fontSize: 12 }}>
+            Admin: {userStats.admin} | Faculty: {userStats.faculty} | Student: {userStats.student}
+          </Text>
+          <TouchableOpacity 
+            style={{ 
+              backgroundColor: '#00418b', 
+              padding: 8, 
+              borderRadius: 6, 
+              marginTop: 8,
+              alignSelf: 'center'
+            }}
+            onPress={async () => {
+              try {
+                const data = await adminService.getUserStats();
+                console.log('Manual refresh user stats:', data);
+                setUserStats(data);
+              } catch (error) {
+                console.error('Manual refresh failed:', error);
+              }
+            }}
+          >
+            <Text style={{ color: '#fff', fontFamily: 'Poppins-Regular', fontSize: 12 }}>
+              Refresh User Stats
+            </Text>
+          </TouchableOpacity>
+        </View>
 
         {/* Progress Bars */}
         <View style={AdminDashStyle.progressSection}>
@@ -417,38 +524,38 @@ export default function AdminDashboard() {
           </View>
         </View>
 
-                 {/* Recent Logins Table */}
-         <View style={AdminDashStyle.tableSection}>
-           <Text style={AdminDashStyle.sectionTitle}>Recent Logins</Text>
-           <View style={AdminDashStyle.tableCard}>
-             <View style={AdminDashStyle.tableHeader}>
-               <Text style={[AdminDashStyle.tableHeaderText, { flex: 3 }]}>User</Text>
-               <Text style={[AdminDashStyle.tableHeaderText, { flex: 2 }]}>Role</Text>
-             </View>
-             {lastLogins.length > 0 ? (
-               lastLogins.map((login, index) => (
-                 <View 
-                   key={index} 
-                   style={[
-                     AdminDashStyle.tableRow,
-                     { backgroundColor: index % 2 === 0 ? '#ffffff' : '#f8f9fa' }
-                   ]}
-                 >
-                   <Text style={[AdminDashStyle.tableCellText, { flex: 3 }]} numberOfLines={1}>
-                     {login.userName}
-                   </Text>
-                   <Text style={[AdminDashStyle.tableCellText, { flex: 2 }]} numberOfLines={1}>
-                     {login.role}
-                   </Text>
-                 </View>
-               ))
-             ) : (
-               <View style={AdminDashStyle.emptyState}>
-                 <Text style={AdminDashStyle.emptyStateText}>No recent logins found</Text>
-               </View>
-             )}
-           </View>
-         </View>
+        {/* Recent Logins Table */}
+        <View style={AdminDashStyle.tableSection}>
+          <Text style={AdminDashStyle.sectionTitle}>Recent Logins</Text>
+          <View style={AdminDashStyle.tableCard}>
+            <View style={AdminDashStyle.tableHeader}>
+              <Text style={[AdminDashStyle.tableHeaderText, { flex: 3 }]}>User</Text>
+              <Text style={[AdminDashStyle.tableHeaderText, { flex: 2 }]}>Role</Text>
+            </View>
+            {lastLogins.length > 0 ? (
+              lastLogins.map((login, index) => (
+                <View 
+                  key={index} 
+                  style={[
+                    AdminDashStyle.tableRow,
+                    { backgroundColor: index % 2 === 0 ? '#ffffff' : '#f8f9fa' }
+                  ]}
+                >
+                  <Text style={[AdminDashStyle.tableCellText, { flex: 3 }]} numberOfLines={1}>
+                    {login.userName}
+                  </Text>
+                  <Text style={[AdminDashStyle.tableCellText, { flex: 2 }]} numberOfLines={1}>
+                    {login.role}
+                  </Text>
+                </View>
+              ))
+            ) : (
+              <View style={AdminDashStyle.emptyState}>
+                <Text style={AdminDashStyle.emptyStateText}>No recent logins found</Text>
+              </View>
+            )}
+          </View>
+        </View>
 
         {/* Audit Trail Preview */}
         <View style={AdminDashStyle.tableSection}>
@@ -495,31 +602,31 @@ export default function AdminDashboard() {
               style={AdminDashStyle.quickActionCard}
               onPress={() => navigateToScreen('ACalendar')}
             >
-              <Icon name="calendar" size={32} color="#00418b" />
+              <MaterialIcons name="calendar-today" size={32} color="#00418b" />
               <Text style={AdminDashStyle.quickActionText}>Calendar</Text>
-                </TouchableOpacity>
+            </TouchableOpacity>
             
             <TouchableOpacity 
               style={AdminDashStyle.quickActionCard}
               onPress={() => navigateToScreen('AChat')}
             >
-              <Icon name="chat" size={32} color="#00418b" />
+              <MaterialIcons name="chat" size={32} color="#00418b" />
               <Text style={AdminDashStyle.quickActionText}>Chats</Text>
-                </TouchableOpacity>
+            </TouchableOpacity>
             
             <TouchableOpacity 
               style={AdminDashStyle.quickActionCard}
               onPress={() => navigateToScreen('AAuditTrail')}
             >
-              <Icon name="history" size={32} color="#00418b" />
+              <MaterialIcons name="history" size={32} color="#00418b" />
               <Text style={AdminDashStyle.quickActionText}>Audit Trail</Text>
-                </TouchableOpacity>
+            </TouchableOpacity>
             
             <TouchableOpacity 
               style={AdminDashStyle.quickActionCard}
               onPress={() => navigateToScreen('ASupportCenter')}
             >
-              <Icon name="help-circle" size={32} color="#00418b" />
+              <MaterialIcons name="help" size={32} color="#00418b" />
               <Text style={AdminDashStyle.quickActionText}>Support</Text>
             </TouchableOpacity>
           </View>

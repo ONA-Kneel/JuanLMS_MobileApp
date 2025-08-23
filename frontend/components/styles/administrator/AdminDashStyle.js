@@ -8,6 +8,85 @@ const AdminDashStyle = StyleSheet.create({
     backgroundColor: '#f3f3f3',
   },
   
+  // Loading and error states
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f3f3f3',
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    fontFamily: 'Poppins-Regular',
+    color: '#666',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f3f3f3',
+    padding: 20,
+  },
+  errorTitle: {
+    fontSize: 18,
+    fontFamily: 'Poppins-Bold',
+    color: '#f44336',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  errorText: {
+    fontSize: 14,
+    fontFamily: 'Poppins-Regular',
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  retryButton: {
+    backgroundColor: '#00418b',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontFamily: 'Poppins-SemiBold',
+  },
+  
+  // Main header
+  header: {
+    backgroundColor: '#00418b',
+    paddingTop: 50,
+    paddingBottom: 16,
+    paddingHorizontal: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontFamily: 'Poppins-Bold',
+    color: '#fff',
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    fontFamily: 'Poppins-Regular',
+    color: '#e3eefd',
+    marginLeft: 12,
+  },
+  refreshButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    padding: 8,
+    borderRadius: 6,
+    marginRight: 8,
+  },
+  
   // Blue background
   blueBackground: {
     position: 'absolute',
@@ -19,6 +98,51 @@ const AdminDashStyle = StyleSheet.create({
     borderBottomLeftRadius: 40,
     borderBottomRightRadius: 40,
     zIndex: 0,
+  },
+  
+  // New header layout matching StudentDashboard
+  blueHeaderBackground: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    height: 160,
+    backgroundColor: '#00418b',
+    borderBottomLeftRadius: 40,
+    borderBottomRightRadius: 40,
+    zIndex: 0,
+  },
+  whiteHeaderCard: {
+    backgroundColor: '#fff',
+    marginHorizontal: 20,
+    marginTop: 50,
+    padding: 20,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    zIndex: 1,
+  },
+  
+  // Header text styles
+  headerTitle: {
+    fontSize: 24,
+    fontFamily: 'Poppins-Regular',
+    color: '#333',
+    marginBottom: 4,
+  },
+  headerSubtitle: {
+    fontSize: 16,
+    fontFamily: 'Poppins-Regular',
+    color: '#666',
+    marginBottom: 2,
+  },
+  headerSubtitle2: {
+    fontSize: 14,
+    fontFamily: 'Poppins-Regular',
+    color: '#888',
   },
 
   // Header styles

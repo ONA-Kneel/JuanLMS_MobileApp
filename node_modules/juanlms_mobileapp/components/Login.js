@@ -194,10 +194,18 @@ export default function Login() {
         const targetRoute = roleNavigationMap[role];
         if (targetRoute) {
           console.log(`Navigating to ${targetRoute} for role: ${role}`);
+          console.log('User data for navigation:', {
+            id: userData._id,
+            role: userData.role,
+            email: userData.email,
+            firstname: userData.firstname,
+            lastname: userData.lastname
+          });
           navigation.navigate(targetRoute);
         } else {
           console.error('Unknown role:', role);
-          showToast('Unknown role!', 'error');
+          console.error('Available roles in mapping:', Object.keys(roleNavigationMap));
+          showToast(`Unknown role: ${role}. Please contact administrator.`, 'error');
         }
       } else {
         console.error('Login failed:', data.message);

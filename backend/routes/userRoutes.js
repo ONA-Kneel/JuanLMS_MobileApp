@@ -305,7 +305,7 @@ userRoutes.post('/login', async (req, res) => {
 
 function getRoleFromEmail(email) {
     const normalized = email.toLowerCase();
-    if (normalized.endsWith('@students.sjddef.edu.ph')) return 'student';
+    if (normalized.endsWith('@students.sjddef.edu.ph')) return 'students';
     if (normalized.endsWith('@parent.sjddef.edu.ph')) return 'parent';
     if (normalized.endsWith('@admin.sjddef.edu.ph')) return 'admin';
     if (normalized.endsWith('@director.sjddef.edu.ph')) return 'director';
