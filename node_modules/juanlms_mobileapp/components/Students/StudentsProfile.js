@@ -4,6 +4,8 @@ import { MaterialIcons, Feather } from '@expo/vector-icons';
 import StudentsProfileStyle from '../styles/Stud/StudentsProfileStyle';
 import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../UserContext';
+import { useNotifications } from '../../NotificationContext';
+import { useAnnouncements } from '../../AnnouncementContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { addAuditLog } from '../Admin/auditTrailUtils';
 import profileService from '../../services/profileService';
@@ -11,6 +13,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { updateUser } from '../UserContext';
 import * as FileSystem from 'expo-file-system';
 import { Platform } from 'react-native';
+import NotificationCenter from '../NotificationCenter';
 
 // Helper to capitalize first letter of each word
 function capitalizeWords(str) {
@@ -22,7 +25,10 @@ const API_URL = 'https://juanlms-webapp-server.onrender.com'; // or your product
 export default function StudentsProfile() {
   const { user, loading } = useUser();
   const navigation = useNavigation();
+  const { unreadCount } = useNotifications();
+  const { announcements } = useAnnouncements();
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
+  const [showNotificationCenter, setShowNotificationCenter] = useState(false);
   const [editedUser, setEditedUser] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const fileInputRef = useRef(null);
@@ -236,9 +242,33 @@ export default function StudentsProfile() {
             <Feather name="lock" size={20} color="#00418b" />
             <Text style={StudentsProfileStyle.actionText}>Password</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={StudentsProfileStyle.actionBtn}>
+          <TouchableOpacity 
+            style={StudentsProfileStyle.actionBtn}
+            onPress={() => setShowNotificationCenter(true)}
+          >
             <Feather name="bell" size={20} color="#00418b" />
-            <Text style={StudentsProfileStyle.actionText}>Notify</Text>
+            <Text style={StudentsProfileStyle.actionText}>Notifications</Text>
+            {unreadCount > 0 && (
+              <View style={{
+                position: 'absolute',
+                top: -5,
+                right: -5,
+                backgroundColor: '#ff4444',
+                borderRadius: 10,
+                minWidth: 20,
+                height: 20,
+                justifyContent: 'center',
+                alignItems: 'center',
+              }}>
+                <Text style={{
+                  color: 'white',
+                  fontSize: 12,
+                  fontFamily: 'Poppins-Bold',
+                }}>
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </Text>
+              </View>
+            )}
           </TouchableOpacity>
           <TouchableOpacity style={StudentsProfileStyle.actionBtn} onPress={goToSupportCenter}>
             <Feather name="help-circle" size={20} color="#00418b" />
@@ -314,6 +344,12 @@ export default function StudentsProfile() {
           </View>
         </View>
       </Modal>
+      
+      {/* Notification Center */}
+      <NotificationCenter 
+        visible={showNotificationCenter} 
+        onClose={() => setShowNotificationCenter(false)} 
+      />
     </View>
   );
 }

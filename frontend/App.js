@@ -94,6 +94,8 @@ import PrincipalGrades from './components/Principal/PrincipalGrades';
 //chats
 import { ChatProvider } from './ChatContext';
 import { UserProvider } from './components/UserContext';
+import { NotificationProvider } from './NotificationContext';
+import { AnnouncementProvider } from './AnnouncementContext';
 
 
 //Bottom Navigation Bar
@@ -241,6 +243,8 @@ export default function App() {
   return (
     <UserProvider>
     <ChatProvider>
+    <NotificationProvider>
+    <AnnouncementProvider>
     <NavigationContainer>
       <Screens.Navigator initialRouteName='Login'>
 
@@ -311,8 +315,10 @@ export default function App() {
         <Screens.Screen name='PrincipalSupportCenter' component={PrincipalSupportCenter} options={{ headerShown: false }}/>
 
 
-      </Screens.Navigator>
-    </NavigationContainer>
+              </Screens.Navigator>
+      </NavigationContainer>
+    </AnnouncementProvider>
+    </NotificationProvider>
     </ChatProvider>
     </UserProvider>
   );
