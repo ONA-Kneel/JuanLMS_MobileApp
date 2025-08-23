@@ -34,6 +34,19 @@ const formatDateTime = (dateString) => {
 // Activity Card Component
 function ActivityCard({ activity, onActivityPress }) {
   const navigation = useNavigation();
+  
+  // Validate props
+  if (!activity || !onActivityPress) {
+    console.error('DEBUG: ActivityCard received invalid props:', { activity, onActivityPress });
+    return null;
+  }
+
+  // Validate required activity properties
+  if (!activity._id || !activity.type || !activity.title) {
+    console.error('DEBUG: ActivityCard received invalid activity object:', activity);
+    return null;
+  }
+
   const getActivityIcon = (type) => {
     switch (type) {
       case 'quiz':
@@ -46,6 +59,24 @@ function ActivityCard({ activity, onActivityPress }) {
   };
 
   const icon = getActivityIcon(activity.type);
+
+  const handleViewButtonPress = () => {
+    console.log('DEBUG: ActivityCard view button pressed for:', activity._id);
+    try {
+      onActivityPress(activity);
+    } catch (error) {
+      console.error('DEBUG: Error in ActivityCard view button press:', error);
+    }
+  };
+
+  const handleResultsButtonPress = () => {
+    console.log('DEBUG: ActivityCard results button pressed for:', activity._id);
+    try {
+      navigation.navigate('QuizView', { quizId: activity._id, review: true });
+    } catch (error) {
+      console.error('DEBUG: Error in ActivityCard results button press:', error);
+    }
+  };
 
   return (
     <View style={styles.activityCard}>
@@ -120,7 +151,7 @@ function ActivityCard({ activity, onActivityPress }) {
           {activity.type === 'quiz' && activity.isSubmitted && (
             <TouchableOpacity 
               style={[styles.actionButton, styles.resultsButton]}
-              onPress={() => navigation.navigate('QuizView', { quizId: activity._id, review: true })}
+              onPress={handleResultsButtonPress}
             >
               <MaterialIcons name="check-circle" size={16} color="#4CAF50" />
               <Text style={styles.resultsButtonText}>View Results</Text>
@@ -129,7 +160,7 @@ function ActivityCard({ activity, onActivityPress }) {
 
           <TouchableOpacity 
             style={[styles.actionButton, styles.viewButton]}
-            onPress={() => onActivityPress(activity)}
+            onPress={handleViewButtonPress}
           >
             <MaterialIcons name="visibility" size={16} color="#2196F3" />
             <Text style={styles.viewButtonText}>
@@ -156,6 +187,27 @@ export default function StudentActs() {
   const [activeTab, setActiveTab] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Debug modal state changes
+  useEffect(() => {
+    console.log('DEBUG: Modal state changed:', {
+      showModal: showActivityModal,
+      selectedActivity: selectedActivity?._id,
+      selectedActivityType: selectedActivity?.type,
+      hasUser: !!user,
+      userId: user?._id
+    });
+  }, [showActivityModal, selectedActivity, user]);
+
+  // Debug activities state changes
+  useEffect(() => {
+    console.log('DEBUG: Activities state changed:', {
+      total: activities.length,
+      upcoming: activities.filter(a => !a.isSubmitted && (!a.dueDate || new Date(a.dueDate) > new Date())).length,
+      pastDue: activities.filter(a => !a.isSubmitted && a.dueDate && new Date(a.dueDate) < new Date()).length,
+      completed: activities.filter(a => a.isSubmitted).length
+    });
+  }, [activities]);
+
   useEffect(() => {
     if (user && user._id) {
       fetchActivities();
@@ -170,16 +222,6 @@ export default function StudentActs() {
     return unsubscribe;
   }, [navigation]);
   
-  // Debug activities state changes
-  useEffect(() => {
-    console.log('DEBUG: Activities state changed:', {
-      total: activities.length,
-      upcoming: activities.filter(a => !a.isSubmitted && (!a.dueDate || new Date(a.dueDate) > new Date())).length,
-      pastDue: activities.filter(a => !a.isSubmitted && a.dueDate && new Date(a.dueDate) < new Date()).length,
-      completed: activities.filter(a => a.isSubmitted).length
-    });
-  }, [activities]);
-
   // Add submission status checking for each activity
   const checkSubmissionStatuses = async (activitiesList) => {
     try {
@@ -377,8 +419,15 @@ export default function StudentActs() {
       
       const token = await AsyncStorage.getItem('jwtToken');
       
+      if (!token) {
+        console.error('DEBUG: No JWT token found');
+        setError('Authentication token not found. Please log in again.');
+        setLoading(false);
+        return;
+      }
+      
       if (!user || !user._id) {
-        console.warn('User not ready, skipping activities fetch');
+        console.warn('DEBUG: User not ready, skipping activities fetch');
         setLoading(false);
         return;
       }
@@ -392,7 +441,9 @@ export default function StudentActs() {
       });
 
       if (!classesResponse.ok) {
-        throw new Error('Failed to fetch classes');
+        const errorText = await classesResponse.text();
+        console.error('DEBUG: Failed to fetch classes:', classesResponse.status, errorText);
+        throw new Error(`Failed to fetch classes: ${classesResponse.status}`);
       }
 
       const classesData = await classesResponse.json();
@@ -874,45 +925,108 @@ export default function StudentActs() {
   };
 
   const handleActivityPress = (activity) => {
-    // If quiz is already submitted, open the modal with a View Results action
-    if (activity.type === 'quiz' && activity.isSubmitted) {
+    try {
+      console.log('DEBUG: handleActivityPress called with:', {
+        activityId: activity?._id,
+        activityType: activity?.type,
+        isSubmitted: activity?.isSubmitted,
+        hasUser: !!user,
+        userId: user?._id,
+        userID: user?.userID
+      });
+
+      // Validate activity object
+      if (!activity || !activity._id) {
+        console.error('DEBUG: Invalid activity object:', activity);
+        Alert.alert('Error', 'Invalid activity data. Please try refreshing the page.');
+        return;
+      }
+
+      // Validate user context
+      if (!user || !user._id) {
+        console.error('DEBUG: User context not available:', user);
+        Alert.alert('Error', 'User session not available. Please log in again.');
+        return;
+      }
+
+      // If quiz is already submitted, open the modal with a View Results action
+      if (activity.type === 'quiz' && activity.isSubmitted) {
+        console.log('DEBUG: Opening quiz results modal for:', activity._id);
+        setSelectedActivity(activity);
+        setShowActivityModal(true);
+        return;
+      }
+      
+      // For assignments already submitted, keep the info modal notice
+      if (activity.type !== 'quiz' && activity.isSubmitted) {
+        console.log('DEBUG: Assignment already completed, showing alert for:', activity._id);
+        Alert.alert(
+          'Already Completed',
+          `You have already completed this ${activity.type === 'quiz' ? 'quiz' : 'assignment'}.`,
+          [{ text: 'OK', style: 'default' }]
+        );
+        return;
+      }
+
+      console.log('DEBUG: Opening activity details modal for:', activity._id);
       setSelectedActivity(activity);
       setShowActivityModal(true);
-      return;
+      
+    } catch (error) {
+      console.error('DEBUG: Error in handleActivityPress:', error);
+      Alert.alert('Error', 'Failed to open activity details. Please try again.');
     }
-    // For assignments already submitted, keep the info modal notice
-    if (activity.type !== 'quiz' && activity.isSubmitted) {
-      Alert.alert(
-        'Already Completed',
-        `You have already completed this ${activity.type === 'quiz' ? 'quiz' : 'assignment'}.`,
-        [{ text: 'OK', style: 'default' }]
-      );
-      return;
-    }
-    setSelectedActivity(activity);
-    setShowActivityModal(true);
   };
 
   const navigateToActivity = (activity) => {
-    setShowActivityModal(false);
-    
-    // If quiz is already submitted, open in review mode
-    if (activity.type === 'quiz') {
-      if (activity.isSubmitted) {
-        navigation.navigate('QuizView', { quizId: activity._id, review: true });
-      } else {
-        navigation.navigate('QuizView', { quizId: activity._id });
-      }
-    } else {
-      navigation.navigate('AssignmentDetail', { 
-        assignmentId: activity._id,
-        assignment: activity,
-        onSubmissionComplete: () => {
-          setTimeout(() => {
-            fetchActivities();
-          }, 100);
-        }
+    try {
+      console.log('DEBUG: navigateToActivity called with:', {
+        activityId: activity?._id,
+        activityType: activity?.type,
+        isSubmitted: activity?.isSubmitted,
+        hasNavigation: !!navigation
       });
+
+      // Validate activity object
+      if (!activity || !activity._id) {
+        console.error('DEBUG: Invalid activity object in navigateToActivity:', activity);
+        Alert.alert('Error', 'Invalid activity data for navigation.');
+        return;
+      }
+
+      // Validate navigation object
+      if (!navigation) {
+        console.error('DEBUG: Navigation object not available');
+        Alert.alert('Error', 'Navigation not available.');
+        return;
+      }
+
+      setShowActivityModal(false);
+      
+      // If quiz is already submitted, open in review mode
+      if (activity.type === 'quiz') {
+        if (activity.isSubmitted) {
+          console.log('DEBUG: Navigating to QuizView in review mode for:', activity._id);
+          navigation.navigate('QuizView', { quizId: activity._id, review: true });
+        } else {
+          console.log('DEBUG: Navigating to QuizView for new quiz:', activity._id);
+          navigation.navigate('QuizView', { quizId: activity._id });
+        }
+      } else {
+        console.log('DEBUG: Navigating to AssignmentDetail for:', activity._id);
+        navigation.navigate('AssignmentDetail', { 
+          assignmentId: activity._id,
+          assignment: activity,
+          onSubmissionComplete: () => {
+            setTimeout(() => {
+              fetchActivities();
+            }, 100);
+          }
+        });
+      }
+    } catch (error) {
+      console.error('DEBUG: Error in navigateToActivity:', error);
+      Alert.alert('Error', 'Failed to navigate to activity. Please try again.');
     }
   };
 
@@ -952,6 +1066,35 @@ export default function StudentActs() {
     return matchesSearch; // activeTab === 'all'
   });
 
+  // Test function to validate activities data structure
+  const validateActivitiesData = () => {
+    console.log('DEBUG: Validating activities data structure...');
+    if (!Array.isArray(activities)) {
+      console.error('DEBUG: Activities is not an array:', activities);
+      return false;
+    }
+    
+    activities.forEach((activity, index) => {
+      console.log(`DEBUG: Activity ${index}:`, {
+        _id: activity._id,
+        type: activity.type,
+        title: activity.title,
+        className: activity.className,
+        isSubmitted: activity.isSubmitted,
+        hasRequiredFields: !!(activity._id && activity.type && activity.title)
+      });
+    });
+    
+    return true;
+  };
+
+  // Call validation when activities change
+  useEffect(() => {
+    if (activities.length > 0) {
+      validateActivitiesData();
+    }
+  }, [activities]);
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -961,17 +1104,52 @@ export default function StudentActs() {
     );
   }
 
+  if (error) {
+    return (
+      <View style={styles.errorContainer}>
+        <MaterialIcons name="error" size={64} color="#f44336" />
+        <Text style={styles.errorTitle}>Error Loading Activities</Text>
+        <Text style={styles.errorText}>{error}</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={fetchActivities}>
+          <Text style={styles.retryButtonText}>Retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>My Activities</Text>
-        <TouchableOpacity 
-          style={styles.refreshButton}
-          onPress={onRefresh}
-        >
-          <MaterialIcons name="refresh" size={24} color="#fff" />
-        </TouchableOpacity>
+        <View style={styles.headerButtons}>
+          <TouchableOpacity 
+            style={styles.debugButton}
+            onPress={() => {
+              const testActivity = {
+                _id: 'test123',
+                type: 'quiz',
+                title: 'Test Quiz',
+                description: 'This is a test quiz for debugging',
+                className: 'Test Class',
+                dueDate: new Date().toISOString(),
+                points: 100,
+                isSubmitted: false
+              };
+              console.log('DEBUG: Testing with sample activity:', testActivity);
+              handleActivityPress(testActivity);
+            }}
+          >
+            <MaterialIcons name="bug-report" size={20} color="#fff" />
+            <Text style={styles.debugButtonText}>Test</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.refreshButton}
+            onPress={onRefresh}
+          >
+            <MaterialIcons name="refresh" size={24} color="#fff" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Search */}
@@ -1065,7 +1243,7 @@ export default function StudentActs() {
               </TouchableOpacity>
             </View>
 
-            {selectedActivity && (
+            {selectedActivity ? (
               <ScrollView style={styles.modalContent}>
                 <View style={styles.modalActivityHeader}>
                   <MaterialIcons 
@@ -1073,7 +1251,9 @@ export default function StudentActs() {
                     size={32} 
                     color={selectedActivity.type === 'quiz' ? '#9C27B0' : '#FF9800'} 
                   />
-                  <Text style={styles.modalActivityTitle}>{selectedActivity.title}</Text>
+                  <Text style={styles.modalActivityTitle}>
+                    {selectedActivity.title || 'Untitled Activity'}
+                  </Text>
                   <Text style={styles.modalActivityType}>
                     {selectedActivity.type === 'quiz' ? 'Quiz' : 'Assignment'}
                   </Text>
@@ -1083,18 +1263,23 @@ export default function StudentActs() {
                   <Text style={styles.modalSectionTitle}>Details</Text>
                   <View style={styles.modalDetailRow}>
                     <Text style={styles.modalDetailLabel}>Class:</Text>
-                    <Text style={styles.modalDetailValue}>{selectedActivity.className}</Text>
+                    <Text style={styles.modalDetailValue}>
+                      {selectedActivity.className || 'Unknown Class'}
+                    </Text>
                   </View>
                   <View style={styles.modalDetailRow}>
                     <Text style={styles.modalDetailLabel}>Due Date:</Text>
                     <Text style={styles.modalDetailValue}>
-                      {formatDateTime(selectedActivity.dueDate)}
+                      {selectedActivity.dueDate ? formatDateTime(selectedActivity.dueDate) : 'No due date'}
                     </Text>
                   </View>
                   <View style={styles.modalDetailRow}>
                     <Text style={styles.modalDetailLabel}>Points:</Text>
                     <Text style={styles.modalDetailValue}>
-                      {selectedActivity.type === 'quiz' ? (selectedActivity.totalPoints || selectedActivity.points || 0) : (selectedActivity.points || 0)} points
+                      {selectedActivity.type === 'quiz' 
+                        ? (selectedActivity.totalPoints || selectedActivity.points || 0) 
+                        : (selectedActivity.points || 0)
+                      } points
                     </Text>
                   </View>
                   
@@ -1150,6 +1335,16 @@ export default function StudentActs() {
                   </Text>
                 </TouchableOpacity>
               </ScrollView>
+            ) : (
+              <View style={styles.modalContent}>
+                <Text style={styles.modalErrorText}>No activity selected</Text>
+                <TouchableOpacity
+                  style={styles.modalActionButton}
+                  onPress={() => setShowActivityModal(false)}
+                >
+                  <Text style={styles.modalActionButtonText}>Close</Text>
+                </TouchableOpacity>
+              </View>
             )}
           </View>
         </View>
@@ -1164,24 +1359,46 @@ const styles = {
     backgroundColor: '#f5f5f5',
   },
   header: {
+    backgroundColor: '#00418b',
+    paddingVertical: 20,
+    paddingHorizontal: 20,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 12,
-    paddingTop: 18,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-    zIndex: 20,
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#fff',
     fontFamily: 'Poppins-Bold',
+  },
+  headerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  debugButton: {
+    backgroundColor: '#00418b',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    marginRight: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#fff',
+  },
+  debugButtonText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
+    fontFamily: 'Poppins-Bold',
+    marginLeft: 4,
   },
   refreshButton: {
     padding: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 6,
   },
   searchContainer: {
     paddingHorizontal: 10,
@@ -1392,6 +1609,40 @@ const styles = {
     color: '#666',
     fontFamily: 'Poppins-Regular',
   },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+    backgroundColor: '#f5f5f5',
+  },
+  errorTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+    marginTop: 16,
+    fontFamily: 'Poppins-Bold',
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    marginTop: 8,
+    fontFamily: 'Poppins-Regular',
+  },
+  retryButton: {
+    backgroundColor: '#00418b',
+    paddingVertical: 12,
+    paddingHorizontal: 25,
+    borderRadius: 8,
+    marginTop: 20,
+  },
+  retryButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+    fontFamily: 'Poppins-Bold',
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -1488,5 +1739,12 @@ const styles = {
     fontSize: 16,
     fontWeight: 'bold',
     fontFamily: 'Poppins-Bold',
+  },
+  modalErrorText: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    marginTop: 20,
+    fontFamily: 'Poppins-Regular',
   },
 };
