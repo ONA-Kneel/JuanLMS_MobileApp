@@ -2,8 +2,19 @@ import express from 'express';
 import Announcement from '../models/Announcement.js';
 // import { authenticateToken } from '../middleware/authMiddleware.js';
 // import { createAnnouncementNotification } from '../services/notificationService.js';
+import mongoose from 'mongoose'; // Added for database connection check
 
 const router = express.Router();
+
+// Test route to verify routing is working
+router.get('/test', (req, res) => {
+  console.log('GET /api/announcements/test called');
+  res.json({ 
+    message: 'Announcement routes are working!', 
+    timestamp: new Date().toISOString(),
+    databaseStatus: mongoose.connection.readyState
+  });
+});
 
 // Test route to create sample announcements
 router.post('/test/create-sample-announcements', async (req, res) => {
@@ -79,16 +90,32 @@ router.post('/test/create-sample-announcements', async (req, res) => {
 
 // Get all announcements for a class
 router.get('/', /*authenticateToken,*/ async (req, res) => {
-  const { classID } = req.query;
-  
-  if (classID) {
-    // Get announcements for a specific class
-    const announcements = await Announcement.find({ classID }).sort({ createdAt: -1 });
-    res.json(announcements);
-  } else {
-    // Get all announcements
-    const announcements = await Announcement.find({}).sort({ createdAt: -1 });
-    res.json(announcements);
+  console.log('GET /api/announcements called with query:', req.query);
+  try {
+    // Check if database is connected
+    if (!mongoose.connection.readyState) {
+      console.error('Database not connected. Ready state:', mongoose.connection.readyState);
+      return res.status(500).json({ error: 'Database not connected' });
+    }
+    
+    const { classID } = req.query;
+    
+    if (classID) {
+      // Get announcements for a specific class
+      console.log('Fetching announcements for classID:', classID);
+      const announcements = await Announcement.find({ classID }).sort({ createdAt: -1 });
+      console.log('Found announcements for class:', announcements.length);
+      res.json(announcements);
+    } else {
+      // Get all announcements
+      console.log('Fetching all announcements');
+      const announcements = await Announcement.find({}).sort({ createdAt: -1 });
+      console.log('Found total announcements:', announcements.length);
+      res.json(announcements);
+    }
+  } catch (error) {
+    console.error('Error in GET /api/announcements:', error);
+    res.status(500).json({ error: error.message });
   }
 });
 

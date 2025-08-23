@@ -36,7 +36,19 @@ app.use(cors({
 }));
 app.options('*', cors());
 app.use(express.json());
-app.use(users);
+
+// Debug middleware to log all requests
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.originalUrl} - ${new Date().toISOString()}`);
+  next();
+});
+
+// Simple test route at root level
+app.get('/', (req, res) => {
+  res.json({ message: 'JuanLMS Backend Server is running!', timestamp: new Date().toISOString() });
+});
+
+app.use('/api', users);
 app.use('/api/messages', messagesRouter);
 app.use('/api/announcements', announcementRoutes);
 app.use('/api/notifications', notificationRoutes);
@@ -71,6 +83,24 @@ app.get('/api/academic-year/active', async (req, res) => {
   }
 });
 
+// Test route to verify server is working
+app.get('/api/test', (req, res) => {
+  res.json({ message: 'Server is working!', timestamp: new Date().toISOString() });
+});
+
+// Test announcement route
+app.get('/api/test-announcements', async (req, res) => {
+  try {
+    res.json({ 
+      message: 'Announcement route is accessible!', 
+      timestamp: new Date().toISOString(),
+      routes: ['/api/announcements', '/api/general-announcements']
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Serve uploaded files
 app.use('/uploads', express.static('uploads'));
 
@@ -83,6 +113,33 @@ app.get('/api/events', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// Catch-all route for unmatched API routes
+app.use('/api/*', (req, res) => {
+  console.log(`404 - API route not found: ${req.method} ${req.originalUrl}`);
+  res.status(404).json({ 
+    error: 'API route not found', 
+    method: req.method, 
+    url: req.originalUrl,
+    availableRoutes: [
+      '/api/test',
+      '/api/test-announcements',
+      '/api/announcements',
+      '/api/general-announcements',
+      '/api/academic-year/active'
+    ]
+  });
+});
+
+// Catch-all route for unmatched routes
+app.use('*', (req, res) => {
+  console.log(`404 - Route not found: ${req.method} ${req.originalUrl}`);
+  res.status(404).json({ 
+    error: 'Route not found', 
+    method: req.method, 
+    url: req.originalUrl 
+  });
 });
 
 const server = http.createServer(app);

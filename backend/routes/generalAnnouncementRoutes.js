@@ -77,11 +77,15 @@ router.post("/", authenticateToken, async (req, res) => {
 
 // GET /api/general-announcements - Get announcements based on user role
 router.get("/", authenticateToken, async (req, res) => {
+  console.log('GET /api/general-announcements called');
   try {
     const userRole = req.user.role?.toLowerCase();
     const userId = req.user.id;
     
+    console.log('User role:', userRole, 'User ID:', userId);
+    
     if (!userRole) {
+      console.log('No user role found');
       return res.status(400).json({ message: "User role not found" });
     }
 
@@ -89,6 +93,8 @@ router.get("/", authenticateToken, async (req, res) => {
     let normalizedRole = userRole;
     if (userRole === 'student') normalizedRole = 'students';
     if (userRole === 'vpe' || userRole === 'vice president') normalizedRole = 'vice president of education';
+
+    console.log('Normalized role:', normalizedRole);
 
     // Find announcements that the user can see and haven't acknowledged yet
     const announcements = await GeneralAnnouncement.find({
@@ -99,9 +105,10 @@ router.get("/", authenticateToken, async (req, res) => {
     .populate('createdBy', 'firstname lastname role')
     .sort({ createdAt: -1 });
 
+    console.log('Found general announcements:', announcements.length);
     res.json(announcements);
   } catch (error) {
-    console.error("Error fetching announcements:", error);
+    console.error('Error fetching general announcements:', error);
     res.status(500).json({ 
       message: "Failed to fetch announcements",
       error: error.message 

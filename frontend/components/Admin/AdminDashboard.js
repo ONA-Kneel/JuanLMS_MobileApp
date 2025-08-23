@@ -15,7 +15,7 @@ export default function AdminDashboard() {
   const { user } = useUser();
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
   const [recentLogs, setRecentLogs] = useState([]);
-  const [userStats, setUserStats] = useState({ admin: 0, faculty: 0, student: 0 });
+     const [userStats, setUserStats] = useState({ admin: 0, faculty: 0, student: 0 });
   const [schoolYearProgress, setSchoolYearProgress] = useState(0);
   const [termProgress, setTermProgress] = useState(0);
   const [lastLogins, setLastLogins] = useState([]);
@@ -76,93 +76,93 @@ export default function AdminDashboard() {
   }, []);
 
   // Fetch dashboard data
-  const fetchDashboardData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
       
       console.log('DEBUG: Fetching admin dashboard data...');
-      
-      // Fetch from admin service
-      const data = await adminService.getDashboardSummary();
+        
+        // Fetch from admin service
+        const data = await adminService.getDashboardSummary();
       console.log('DEBUG: Dashboard data received:', data);
-      
-      if (data && data.userStats) {
+        
+        if (data && data.userStats) {
         console.log('DEBUG: Setting user stats:', data.userStats);
-        setUserStats(data.userStats);
-      }
-      if (data && data.recentLogins) {
+          setUserStats(data.userStats);
+        }
+        if (data && data.recentLogins) {
         console.log('DEBUG: Setting recent logins:', data.recentLogins);
-        setLastLogins(data.recentLogins);
-      }
-      if (data && data.auditPreview) {
+          setLastLogins(data.recentLogins);
+        }
+        if (data && data.auditPreview) {
         console.log('DEBUG: Setting audit preview:', data.auditPreview);
-        setRecentLogs(data.auditPreview);
-      }
-      if (data && data.academicProgress) {
+          setRecentLogs(data.auditPreview);
+        }
+        if (data && data.academicProgress) {
         console.log('DEBUG: Setting academic progress:', data.academicProgress);
-        setSchoolYearProgress(data.academicProgress.schoolYear || 0);
-        setTermProgress(data.academicProgress.term || 0);
-      }
-      
-    } catch (error) {
-      console.error('Error fetching dashboard data:', error);
-      setError('Failed to load dashboard data');
-      
-      // Fallback to mock data if all else fails
+          setSchoolYearProgress(data.academicProgress.schoolYear || 0);
+          setTermProgress(data.academicProgress.term || 0);
+        }
+        
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+        setError('Failed to load dashboard data');
+        
+                 // Fallback to mock data if all else fails
       console.log('DEBUG: Using fallback data due to API error');
-      setUserStats({ admin: 1, faculty: 8, student: 17 });
-      setLastLogins([
-        { userName: 'Rochelle Borre', role: 'students' },
-        { userName: 'Niel Nathan Borre', role: 'faculty' },
-        { userName: 'Roman Cyril Panganiban', role: 'faculty' },
-        { userName: 'hatdog asd', role: 'students' },
-      ]);
+         setUserStats({ admin: 1, faculty: 8, student: 17 });
+         setLastLogins([
+           { userName: 'Rochelle Borre', role: 'students' },
+           { userName: 'Niel Nathan Borre', role: 'faculty' },
+           { userName: 'Roman Cyril Panganiban', role: 'faculty' },
+           { userName: 'hatdog asd', role: 'students' },
+         ]);
       setRecentLogs([
-        { timestamp: '2025-08-03T12:43:56', userName: 'Will Bianca', action: 'Login' },
-        { timestamp: '2025-07-22T00:06:11', userName: 'Rochelle Borre', action: 'Login' },
-        { timestamp: '2025-07-20T23:23:40', userName: 'Niel Nathan Borre', action: 'Login' },
-        { timestamp: '2025-07-13T01:59:20', userName: 'Roman Cyril Panganiban', action: 'Login' },
-        { timestamp: '2025-07-05T19:04:07', userName: 'hatdog asd', action: 'Login' },
-      ]);
-      
-      // Calculate fallback progress using the same logic as web app
-      const now = new Date();
-      const schoolYearStart = new Date('2025-06-01');
-      const schoolYearEnd = new Date('2026-04-30');
-      const termStart = new Date('2025-08-01');
-      const termEnd = new Date('2025-12-15');
-      
-      // Calculate school year progress like web app
-      let schoolYearPercent = 0;
-      if (now < schoolYearStart) {
-          schoolYearPercent = 0;
-      } else if (now > schoolYearEnd) {
-          schoolYearPercent = 100;
-      } else {
-          const schoolYearTotal = schoolYearEnd - schoolYearStart;
-          const schoolYearElapsed = now - schoolYearStart;
-          schoolYearPercent = Math.floor((schoolYearElapsed / schoolYearTotal) * 100);
+          { timestamp: '2025-08-03T12:43:56', userName: 'Will Bianca', action: 'Login' },
+          { timestamp: '2025-07-22T00:06:11', userName: 'Rochelle Borre', action: 'Login' },
+          { timestamp: '2025-07-20T23:23:40', userName: 'Niel Nathan Borre', action: 'Login' },
+          { timestamp: '2025-07-13T01:59:20', userName: 'Roman Cyril Panganiban', action: 'Login' },
+          { timestamp: '2025-07-05T19:04:07', userName: 'hatdog asd', action: 'Login' },
+        ]);
+        
+        // Calculate fallback progress using the same logic as web app
+        const now = new Date();
+        const schoolYearStart = new Date('2025-06-01');
+        const schoolYearEnd = new Date('2026-04-30');
+        const termStart = new Date('2025-08-01');
+        const termEnd = new Date('2025-12-15');
+        
+        // Calculate school year progress like web app
+        let schoolYearPercent = 0;
+        if (now < schoolYearStart) {
+            schoolYearPercent = 0;
+        } else if (now > schoolYearEnd) {
+            schoolYearPercent = 100;
+        } else {
+            const schoolYearTotal = schoolYearEnd - schoolYearStart;
+            const schoolYearElapsed = now - schoolYearStart;
+            schoolYearPercent = Math.floor((schoolYearElapsed / schoolYearTotal) * 100);
+        }
+        
+        // Calculate term progress like web app
+        let termPercent = 0;
+        if (now < termStart) {
+            termPercent = 0;
+        } else if (now > termEnd) {
+            termPercent = 100;
+        } else {
+            const termTotal = termEnd - termStart;
+            const termElapsed = now - termStart;
+            termPercent = Math.floor((termElapsed / termTotal) * 100);
+        }
+        
+        setSchoolYearProgress(schoolYearPercent);
+        setTermProgress(termPercent);
+      } finally {
+        setLoading(false);
       }
-      
-      // Calculate term progress like web app
-      let termPercent = 0;
-      if (now < termStart) {
-          termPercent = 0;
-      } else if (now > termEnd) {
-          termPercent = 100;
-      } else {
-          const termTotal = termEnd - termStart;
-          const termElapsed = now - termStart;
-          termPercent = Math.floor((termElapsed / termTotal) * 100);
-      }
-      
-      setSchoolYearProgress(schoolYearPercent);
-      setTermProgress(termPercent);
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
 
   const fetchAcademicYear = async () => {
     try {
@@ -443,55 +443,55 @@ export default function AdminDashboard() {
           />
         }
       >
-        {/* Summary Cards */}
-        <View style={AdminDashStyle.summaryCardsContainer}>
-          {/* First Row - 3 cards */}
-          <View style={AdminDashStyle.summaryCard}>
+                 {/* Summary Cards */}
+         <View style={AdminDashStyle.summaryCardsContainer}>
+           {/* First Row - 3 cards */}
+           <View style={AdminDashStyle.summaryCard}>
             <MaterialIcons name="admin-panel-settings" size={24} color="#00418b" />
-            <Text style={AdminDashStyle.summaryNumber}>{userStats.admin}</Text>
-            <Text style={AdminDashStyle.summaryLabel}>Admins</Text>
-          </View>
-          <View style={AdminDashStyle.summaryCard}>
+             <Text style={AdminDashStyle.summaryNumber}>{userStats.admin}</Text>
+             <Text style={AdminDashStyle.summaryLabel}>Admins</Text>
+           </View>
+           <View style={AdminDashStyle.summaryCard}>
             <MaterialIcons name="person" size={24} color="#00418b" />
-            <Text style={AdminDashStyle.summaryNumber}>{userStats.faculty}</Text>
-            <Text style={AdminDashStyle.summaryLabel}>Faculty</Text>
-          </View>
-          <View style={AdminDashStyle.summaryCard}>
+             <Text style={AdminDashStyle.summaryNumber}>{userStats.faculty}</Text>
+             <Text style={AdminDashStyle.summaryLabel}>Faculty</Text>
+           </View>
+           <View style={AdminDashStyle.summaryCard}>
             <MaterialIcons name="school" size={24} color="#00418b" />
-            <Text style={AdminDashStyle.summaryNumber}>{userStats.student}</Text>
-            <Text style={AdminDashStyle.summaryLabel}>Students</Text>
-          </View>
-        </View>
+             <Text style={AdminDashStyle.summaryNumber}>{userStats.student}</Text>
+             <Text style={AdminDashStyle.summaryLabel}>Students</Text>
+           </View>
+         </View>
 
-        {/* Debug Info - Temporary */}
-        <View style={{ backgroundColor: '#f0f8ff', padding: 16, borderRadius: 12, marginBottom: 20 }}>
-          <Text style={{ fontFamily: 'Poppins-Bold', color: '#00418b', marginBottom: 8 }}>Debug Info</Text>
-          <Text style={{ fontFamily: 'Poppins-Regular', color: '#666', fontSize: 12 }}>
-            Admin: {userStats.admin} | Faculty: {userStats.faculty} | Student: {userStats.student}
-          </Text>
-          <TouchableOpacity 
-            style={{ 
-              backgroundColor: '#00418b', 
-              padding: 8, 
-              borderRadius: 6, 
-              marginTop: 8,
-              alignSelf: 'center'
-            }}
-            onPress={async () => {
-              try {
-                const data = await adminService.getUserStats();
-                console.log('Manual refresh user stats:', data);
-                setUserStats(data);
-              } catch (error) {
-                console.error('Manual refresh failed:', error);
-              }
-            }}
-          >
-            <Text style={{ color: '#fff', fontFamily: 'Poppins-Regular', fontSize: 12 }}>
-              Refresh User Stats
-            </Text>
-          </TouchableOpacity>
-        </View>
+         {/* Debug Info - Temporary */}
+         <View style={{ backgroundColor: '#f0f8ff', padding: 16, borderRadius: 12, marginBottom: 20 }}>
+           <Text style={{ fontFamily: 'Poppins-Bold', color: '#00418b', marginBottom: 8 }}>Debug Info</Text>
+           <Text style={{ fontFamily: 'Poppins-Regular', color: '#666', fontSize: 12 }}>
+             Admin: {userStats.admin} | Faculty: {userStats.faculty} | Student: {userStats.student}
+           </Text>
+           <TouchableOpacity 
+             style={{ 
+               backgroundColor: '#00418b', 
+               padding: 8, 
+               borderRadius: 6, 
+               marginTop: 8,
+               alignSelf: 'center'
+             }}
+             onPress={async () => {
+               try {
+                 const data = await adminService.getUserStats();
+                 console.log('Manual refresh user stats:', data);
+                 setUserStats(data);
+               } catch (error) {
+                 console.error('Manual refresh failed:', error);
+               }
+             }}
+           >
+             <Text style={{ color: '#fff', fontFamily: 'Poppins-Regular', fontSize: 12 }}>
+               Refresh User Stats
+             </Text>
+           </TouchableOpacity>
+         </View>
 
         {/* Progress Bars */}
         <View style={AdminDashStyle.progressSection}>
@@ -524,38 +524,38 @@ export default function AdminDashboard() {
           </View>
         </View>
 
-        {/* Recent Logins Table */}
-        <View style={AdminDashStyle.tableSection}>
-          <Text style={AdminDashStyle.sectionTitle}>Recent Logins</Text>
-          <View style={AdminDashStyle.tableCard}>
-            <View style={AdminDashStyle.tableHeader}>
-              <Text style={[AdminDashStyle.tableHeaderText, { flex: 3 }]}>User</Text>
-              <Text style={[AdminDashStyle.tableHeaderText, { flex: 2 }]}>Role</Text>
-            </View>
-            {lastLogins.length > 0 ? (
-              lastLogins.map((login, index) => (
-                <View 
-                  key={index} 
-                  style={[
-                    AdminDashStyle.tableRow,
-                    { backgroundColor: index % 2 === 0 ? '#ffffff' : '#f8f9fa' }
-                  ]}
-                >
-                  <Text style={[AdminDashStyle.tableCellText, { flex: 3 }]} numberOfLines={1}>
-                    {login.userName}
-                  </Text>
-                  <Text style={[AdminDashStyle.tableCellText, { flex: 2 }]} numberOfLines={1}>
-                    {login.role}
-                  </Text>
-                </View>
-              ))
-            ) : (
-              <View style={AdminDashStyle.emptyState}>
-                <Text style={AdminDashStyle.emptyStateText}>No recent logins found</Text>
-              </View>
-            )}
-          </View>
-        </View>
+                 {/* Recent Logins Table */}
+         <View style={AdminDashStyle.tableSection}>
+           <Text style={AdminDashStyle.sectionTitle}>Recent Logins</Text>
+           <View style={AdminDashStyle.tableCard}>
+             <View style={AdminDashStyle.tableHeader}>
+               <Text style={[AdminDashStyle.tableHeaderText, { flex: 3 }]}>User</Text>
+               <Text style={[AdminDashStyle.tableHeaderText, { flex: 2 }]}>Role</Text>
+             </View>
+             {lastLogins.length > 0 ? (
+               lastLogins.map((login, index) => (
+                 <View 
+                   key={index} 
+                   style={[
+                     AdminDashStyle.tableRow,
+                     { backgroundColor: index % 2 === 0 ? '#ffffff' : '#f8f9fa' }
+                   ]}
+                 >
+                   <Text style={[AdminDashStyle.tableCellText, { flex: 3 }]} numberOfLines={1}>
+                     {login.userName}
+                   </Text>
+                   <Text style={[AdminDashStyle.tableCellText, { flex: 2 }]} numberOfLines={1}>
+                     {login.role}
+                   </Text>
+                 </View>
+               ))
+             ) : (
+               <View style={AdminDashStyle.emptyState}>
+                 <Text style={AdminDashStyle.emptyStateText}>No recent logins found</Text>
+               </View>
+             )}
+           </View>
+         </View>
 
         {/* Audit Trail Preview */}
         <View style={AdminDashStyle.tableSection}>
@@ -604,7 +604,7 @@ export default function AdminDashboard() {
             >
               <MaterialIcons name="calendar-today" size={32} color="#00418b" />
               <Text style={AdminDashStyle.quickActionText}>Calendar</Text>
-            </TouchableOpacity>
+                </TouchableOpacity>
             
             <TouchableOpacity 
               style={AdminDashStyle.quickActionCard}
@@ -612,7 +612,7 @@ export default function AdminDashboard() {
             >
               <MaterialIcons name="chat" size={32} color="#00418b" />
               <Text style={AdminDashStyle.quickActionText}>Chats</Text>
-            </TouchableOpacity>
+                </TouchableOpacity>
             
             <TouchableOpacity 
               style={AdminDashStyle.quickActionCard}
@@ -620,7 +620,7 @@ export default function AdminDashboard() {
             >
               <MaterialIcons name="history" size={32} color="#00418b" />
               <Text style={AdminDashStyle.quickActionText}>Audit Trail</Text>
-            </TouchableOpacity>
+                </TouchableOpacity>
             
             <TouchableOpacity 
               style={AdminDashStyle.quickActionCard}
