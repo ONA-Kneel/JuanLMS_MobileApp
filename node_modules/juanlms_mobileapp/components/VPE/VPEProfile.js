@@ -3,10 +3,13 @@ import { View, Text, TouchableOpacity, Image, ScrollView, Alert, ActivityIndicat
 import { MaterialIcons, Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../UserContext';
+import { useNotifications } from '../../NotificationContext';
+import { useAnnouncements } from '../../AnnouncementContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { addAuditLog } from '../Admin/auditTrailUtils';
 import * as ImagePicker from 'expo-image-picker';
 import { Platform } from 'react-native';
+import NotificationCenter from '../NotificationCenter';
 
 // Helper to capitalize first letter of each word
 function capitalizeWords(str) {
@@ -18,7 +21,10 @@ const API_URL = 'https://juanlms-webapp-server.onrender.com';
 export default function VPEProfile() {
   const { user, loading } = useUser();
   const navigation = useNavigation();
+  const { unreadCount } = useNotifications();
+  const { announcements } = useAnnouncements();
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
+  const [showNotificationCenter, setShowNotificationCenter] = useState(false);
   const [editedUser, setEditedUser] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const fileInputRef = useRef(null);
@@ -193,9 +199,33 @@ export default function VPEProfile() {
             <Feather name="lock" size={20} color="#00418b" />
             <Text style={styles.actionText}>Password</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionBtn}>
+          <TouchableOpacity 
+            style={styles.actionBtn}
+            onPress={() => setShowNotificationCenter(true)}
+          >
             <Feather name="bell" size={20} color="#00418b" />
-            <Text style={styles.actionText}>Notify</Text>
+            <Text style={styles.actionText}>Notifications</Text>
+            {unreadCount > 0 && (
+              <View style={{
+                position: 'absolute',
+                top: -5,
+                right: -5,
+                backgroundColor: '#ff4444',
+                borderRadius: 10,
+                minWidth: 20,
+                height: 20,
+                justifyContent: 'center',
+                alignItems: 'center',
+              }}>
+                <Text style={{
+                  color: 'white',
+                  fontSize: 12,
+                  fontFamily: 'Poppins-Bold',
+                }}>
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </Text>
+              </View>
+            )}
           </TouchableOpacity>
           <TouchableOpacity style={styles.actionBtn} onPress={goToSupportCenter}>
             <Feather name="help-circle" size={20} color="#00418b" />
@@ -274,6 +304,12 @@ export default function VPEProfile() {
           style={{ display: 'none' }}
         />
       )}
+      
+      {/* Notification Center */}
+      <NotificationCenter 
+        visible={showNotificationCenter} 
+        onClose={() => setShowNotificationCenter(false)} 
+      />
     </View>
   );
 }
