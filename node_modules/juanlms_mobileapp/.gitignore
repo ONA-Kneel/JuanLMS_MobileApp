@@ -5,32 +5,64 @@ node_modules/
 
 # Expo
 .expo/
+.expo-shared/
 dist/
 web-build/
 expo-env.d.ts
 
-# Native
-*.orig.*
+# Native (Android & iOS)
+android/.gradle/
+android/build/
+android/app/build/
+*.apk
+*.aab
+ios/build/
+ios/Pods/
+*.xcworkspace
+*.xcuserstate
+*.xcodeproj/*
+!*.xcodeproj/project.pbxproj
+
+# Keystores & signing
 *.jks
+*.keystore
 *.p8
 *.p12
 *.key
 *.mobileprovision
+*.der
 
 # Metro
 .metro-health-check*
 
-# debug
+# Debug / logs
 npm-debug.*
 yarn-debug.*
 yarn-error.*
+*.log
+logs/
+*.pid
+*.seed
+*.pid.lock
 
 # macOS
 .DS_Store
 *.pem
 
-# local env files
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Local env files
+.env
 .env*.local
 
-# typescript
+# Typescript
 *.tsbuildinfo
+
+# Backend specific (if included in repo)
+coverage/
+uploads/
+tmp/
+.cache/
