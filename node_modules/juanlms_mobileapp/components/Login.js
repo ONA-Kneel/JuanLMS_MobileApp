@@ -292,7 +292,7 @@ export default function Login() {
             </TouchableOpacity>
             <Text style={LoginStyle.rememberText}>Remember Me</Text>
           </TouchableOpacity>
-          <TouchableOpacity>
+          <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')}>
             <Text style={LoginStyle.forgotPassword}>Forgot Password?</Text>
           </TouchableOpacity>
         </View>

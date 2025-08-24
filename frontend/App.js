@@ -11,6 +11,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Login from './components/Login';
+import ForgotPassword from './components/ForgotPassword';
 import Chat from './components/Chat';
 import GroupChat from './components/GroupChat';
 import GroupManagement from './components/GroupManagement';
@@ -257,6 +258,7 @@ export default function App() {
         <Screens.Screen name='GroupManagement' component={GroupManagement} options={{ headerShown: false }}/>
         <Screens.Screen name='UnifiedChat' component={UnifiedChat} options={{ headerShown: false }}/>
         <Screens.Screen name='Login' component={Login} options={{ headerShown: false }}/>
+        <Screens.Screen name='ForgotPassword' component={ForgotPassword} options={{ headerShown: false }}/>
 
         {/* Students */}
         <Screens.Screen name='SDash' component={StudentTabs} options={{ headerShown: false }}/>
