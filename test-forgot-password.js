@@ -1,7 +1,7 @@
 // Test script for forgot password functionality
 import fetch from 'node-fetch';
 
-const API_BASE = 'http://localhost:5000/api';
+const API_BASE = 'https://juanlms-webapp-server.onrender.com/api';
 
 async function testForgotPassword() {
   console.log('Testing Forgot Password Endpoints...\n');

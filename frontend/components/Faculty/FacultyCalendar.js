@@ -70,7 +70,7 @@ export default function FacultyCalendar() {
         
         // Try to fetch events from the local backend API
         try {
-          const resEvents = await fetch('http://localhost:5000/api/events', {
+          const resEvents = await fetch('https://juanlms-webapp-server.onrender.com/api/events', {
             headers: { Authorization: `Bearer ${token}` }
           });
           if (resEvents.ok) {
