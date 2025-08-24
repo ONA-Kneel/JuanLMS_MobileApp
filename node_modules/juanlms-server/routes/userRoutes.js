@@ -426,7 +426,7 @@ userRoutes.post('/reset-password', async (req, res) => {
     const { email, otp, newPassword } = req.body;
 
     if (!email || !otp || !newPassword) {
-        return res.status(400).json({ message: 'All fields are required.' });
+        return res.status(400).json({ message: 'Invalid or Expired OTP! Please request a new OTP.' });
     }
     if (newPassword.length < 8) {
         return res.status(400).json({ message: 'Password must be at least 8 characters.' });
@@ -462,7 +462,7 @@ userRoutes.post('/validate-otp', async (req, res) => {
     const db = database.getDb();
     const { email, otp } = req.body;
     if (!email || !otp) {
-        return res.status(400).json({ message: 'All fields are required.' });
+        return res.status(400).json({ message: 'Email and OTP are required.' });
     }
     // Find user by emailHash
     const emailHash = hashEmail(email.toLowerCase());
