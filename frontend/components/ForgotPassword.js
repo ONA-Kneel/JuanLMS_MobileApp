@@ -106,6 +106,9 @@ export default function ForgotPassword({ navigation }) {
     setError('');
     setMessage('');
     
+    // Debug logging
+    console.log('Validating OTP with:', { email, otp });
+    
     try {
       const response = await fetch(`${API_BASE}/validate-otp`, {
         method: 'POST',
@@ -117,6 +120,12 @@ export default function ForgotPassword({ navigation }) {
           otp,
         }),
       });
+      
+      // Debug logging
+      console.log('Request body sent:', JSON.stringify({
+        email: email,
+        otp,
+      }));
       
       const data = await response.json();
       
