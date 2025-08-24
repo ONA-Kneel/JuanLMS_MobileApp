@@ -1,7 +1,7 @@
 import { Image } from 'react-native';
 import React from 'react';
 import { useFonts } from 'expo-font';
-import { View, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator, Text } from 'react-native';
 
 //folders
 import SplashScreen from './components/SplashScreen';
@@ -223,7 +223,7 @@ function PrincipalTabs() {
 //Specific Screen Change
 const Screens = createNativeStackNavigator();
 export default function App() {
-  const [fontsLoaded] = useFonts({
+  const [fontsLoaded, fontError] = useFonts({
     'Poppins-Regular': require('./assets/fonts/Poppins-Regular.ttf'),
     'Poppins-Bold': require('./assets/fonts/Poppins-Bold.ttf'),
     'Poppins-Medium': require('./assets/fonts/Poppins-Medium.ttf'),
@@ -232,10 +232,17 @@ export default function App() {
     'Poppins-Thin': require('./assets/fonts/Poppins-Thin.ttf'),
   });
 
+  React.useEffect(() => {
+    if (fontError) {
+      console.error('Font loading error:', fontError);
+    }
+  }, [fontError]);
+
   if (!fontsLoaded) {
     return (
-      <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}>
-        <ActivityIndicator size="large" />
+      <View style={{flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#ffffff'}}>
+        <ActivityIndicator size="large" color="#007AFF" />
+        <Text style={{marginTop: 10, fontSize: 16}}>Loading...</Text>
       </View>
     );
   }
@@ -246,7 +253,7 @@ export default function App() {
     <NotificationProvider>
     <AnnouncementProvider>
     <NavigationContainer>
-      <Screens.Navigator initialRouteName='Login'>
+      <Screens.Navigator initialRouteName='SplashScreen'>
 
         {/*Assisted lang daw dapat */}
 

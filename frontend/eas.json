@@ -1,24 +1,34 @@
 {
   "cli": {
-    "version": ">= 5.9.1"
+    "version": ">= 12.0.0",
+    "appVersionSource": "remote"
   },
   "build": {
     "development": {
       "developmentClient": true,
       "distribution": "internal",
       "android": {
-        "gradleCommand": ":app:assembleDebug"
+         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://juanlms-webapp-server.onrender.com"
       }
     },
     "preview": {
       "distribution": "internal",
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://juanlms-webapp-server.onrender.com"
       }
     },
     "production": {
       "android": {
-        "buildType": "app-bundle"
+         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://juanlms-webapp-server.onrender.com"
       }
     }
   },

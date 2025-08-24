@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "JuanLMS_MobileApp",
-    "slug": "JuanLMS_MobileApp",
+    "slug": "juanlms-mobile-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/JuanLMS-LogoV1.png",
@@ -29,17 +29,15 @@
         "WRITE_EXTERNAL_STORAGE"
       ],
       "softwareKeyboardLayoutMode": "pan",
-      "allowBackup": true,
-      "enableProguardInReleaseBuilds": true,
-      "enableShrinkResources": true,
-      "enableR8": true
+      "allowBackup": true
     },
     "web": {
       "icon": "./assets/JuanLMS-LogoV1.png"
     },
     "extra": {
+      "API_URL": "https://juanlms-webapp-server.onrender.com",
       "eas": {
-        "projectId": "juanlms-mobileapp"
+        "projectId": "230e22b4-83ee-4315-9e68-a21aaaabe2f9"
       }
     },
     "plugins": [
@@ -50,7 +48,12 @@
           "cameraPermission": "The app accesses your camera to let you take profile pictures."
         }
       ],
-      "@react-native-community/datetimepicker"
+      [
+        "@react-native-community/datetimepicker",
+        {
+          "androidMode": "default"
+        }
+      ]
     ]
   }
 }
