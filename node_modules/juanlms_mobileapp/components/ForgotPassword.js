@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
 
-const API_BASE = 'http://10.0.2.2:5000/api'; // Android emulator localhost with /api prefix
+const API_BASE = 'https://juanlms-webapp-server.onrender.com'; // Use the same backend as the web app
 
 export default function ForgotPassword({ navigation }) {
   // --- STATE ---
