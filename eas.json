@@ -1,3 +1,9 @@
+
+
+
+
+
+
 {
   "cli": {
     "version": ">= 16.17.4",
@@ -25,8 +31,10 @@
       }
     },
     "production": {
+      "distribution": "store",
       "android": {
-         "buildType": "apk"
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleRelease"
       },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://juanlms-webapp-server.onrender.com"

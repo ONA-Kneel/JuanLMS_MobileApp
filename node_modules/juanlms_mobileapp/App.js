@@ -1,3 +1,4 @@
+import 'react-native-gesture-handler';
 import { Image } from 'react-native';
 import React from 'react';
 import { useFonts } from 'expo-font';
@@ -223,13 +224,14 @@ function PrincipalTabs() {
 //Specific Screen Change
 const Screens = createNativeStackNavigator();
 export default function App() {
+  // Temporarily disable custom fonts to prevent crash
   const [fontsLoaded, fontError] = useFonts({
-    'Poppins-Regular': require('./assets/fonts/Poppins-Regular.ttf'),
-    'Poppins-Bold': require('./assets/fonts/Poppins-Bold.ttf'),
-    'Poppins-Medium': require('./assets/fonts/Poppins-Medium.ttf'),
-    'Poppins-SemiBold': require('./assets/fonts/Poppins-SemiBold.ttf'),
-    'Poppins-Light': require('./assets/fonts/Poppins-Light.ttf'),
-    'Poppins-Thin': require('./assets/fonts/Poppins-Thin.ttf'),
+    // 'Poppins-Regular': require('./assets/fonts/Poppins-Regular.ttf'),
+    // 'Poppins-Bold': require('./assets/fonts/Poppins-Bold.ttf'),
+    // 'Poppins-Medium': require('./assets/fonts/Poppins-Medium.ttf'),
+    // 'Poppins-SemiBold': require('./assets/fonts/Poppins-SemiBold.ttf'),
+    // 'Poppins-Light': require('./assets/fonts/Poppins-Light.ttf'),
+    // 'Poppins-Thin': require('./assets/fonts/Poppins-Thin.ttf'),
   });
 
   React.useEffect(() => {
@@ -238,15 +240,8 @@ export default function App() {
     }
   }, [fontError]);
 
-  if (!fontsLoaded) {
-    return (
-      <View style={{flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#ffffff'}}>
-        <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={{marginTop: 10, fontSize: 16}}>Loading...</Text>
-      </View>
-    );
-  }
-
+  // Always render the app even if fonts fail to load
+  // This prevents the text rendering crash
   return (
     <UserProvider>
     <ChatProvider>

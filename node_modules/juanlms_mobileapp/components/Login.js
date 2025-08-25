@@ -1,5 +1,6 @@
+// Login.js
 import React, { useEffect, useState } from 'react';
-import { Text, TouchableOpacity, View, Image, TextInput, ImageBackground, Platform } from 'react-native';
+import { Text, TouchableOpacity, View, Image, TextInput, Pressable } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import LoginStyle from './styles/LoginStyle';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -8,11 +9,14 @@ import Toast from 'react-native-root-toast';
 import { useUser } from './UserContext';
 import { addAuditLog } from './Admin/auditTrailUtils';
 
-// Set your public backend URL here (replace with your actual deployed backend URL)
-const BACKEND_URL = 'https://juanlms-webapp-server.onrender.com/login'; // Update this to your actual backend URL
+// ---- Hermes-safe atob polyfill (JWT decode) ----
+import { decode as atob } from 'base-64';
+if (!global.atob) global.atob = atob;
+// ------------------------------------------------
+
+const BACKEND_URL = 'https://juanlms-webapp-server.onrender.com/login';
 
 export default function Login() {
-  //mema commit na lang para lang may kulay ako today
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [email, setEmail] = useState('');
@@ -27,28 +31,23 @@ export default function Login() {
     const loadLockoutState = async () => {
       const attempts = await AsyncStorage.getItem('failedAttempts');
       const cooldownEnd = await AsyncStorage.getItem('cooldownEndTime');
-      const currentTime = Date.now();
+      const now = Date.now();
 
-      if (cooldownEnd && parseInt(cooldownEnd) > currentTime) {
-        const remaining = Math.floor((parseInt(cooldownEnd) - currentTime) / 1000);
+      if (cooldownEnd && parseInt(cooldownEnd, 10) > now) {
+        const remaining = Math.floor((parseInt(cooldownEnd, 10) - now) / 1000);
         startCooldown(remaining);
       }
-
-      if (attempts) {
-        setFailedAttempts(parseInt(attempts));
-      }
+      if (attempts) setFailedAttempts(parseInt(attempts, 10));
     };
-
     loadLockoutState();
   }, []);
 
   const showToast = (message, type = 'info') => {
     let backgroundColor = '#333';
-    if (type === 'error') backgroundColor = '#D9534F';      // red
-    if (type === 'success') backgroundColor = '#0275D8';     // blue
-
+    if (type === 'error') backgroundColor = '#D9534F';
+    if (type === 'success') backgroundColor = '#0275D8';
     Toast.show(message, {
-      duration: 5000, // 5 seconds
+      duration: 5000,
       position: Toast.positions.BOTTOM,
       shadow: true,
       animation: true,
@@ -59,10 +58,9 @@ export default function Login() {
     });
   };
 
-  const startCooldown = (durationInSeconds) => {
+  const startCooldown = (duration) => {
     setIsCooldown(true);
-    setCooldownTimer(durationInSeconds);
-
+    setCooldownTimer(duration);
     const interval = setInterval(() => {
       setCooldownTimer(prev => {
         if (prev <= 1) {
@@ -83,49 +81,23 @@ export default function Login() {
       showToast(`Please wait ${cooldownTimer} seconds before trying again.`, 'error');
       return;
     }
-
     if (!email.trim() || !password.trim()) {
       showToast('Please enter both email and password.', 'error');
       return;
     }
 
     try {
-      console.log('Attempting login with:', { 
-        email: email.trim().toLowerCase(),
-        // Don't log actual password in production
-        hasPassword: !!password 
-      });
-
-      // Use the public backend URL
       const loginUrl = BACKEND_URL;
-      console.log('Using backend URL:', loginUrl);
-
       const response = await fetch(loginUrl, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify({ 
-          email: email.trim().toLowerCase(), 
-          password: password.trim() 
-        })
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({ email: email.trim().toLowerCase(), password: password.trim() })
       });
 
-      console.log('Response status:', response.status);
-      let data;
       const responseText = await response.text();
-      try {
-        data = JSON.parse(responseText);
-      } catch (e) {
-        console.error('Non-JSON response:', responseText);
-        showToast('Server error: ' + responseText, 'error');
-        return;
-      }
-      console.log('Response data:', {
-        success: !!data.token,
-        message: data.message
-      });
+      let data;
+      try { data = JSON.parse(responseText); }
+      catch { showToast('Server error: ' + responseText, 'error'); return; }
 
       if (response.ok) {
         setFailedAttempts(0);
@@ -133,108 +105,69 @@ export default function Login() {
         showToast('Login successful!', 'success');
 
         const tokenPayload = JSON.parse(atob(data.token.split('.')[1]));
-        console.log('Token payload:', {
-          role: tokenPayload.role,
-          userId: tokenPayload.id
-        });
-
         const role = tokenPayload.role;
         const userId = tokenPayload.id;
 
-        console.log('Processing login for role:', role);
-
-        // Fetch user data
-        console.log('Fetching user data for ID:', userId);
+        // fetch user
         const userRes = await fetch(`${loginUrl.replace('/login', '')}/users/${userId}`, {
-          headers: {
-            'Authorization': `Bearer ${data.token}`,
-            'Content-Type': 'application/json'
-          }
+          headers: { 'Authorization': `Bearer ${data.token}`, 'Content-Type': 'application/json' }
         });
-        
-        if (!userRes.ok) {
-          throw new Error(`Failed to fetch user data: ${userRes.status}`);
-        }
-        
+        if (!userRes.ok) throw new Error(`Failed to fetch user data: ${userRes.status}`);
         const userData = await userRes.json();
-        console.log('User data fetched:', {
-          id: userData._id,
-          role: userData.role,
-          email: userData.email,
-          firstname: userData.firstname,
-          lastname: userData.lastname
-        });
 
         await setUserAndToken(userData, data.token);
 
-        // Add audit log for login
         await addAuditLog({
           userId: userData._id,
-          userName: userData.firstname + ' ' + userData.lastname,
+          userName: `${userData.firstname} ${userData.lastname}`,
           userRole: role,
           action: 'Login',
           details: `User ${userData.email} logged in.`,
           timestamp: new Date().toISOString(),
         });
 
-        // Role mapping for navigation
         const roleNavigationMap = {
-          'students': 'SDash',
-          'faculty': 'FDash',
-          'admin': 'ADash',
-          'parent': 'PDash',
-          'director': 'DDash',
-          'vpe': 'VPEDash',
+          students: 'SDash',
+          faculty: 'FDash',
+          admin: 'ADash',
+          parent: 'PDash',
+          director: 'DDash',
+          vpe: 'VPEDash',
           'vice president of education': 'VPEDash',
-          'vicepresident': 'VPEDash',
+          vicepresident: 'VPEDash',
           'vice president': 'VPEDash',
-          'principal': 'PrincipalDash'
+          principal: 'PrincipalDash',
         };
 
         const targetRoute = roleNavigationMap[role];
-        if (targetRoute) {
-          console.log(`Navigating to ${targetRoute} for role: ${role}`);
-          console.log('User data for navigation:', {
-            id: userData._id,
-            role: userData.role,
-            email: userData.email,
-            firstname: userData.firstname,
-            lastname: userData.lastname
-          });
-          navigation.navigate(targetRoute);
-        } else {
-          console.error('Unknown role:', role);
-          console.error('Available roles in mapping:', Object.keys(roleNavigationMap));
-          showToast(`Unknown role: ${role}. Please contact administrator.`, 'error');
-        }
+        if (targetRoute) navigation.navigate(targetRoute);
+        else showToast(`Unknown role: ${role}. Please contact administrator.`, 'error');
       } else {
-        console.error('Login failed:', data.message);
         const newAttempts = failedAttempts + 1;
         setFailedAttempts(newAttempts);
-        await AsyncStorage.setItem('failedAttempts', newAttempts.toString());
+        await AsyncStorage.setItem('failedAttempts', String(newAttempts));
 
         if (newAttempts >= 3) {
-          const cooldownSeconds = 30;
-          const cooldownEndTime = Date.now() + cooldownSeconds * 1000;
-          await AsyncStorage.setItem('cooldownEndTime', cooldownEndTime.toString());
+          const cooldownSeconds = 30; // your message says 2 mins; adjust if desired
+          await AsyncStorage.setItem('cooldownEndTime', String(Date.now() + cooldownSeconds * 1000));
           startCooldown(cooldownSeconds);
           showToast('Too many failed attempts. Wait 2 minutes.', 'error');
         } else {
           showToast(data.message || 'Invalid email or password', 'error');
         }
       }
-    } catch (error) {
-      console.error('Login error:', error);
+    } catch (err) {
+      console.error('Login error:', err);
       showToast('An error occurred while logging in. Please check your connection.', 'error');
     }
   };
 
   return (
     <View style={LoginStyle.container}>
-      <View style={LoginStyle.topSection}> {/* Responsive margin */}
-        <Image 
-          source={require('../assets/JuanLMS-LogoV1.png')} 
-          style={LoginStyle.logo} 
+      <View style={LoginStyle.topSection}>
+        <Image
+          source={require('../assets/JuanLMS-LogoV1.png')}
+          style={LoginStyle.logo}
           resizeMode="contain"
         />
         <View style={{ alignItems: 'center', justifyContent: 'center', width: '100%' }}>
@@ -242,8 +175,10 @@ export default function Login() {
           <Text style={LoginStyle.text1}>expressed in Charity</Text>
         </View>
       </View>
+
       <View style={LoginStyle.card}>
         <Text style={LoginStyle.loginTitle}>Login</Text>
+
         <Text style={LoginStyle.label}>Email</Text>
         <TextInput
           style={LoginStyle.inputUnderline}
@@ -254,6 +189,7 @@ export default function Login() {
           keyboardType="email-address"
           placeholderTextColor="#999"
         />
+
         <Text style={LoginStyle.label}>Password</Text>
         <View style={LoginStyle.passwordContainerUnderline}>
           <TextInput
@@ -265,37 +201,28 @@ export default function Login() {
             placeholderTextColor="#999"
           />
           <TouchableOpacity
-            onPress={() => setShowPassword(!showPassword)}
+            onPress={() => setShowPassword(s => !s)}
             style={LoginStyle.eyeIcon}
             activeOpacity={0.7}
           >
-            <Icon
-              name={showPassword ? 'eye-off' : 'eye'}
-              size={24}
-              color="#888"
-            />
+            <Icon name={showPassword ? 'eye-off' : 'eye'} size={24} color="#888" />
           </TouchableOpacity>
         </View>
+
         <View style={LoginStyle.rowBetween}>
-          <TouchableOpacity
-            style={LoginStyle.rememberRow}
-            onPress={() => setRememberMe(!rememberMe)}
-            activeOpacity={0.7}
-          >
-            <TouchableOpacity
-              onPress={() => setRememberMe(!rememberMe)}
-              style={LoginStyle.checkbox}
-            >
-              {rememberMe ? (
-                <Icon name="check" size={18} color="#1976d2" />
-              ) : null}
-            </TouchableOpacity>
+          {/* Single pressable to avoid raw text nodes on Android */}
+          <Pressable style={LoginStyle.rememberRow} onPress={() => setRememberMe(v => !v)}>
+            <View style={LoginStyle.checkbox}>
+              {rememberMe && <Icon name="check" size={18} color="#1976d2" />}
+            </View>
             <Text style={LoginStyle.rememberText}>Remember Me</Text>
-          </TouchableOpacity>
+          </Pressable>
+
           <TouchableOpacity>
             <Text style={LoginStyle.forgotPassword}>Forgot Password?</Text>
           </TouchableOpacity>
         </View>
+
         <TouchableOpacity
           onPress={btnLogin}
           style={[LoginStyle.loginButton, isCooldown && { backgroundColor: 'gray' }]}
