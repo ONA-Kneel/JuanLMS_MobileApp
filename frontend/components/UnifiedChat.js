@@ -17,6 +17,7 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import AdminChatStyle from './styles/administrator/AdminChatStyle';
 import * as DocumentPicker from 'expo-document-picker';
+import { getAuthHeaders, handleApiError } from '../utils/apiUtils';
 
 
 const API_URL = 'https://juanlms-webapp-server.onrender.com';
@@ -110,8 +111,9 @@ export default function UnifiedChat() {
       (async () => {
         try {
           const token = await AsyncStorage.getItem('jwtToken');
+          const headers = { 'Authorization': `Bearer ${token || ''}` };
           const res = await axios.get(`${API_URL}/group-messages/${selectedGroup._id}?userId=${user._id}`, {
-            headers: { 'Authorization': `Bearer ${token || ''}` }
+            headers
           });
           setMessages(res.data);
         } catch (err) {
@@ -127,8 +129,9 @@ export default function UnifiedChat() {
       (async () => {
         try {
           const token = await AsyncStorage.getItem('jwtToken');
+          const headers = { 'Authorization': `Bearer ${token || ''}` };
           const res = await axios.get(`${API_URL}/messages/${user._id}/${selectedUser._id}`, {
-            headers: { 'Authorization': `Bearer ${token || ''}` }
+            headers
           });
           setMessages(res.data);
         } catch (err) {
@@ -208,20 +211,23 @@ export default function UnifiedChat() {
 
   const fetchUsers = async () => {
     try {
-      console.log('Fetching users from:', `${API_URL}/users`);
-      const token = await AsyncStorage.getItem('jwtToken');
+      const headers = await getAuthHeaders();
+      
       const response = await axios.get(`${API_URL}/users`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers
       });
-      console.log('Users response:', response.data);
-      const userArray = Array.isArray(response.data) ? response.data : (response.data?.users || response.data?.data || []);
-      // Do NOT filter by role here; we need all users to reconstruct conversations
-      const otherUsers = userArray.filter(u => u._id !== user._id);
-      console.log('Loaded users:', otherUsers.length);
-      setAllUsers(otherUsers);
+      
+      if (response.data) {
+        const userArray = Array.isArray(response.data) ? response.data : (response.data?.users || response.data?.data || []);
+        // Do NOT filter by role here; we need all users to reconstruct conversations
+        const otherUsers = userArray.filter(u => u._id !== user._id);
+        console.log('Loaded users:', otherUsers.length);
+        setAllUsers(otherUsers);
+      }
     } catch (error) {
       console.error('Error fetching users:', error);
-      setAllUsers([]);
+      const errorMessage = handleApiError(error, 'Failed to fetch users');
+      Alert.alert('Error', errorMessage);
     }
   };
 
@@ -309,36 +315,39 @@ export default function UnifiedChat() {
 
   const fetchUserGroups = async () => {
     try {
-      console.log('Fetching user groups from:', `${API_URL}/group-chats/user/${user._id}`);
-      const token = await AsyncStorage.getItem('jwtToken');
+      const headers = await getAuthHeaders();
+      
       const response = await axios.get(`${API_URL}/group-chats/user/${user._id}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers
       });
-      console.log('User groups response:', response.data);
-      setUserGroups(response.data);
-      try {
-        (response.data || []).forEach(g => socketRef.current?.emit('joinGroup', { userId: user._id, groupId: g._id }));
-      } catch {}
-      // Preload group messages and compute last message
-      const allGroupMessages = {};
-      for (const group of (response.data || [])) {
+      
+      if (response.data) {
+        setUserGroups(response.data);
         try {
-          const gres = await axios.get(`${API_URL}/group-messages/${group._id}?userId=${user._id}`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-          });
-          allGroupMessages[group._id] = Array.isArray(gres.data) ? gres.data : [];
-          if (allGroupMessages[group._id].length > 0) {
-            const last = allGroupMessages[group._id][allGroupMessages[group._id].length - 1];
-            const text = last.message ? last.message : (last.fileUrl ? 'File sent' : '');
-            const prefix = last.senderId === user._id ? 'You: ' : `${last.senderFirstname || 'Unknown'} ${last.senderLastname || 'User'}: `;
-            setLastMessages(prev => ({ ...prev, [group._id]: { prefix, text } }));
-          }
+          (response.data || []).forEach(g => socketRef.current?.emit('joinGroup', { userId: user._id, groupId: g._id }));
         } catch {}
+        // Preload group messages and compute last message
+        const allGroupMessages = {};
+        for (const group of (response.data || [])) {
+          try {
+            const gres = await axios.get(`${API_URL}/group-messages/${group._id}?userId=${user._id}`, {
+              headers
+            });
+            allGroupMessages[group._id] = Array.isArray(gres.data) ? gres.data : [];
+            if (allGroupMessages[group._id].length > 0) {
+              const last = allGroupMessages[group._id][allGroupMessages[group._id].length - 1];
+              const text = last.message ? last.message : (last.fileUrl ? 'File sent' : '');
+              const prefix = last.senderId === user._id ? 'You: ' : `${last.senderFirstname || 'Unknown'} ${last.senderLastname || 'User'}: `;
+              setLastMessages(prev => ({ ...prev, [group._id]: { prefix, text } }));
+            }
+          } catch {}
+        }
+        setGroupMsgsById(allGroupMessages);
       }
-      setGroupMsgsById(allGroupMessages);
     } catch (error) {
       console.error('Error fetching user groups:', error);
-      setUserGroups([]);
+      const errorMessage = handleApiError(error, 'Failed to fetch user groups');
+      Alert.alert('Error', errorMessage);
     }
   };
 
@@ -349,9 +358,10 @@ export default function UnifiedChat() {
     
     try {
       const token = await AsyncStorage.getItem('jwtToken');
+      const headers = { 'Authorization': `Bearer ${token}` };
       const memberPromises = selectedGroup.participants.map(async (participantId) => {
         const response = await axios.get(`${API_URL}/users/${participantId}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
+          headers
         });
         return response.data;
       });
@@ -359,6 +369,8 @@ export default function UnifiedChat() {
       setGroupMembers(members);
     } catch (error) {
       console.error('Error fetching group members:', error);
+      const errorMessage = handleApiError(error, 'Failed to fetch group members');
+      Alert.alert('Error', errorMessage);
     }
   };
 
@@ -380,8 +392,9 @@ export default function UnifiedChat() {
       }
       try {
         const token = await AsyncStorage.getItem('jwtToken');
+        const headers = { 'Authorization': `Bearer ${token}` };
         const res = await axios.post(`${API_URL}/group-messages`, form, {
-          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
+          headers, 'Content-Type': 'multipart/form-data'
         });
         const sentMessage = res.data;
         // Emit to socket for real-time
@@ -423,8 +436,9 @@ export default function UnifiedChat() {
           });
         }
         const token = await AsyncStorage.getItem('jwtToken');
+        const headers = { 'Authorization': `Bearer ${token}` };
         const res = await axios.post(`${API_URL}/messages`, form, {
-          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
+          headers, 'Content-Type': 'multipart/form-data'
         });
         const sentMessage = res.data;
         // Emit to socket for real-time
@@ -486,11 +500,12 @@ export default function UnifiedChat() {
 
     try {
       const token = await AsyncStorage.getItem('jwtToken');
+      const headers = { 'Authorization': `Bearer ${token}` };
       const response = await axios.post(`${API_URL}/group-chats`, {
         name: groupName.trim(),
         createdBy: user._id,
         participants: selectedParticipants
-      }, { headers: { 'Authorization': `Bearer ${token}` } });
+      }, { headers });
 
       Alert.alert('Success', 'Group chat created!', [
         { text: 'OK', onPress: () => {
@@ -504,7 +519,8 @@ export default function UnifiedChat() {
       ]);
     } catch (error) {
       console.error('Error creating group:', error);
-      Alert.alert('Error', 'Failed to create group. Please try again.');
+      const errorMessage = handleApiError(error, 'Failed to create group');
+      Alert.alert('Error', errorMessage);
     }
   };
 
@@ -516,9 +532,10 @@ export default function UnifiedChat() {
 
     try {
       const token = await AsyncStorage.getItem('jwtToken');
+      const headers = { 'Authorization': `Bearer ${token}` };
       await axios.post(`${API_URL}/group-chats/${joinGroupId}/join`, {
         userId: user._id
-      }, { headers: { 'Authorization': `Bearer ${token}` } });
+      }, { headers });
 
       Alert.alert('Success', 'Successfully joined the group!', [
         { text: 'OK', onPress: () => {
@@ -543,9 +560,10 @@ export default function UnifiedChat() {
   const handleLeaveGroup = async () => {
     try {
       const token = await AsyncStorage.getItem('jwtToken');
+      const headers = { 'Authorization': `Bearer ${token}` };
       await axios.post(`${API_URL}/group-chats/${selectedGroup._id}/leave`, {
         userId: user._id,
-      }, { headers: { 'Authorization': `Bearer ${token}` } });
+      }, { headers });
 
       // Leave the group in socket
       socketRef.current?.emit('leaveGroup', { userId: user._id, groupId: selectedGroup._id });
@@ -565,10 +583,11 @@ export default function UnifiedChat() {
   const handleRemoveMember = async (memberId) => {
     try {
       const token = await AsyncStorage.getItem('jwtToken');
+      const headers = { 'Authorization': `Bearer ${token}` };
       await axios.post(`${API_URL}/group-chats/${selectedGroup._id}/remove-member`, {
         userId: user._id,
         memberId: memberId,
-      }, { headers: { 'Authorization': `Bearer ${token}` } });
+      }, { headers });
 
       // Refresh group members
       fetchGroupMembers();

@@ -14,6 +14,7 @@ import {
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useIsFocused } from '@react-navigation/native';
 import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { formatDate } from '../../utils/dateUtils';
 
 const API_BASE_URL = 'https://juanlms-webapp-server.onrender.com';
@@ -142,6 +143,14 @@ export default function VPEAnnouncements() {
   const [filterPriority, setFilterPriority] = useState('all');
   const [showCreateForm, setShowCreateForm] = useState(false);
   
+  // Academic year and term state for filtering
+  const [academicYear, setAcademicYear] = useState(null);
+  const [currentTerm, setCurrentTerm] = useState(null);
+  const [schoolYears, setSchoolYears] = useState([]);
+  const [selectedSchoolYear, setSelectedSchoolYear] = useState('');
+  const [terms, setTerms] = useState([]);
+  const [selectedTerm, setSelectedTerm] = useState('');
+  
   // Form state
   const [newAnnouncement, setNewAnnouncement] = useState({
     title: '',
@@ -153,11 +162,116 @@ export default function VPEAnnouncements() {
 
   const isFocused = useIsFocused();
 
+  // Fetch active academic year
+  const fetchAcademicYear = async () => {
+    try {
+      const token = await AsyncStorage.getItem('jwtToken');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      
+      const response = await axios.get(`${API_BASE_URL}/api/schoolyears/active`, { headers });
+      if (response.data) {
+        setAcademicYear(response.data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch academic year:', error);
+      setAcademicYear(null);
+    }
+  };
+
+  // Fetch active term for year
+  const fetchActiveTermForYear = async () => {
+    if (!academicYear) return;
+    
+    try {
+      const schoolYearName = `${academicYear.schoolYearStart}-${academicYear.schoolYearEnd}`;
+      const token = await AsyncStorage.getItem('jwtToken');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      
+      const response = await axios.get(`${API_BASE_URL}/api/terms/schoolyear/${schoolYearName}`, { headers });
+      if (response.data) {
+        const terms = response.data;
+        const active = terms.find(term => term.status === 'active');
+        setCurrentTerm(active || null);
+      }
+    } catch (error) {
+      console.error('Failed to fetch active term:', error);
+      setCurrentTerm(null);
+    }
+  };
+
+  // Fetch school years
+  const fetchSchoolYears = async () => {
+    try {
+      const token = await AsyncStorage.getItem('jwtToken');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+      
+      const response = await axios.get(`${API_BASE_URL}/api/schoolyears`, { headers });
+      if (response.data) {
+        setSchoolYears(response.data);
+        // Set the current active school year as default
+        const currentSchoolYear = response.data.find(sy => sy.status === 'active');
+        if (currentSchoolYear) {
+          setSelectedSchoolYear(currentSchoolYear._id);
+        } else if (response.data.length > 0) {
+          setSelectedSchoolYear(response.data[0]._id);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching school years:', error);
+    }
+  };
+
+  // Fetch terms for selected school year
+  const fetchTermsForSchoolYear = async (schoolYearId) => {
+    if (!schoolYearId) return;
+    
+    try {
+      const schoolYear = schoolYears.find(sy => sy._id === schoolYearId);
+      if (schoolYear) {
+        const schoolYearName = `${schoolYear.schoolYearStart}-${schoolYear.schoolYearEnd}`;
+        const token = await AsyncStorage.getItem('jwtToken');
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        
+        const response = await axios.get(`${API_BASE_URL}/api/terms/schoolyear/${schoolYearName}`, { headers });
+        if (response.data) {
+          setTerms(response.data);
+          if (response.data.length > 0) {
+            setSelectedTerm(response.data[0]._id);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching terms:', error);
+    }
+  };
+
   useEffect(() => {
     if (isFocused) {
-      fetchAnnouncements();
+      const initializeData = async () => {
+        try {
+          await fetchAcademicYear();
+          await fetchSchoolYears();
+          await fetchAnnouncements();
+        } catch (error) {
+          console.error('Error initializing data:', error);
+        }
+      };
+      
+      initializeData();
     }
   }, [isFocused]);
+
+  useEffect(() => {
+    if (academicYear) {
+      fetchActiveTermForYear();
+    }
+  }, [academicYear]);
+
+  useEffect(() => {
+    if (selectedSchoolYear) {
+      fetchTermsForSchoolYear(selectedSchoolYear);
+    }
+  }, [selectedSchoolYear]);
 
   const fetchAnnouncements = async () => {
     try {
@@ -234,7 +348,26 @@ export default function VPEAnnouncements() {
     const matchesCategory = filterCategory === 'all' || announcement.category === filterCategory;
     const matchesPriority = filterPriority === 'all' || announcement.priority === filterPriority;
     
-    return matchesSearch && matchesCategory && matchesPriority;
+    // Filter by school year
+    let matchesSchoolYear = true;
+    if (selectedSchoolYear) {
+      const schoolYear = schoolYears.find(sy => sy._id === selectedSchoolYear);
+      if (schoolYear) {
+        const schoolYearName = `${schoolYear.schoolYearStart}-${schoolYear.schoolYearEnd}`;
+        matchesSchoolYear = announcement.schoolYear === schoolYearName;
+      }
+    }
+    
+    // Filter by term
+    let matchesTerm = true;
+    if (selectedTerm) {
+      const term = terms.find(t => t._id === selectedTerm);
+      if (term) {
+        matchesTerm = announcement.termName === term.termName;
+      }
+    }
+    
+    return matchesSearch && matchesCategory && matchesPriority && matchesSchoolYear && matchesTerm;
   });
 
   const renderAnnouncementItem = ({ item }) => (
@@ -276,6 +409,49 @@ export default function VPEAnnouncements() {
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
+        </View>
+      </View>
+
+      {/* School Year and Term Filters */}
+      <View style={styles.filterRow}>
+        <View style={styles.filterDropdown}>
+          <Text style={styles.filterLabel}>School Year</Text>
+          <TouchableOpacity
+            style={styles.dropdownButton}
+            onPress={() => {
+              // Toggle school year dropdown
+            }}
+          >
+            <Text style={styles.dropdownButtonText}>
+              {selectedSchoolYear && schoolYears.length > 0
+                ? (() => {
+                    const schoolYear = schoolYears.find(sy => sy._id === selectedSchoolYear);
+                    return schoolYear ? `${schoolYear.schoolYearStart}-${schoolYear.schoolYearEnd}` : 'Select Year'
+                  })()
+                : 'Select Year'}
+            </Text>
+            <Icon name="chevron-down" size={20} color="#666" />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.filterDropdown}>
+          <Text style={styles.filterLabel}>Term</Text>
+          <TouchableOpacity
+            style={styles.dropdownButton}
+            onPress={() => {
+              // Toggle term dropdown
+            }}
+          >
+            <Text style={styles.dropdownButtonText}>
+              {selectedTerm && terms.length > 0
+                ? (() => {
+                    const term = terms.find(t => t._id === selectedTerm);
+                    return term ? term.termName : 'Select Term'
+                  })()
+                : 'Select Term'}
+            </Text>
+            <Icon name="chevron-down" size={20} color="#666" />
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -743,6 +919,35 @@ const styles = StyleSheet.create({
   },
   categoryOptionTextActive: {
     color: '#fff',
+  },
+  filterRow: {
+    flexDirection: 'row',
+    gap: 12,
+    paddingHorizontal: 16,
+    marginBottom: 16,
+  },
+  filterDropdown: {
+    flex: 1,
+  },
+  filterLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 8,
+  },
+  dropdownButton: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 8,
+    padding: 12,
+    backgroundColor: '#fff',
+  },
+  dropdownButtonText: {
+    fontSize: 14,
+    color: '#333',
   },
   submitButton: {
     backgroundColor: '#00418b',

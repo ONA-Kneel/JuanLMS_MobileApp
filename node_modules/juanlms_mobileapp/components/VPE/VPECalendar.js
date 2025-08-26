@@ -6,6 +6,7 @@ import { useUser } from '../UserContext';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import moment from 'moment';
+import { getAuthHeaders, handleApiError } from '../../utils/apiUtils';
 
 const API_BASE_URL = 'https://juanlms-webapp-server.onrender.com';
 const { width } = Dimensions.get('window');
@@ -36,9 +37,11 @@ export default function VPECalendar() {
       const month = currentDate.getMonth() + 1;
       const year = currentDate.getFullYear();
       
+      const headers = await getAuthHeaders();
+
       const [classDatesRes, eventsRes, holidaysRes] = await Promise.all([
-        axios.get(`${API_BASE_URL}/api/class-dates`),
-        axios.get(`${API_BASE_URL}/events`),
+        axios.get(`${API_BASE_URL}/api/class-dates`, { headers }),
+        axios.get(`${API_BASE_URL}/events`, { headers }),
         axios.get(`https://date.nager.at/api/v3/PublicHolidays/${year}/PH`)
       ]);
       
@@ -85,6 +88,8 @@ export default function VPECalendar() {
       setEvents(allEvents);
     } catch (error) {
       console.error('Error fetching calendar events:', error);
+      const errorMessage = handleApiError(error, 'Failed to fetch calendar events');
+      Alert.alert('Error', errorMessage);
       // For now, use mock data since API might not be fully implemented
       setEvents(getMockEvents());
     } finally {

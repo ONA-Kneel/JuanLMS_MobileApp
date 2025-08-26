@@ -16,6 +16,7 @@ import io from 'socket.io-client';
 import axios from 'axios';
 import AdminChatStyle from './styles/administrator/AdminChatStyle';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getAuthHeaders, handleApiError } from '../utils/apiUtils';
 
 const SOCKET_URL = 'https://juanlms-webapp-server.onrender.com';
 
@@ -43,14 +44,19 @@ export default function GroupChat() {
 
     (async () => {
       const token = await AsyncStorage.getItem('jwtToken');
-      axios.get(`${SOCKET_URL}/api/group-chats/${selectedGroup._id}/messages?userId=${user._id}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-        .then(res => setMessages(res.data))
-        .catch((err) => {
-          console.log('Error fetching group messages:', err);
-          setMessages([]);
+      const headers = await getAuthHeaders(token);
+      try {
+        const response = await axios.get(`${SOCKET_URL}/api/group-chats/${selectedGroup._id}/messages?userId=${user._id}`, {
+          headers
         });
+        if (response.data) {
+          setMessages(response.data);
+        }
+      } catch (error) {
+        console.error('Error fetching messages:', error);
+        const errorMessage = handleApiError(error, 'Failed to fetch messages');
+        Alert.alert('Error', errorMessage);
+      }
       fetchGroupMembers(token);
     })();
 
@@ -73,9 +79,10 @@ export default function GroupChat() {
 
   const fetchGroupMembers = async (token) => {
     try {
+      const headers = await getAuthHeaders(token);
       const memberPromises = selectedGroup.participants.map(async (participantId) => {
         const response = await axios.get(`${SOCKET_URL}/users/${participantId}`, {
-          headers: { Authorization: `Bearer ${token}` }
+          headers
         });
         return response.data;
       });
@@ -83,6 +90,8 @@ export default function GroupChat() {
       setGroupMembers(members);
     } catch (error) {
       console.error('Error fetching group members:', error);
+      const errorMessage = handleApiError(error, 'Failed to fetch group members');
+      Alert.alert('Error', errorMessage);
     }
   };
 
@@ -103,12 +112,11 @@ export default function GroupChat() {
     // Save to database
     try {
       const token = await AsyncStorage.getItem('jwtToken');
+      const headers = await getAuthHeaders(token);
       await axios.post(`${SOCKET_URL}/api/group-chats/${selectedGroup._id}/messages`, {
         senderId: user._id,
         message: input,
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      }, { headers });
     } catch (err) {
       console.log('Error saving group message:', err);
       Alert.alert("Error", "Failed to send message. Please try again.");
@@ -123,11 +131,10 @@ export default function GroupChat() {
   const handleLeaveGroup = async () => {
     try {
       const token = await AsyncStorage.getItem('jwtToken');
+      const headers = await getAuthHeaders(token);
       await axios.post(`${SOCKET_URL}/api/group-chats/${selectedGroup._id}/leave`, {
         userId: user._id,
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      }, { headers });
 
       // Leave the group in socket
       socketRef.current?.emit('leaveGroup', { userId: user._id, groupId: selectedGroup._id });
@@ -136,29 +143,28 @@ export default function GroupChat() {
         { text: "OK", onPress: () => navigation.goBack() }
       ]);
     } catch (error) {
-      if (error.response?.status === 400 && error.response?.data?.error?.includes('creator')) {
-        Alert.alert("Cannot Leave", "Group creator cannot leave the group.");
-      } else {
-        Alert.alert("Error", "Failed to leave group. Please try again.");
-      }
+      console.error('Error leaving group:', error);
+      const errorMessage = handleApiError(error, 'Failed to leave group');
+      Alert.alert('Error', errorMessage);
     }
   };
 
   const handleRemoveMember = async (memberId) => {
     try {
       const token = await AsyncStorage.getItem('jwtToken');
+      const headers = await getAuthHeaders(token);
       await axios.post(`${SOCKET_URL}/api/group-chats/${selectedGroup._id}/remove-member`, {
         userId: user._id,
         memberId: memberId,
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      }, { headers });
 
       // Refresh group members
       fetchGroupMembers();
       Alert.alert("Success", "Member removed from group");
     } catch (error) {
-      Alert.alert("Error", "Failed to remove member. Please try again.");
+      console.error('Error removing member:', error);
+      const errorMessage = handleApiError(error, 'Failed to remove member');
+      Alert.alert('Error', errorMessage);
     }
   };
 

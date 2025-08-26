@@ -18,6 +18,7 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { formatDate, getCurrentDate, addDays, isSameDay, isSameMonth, isBefore, clone } from '../../utils/dateUtils';
 import moment from 'moment';
+import { getAuthHeaders, handleApiError } from '../../utils/apiUtils';
 
 const API_BASE_URL = 'https://juanlms-webapp-server.onrender.com';
 const { width } = Dimensions.get('window');
@@ -84,9 +85,10 @@ export default function PrincipalCalendar() {
       setIsLoading(true);
       
       // Fetch calendar events from multiple endpoints like the web app does
+      const headers = await getAuthHeaders();
       const [classDatesRes, eventsRes, holidaysRes] = await Promise.all([
-        axios.get(`${API_BASE_URL}/api/class-dates`),
-        axios.get(`${API_BASE_URL}/events`),
+        axios.get(`${API_BASE_URL}/api/class-dates`, { headers }),
+        axios.get(`${API_BASE_URL}/events`, { headers }),
         axios.get(`https://date.nager.at/api/v3/PublicHolidays/${new Date().getFullYear()}/PH`)
       ]);
       
@@ -139,6 +141,8 @@ export default function PrincipalCalendar() {
       setEvents(allEvents);
     } catch (error) {
       console.error('Error fetching calendar events:', error);
+      const errorMessage = handleApiError(error, 'Failed to fetch calendar events');
+      Alert.alert('Error', errorMessage);
       // Use mock data for now
       setEvents(getMockEvents());
     } finally {

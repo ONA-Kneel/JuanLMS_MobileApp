@@ -230,7 +230,11 @@ export default function PrincipalAnnouncements() {
       const response = await axios.get(`${API_BASE_URL}/api/schoolyears`, { headers });
       if (response.data) {
         setSchoolYears(response.data);
-        if (response.data.length > 0) {
+        // Set the current active school year as default
+        const currentSchoolYear = response.data.find(sy => sy.status === 'active');
+        if (currentSchoolYear) {
+          setSelectedSchoolYear(currentSchoolYear._id);
+        } else if (response.data.length > 0) {
           setSelectedSchoolYear(response.data[0]._id);
         }
       }
