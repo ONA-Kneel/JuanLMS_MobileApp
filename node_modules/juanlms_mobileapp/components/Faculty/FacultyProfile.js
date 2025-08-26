@@ -13,6 +13,8 @@ import { updateUser } from '../UserContext';
 import * as ImagePicker from 'expo-image-picker';
 import NotificationCenter from '../NotificationCenter';
 
+const API_URL = 'https://juanlms-webapp-server.onrender.com';
+
 export default function FacultyProfile() {
   const { user } = useUser();
   const navigation = useNavigation();
