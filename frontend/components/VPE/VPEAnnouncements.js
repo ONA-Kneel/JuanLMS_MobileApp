@@ -469,8 +469,13 @@ export default function VPEAnnouncements() {
     if (!editingAnnouncement) return;
 
     // Validate form
-    if (!newAnnouncement.title.trim() || !newAnnouncement.body.trim()) {
-      Alert.alert('Error', 'Please fill in all required fields.');
+    if (!newAnnouncement.title.trim()) {
+      Alert.alert('Error', 'Title is required.');
+      return;
+    }
+
+    if (!newAnnouncement.body.trim()) {
+      Alert.alert('Error', 'Body is required.');
       return;
     }
 
@@ -531,8 +536,13 @@ export default function VPEAnnouncements() {
 
   const createAnnouncement = async () => {
     // Validate form
-    if (!newAnnouncement.title.trim() || !newAnnouncement.body.trim()) {
-      Alert.alert('Error', 'Please fill in all required fields.');
+    if (!newAnnouncement.title.trim()) {
+      Alert.alert('Error', 'Title is required.');
+      return;
+    }
+
+    if (!newAnnouncement.body.trim()) {
+      Alert.alert('Error', 'Body is required.');
       return;
     }
 
