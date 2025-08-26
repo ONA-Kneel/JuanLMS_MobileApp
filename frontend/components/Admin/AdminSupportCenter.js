@@ -15,6 +15,7 @@ export default function AdminSupportCenter() {
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
   const [activeTab, setActiveTab] = useState('all');
   const [search, setSearch] = useState('');
+  const [sortOrder, setSortOrder] = useState('newest'); // 'newest' | 'oldest'
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [reply, setReply] = useState('');
   const [tickets, setTickets] = useState([]);
@@ -364,7 +365,14 @@ export default function AdminSupportCenter() {
 
   const ticketCounts = getTicketCounts();
 
-  const filteredTickets = tickets.filter(ticket => {
+  // Sort and filter tickets
+  const sortedTickets = [...tickets].sort((a, b) => {
+    const dateA = new Date(a.createdAt || a.updatedAt || 0).getTime();
+    const dateB = new Date(b.createdAt || b.updatedAt || 0).getTime();
+    return sortOrder === 'newest' ? (dateB - dateA) : (dateA - dateB);
+  });
+
+  const filteredTickets = sortedTickets.filter(ticket => {
     const matchesSearch = ticket.subject?.toLowerCase().includes(search.toLowerCase()) ||
                          ticket.number?.toLowerCase().includes(search.toLowerCase());
     return matchesSearch;
@@ -467,8 +475,41 @@ export default function AdminSupportCenter() {
             </View>
         </View>
 
-        {/* Search Bar */}
+        {/* Sort Controls + Search Bar */}
           <View style={{ marginHorizontal: 24, marginBottom: 24 }}>
+            {/* Sort controls */}
+            <View style={{ flexDirection: 'row', marginBottom: 12 }}>
+              <TouchableOpacity
+                onPress={() => setSortOrder('newest')}
+                style={{
+                  paddingVertical: 8,
+                  paddingHorizontal: 12,
+                  borderTopLeftRadius: 8,
+                  borderBottomLeftRadius: 8,
+                  backgroundColor: sortOrder === 'newest' ? '#9575cd' : '#fff',
+                  borderWidth: 1,
+                  borderColor: '#ddd'
+                }}
+              >
+                <Text style={{ color: sortOrder === 'newest' ? '#fff' : '#333', fontFamily: 'Poppins-Medium' }}>Newest</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setSortOrder('oldest')}
+                style={{
+                  paddingVertical: 8,
+                  paddingHorizontal: 12,
+                  borderTopRightRadius: 8,
+                  borderBottomRightRadius: 8,
+                  backgroundColor: sortOrder === 'oldest' ? '#9575cd' : '#fff',
+                  borderWidth: 1,
+                  borderLeftWidth: 0,
+                  borderColor: '#ddd'
+                }}
+              >
+                <Text style={{ color: sortOrder === 'oldest' ? '#fff' : '#333', fontFamily: 'Poppins-Medium' }}>Oldest</Text>
+              </TouchableOpacity>
+            </View>
+
             <View style={{ position: 'relative' }}>
               <Feather name="search" size={20} color="#999" style={{ position: 'absolute', left: 16, top: 18, zIndex: 1 }} />
           <TextInput
