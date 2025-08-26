@@ -9,15 +9,24 @@ import { useAnnouncements } from '../../AnnouncementContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { addAuditLog } from './auditTrailUtils';
 import profileService from '../../services/profileService';
-import { updateUser } from '../UserContext';
 import * as ImagePicker from 'expo-image-picker';
 import NotificationCenter from '../NotificationCenter';
+import PasswordChangeModal from '../Shared/PasswordChangeModal';
 
 const API_URL = 'https://juanlms-webapp-server.onrender.com';
 
+const buildImageUri = (pathOrUrl) => {
+  if (!pathOrUrl) return null;
+  if (typeof pathOrUrl === 'string' && (pathOrUrl.startsWith('http://') || pathOrUrl.startsWith('https://'))) {
+    return pathOrUrl;
+  }
+  const relative = typeof pathOrUrl === 'string' && pathOrUrl.startsWith('/') ? pathOrUrl : `/${pathOrUrl}`;
+  return API_URL + relative;
+};
+
 
 export default function AdminProfile() {
-  const { user } = useUser();
+  const { user, updateUser } = useUser();
   const navigation = useNavigation();
   const { unreadCount } = useNotifications();
   const { announcements } = useAnnouncements();
@@ -25,6 +34,7 @@ export default function AdminProfile() {
   const [showNotificationCenter, setShowNotificationCenter] = useState(false);
   const [editedUser, setEditedUser] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
 
   const logout = async () => {
     if (user) {
@@ -84,9 +94,10 @@ export default function AdminProfile() {
     try {
       let profilePicPath = editedUser?.profilePic;
       if (editedUser?.newProfilePicAsset) {
-        const data = await profileService.uploadProfilePicture(user._id, editedUser.newProfilePicAsset);
-        if (data.success && data.profilePic) {
-          profilePicPath = data.profilePic;
+        const data = await profileService.uploadProfilePicture(user._id, editedUser.newProfilePicAsset, false);
+        const updated = data?.user;
+        if (updated?.profilePic) {
+          profilePicPath = updated.profilePic;
         }
       }
       await updateUser({
@@ -115,7 +126,7 @@ export default function AdminProfile() {
       <View style={AdminProfileStyle.avatarWrapper}>
         {user.profilePic ? (
           <Image
-            source={{ uri: user.profilePic.startsWith('http') ? user.profilePic : API_URL + user.profilePic }}
+            source={{ uri: buildImageUri(user.profilePic) }}
             style={AdminProfileStyle.avatar}
             resizeMode="cover"
           />
@@ -152,7 +163,7 @@ export default function AdminProfile() {
                 source={editedUser?.newProfilePicAsset
                   ? { uri: editedUser.newProfilePicAsset.uri }
                   : editedUser?.profilePic
-                    ? { uri: editedUser.profilePic.startsWith('http') ? editedUser.profilePic : API_URL + editedUser.profilePic }
+                    ? { uri: buildImageUri(editedUser.profilePic) }
                     : require('../../assets/profile-icon (2).png')}
                 style={AdminProfileStyle.avatar}
                 resizeMode="cover"
@@ -197,7 +208,7 @@ export default function AdminProfile() {
           </TouchableOpacity>
           <TouchableOpacity 
             style={AdminProfileStyle.actionBtn}
-            onPress={() => navigation.navigate('ChangePassword')}
+            onPress={() => setShowPasswordModal(true)}
           >
             <Feather name="lock" size={20} color="#00418b" />
             <Text style={[AdminProfileStyle.actionText, { fontFamily: 'Poppins-Regular' }]}>Password</Text>
@@ -260,6 +271,12 @@ export default function AdminProfile() {
       <NotificationCenter 
         visible={showNotificationCenter} 
         onClose={() => setShowNotificationCenter(false)} 
+      />
+
+      <PasswordChangeModal
+        visible={showPasswordModal}
+        onClose={() => setShowPasswordModal(false)}
+        userId={user?._id}
       />
     </View>
   );

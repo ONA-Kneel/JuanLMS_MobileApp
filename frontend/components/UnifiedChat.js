@@ -1058,9 +1058,6 @@ export default function UnifiedChat() {
                 <Text style={{ color: '#e0e0e0', fontSize: 12 }}>
                   {groupMembers.length} members
                 </Text>
-                <Text style={{ color: '#d7e6ff', fontSize: 11, marginTop: 2 }}>
-                  Group ID: <Text style={{ fontFamily: 'monospace' }}>{selectedGroup._id}</Text>
-                </Text>
               </View>
               <TouchableOpacity 
                 onPress={() => setShowMembersModal(true)}
@@ -1246,6 +1243,12 @@ export default function UnifiedChat() {
           <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' }}>
             <View style={{ backgroundColor: 'white', borderRadius: 10, padding: 20, width: '90%', maxHeight: '80%' }}>
               <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 15 }}>Group Members</Text>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                <Text style={{ fontSize: 12, color: '#555' }}>Group ID: <Text style={{ fontFamily: 'monospace' }}>{selectedGroup?._id}</Text></Text>
+                <TouchableOpacity onPress={() => { try { navigator.clipboard?.writeText?.(selectedGroup?._id || ''); } catch {} }}>
+                  <Text style={{ color: '#00418b', fontSize: 12 }}>Copy</Text>
+                </TouchableOpacity>
+              </View>
               <FlatList
                 data={groupMembers}
                 keyExtractor={(item) => item._id}

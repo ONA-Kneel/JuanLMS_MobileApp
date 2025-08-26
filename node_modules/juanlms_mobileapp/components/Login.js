@@ -22,6 +22,7 @@ export default function Login() {
   const [rememberMe, setRememberMe] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
   const [failedAttempts, setFailedAttempts] = useState(0);
   const [isCooldown, setIsCooldown] = useState(false);
   const [cooldownTimer, setCooldownTimer] = useState(0);
@@ -146,11 +147,13 @@ export default function Login() {
     // This path avoids the triple-click disable logic and uses provided credentials
     if (isCooldown) {
       showToast(`Please wait ${cooldownTimer} seconds before trying again.`, 'error');
+      setErrorMessage(`Please wait ${cooldownTimer} seconds before trying again.`);
       return;
     }
 
     if (!emailArg.trim() || !passwordArg.trim()) {
       showToast('Please enter both email and password.', 'error');
+      setErrorMessage('Please enter both email and password.');
       return;
     }
 
@@ -176,6 +179,7 @@ export default function Login() {
         setFailedAttempts(0);
         await AsyncStorage.setItem('failedAttempts', '0');
         showToast('Login successful!', 'success');
+        setErrorMessage('');
 
         const tokenPayload = JSON.parse(atob(data.token.split('.')[1]));
         const role = tokenPayload.role;
@@ -227,13 +231,17 @@ export default function Login() {
           await AsyncStorage.setItem('cooldownEndTime', cooldownEndTime.toString());
           startCooldown(cooldownSeconds);
           showToast('Too many failed attempts. Wait 2 minutes.', 'error');
+          setErrorMessage('Too many failed attempts. Please wait and try again.');
         } else {
-          showToast(data.message || 'Invalid email or password', 'error');
+          const message = data.message || 'Invalid email or password';
+          showToast(message, 'error');
+          setErrorMessage(message);
         }
       }
     } catch (error) {
       console.error('Auto-login error:', error);
       showToast('An error occurred while logging in. Please check your connection.', 'error');
+      setErrorMessage('An error occurred while logging in. Please check your connection.');
     }
   };
 
@@ -241,6 +249,7 @@ export default function Login() {
     // Block if already disabled by prior triple-click with Remember Me
     if (isCooldown || isDisabledByRememberClicks) {
       showToast(`Please wait ${cooldownTimer} seconds before trying again.`, 'error');
+      setErrorMessage(`Please wait ${cooldownTimer} seconds before trying again.`);
       return;
     }
 
@@ -257,6 +266,7 @@ export default function Login() {
 
     if (!email.trim() || !password.trim()) {
       showToast('Please enter both email and password.', 'error');
+      setErrorMessage('Please enter both email and password.');
       return;
     }
 
@@ -302,6 +312,7 @@ export default function Login() {
         setFailedAttempts(0);
         await AsyncStorage.setItem('failedAttempts', '0');
         showToast('Login successful!', 'success');
+        setErrorMessage('');
 
         const tokenPayload = JSON.parse(atob(data.token.split('.')[1]));
         console.log('Token payload:', {
@@ -393,13 +404,17 @@ export default function Login() {
           await AsyncStorage.setItem('cooldownEndTime', cooldownEndTime.toString());
           startCooldown(cooldownSeconds);
           showToast('Too many failed attempts. Wait 2 minutes.', 'error');
+          setErrorMessage('Too many failed attempts. Please wait and try again.');
         } else {
-          showToast(data.message || 'Invalid email or password', 'error');
+          const message = data.message || 'Invalid email or password';
+          showToast(message, 'error');
+          setErrorMessage(message);
         }
       }
     } catch (error) {
       console.error('Login error:', error);
       showToast('An error occurred while logging in. Please check your connection.', 'error');
+      setErrorMessage('An error occurred while logging in. Please check your connection.');
     }
   };
 
@@ -470,6 +485,9 @@ export default function Login() {
             <Text style={LoginStyle.forgotPassword}>Forgot Password?</Text>
           </TouchableOpacity>
         </View>
+        {errorMessage ? (
+          <Text style={LoginStyle.errorText}>{errorMessage}</Text>
+        ) : null}
         <TouchableOpacity
           onPress={btnLogin}
           style={[

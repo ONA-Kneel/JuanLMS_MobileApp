@@ -12,11 +12,21 @@ import profileService from '../../services/profileService';
 import { updateUser } from '../UserContext';
 import * as ImagePicker from 'expo-image-picker';
 import NotificationCenter from '../NotificationCenter';
+import PasswordChangeModal from '../Shared/PasswordChangeModal';
 
 const API_URL = 'https://juanlms-webapp-server.onrender.com';
 
+const buildImageUri = (pathOrUrl) => {
+  if (!pathOrUrl) return null;
+  if (typeof pathOrUrl === 'string' && (pathOrUrl.startsWith('http://') || pathOrUrl.startsWith('https://'))) {
+    return pathOrUrl;
+  }
+  const relative = typeof pathOrUrl === 'string' && pathOrUrl.startsWith('/') ? pathOrUrl : `/${pathOrUrl}`;
+  return API_URL + relative;
+};
+
 export default function FacultyProfile() {
-  const { user } = useUser();
+  const { user, updateUser } = useUser();
   const navigation = useNavigation();
   const { unreadCount } = useNotifications();
   const { announcements } = useAnnouncements();
@@ -24,6 +34,7 @@ export default function FacultyProfile() {
   const [showNotificationCenter, setShowNotificationCenter] = useState(false);
   const [editedUser, setEditedUser] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
 
   const logout = async () => {
     if (user) {
@@ -83,12 +94,12 @@ export default function FacultyProfile() {
   const handleSaveProfile = async () => {
     setIsLoading(true);
     try {
-      const token = await AsyncStorage.getItem('jwtToken');
       let profilePicPath = editedUser?.profilePic;
       if (editedUser?.newProfilePicAsset) {
-        const data = await profileService.uploadProfilePicture(user._id, editedUser.newProfilePicAsset, false, token);
-        if (data.success && data.profilePic) {
-          profilePicPath = data.profilePic;
+        const data = await profileService.uploadProfilePicture(user._id, editedUser.newProfilePicAsset, false);
+        const updated = data?.user;
+        if (updated?.profilePic) {
+          profilePicPath = updated.profilePic;
         }
       }
       await updateUser({
@@ -117,7 +128,7 @@ export default function FacultyProfile() {
       <View style={FacultyProfileStyle.avatarWrapper}>
         {user.profilePic ? (
           <Image
-            source={{ uri: API_URL + user.profilePic }}
+            source={{ uri: buildImageUri(user.profilePic) }}
             style={FacultyProfileStyle.avatar}
             resizeMode="cover"
           />
@@ -206,7 +217,7 @@ export default function FacultyProfile() {
             <Feather name="edit" size={20} color="#00418b" />
             <Text style={FacultyProfileStyle.actionText}>Edit</Text>
           </TouchableOpacity> */}
-          <TouchableOpacity style={FacultyProfileStyle.actionBtn}>
+          <TouchableOpacity style={FacultyProfileStyle.actionBtn} onPress={() => setShowPasswordModal(true)}>
             <Feather name="lock" size={20} color="#00418b" />
             <Text style={[FacultyProfileStyle.actionText, { fontFamily: 'Poppins-Regular' }]}>Password</Text>
           </TouchableOpacity>
@@ -272,6 +283,12 @@ export default function FacultyProfile() {
       <NotificationCenter 
         visible={showNotificationCenter} 
         onClose={() => setShowNotificationCenter(false)} 
+      />
+
+      <PasswordChangeModal
+        visible={showPasswordModal}
+        onClose={() => setShowPasswordModal(false)}
+        userId={user?._id}
       />
     </View>
   );

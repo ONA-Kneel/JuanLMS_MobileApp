@@ -710,6 +710,14 @@ export default function AdminSupportCenter() {
               Reply
             </Text>
             
+            {selectedTicket.status === 'closed' && (
+              <View style={{ backgroundColor: '#fff3e0', borderColor: '#ffcc80', borderWidth: 1, padding: 12, borderRadius: 8, marginBottom: 12 }}>
+                <Text style={{ color: '#f57c00', fontFamily: 'Poppins-Regular' }}>
+                  This ticket is closed. Replies are disabled.
+                </Text>
+              </View>
+            )}
+            
             {replyError ? (
               <Text style={{ color: '#e74c3c', marginBottom: 12, fontFamily: 'Poppins-Regular' }}>
                 {replyError}
@@ -733,11 +741,13 @@ export default function AdminSupportCenter() {
                 minHeight: 80,
                 textAlignVertical: 'top',
                 marginBottom: 16,
+                backgroundColor: selectedTicket.status === 'closed' ? '#f5f5f5' : '#fff'
               }}
               placeholder="Type your reply..."
                 value={reply}
                 onChangeText={setReply}
               multiline
+              editable={selectedTicket.status !== 'closed'}
             />
             
             <View style={{ flexDirection: 'row', gap: 12 }}>
@@ -749,9 +759,10 @@ export default function AdminSupportCenter() {
                   borderRadius: 8,
                   flex: 1,
                   alignItems: 'center',
+                  opacity: selectedTicket.status === 'closed' ? 0.5 : 1
                 }}
                 onPress={handleReply}
-                disabled={replyLoading || !reply.trim()}
+                disabled={replyLoading || !reply.trim() || selectedTicket.status === 'closed'}
               >
                 {replyLoading ? (
                   <ActivityIndicator size="small" color="#fff" />

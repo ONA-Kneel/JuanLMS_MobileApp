@@ -14,6 +14,7 @@ import { updateUser } from '../UserContext';
 import * as FileSystem from 'expo-file-system';
 import { Platform } from 'react-native';
 import NotificationCenter from '../NotificationCenter';
+import PasswordChangeModal from '../Shared/PasswordChangeModal';
 
 // Helper to capitalize first letter of each word
 function capitalizeWords(str) {
@@ -22,8 +23,17 @@ function capitalizeWords(str) {
 
 const API_URL = 'https://juanlms-webapp-server.onrender.com'; // or your production URL
 
+const buildImageUri = (pathOrUrl) => {
+  if (!pathOrUrl) return null;
+  if (typeof pathOrUrl === 'string' && (pathOrUrl.startsWith('http://') || pathOrUrl.startsWith('https://'))) {
+    return pathOrUrl;
+  }
+  const relative = typeof pathOrUrl === 'string' && pathOrUrl.startsWith('/') ? pathOrUrl : `/${pathOrUrl}`;
+  return API_URL + relative;
+};
+
 export default function StudentsProfile() {
-  const { user, loading } = useUser();
+  const { user, loading, updateUser } = useUser();
   const navigation = useNavigation();
   const { unreadCount } = useNotifications();
   const { announcements } = useAnnouncements();
@@ -33,6 +43,7 @@ export default function StudentsProfile() {
   const [isLoading, setIsLoading] = useState(false);
   const fileInputRef = useRef(null);
   const [webPreviewUrl, setWebPreviewUrl] = useState(null);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
 
   const computeTrack = (u) => {
     if (!u) return 'General';
@@ -119,14 +130,12 @@ export default function StudentsProfile() {
   const handleSaveProfile = async () => {
     setIsLoading(true);
     try {
-      const token = await AsyncStorage.getItem('jwtToken');
       let profilePicPath = editedUser?.profilePic;
       let data;
       if (editedUser?.newProfilePicAsset) {
         if (Platform.OS === 'web') {
-          const formData = new FormData();
-          formData.append('profilePicture', editedUser.newProfilePicAsset);
-          data = await profileService.uploadProfilePicture(user._id, formData, true, token);
+          // Pass File directly; service will append as 'image'
+          data = await profileService.uploadProfilePicture(user._id, editedUser.newProfilePicAsset, true);
         } else {
           let asset = editedUser.newProfilePicAsset;
           let localUri = asset.uri;
@@ -140,10 +149,11 @@ export default function StudentsProfile() {
             fileName: asset.fileName || 'profile.jpg',
             type: asset.type || 'image/jpeg',
           };
-          data = await profileService.uploadProfilePicture(user._id, patchedAsset, false, token);
+          data = await profileService.uploadProfilePicture(user._id, patchedAsset, false);
         }
-        if (data.success && (data.profilePic || data.profile_picture)) {
-          profilePicPath = data.profilePic || data.profile_picture;
+        const updated = data?.user;
+        if (updated?.profilePic) {
+          profilePicPath = updated.profilePic;
         }
       }
       // Always update user context/state with the new profilePic
@@ -198,7 +208,7 @@ export default function StudentsProfile() {
       <View style={StudentsProfileStyle.avatarWrapper}>
         {user.profilePic ? (
           <Image
-            source={{ uri: API_URL + user.profilePic }}
+            source={{ uri: buildImageUri(user.profilePic) }}
             style={StudentsProfileStyle.avatar}
             resizeMode="cover"
           />
@@ -244,7 +254,7 @@ export default function StudentsProfile() {
             <Feather name="edit" size={20} color="#00418b" />
             <Text style={StudentsProfileStyle.actionText}>Edit</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={StudentsProfileStyle.actionBtn}>
+          <TouchableOpacity style={StudentsProfileStyle.actionBtn} onPress={() => setShowPasswordModal(true)}>
             <Feather name="lock" size={20} color="#00418b" />
             <Text style={StudentsProfileStyle.actionText}>Password</Text>
           </TouchableOpacity>
@@ -305,12 +315,12 @@ export default function StudentsProfile() {
                     ? webPreviewUrl
                       ? { uri: webPreviewUrl }
                       : editedUser?.profilePic
-                        ? { uri: API_URL + editedUser.profilePic }
+                        ? { uri: buildImageUri(editedUser.profilePic) }
                         : require('../../assets/profile-icon (2).png')
                     : editedUser?.newProfilePicAsset
                       ? { uri: editedUser.newProfilePicAsset.uri }
                       : editedUser?.profilePic
-                        ? { uri: API_URL + editedUser.profilePic }
+                        ? { uri: buildImageUri(editedUser.profilePic) }
                         : require('../../assets/profile-icon (2).png')
                 }
                 style={StudentsProfileStyle.avatar}
@@ -355,6 +365,12 @@ export default function StudentsProfile() {
       <NotificationCenter 
         visible={showNotificationCenter} 
         onClose={() => setShowNotificationCenter(false)} 
+      />
+
+      <PasswordChangeModal
+        visible={showPasswordModal}
+        onClose={() => setShowPasswordModal(false)}
+        userId={user?._id}
       />
     </View>
   );
