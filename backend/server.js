@@ -39,7 +39,13 @@ app.use(express.json());
 
 // Debug middleware to log all requests
 app.use((req, res, next) => {
-  console.log(`${req.method} ${req.originalUrl} - ${new Date().toISOString()}`);
+  console.log(`=== SERVER REQUEST DEBUG ===`);
+  console.log(`Method: ${req.method}`);
+  console.log(`URL: ${req.originalUrl}`);
+  console.log(`Path: ${req.path}`);
+  console.log(`Base URL: ${req.baseUrl}`);
+  console.log(`Timestamp: ${new Date().toISOString()}`);
+  console.log(`=== END SERVER REQUEST DEBUG ===`);
   next();
 });
 
@@ -67,6 +73,26 @@ app.use('/uploads', express.static('uploads'));
 // Mobile app compatibility routes (direct routes without /api prefix)
 app.use('/quizzes', quizRoutes);
 app.use('/assignments', assignmentRoutes);
+
+// Test route to verify server is working
+app.get('/test', (req, res) => {
+  res.json({ message: 'Server is running!', timestamp: new Date().toISOString() });
+});
+
+// Test assignment routes specifically
+app.get('/test-assignments', (req, res) => {
+  res.json({ 
+    message: 'Assignment routes are accessible!', 
+    timestamp: new Date().toISOString(),
+    availableRoutes: [
+      '/assignments',
+      '/assignments/:id',
+      '/assignments/:id/replace-file',
+      '/assignments/:id/submit',
+      '/assignments/:id/submissions'
+    ]
+  });
+});
 
 // Academic year route alias for mobile app compatibility
 app.get('/api/academic-year/active', async (req, res) => {

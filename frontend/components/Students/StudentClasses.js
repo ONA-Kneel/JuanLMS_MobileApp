@@ -95,12 +95,14 @@ export default function StudentClasses() {
           stats[classId] = {
             lessons: Array.isArray(lessons) ? lessons.length : 0,
             assignments: 0,
-            announcements: 0
+            announcements: 0,
+            quizzes: 0,
+            activeQuizzes: []
           };
         }
         
-              // Fetch assignments count
-      const assignmentsResponse = await fetch(`${API_BASE}/assignments?classID=${classId}`, {
+        // Fetch assignments count
+        const assignmentsResponse = await fetch(`${API_BASE}/assignments?classID=${classId}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         
@@ -122,10 +124,34 @@ export default function StudentClasses() {
             stats[classId].announcements = Array.isArray(announcements) ? announcements.length : 0;
           }
         }
+
+        // Fetch quizzes with timing info
+        const quizzesResponse = await fetch(`${API_BASE}/api/quizzes?classID=${classId}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        if (quizzesResponse.ok) {
+          const quizzes = await quizzesResponse.json();
+          const activeQuizzes = Array.isArray(quizzes) ? quizzes.filter(q => {
+            if (!q.timing) return false;
+            const now = new Date();
+            const openDate = q.timing.open ? new Date(q.timing.open) : null;
+            const closeDate = q.timing.close ? new Date(q.timing.close) : null;
+            
+            if (openDate && now < openDate) return false;
+            if (closeDate && now > closeDate) return false;
+            return true;
+          }) : [];
+          
+          if (stats[classId]) {
+            stats[classId].quizzes = Array.isArray(quizzes) ? quizzes.length : 0;
+            stats[classId].activeQuizzes = activeQuizzes;
+          }
+        }
       }
       
       setClassStats(stats);
-      } catch (error) {
+    } catch (error) {
       console.error('Error fetching class stats:', error);
     }
   };
@@ -248,7 +274,36 @@ export default function StudentClasses() {
             <MaterialIcons name="announcement" size={16} color="#4CAF50" />
             <Text style={styles.statText}>{stats.announcements} Announcements</Text>
           </View>
+
+          <View style={styles.statItem}>
+            <MaterialIcons name="quiz" size={16} color="#9C27B0" />
+            <Text style={styles.statText}>{stats.quizzes} Quizzes</Text>
+          </View>
         </View>
+
+        {stats.activeQuizzes && stats.activeQuizzes.length > 0 && (
+          <View style={styles.activeQuizzesContainer}>
+            <Text style={styles.activeQuizzesTitle}>Active Quizzes:</Text>
+            {stats.activeQuizzes.slice(0, 2).map((quiz, index) => (
+              <View key={quiz._id || index} style={styles.activeQuizItem}>
+                <MaterialIcons name="quiz" size={14} color="#9C27B0" />
+                <Text style={styles.activeQuizText} numberOfLines={1}>
+                  {quiz.title}
+                </Text>
+                {quiz.timing?.duration && (
+                  <Text style={styles.quizDuration}>
+                    {Math.floor(quiz.timing.duration / 60)}m
+                  </Text>
+                )}
+              </View>
+            ))}
+            {stats.activeQuizzes.length > 2 && (
+              <Text style={styles.moreQuizzesText}>
+                +{stats.activeQuizzes.length - 2} more
+              </Text>
+            )}
+          </View>
+        )}
 
         <View style={styles.classActions}>
           <TouchableOpacity
@@ -664,5 +719,39 @@ const styles = {
               fontSize: 16,
     fontWeight: 'bold',
     marginLeft: 8,
+  },
+  activeQuizzesContainer: {
+    marginTop: 16,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+  },
+  activeQuizzesTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 8,
+  },
+  activeQuizItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  activeQuizText: {
+    fontSize: 14,
+    color: '#333',
+    marginLeft: 8,
+    flex: 1,
+  },
+  quizDuration: {
+    fontSize: 12,
+    color: '#666',
+    marginLeft: 8,
+  },
+  moreQuizzesText: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    marginTop: 8,
   },
 }; 

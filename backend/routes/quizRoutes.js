@@ -214,6 +214,13 @@ router.post('/:quizId/submit', /*authenticateToken,*/ async (req, res) => {
     const studentId = req.body.studentId;
     const { answers } = req.body;
     
+    console.log('=== QUIZ SUBMISSION RECEIVED ===');
+    console.log('Quiz ID:', quizId);
+    console.log('Student ID:', studentId);
+    console.log('Received answers:', JSON.stringify(answers, null, 2));
+    console.log('Answers array length:', answers.length);
+    console.log('Answers structure:', answers.map((a, i) => ({ index: i, questionId: a.questionId, answer: a.answer })));
+    
     if (!Array.isArray(answers) || answers.length === 0) {
       return res.status(400).json({ error: 'Answers are required.' });
     }
@@ -233,41 +240,61 @@ router.post('/:quizId/submit', /*authenticateToken,*/ async (req, res) => {
     
     // Process each question and answer
     quiz.questions.forEach((q, i) => {
-      const studentAnswer = answers[i]?.answer;
-      let correct = false;
-      let correctAnswerForStorage;
-      
-      console.log(`Processing question ${i + 1}:`, {
-        questionType: q.type,
-        studentAnswer: studentAnswer,
-        questionText: q.question,
+      console.log(`\n--- Processing Question ${i + 1} ---`);
+      console.log('Question data:', {
+        id: q._id,
+        type: q.type,
+        text: q.question,
+        choices: q.choices,
         correctAnswers: q.correctAnswers,
         correctAnswer: q.correctAnswer
       });
       
+      // Find the corresponding answer for this question by matching questionId
+      const questionAnswer = answers.find(a => a.questionId === q._id.toString());
+      const studentAnswer = questionAnswer?.answer;
+      
+      console.log('Question answer found:', questionAnswer);
+      console.log('Student answer for this question:', studentAnswer);
+      
+      let correct = false;
+      let correctAnswerForStorage;
+      
       if (q.type === 'multiple') {
         // For multiple choice questions
         if (Array.isArray(q.correctAnswers) && q.correctAnswers.length > 0) {
+          console.log('Multiple choice question - correct answers (indices):', q.correctAnswers);
+          console.log('Student answer:', studentAnswer);
+          
           // Check if student answer matches any of the correct answers
           if (Array.isArray(studentAnswer)) {
             correct = studentAnswer.length === q.correctAnswers.length &&
               studentAnswer.every(a => q.correctAnswers.includes(a));
+            console.log('Student answer is array, checking length and content match');
           } else {
             correct = q.correctAnswers.includes(studentAnswer);
+            console.log('Student answer is single value, checking if in correct answers');
           }
+          
           // Store the actual correct answer TEXT values for frontend highlighting
           // q.correctAnswers contains indices, so convert them to actual choice text
           correctAnswerForStorage = q.correctAnswers.map(index => q.choices[index]).filter(Boolean);
+          console.log('Correct answer text values for storage:', correctAnswerForStorage);
         } else {
           correct = false;
           correctAnswerForStorage = [];
+          console.log('No correct answers defined for multiple choice question');
         }
       } else if (q.type === 'truefalse') {
         // For true/false questions
+        console.log('True/false question - correct answer:', q.correctAnswer);
+        console.log('Student answer:', studentAnswer);
         correct = studentAnswer === q.correctAnswer;
         correctAnswerForStorage = q.correctAnswer;
       } else {
         // For identification questions
+        console.log('Identification question - correct answer:', q.correctAnswer);
+        console.log('Student answer:', studentAnswer);
         correct = studentAnswer === q.correctAnswer;
         correctAnswerForStorage = q.correctAnswer;
       }
@@ -294,6 +321,11 @@ router.post('/:quizId/submit', /*authenticateToken,*/ async (req, res) => {
     });
     
     // Create the quiz response with proper data structure
+    console.log('=== FINAL SUBMISSION DEBUG ===');
+    console.log('Total score calculated:', score);
+    console.log('Checked answers:', checkedAnswers);
+    console.log('Final answers to save:', answers);
+    
     const response = new QuizResponse({ 
       quizId, 
       studentId, 
@@ -303,6 +335,7 @@ router.post('/:quizId/submit', /*authenticateToken,*/ async (req, res) => {
     });
     
     await response.save();
+    console.log('Quiz response saved successfully with ID:', response._id);
     
     const total = Array.isArray(quiz.questions)
       ? quiz.questions.reduce((sum, q) => sum + (q.points || 1), 0)

@@ -24,7 +24,7 @@ export default function AssignmentDetail() {
   const navigation = useNavigation();
   const route = useRoute();
   const { user } = useUser();
-  const { assignmentId, assignment } = route.params;
+  const { assignmentId, assignment, viewMode } = route.params;
 
   const [assignmentData, setAssignment] = useState(assignment || null);
   const [loading, setLoading] = useState(!assignment);
@@ -43,9 +43,9 @@ export default function AssignmentDetail() {
     }
   }, [assignmentId]);
 
-  // Check if assignment is already completed and prevent access
+  // Check if assignment is already completed and prevent access (only in submit mode)
   useEffect(() => {
-    if (submissionStatus) {
+    if (submissionStatus && !viewMode) {
       Alert.alert(
         'Already Completed',
         'You have already completed this assignment.',
@@ -58,7 +58,7 @@ export default function AssignmentDetail() {
         ]
       );
     }
-  }, [submissionStatus, navigation]);
+  }, [submissionStatus, navigation, viewMode]);
 
   const fetchAssignment = async () => {
     try {
@@ -73,8 +73,8 @@ export default function AssignmentDetail() {
         throw new Error('Failed to fetch assignment');
       }
 
-      const assignmentData = await response.json();
-      setAssignment(assignmentData);
+             const assignmentData = await response.json();
+       setAssignmentData(assignmentData);
       
       // Check if student has already submitted
       await checkSubmissionStatus();
@@ -381,6 +381,36 @@ export default function AssignmentDetail() {
                 </Text>
               </View>
               
+              {/* Show replacement information if applicable */}
+              {submissionStatus.hasReplacement && (
+                <View style={styles.submissionDetailRow}>
+                  <Text style={styles.submissionDetailLabel}>Replaced:</Text>
+                  <Text style={styles.submissionDetailValue}>
+                    {submissionStatus.replacementCount || 1} time(s) - {formatDateTime(submissionStatus.lastUpdated)}
+                  </Text>
+                </View>
+              )}
+              
+              {/* Show timing status */}
+              {assignmentData.dueDate && (
+                <View style={styles.submissionDetailRow}>
+                  <Text style={styles.submissionDetailLabel}>Status:</Text>
+                  <Text style={[
+                    styles.submissionDetailValue,
+                    { 
+                      color: new Date(submissionStatus.lastUpdated || submissionStatus.submittedAt) > new Date(assignmentData.dueDate) 
+                        ? '#f44336' 
+                        : '#4CAF50' 
+                    }
+                  ]}>
+                    {new Date(submissionStatus.lastUpdated || submissionStatus.submittedAt) > new Date(assignmentData.dueDate) 
+                      ? 'Submitted Late' 
+                      : 'Submitted On Time'
+                    }
+                  </Text>
+                </View>
+              )}
+              
               {submissionStatus.score !== undefined && (
                 <View style={styles.submissionDetailRow}>
                   <Text style={styles.submissionDetailLabel}>Score:</Text>
@@ -395,6 +425,32 @@ export default function AssignmentDetail() {
                   <Text style={styles.feedbackTitle}>Feedback</Text>
                   <Text style={styles.feedbackText}>{submissionStatus.feedback}</Text>
                 </View>
+              )}
+              
+                             {/* File Replacement Button - Only show if assignment is not past due */}
+              {viewMode && assignmentData.dueDate && new Date() <= new Date(assignmentData.dueDate) && (
+                <TouchableOpacity
+                  style={styles.replaceFileButton}
+                  onPress={() => {
+                    // Ensure the assignment ID is properly handled
+                    const assignmentId = String(assignmentData._id);
+                    if (assignmentId.length !== 24) {
+                      console.error('Invalid assignment ID in AssignmentDetail:', assignmentId);
+                      Alert.alert('Error', 'Invalid assignment ID. Please try refreshing the page.');
+                      return;
+                    }
+                    
+                    console.log('Replace file button pressed for assignment:', assignmentId);
+                                         // Navigate back to SActs and trigger file replacement
+                     navigation.navigate('SActs', {
+                       triggerFileReplacement: true,
+                       assignmentId: assignmentId
+                     });
+                  }}
+                >
+                  <MaterialIcons name="file-upload" size={20} color="#FF9800" />
+                  <Text style={styles.replaceFileButtonText}>Replace File</Text>
+                </TouchableOpacity>
               )}
             </View>
           </View>
@@ -870,5 +926,23 @@ const styles = {
   errorText: {
     fontSize: 18,
     color: '#666',
+  },
+  replaceFileButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff3e0',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#FF9800',
+    marginTop: 16,
+  },
+  replaceFileButtonText: {
+    color: '#FF9800',
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 8,
   },
 };

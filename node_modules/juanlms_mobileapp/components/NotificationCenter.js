@@ -88,19 +88,24 @@ export default function NotificationCenter({ visible, onClose }) {
     // Navigate based on notification type
     switch (notification.type) {
       case 'announcement':
-        navigation.navigate('Announcements');
+        // Navigate to student support center for announcements
+        navigation.navigate('SReq');
         break;
       case 'assignment':
-        navigation.navigate('Assignments');
+        // Navigate to student activities where assignments are displayed
+        navigation.navigate('SActs');
         break;
       case 'quiz':
-        navigation.navigate('Quizzes');
+        // Navigate to student activities where quizzes are displayed
+        navigation.navigate('SActs');
         break;
       case 'activity':
-        navigation.navigate('Activities');
+        // Navigate to student activities
+        navigation.navigate('SActs');
         break;
       case 'message':
-        navigation.navigate('Messages');
+        // Navigate to student chats
+        navigation.navigate('SChat');
         break;
       default:
         break;
@@ -112,8 +117,8 @@ export default function NotificationCenter({ visible, onClose }) {
   const handleAnnouncementPress = (announcement) => {
     // Acknowledge the announcement
     acknowledgeAnnouncement(announcement._id);
-    // Navigate to announcements
-    navigation.navigate('Announcements');
+    // Navigate to student support center for announcements
+    navigation.navigate('SReq');
     onClose();
   };
 
