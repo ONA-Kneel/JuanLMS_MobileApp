@@ -116,7 +116,9 @@ export default function ForgotPassword({ navigation }) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          // send both to be compatible with either backend key
           email: email,
+          personalemail: email,
           otp,
         }),
       });
@@ -124,6 +126,7 @@ export default function ForgotPassword({ navigation }) {
       // Debug logging
       console.log('Request body sent:', JSON.stringify({
         email: email,
+        personalemail: email,
         otp,
       }));
       
@@ -157,6 +160,13 @@ export default function ForgotPassword({ navigation }) {
     setError('');
     setMessage('');
     
+    // Minimum password length check to mirror web app UX
+    if (newPassword.length < 8) {
+      setError('Password must be at least 8 characters.');
+      setLoading(false);
+      return;
+    }
+
     if (newPassword !== confirmPassword) {
       setError('Passwords do not match.');
       setLoading(false);
@@ -170,7 +180,7 @@ export default function ForgotPassword({ navigation }) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          email: email,
+          personalemail: email,
           otp,
           newPassword,
         }),
