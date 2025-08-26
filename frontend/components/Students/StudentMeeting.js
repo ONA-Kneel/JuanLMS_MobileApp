@@ -60,7 +60,7 @@ export default function StudentMeeting() {
       setAcademicContext(`${activeYear} | ${activeTerm}`);
 
       // Fetch student classes
-      const response = await fetch('https://juanlms-webapp-server.onrender.com/api/classes/my-classes', {
+      const response = await fetch('https://juanlms-webapp-server.onrender.com/classes/my-classes', {
         headers: {
           'Authorization': `Bearer ${token}`
         }

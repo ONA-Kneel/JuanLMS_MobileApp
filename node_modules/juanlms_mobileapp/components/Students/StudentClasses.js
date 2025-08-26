@@ -45,7 +45,7 @@ export default function StudentClasses() {
 
         console.log('Fetching classes for student:', user._id);
         
-      const response = await fetch(`${API_BASE}/api/classes/my-classes`, {
+      const response = await fetch(`${API_BASE}/classes/my-classes`, {
           method: 'GET',
           headers: {
             'Accept': 'application/json',

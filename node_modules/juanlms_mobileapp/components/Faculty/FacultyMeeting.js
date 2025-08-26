@@ -70,7 +70,7 @@ export default function FacultyMeeting() {
       setAcademicContext(`${activeYear} | ${activeTerm}`);
 
       // Fetch faculty classes
-      const response = await fetch('https://juanlms-webapp-server.onrender.com/api/classes/faculty-classes', {
+      const response = await fetch('https://juanlms-webapp-server.onrender.com/classes/faculty-classes', {
         headers: {
           'Authorization': `Bearer ${token}`
         }

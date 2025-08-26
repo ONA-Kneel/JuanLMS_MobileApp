@@ -72,7 +72,7 @@ export default function FacultyDashboard() {
         setAcademicContext(`${activeYear} | ${activeTerm}`);
 
         // Fetch all classes first (revert to original API call)
-        const response = await fetch(`https://juanlms-webapp-server.onrender.com/api/classes/faculty-classes`, {
+        const response = await fetch(`https://juanlms-webapp-server.onrender.com/classes/faculty-classes`, {
           method: 'GET',
           headers: {
             'Accept': 'application/json',

@@ -75,7 +75,7 @@ export default function StudentDashboard() {
       setAcademicContext(`${activeYear} | ${activeTerm}`);
       
       // Use the web app's my-classes endpoint to get only the student's registered classes
-      const response = await fetch(`https://juanlms-webapp-server.onrender.com/api/classes/my-classes`, {
+      const response = await fetch(`https://juanlms-webapp-server.onrender.com/classes/my-classes`, {
         method: 'GET',
         headers: {
           'Accept': 'application/json',

@@ -33,7 +33,7 @@ export default function FacultyClasses() {
       try {
         console.log('Fetching classes for faculty:', user._id);
         const token = await AsyncStorage.getItem('jwtToken');
-        const response = await fetch(`https://juanlms-webapp-server.onrender.com/api/classes/faculty-classes`, {
+        const response = await fetch(`https://juanlms-webapp-server.onrender.com/classes/faculty-classes`, {
           method: 'GET',
           headers: {
             'Accept': 'application/json',
