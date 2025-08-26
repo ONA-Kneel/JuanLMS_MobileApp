@@ -10,6 +10,11 @@ import { addAuditLog } from './Admin/auditTrailUtils';
 
 // Set your public backend URL here (replace with your actual deployed backend URL)
 const BACKEND_URL = 'https://juanlms-webapp-server.onrender.com/login'; // Update this to your actual backend URL
+const STORAGE_KEYS = {
+  remember: 'rememberMeEnabled',
+  email: 'savedEmail',
+  password: 'savedPassword',
+};
 
 export default function Login() {
   //mema commit na lang para lang may kulay ako today
@@ -20,6 +25,8 @@ export default function Login() {
   const [failedAttempts, setFailedAttempts] = useState(0);
   const [isCooldown, setIsCooldown] = useState(false);
   const [cooldownTimer, setCooldownTimer] = useState(0);
+  const [rememberClicks, setRememberClicks] = useState(0);
+  const [isDisabledByRememberClicks, setIsDisabledByRememberClicks] = useState(false);
   const navigation = useNavigation();
   const { setUserAndToken } = useUser();
 
@@ -36,6 +43,26 @@ export default function Login() {
 
       if (attempts) {
         setFailedAttempts(parseInt(attempts));
+      }
+
+      // Load Remember Me preference and optionally credentials
+      const savedRemember = await AsyncStorage.getItem(STORAGE_KEYS.remember);
+      const isRememberEnabled = savedRemember === 'true';
+      setRememberMe(isRememberEnabled);
+
+      if (isRememberEnabled) {
+        const savedEmail = await AsyncStorage.getItem(STORAGE_KEYS.email);
+        const savedPassword = await AsyncStorage.getItem(STORAGE_KEYS.password);
+        if (savedEmail) setEmail(savedEmail);
+        if (savedPassword) setPassword(savedPassword);
+
+        // Auto-login if both credentials exist
+        if (savedEmail && savedPassword) {
+          // Delay slightly to allow state/UI to settle
+          setTimeout(() => {
+            loginWithCredentials(savedEmail, savedPassword);
+          }, 300);
+        }
       }
     };
 
@@ -78,10 +105,154 @@ export default function Login() {
     }, 1000);
   };
 
-  const btnLogin = async () => {
+  const persistRememberPreference = async (enabled) => {
+    try {
+      await AsyncStorage.setItem(STORAGE_KEYS.remember, enabled ? 'true' : 'false');
+      if (enabled) {
+        if (email) await AsyncStorage.setItem(STORAGE_KEYS.email, email);
+        if (password) await AsyncStorage.setItem(STORAGE_KEYS.password, password);
+      } else {
+        await AsyncStorage.removeItem(STORAGE_KEYS.email);
+        await AsyncStorage.removeItem(STORAGE_KEYS.password);
+      }
+    } catch (err) {
+      console.error('Persist remember preference error:', err);
+    }
+  };
+
+  const onToggleRememberMe = async () => {
+    const next = !rememberMe;
+    setRememberMe(next);
+    await persistRememberPreference(next);
+  };
+
+  const saveCredentialsIfRemembered = async (currentEmail, currentPassword) => {
+    try {
+      if (rememberMe) {
+        await AsyncStorage.setItem(STORAGE_KEYS.remember, 'true');
+        await AsyncStorage.setItem(STORAGE_KEYS.email, currentEmail);
+        await AsyncStorage.setItem(STORAGE_KEYS.password, currentPassword);
+      } else {
+        await AsyncStorage.setItem(STORAGE_KEYS.remember, 'false');
+        await AsyncStorage.removeItem(STORAGE_KEYS.email);
+        await AsyncStorage.removeItem(STORAGE_KEYS.password);
+      }
+    } catch (err) {
+      console.error('Saving credentials error:', err);
+    }
+  };
+
+  const loginWithCredentials = async (emailArg, passwordArg) => {
+    // This path avoids the triple-click disable logic and uses provided credentials
     if (isCooldown) {
       showToast(`Please wait ${cooldownTimer} seconds before trying again.`, 'error');
       return;
+    }
+
+    if (!emailArg.trim() || !passwordArg.trim()) {
+      showToast('Please enter both email and password.', 'error');
+      return;
+    }
+
+    try {
+      const loginUrl = BACKEND_URL;
+      const response = await fetch(loginUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({ 
+          email: emailArg.trim().toLowerCase(), 
+          password: passwordArg.trim() 
+        })
+      });
+
+      let data;
+      const responseText = await response.text();
+      try { data = JSON.parse(responseText); } catch (_) { showToast('Server error: ' + responseText, 'error'); return; }
+
+      if (response.ok) {
+        setFailedAttempts(0);
+        await AsyncStorage.setItem('failedAttempts', '0');
+        showToast('Login successful!', 'success');
+
+        const tokenPayload = JSON.parse(atob(data.token.split('.')[1]));
+        const role = tokenPayload.role;
+        const userId = tokenPayload.id;
+
+        const userRes = await fetch(`${loginUrl.replace('/login', '')}/users/${userId}`, {
+          headers: {
+            'Authorization': `Bearer ${data.token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        if (!userRes.ok) throw new Error(`Failed to fetch user data: ${userRes.status}`);
+        const userData = await userRes.json();
+
+        await setUserAndToken(userData, data.token);
+        await addAuditLog({
+          userId: userData._id,
+          userName: userData.firstname + ' ' + userData.lastname,
+          userRole: role,
+          action: 'Login',
+          details: `User ${userData.email} logged in.`,
+          timestamp: new Date().toISOString(),
+        });
+
+        // Save or clear credentials depending on remember setting
+        await saveCredentialsIfRemembered(emailArg, passwordArg);
+
+        const roleNavigationMap = {
+          'students': 'SDash',
+          'faculty': 'FDash',
+          'admin': 'ADash',
+          'parent': 'PDash',
+          'director': 'DDash',
+          'vpe': 'VPEDash',
+          'vice president of education': 'VPEDash',
+          'vicepresident': 'VPEDash',
+          'vice president': 'VPEDash',
+          'principal': 'PrincipalDash'
+        };
+        const targetRoute = roleNavigationMap[role];
+        if (targetRoute) navigation.navigate(targetRoute);
+      } else {
+        const newAttempts = failedAttempts + 1;
+        setFailedAttempts(newAttempts);
+        await AsyncStorage.setItem('failedAttempts', newAttempts.toString());
+        if (newAttempts >= 3) {
+          const cooldownSeconds = 30;
+          const cooldownEndTime = Date.now() + cooldownSeconds * 1000;
+          await AsyncStorage.setItem('cooldownEndTime', cooldownEndTime.toString());
+          startCooldown(cooldownSeconds);
+          showToast('Too many failed attempts. Wait 2 minutes.', 'error');
+        } else {
+          showToast(data.message || 'Invalid email or password', 'error');
+        }
+      }
+    } catch (error) {
+      console.error('Auto-login error:', error);
+      showToast('An error occurred while logging in. Please check your connection.', 'error');
+    }
+  };
+
+  const btnLogin = async () => {
+    // Block if already disabled by prior triple-click with Remember Me
+    if (isCooldown || isDisabledByRememberClicks) {
+      showToast(`Please wait ${cooldownTimer} seconds before trying again.`, 'error');
+      return;
+    }
+
+    // Track Remember Me rapid clicks and disable starting on the third click
+    if (rememberMe) {
+      const nextClicks = rememberClicks + 1;
+      setRememberClicks(nextClicks);
+      if (nextClicks === 3) {
+        // Disable the button but still allow this very click to proceed
+        setIsDisabledByRememberClicks(true);
+        showToast('Login disabled due to multiple clicks. Proceeding...', 'error');
+      }
     }
 
     if (!email.trim() || !password.trim()) {
@@ -166,6 +337,9 @@ export default function Login() {
         });
 
         await setUserAndToken(userData, data.token);
+
+        // Save or clear credentials depending on remember setting
+        await saveCredentialsIfRemembered(email.trim().toLowerCase(), password.trim());
 
         // Add audit log for login
         await addAuditLog({
@@ -279,11 +453,11 @@ export default function Login() {
         <View style={LoginStyle.rowBetween}>
           <TouchableOpacity
             style={LoginStyle.rememberRow}
-            onPress={() => setRememberMe(!rememberMe)}
+            onPress={onToggleRememberMe}
             activeOpacity={0.7}
           >
             <TouchableOpacity
-              onPress={() => setRememberMe(!rememberMe)}
+              onPress={onToggleRememberMe}
               style={LoginStyle.checkbox}
             >
               {rememberMe ? (
@@ -298,11 +472,18 @@ export default function Login() {
         </View>
         <TouchableOpacity
           onPress={btnLogin}
-          style={[LoginStyle.loginButton, isCooldown && { backgroundColor: 'gray' }]}
-          disabled={isCooldown}
+          style={[
+            LoginStyle.loginButton,
+            (isCooldown || isDisabledByRememberClicks) && { backgroundColor: 'gray' }
+          ]}
+          disabled={isCooldown || isDisabledByRememberClicks}
         >
           <Text style={LoginStyle.loginButtonText}>
-            {isCooldown ? `Locked (${cooldownTimer}s)` : 'Login'}
+            {isCooldown
+              ? `Locked (${cooldownTimer}s)`
+              : isDisabledByRememberClicks
+                ? 'Disabled'
+                : 'Login'}
           </Text>
         </TouchableOpacity>
       </View>

@@ -62,6 +62,12 @@ export default function StudentsProfile() {
         });
       }
       await AsyncStorage.removeItem('user');
+      // If Remember Me is enabled, keep saved credentials; otherwise ensure cleared
+      const remember = await AsyncStorage.getItem('rememberMeEnabled');
+      if (remember !== 'true') {
+        await AsyncStorage.removeItem('savedEmail');
+        await AsyncStorage.removeItem('savedPassword');
+      }
       navigation.navigate('Login');
     } catch (error) {
       console.error('Logout error:', error);

@@ -38,6 +38,12 @@ export default function AdminProfile() {
       });
     }
     await AsyncStorage.removeItem('user');
+    // Preserve saved credentials if Remember Me is enabled; otherwise clear them
+    const remember = await AsyncStorage.getItem('rememberMeEnabled');
+    if (remember !== 'true') {
+      await AsyncStorage.removeItem('savedEmail');
+      await AsyncStorage.removeItem('savedPassword');
+    }
     navigation.navigate('Login');
   };
 

@@ -44,6 +44,11 @@ export default function PrincipalProfile() {
       }
       await AsyncStorage.removeItem('user');
       await AsyncStorage.removeItem('jwtToken');
+      const remember = await AsyncStorage.getItem('rememberMeEnabled');
+      if (remember !== 'true') {
+        await AsyncStorage.removeItem('savedEmail');
+        await AsyncStorage.removeItem('savedPassword');
+      }
       navigation.navigate('Login');
     } catch (error) {
       console.error('Logout error:', error);

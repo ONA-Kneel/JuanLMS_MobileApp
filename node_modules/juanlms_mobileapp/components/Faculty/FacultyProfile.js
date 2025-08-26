@@ -35,6 +35,11 @@ export default function FacultyProfile() {
       });
     }
     await AsyncStorage.removeItem('user');
+    const remember = await AsyncStorage.getItem('rememberMeEnabled');
+    if (remember !== 'true') {
+      await AsyncStorage.removeItem('savedEmail');
+      await AsyncStorage.removeItem('savedPassword');
+    }
     navigation.navigate('Login');
   };
 
