@@ -35,7 +35,8 @@
       "enableR8": true
     },
     "web": {
-      "icon": "./assets/JuanLMS-LogoV1.png"
+      "icon": "./assets/JuanLMS-LogoV1.png",
+      "bundler": "metro"
     },
     "extra": {
       "eas": {
