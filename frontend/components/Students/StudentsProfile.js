@@ -45,18 +45,19 @@ export default function StudentsProfile() {
   const [webPreviewUrl, setWebPreviewUrl] = useState(null);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
 
-  const computeTrack = (u) => {
-    if (!u) return 'General';
+  const computeStrand = (u) => {
+    if (!u) return 'Not specified';
+    if (u.strand && typeof u.strand === 'string') return u.strand;
     if (u.track && typeof u.track === 'string') return u.track;
-    const source = [u.strand, u.course, u.program, u.section, u.gradeLevel]
+    const source = [u.course, u.program, u.section, u.gradeLevel]
       .filter(Boolean)
       .join(' ')
       .toLowerCase();
-    if (!source) return 'General';
+    if (!source) return 'Not specified';
     const tvlKeywords = ['tvl', 'ict', 'home economics', 'he', 'industrial arts', 'ia', 'agri', 'agri-fishery', 'af'];
     const academicKeywords = ['academic', 'stem', 'abm', 'humss', 'gas'];
-    if (tvlKeywords.some(k => source.includes(k))) return 'TVL Track';
-    if (academicKeywords.some(k => source.includes(k))) return 'Academic Track';
+    if (tvlKeywords.some(k => source.includes(k))) return 'TVL';
+    if (academicKeywords.some(k => source.includes(k))) return 'Academic';
     return 'General';
   };
 
@@ -238,8 +239,8 @@ export default function StudentsProfile() {
         <Text style={StudentsProfileStyle.email}>{user.email}</Text>
         <View style={StudentsProfileStyle.row}>
           <View style={StudentsProfileStyle.infoBox}>
-            <Text style={[StudentsProfileStyle.infoLabel, { fontFamily: 'Poppins-Regular' }]}>Track</Text>
-            <Text style={[StudentsProfileStyle.infoValue, { fontFamily: 'Poppins-SemiBold' }]}>{computeTrack(user)}</Text>
+            <Text style={[StudentsProfileStyle.infoLabel, { fontFamily: 'Poppins-Regular' }]}>Strand</Text>
+            <Text style={[StudentsProfileStyle.infoValue, { fontFamily: 'Poppins-SemiBold' }]}>{computeStrand(user)}</Text>
           </View>
           <View style={StudentsProfileStyle.infoBox}>
             <Text style={[StudentsProfileStyle.infoLabel, { fontFamily: 'Poppins-Regular' }]}>Role</Text>

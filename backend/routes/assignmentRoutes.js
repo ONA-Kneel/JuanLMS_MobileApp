@@ -676,7 +676,7 @@ router.get('/faculty/:facultyId', /*authenticateToken,*/ async (req, res) => {
       const classInfo = classes.find(cls => cls.classID === assignment.classID);
       return {
         ...assignment.toObject(),
-        className: classInfo ? classInfo.className : 'Unknown Class',
+        className: classInfo ? classInfo.className : null,
         classCode: classInfo ? classInfo.classCode : 'N/A'
       };
     });

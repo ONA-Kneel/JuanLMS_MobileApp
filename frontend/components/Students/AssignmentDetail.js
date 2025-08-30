@@ -268,7 +268,9 @@ export default function AssignmentDetail() {
             <MaterialIcons name="assignment" size={32} color="#FF9800" />
             <View style={styles.assignmentTitleContainer}>
               <Text style={styles.assignmentTitle}>{assignmentData.title}</Text>
-              <Text style={styles.assignmentClass}>{assignmentData.className || 'Unknown Class'}</Text>
+              {assignmentData.className && (
+              <Text style={styles.assignmentClass}>{assignmentData.className}</Text>
+            )}
             </View>
             <View style={styles.pointsContainer}>
               <Text style={styles.pointsText}>{assignmentData.points || 0} pts</Text>

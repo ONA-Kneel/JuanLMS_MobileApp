@@ -640,7 +640,7 @@ export default function StudentModule(){
                                                                 fontSize: 14, 
                                                                 marginBottom: 6 
                                                             }}>
-                                                                {item.className || 'Unknown Class'}
+                                                                {item.className || 'N/A'}
                                                             </Text>
                                                             
                                                             {item.description && (

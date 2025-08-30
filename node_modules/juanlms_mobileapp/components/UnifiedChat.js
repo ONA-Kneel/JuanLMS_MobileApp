@@ -59,8 +59,7 @@ export default function UnifiedChat() {
 
   useEffect(() => {
     if (!user || !user._id) {
-      console.log('No user found, going back');
-      navigation.goBack();
+      console.log('No user found, showing loading state');
       return;
     }
 
@@ -69,6 +68,8 @@ export default function UnifiedChat() {
     // If no specific chat is selected, show the chat list
     if (!selectedUser && !selectedGroup) {
       console.log('No specific chat selected, fetching users and groups');
+      console.log('Current user role:', user?.role);
+      console.log('Current user ID:', user?._id);
       setIsLoading(true);
       Promise.all([fetchUsers(), fetchUserGroups(), loadRecentChats()])
         .then(() => fetchRecentConversations())
@@ -790,8 +791,8 @@ export default function UnifiedChat() {
 
   if (!user || !user._id) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <Text>Loading chat...</Text>
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f3f3f3' }}>
+        <Text style={{ fontSize: 16, color: '#666' }}>Loading user data...</Text>
       </View>
     );
   }

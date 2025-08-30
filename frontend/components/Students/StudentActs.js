@@ -193,7 +193,9 @@ function ActivityCard({ activity, onActivityPress }) {
         </View>
         <View style={styles.activityContent}>
           <Text style={styles.activityTitle}>{activity.title}</Text>
-          <Text style={styles.activityClass}>{activity.className || 'Unknown Class'}</Text>
+          {activity.className && (
+            <Text style={styles.activityClass}>{activity.className}</Text>
+          )}
           {activity.description && (
             <Text style={styles.activityDescription} numberOfLines={2}>
               {activity.description}
@@ -304,9 +306,6 @@ function ActivityCard({ activity, onActivityPress }) {
           {activity.isSubmitted && activity.type === 'quiz' && activity.timeSpent !== undefined && (
             <View style={styles.statItem}>
               <MaterialIcons name="schedule" size={16} color="#2196F3" />
-              <Text style={styles.statText}>
-                {Math.floor(activity.timeSpent / 60)}m {activity.timeSpent % 60}s
-              </Text>
             </View>
           )}
           
@@ -773,7 +772,7 @@ export default function StudentActs() {
        const assignmentsWithType = filteredActivities.map(a => ({ 
          ...a, 
          type: 'assignment',
-         className: a.classInfo?.className || a.className || 'Unknown Class',
+         className: a.classInfo?.className || a.className,
          classCode: a.classInfo?.classCode || a.classCode || 'N/A',
          classID: a.classID || a.classInfo?.classID || (a.assignedTo && a.assignedTo[0]?.classID)
        }));
@@ -796,7 +795,7 @@ export default function StudentActs() {
        const quizzesWithType = filteredQuizzes.map(q => ({ 
          ...q, 
          type: 'quiz',
-         className: q.classInfo?.className || q.className || 'Unknown Class',
+         className: q.classInfo?.className || q.className,
          classCode: q.classInfo?.classCode || q.classCode || 'N/A',
          classID: q.classID || q.classInfo?.classID || (q.assignedTo && q.assignedTo[0]?.classID)
        }));
@@ -865,7 +864,7 @@ export default function StudentActs() {
       // Add basic class info for activities
       const postedActivitiesWithClassInfo = postedActivities.map(item => ({
         ...item,
-        className: item.className || 'Unknown Class',
+        className: item.className,
         classCode: item.classCode || 'N/A',
         classID: item.classID || (item.assignedTo && item.assignedTo[0]?.classID)
       }));
@@ -1374,7 +1373,7 @@ export default function StudentActs() {
                   <View style={styles.modalDetailRow}>
                     <Text style={styles.modalDetailLabel}>Class:</Text>
                     <Text style={styles.modalDetailValue}>
-                      {selectedActivity.className || 'Unknown Class'}
+                      {selectedActivity.className || 'N/A'}
                     </Text>
                   </View>
                   <View style={styles.modalDetailRow}>

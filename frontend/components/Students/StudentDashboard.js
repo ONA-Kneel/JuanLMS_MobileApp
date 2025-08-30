@@ -223,7 +223,7 @@ export default function StudentDashboard() {
           <View style={{ flex: 1, backgroundColor: '#00418b', borderRadius: 16, alignItems: 'center', padding: 16, marginLeft: 8, elevation: 2 }}>
             <Icon name="pencil" size={32} color="#fff" style={{ marginBottom: 8 }} />
             <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 20, fontFamily: 'Poppins-Bold' }}>{assignmentsToday.length}</Text>
-            <Text style={{ color: '#fff', fontSize: 12, textAlign: 'center', fontFamily: 'Poppins-Regular' }}>Due Today</Text>
+            <Text style={{ color: '#fff', fontSize: 12, textAlign: 'center', fontFamily: 'Poppins-Regular' }}>Upcoming Activities</Text>
           </View>
         </View>
 

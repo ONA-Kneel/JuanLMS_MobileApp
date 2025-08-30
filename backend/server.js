@@ -54,6 +54,18 @@ app.get('/', (req, res) => {
   res.json({ message: 'JuanLMS Backend Server is running!', timestamp: new Date().toISOString() });
 });
 
+// Health check route for grades
+app.get('/api/grades/health', (req, res) => {
+  res.json({ 
+    message: 'Grades endpoint is accessible!', 
+    timestamp: new Date().toISOString(),
+    routes: [
+      '/api/grades/test',
+      '/api/grades/semestral-grades/student/:studentId'
+    ]
+  });
+});
+
 app.use('/api', users);
 app.use('/api/messages', messagesRouter);
 app.use('/api/announcements', announcementRoutes);
