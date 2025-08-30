@@ -568,7 +568,7 @@ export default function UnifiedChat() {
         // Join the group in socket
         socketRef.current?.emit('joinGroup', { userId: user._id, groupId: newGroup._id });
         
-        Alert.alert('Success', 'Group chat created successfully!', [
+        Alert.alert('Success', `Group "${groupName.trim()}" created!`, [
           { text: 'OK', onPress: () => {
             setShowCreateGroupModal(false);
             setGroupName('');

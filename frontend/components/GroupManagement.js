@@ -71,7 +71,7 @@ export default function GroupManagement() {
       }, { headers });
 
       if (response.data) {
-        Alert.alert('Success', 'Group created successfully!');
+        Alert.alert('Success', `Group "${groupName.trim()}" created!`);
         setGroupName('');
         setGroupDescription('');
         setSelectedMembers([]);
