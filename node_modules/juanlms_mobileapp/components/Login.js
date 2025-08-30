@@ -57,12 +57,9 @@ export default function Login() {
         if (savedEmail) setEmail(savedEmail);
         if (savedPassword) setPassword(savedPassword);
 
-        // Auto-login if both credentials exist
+        // Auto-login if both credentials exist (no artificial delay)
         if (savedEmail && savedPassword) {
-          // Delay slightly to allow state/UI to settle
-          setTimeout(() => {
-            loginWithCredentials(savedEmail, savedPassword);
-          }, 300);
+          loginWithCredentials(savedEmail, savedPassword);
         }
       }
     };
@@ -143,6 +140,17 @@ export default function Login() {
     }
   };
 
+  const fetchWithTimeout = async (url, options = {}, timeoutMs = 15000) => {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const resp = await fetch(url, { ...options, signal: controller.signal });
+      return resp;
+    } finally {
+      clearTimeout(id);
+    }
+  };
+
   const loginWithCredentials = async (emailArg, passwordArg) => {
     // This path avoids the triple-click disable logic and uses provided credentials
     if (isCooldown) {
@@ -159,7 +167,7 @@ export default function Login() {
 
     try {
       const loginUrl = BACKEND_URL;
-      const response = await fetch(loginUrl, {
+      const response = await fetchWithTimeout(loginUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -185,7 +193,7 @@ export default function Login() {
         const role = tokenPayload.role;
         const userId = tokenPayload.id;
 
-        const userRes = await fetch(`${loginUrl.replace('/login', '')}/users/${userId}`, {
+        const userRes = await fetchWithTimeout(`${loginUrl.replace('/login', '')}/users/${userId}`, {
           headers: {
             'Authorization': `Bearer ${data.token}`,
             'Content-Type': 'application/json'
@@ -195,14 +203,6 @@ export default function Login() {
         const userData = await userRes.json();
 
         await setUserAndToken(userData, data.token);
-        await addAuditLog({
-          userId: userData._id,
-          userName: userData.firstname + ' ' + userData.lastname,
-          userRole: role,
-          action: 'Login',
-          details: `User ${userData.email} logged in.`,
-          timestamp: new Date().toISOString(),
-        });
 
         // Save or clear credentials depending on remember setting
         await saveCredentialsIfRemembered(emailArg, passwordArg);
@@ -221,6 +221,16 @@ export default function Login() {
         };
         const targetRoute = roleNavigationMap[role];
         if (targetRoute) navigation.navigate(targetRoute);
+
+        // Fire-and-forget audit logging after navigation
+        addAuditLog({
+          userId: userData._id,
+          userName: userData.firstname + ' ' + userData.lastname,
+          userRole: role,
+          action: 'Login',
+          details: `User ${userData.email} logged in.`,
+          timestamp: new Date().toISOString(),
+        }).catch(() => {});
       } else {
         const newAttempts = failedAttempts + 1;
         setFailedAttempts(newAttempts);
@@ -281,7 +291,7 @@ export default function Login() {
       const loginUrl = BACKEND_URL;
       console.log('Using backend URL:', loginUrl);
 
-      const response = await fetch(loginUrl, {
+      const response = await fetchWithTimeout(loginUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -327,7 +337,7 @@ export default function Login() {
 
         // Fetch user data
         console.log('Fetching user data for ID:', userId);
-        const userRes = await fetch(`${loginUrl.replace('/login', '')}/users/${userId}`, {
+        const userRes = await fetchWithTimeout(`${loginUrl.replace('/login', '')}/users/${userId}`, {
           headers: {
             'Authorization': `Bearer ${data.token}`,
             'Content-Type': 'application/json'
@@ -351,16 +361,6 @@ export default function Login() {
 
         // Save or clear credentials depending on remember setting
         await saveCredentialsIfRemembered(email.trim().toLowerCase(), password.trim());
-
-        // Add audit log for login
-        await addAuditLog({
-          userId: userData._id,
-          userName: userData.firstname + ' ' + userData.lastname,
-          userRole: role,
-          action: 'Login',
-          details: `User ${userData.email} logged in.`,
-          timestamp: new Date().toISOString(),
-        });
 
         // Role mapping for navigation
         const roleNavigationMap = {
@@ -392,6 +392,16 @@ export default function Login() {
           console.error('Available roles in mapping:', Object.keys(roleNavigationMap));
           showToast(`Unknown role: ${role}. Please contact administrator.`, 'error');
         }
+
+        // Fire-and-forget audit logging after navigation
+        addAuditLog({
+          userId: userData._id,
+          userName: userData.firstname + ' ' + userData.lastname,
+          userRole: role,
+          action: 'Login',
+          details: `User ${userData.email} logged in.`,
+          timestamp: new Date().toISOString(),
+        }).catch(() => {});
       } else {
         console.error('Login failed:', data.message);
         const newAttempts = failedAttempts + 1;

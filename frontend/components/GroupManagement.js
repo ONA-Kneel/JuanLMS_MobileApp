@@ -24,11 +24,14 @@ export default function GroupManagement() {
   const { user } = useUser();
   const [activeTab, setActiveTab] = useState('create'); // 'create' or 'join'
   const [groupName, setGroupName] = useState('');
+  const [groupDescription, setGroupDescription] = useState('');
   const [joinCode, setJoinCode] = useState('');
   const [selectedMembers, setSelectedMembers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [allUsers, setAllUsers] = useState([]);
   const [showUserSearch, setShowUserSearch] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showJoinModal, setShowJoinModal] = useState(false);
 
   useEffect(() => {
     if (!user || !user._id) return;
@@ -60,11 +63,11 @@ export default function GroupManagement() {
 
       const headers = await getAuthHeaders();
       
-      const response = await axios.post(`${SOCKET_URL}/api/group-chats`, {
+      const response = await axios.post(`${SOCKET_URL}/group-chats`, {
         name: groupName.trim(),
         description: groupDescription.trim(),
-        creatorId: user._id,
-        participants: selectedMembers.map(member => member._id)
+        createdBy: user._id,
+        participants: [user._id, ...selectedMembers.map(member => member._id)]
       }, { headers });
 
       if (response.data) {
@@ -82,6 +85,22 @@ export default function GroupManagement() {
     }
   };
 
+  const fetchGroups = async () => {
+    try {
+      const headers = await getAuthHeaders();
+      const response = await axios.get(`${SOCKET_URL}/group-chats/user/${user._id}`, {
+        headers
+      });
+      
+      if (response.data) {
+        console.log('✅ Groups fetched successfully:', response.data.length, 'groups');
+        // You can add state to store groups if needed
+      }
+    } catch (error) {
+      console.error('Error fetching groups:', error);
+    }
+  };
+
   const handleJoinGroup = async () => {
     try {
       if (!joinCode.trim()) {
@@ -91,7 +110,7 @@ export default function GroupManagement() {
 
       const headers = await getAuthHeaders();
       
-      await axios.post(`${SOCKET_URL}/api/group-chats/${joinCode}/join`, {
+      await axios.post(`${SOCKET_URL}/group-chats/${joinCode}/join`, {
         userId: user._id
       }, { headers });
 
@@ -192,6 +211,20 @@ export default function GroupManagement() {
               placeholder="Group Name"
               value={groupName}
               onChangeText={setGroupName}
+              style={{
+                borderWidth: 1,
+                borderColor: '#ddd',
+                borderRadius: 8,
+                padding: 12,
+                marginBottom: 16,
+                backgroundColor: '#fff'
+              }}
+            />
+
+            <TextInput
+              placeholder="Group Description (optional)"
+              value={groupDescription}
+              onChangeText={setGroupDescription}
               style={{
                 borderWidth: 1,
                 borderColor: '#ddd',

@@ -25,6 +25,13 @@ export default function VPECalendar() {
   const [classDates, setClassDates] = useState([]);
   const [holidays, setHolidays] = useState([]);
 
+  // Ensure selectedDate is always set to today when component mounts
+  useEffect(() => {
+    const today = new Date();
+    setSelectedDate(today);
+    setCurrentDate(today);
+  }, []);
+
   useEffect(() => {
     fetchCalendarEvents();
   }, []);

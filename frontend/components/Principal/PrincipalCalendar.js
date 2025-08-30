@@ -80,6 +80,13 @@ export default function PrincipalCalendar() {
   const [classDates, setClassDates] = useState([]);
   const [holidays, setHolidays] = useState([]);
 
+  // Ensure selectedDate is always set to today when component mounts
+  useEffect(() => {
+    const today = getCurrentDate();
+    setSelectedDate(today);
+    setCurrentDate(today);
+  }, []);
+
   const fetchCalendarEvents = async () => {
     try {
       setIsLoading(true);

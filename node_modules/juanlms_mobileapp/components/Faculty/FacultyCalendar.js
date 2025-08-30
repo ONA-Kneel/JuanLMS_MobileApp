@@ -12,7 +12,11 @@ const { width } = Dimensions.get('window');
 
 const timeToString = (time) => {
   const date = new Date(time);
-  return date.toISOString().split('T')[0];
+  // Use local date methods instead of UTC to avoid timezone issues
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 };
 
 const getMonthYearString = (dateString) => {
@@ -30,8 +34,8 @@ export default function FacultyCalendar() {
   const navigation = useNavigation();
   const { user } = useUser();
   const [items, setItems] = useState({});
-  const [selectedDate, setSelectedDate] = useState(timeToString(Date.now()));
-  const [currentMonth, setCurrentMonth] = useState(getMonthYearString(timeToString(Date.now())));
+  const [selectedDate, setSelectedDate] = useState(() => timeToString(new Date()));
+  const [currentMonth, setCurrentMonth] = useState(() => getMonthYearString(timeToString(new Date())));
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
   
   // New state variables for enhanced functionality
@@ -42,9 +46,10 @@ export default function FacultyCalendar() {
 
   // Ensure selected date is always today's date when component mounts
   useEffect(() => {
-    const today = timeToString(Date.now());
-    setSelectedDate(today);
-    setCurrentMonth(getMonthYearString(today));
+    const today = new Date();
+    const todayString = timeToString(today);
+    setSelectedDate(todayString);
+    setCurrentMonth(getMonthYearString(todayString));
   }, []);
 
   useEffect(() => {

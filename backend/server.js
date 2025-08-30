@@ -73,6 +73,10 @@ app.use('/uploads', express.static('uploads'));
 // Mobile app compatibility routes (direct routes without /api prefix)
 app.use('/quizzes', quizRoutes);
 app.use('/assignments', assignmentRoutes);
+app.use('/group-chats', groupChatsRouter);
+
+// Group messages compatibility route (redirects to group-chats)
+app.use('/group-messages', groupChatsRouter);
 
 // Test route to verify server is working
 app.get('/test', (req, res) => {
