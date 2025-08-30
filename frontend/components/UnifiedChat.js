@@ -884,6 +884,23 @@ export default function UnifiedChat() {
           {!isLoading && activeTab === 'groups' && (
             <View>
               <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 10 }}>Chats</Text>
+              
+              {/* Groups Tab Search */}
+              <TextInput
+                placeholder="Search groups and chats..."
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                style={{
+                  borderWidth: 1,
+                  borderColor: '#ccc',
+                  borderRadius: 20,
+                  paddingHorizontal: 14,
+                  paddingVertical: 10,
+                  backgroundColor: 'white',
+                  marginBottom: 15
+                }}
+              />
+              
               {(searchQuery || '').trim() === '' ? (
                 unifiedChats.length > 0 ? (
                   unifiedChats.map(chat => (
@@ -916,49 +933,102 @@ export default function UnifiedChat() {
                     </TouchableOpacity>
                   ))
                 ) : (
-                  <Text style={{ color: '#888', textAlign: 'center', marginTop: 20 }}>No chats found</Text>
+                  <View style={{ padding: 20, alignItems: 'center' }}>
+                    <Text style={{ color: '#666', fontSize: 16 }}>No chats found</Text>
+                    <Text style={{ color: '#999', fontSize: 14, marginTop: 5 }}>Create a group or start a conversation to get started!</Text>
+                  </View>
                 )
               ) : (
-                searchResults.length > 0 ? (
-                  searchResults.map(item => (
-                    <TouchableOpacity
-                      key={item._id}
-                      onPress={() => item.isNewUser
-                        ? navigation.navigate('UnifiedChat', { selectedUser: item })
-                        : item.type === 'group'
-                          ? navigation.navigate('UnifiedChat', { selectedGroup: item })
-                          : navigation.navigate('UnifiedChat', { selectedUser: { _id: item._id, firstname: item.firstname, lastname: item.lastname, profilePicture: item.profilePic, role: item.role || 'students' } })
-                      }
-                      style={{ backgroundColor: 'white', padding: 15, borderRadius: 10, marginBottom: 10, flexDirection: 'row', alignItems: 'center', elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.2, shadowRadius: 2 }}
-                    >
-                      {item.type === 'group' ? (
-                        <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#00418b', marginRight: 12, justifyContent: 'center', alignItems: 'center' }}>
-                          <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>{(item.name || '').charAt(0).toUpperCase()}</Text>
-                        </View>
-                      ) : (
-                        <Image source={item.profilePicture || item.profilePic ? { uri: item.profilePicture || item.profilePic } : require('../assets/profile-icon (2).png')} style={{ width: 40, height: 40, borderRadius: 20, marginRight: 12 }} />
-                      )}
-                      <View style={{ flex: 1 }}>
-                        <Text style={{ fontWeight: 'bold', fontSize: 16 }}>{item.type === 'group' ? item.name : `${item.firstname} ${item.lastname}`}</Text>
-                        {item.isNewUser ? (
-                          <Text style={{ color: '#0a7', fontSize: 12 }}>Click to start new chat</Text>
-                        ) : item.type === 'group' ? (
-                          <Text style={{ color: '#666', fontSize: 12 }}>{(item.participants || []).length} participants</Text>
-                        ) : (
-                          !!lastMessages[item._id] && (
-                            <Text style={{ color: '#666', fontSize: 12 }} numberOfLines={1}>
-                              {lastMessages[item._id].prefix}{lastMessages[item._id].text}
-                            </Text>
-                          )
-                        )}
+                (() => {
+                  // Enhanced search results showing both groups and users
+                  const matchingGroups = (userGroups || []).filter(group => 
+                    group.name && group.name.toLowerCase().includes(searchQuery.toLowerCase())
+                  );
+                  
+                  const matchingUsers = (allUsers || []).filter(user => 
+                    `${user.firstname} ${user.lastname}`.toLowerCase().includes(searchQuery.toLowerCase())
+                  );
+                  
+                  const hasResults = matchingGroups.length > 0 || matchingUsers.length > 0;
+                  
+                  if (!hasResults) {
+                    return (
+                      <View style={{ padding: 20, alignItems: 'center' }}>
+                        <Text style={{ color: '#666', fontSize: 16 }}>No groups or users found matching "{searchQuery}"</Text>
                       </View>
-                      {item.type === 'group' && <Text style={{ color: '#00418b', fontSize: 11, marginLeft: 8 }}>Group</Text>}
-                      {item.isNewUser && <Text style={{ color: '#0a7', fontSize: 11, marginLeft: 8 }}>New</Text>}
-                    </TouchableOpacity>
-                  ))
-                ) : (
-                  <Text style={{ color: '#888', textAlign: 'center', marginTop: 20 }}>No users or groups found</Text>
-                )
+                    );
+                  }
+                  
+                  return (
+                    <View>
+                      {/* Show matching groups */}
+                      {matchingGroups.length > 0 && (
+                        <View style={{ marginBottom: 20 }}>
+                          <Text style={{ fontWeight: 'bold', fontSize: 16, marginBottom: 10, color: '#555' }}>Groups</Text>
+                          {matchingGroups.map(group => (
+                            <TouchableOpacity
+                              key={group._id}
+                              onPress={() => navigation.navigate('UnifiedChat', { selectedGroup: group })}
+                              style={{ backgroundColor: 'white', padding: 15, borderRadius: 10, marginBottom: 10, flexDirection: 'row', alignItems: 'center', elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.2, shadowRadius: 2 }}
+                            >
+                              <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#00418b', marginRight: 12, justifyContent: 'center', alignItems: 'center' }}>
+                                <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>{(group.name || '').charAt(0).toUpperCase()}</Text>
+                              </View>
+                              <View style={{ flex: 1 }}>
+                                <Text style={{ fontWeight: 'bold', fontSize: 16 }}>{group.name}</Text>
+                                <Text style={{ color: '#666', fontSize: 12 }}>{(group.participants || []).length} participants</Text>
+                              </View>
+                              <Text style={{ color: '#00418b', fontSize: 11, marginLeft: 8 }}>Group</Text>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                      )}
+                      
+                      {/* Show matching users */}
+                      {matchingUsers.length > 0 && (
+                        <View>
+                          <Text style={{ fontWeight: 'bold', fontSize: 16, marginBottom: 10, color: '#555' }}>Users</Text>
+                          {matchingUsers.map(user => {
+                            const isExistingChat = individualConversations.some(c => c._id === user._id);
+                            const isInGroup = userGroups.some(g => g.participants && g.participants.includes(user._id));
+                            
+                            return (
+                              <TouchableOpacity
+                                key={user._id}
+                                onPress={() => navigation.navigate('UnifiedChat', { selectedUser: user })}
+                                style={{ 
+                                  backgroundColor: isExistingChat ? '#f0f8ff' : 'white', 
+                                  padding: 15, 
+                                  borderRadius: 10, 
+                                  marginBottom: 10, 
+                                  flexDirection: 'row', 
+                                  alignItems: 'center', 
+                                  elevation: 2, 
+                                  shadowColor: '#000', 
+                                  shadowOffset: { width: 0, height: 1 }, 
+                                  shadowOpacity: 0.2, 
+                                  shadowRadius: 2,
+                                  borderLeftWidth: 4,
+                                  borderLeftColor: isExistingChat ? '#00418b' : isInGroup ? '#28a745' : 'transparent'
+                                }}
+                              >
+                                <Image source={user.profilePicture ? { uri: user.profilePicture } : require('../assets/profile-icon (2).png')} style={{ width: 40, height: 40, borderRadius: 20, marginRight: 12 }} />
+                                <View style={{ flex: 1 }}>
+                                  <Text style={{ fontWeight: 'bold', fontSize: 16 }}>{user.firstname} {user.lastname}</Text>
+                                  <Text style={{ color: isExistingChat ? '#00418b' : isInGroup ? '#28a745' : '#0a7', fontSize: 12 }}>
+                                    {isExistingChat ? 'Existing chat' : isInGroup ? 'In your group' : 'Click to start new chat'}
+                                  </Text>
+                                </View>
+                                {isExistingChat && <Text style={{ color: '#00418b', fontSize: 12, fontWeight: 'bold' }}>💬</Text>}
+                                {isInGroup && !isExistingChat && <Text style={{ color: '#28a745', fontSize: 12, fontWeight: 'bold' }}>👥</Text>}
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </View>
+                      )}
+                    </View>
+                  );
+                })()
               )}
             </View>
           )}
@@ -966,6 +1036,23 @@ export default function UnifiedChat() {
           {!isLoading && activeTab === 'individual' && (
             <View>
               <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 10 }}>Direct Messages</Text>
+              
+              {/* Individual Tab Search */}
+              <TextInput
+                placeholder="Search direct messages..."
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                style={{
+                  borderWidth: 1,
+                  borderColor: '#ccc',
+                  borderRadius: 20,
+                  paddingHorizontal: 14,
+                  paddingVertical: 10,
+                  backgroundColor: 'white',
+                  marginBottom: 15
+                }}
+              />
+              
               {((searchQuery || '').trim() === ''
                 ? individualConversations
                 : individualConversations.filter(c => (`${c.firstname} ${c.lastname}`).toLowerCase().includes((searchQuery || '').toLowerCase()))
@@ -993,33 +1080,84 @@ export default function UnifiedChat() {
                 <Text style={{ color: '#888', textAlign: 'center', marginTop: 20 }}>No direct messages yet</Text>
               )}
 
-              {/* Other users (always shown under Individual, below DMs) */}
-              {(() => {
-                (() => {
-                  const list = (allUsers || [])
-                    .filter(u => !individualConversations.some(c => c._id === u._id))
-                    .filter(u => (`${u.firstname} ${u.lastname}`).toLowerCase().includes((searchQuery || '').toLowerCase()));
-                  if (list.length === 0) return null;
-                  return (
-                    <View style={{ marginTop: 8 }}>
-                      <Text style={{ fontWeight: 'bold', fontSize: 14, marginBottom: 8, color: '#555' }}>Other users</Text>
-                      {list.map(u => (
+              {/* Search Results - Show all users when searching */}
+              {(searchQuery || '').trim() !== '' && (
+                <View style={{ marginTop: 16 }}>
+                  <Text style={{ fontWeight: 'bold', fontSize: 16, marginBottom: 10, color: '#555' }}>Search Results</Text>
+                  {(() => {
+                    const allMatchingUsers = (allUsers || [])
+                      .filter(u => (`${u.firstname} ${u.lastname}`).toLowerCase().includes((searchQuery || '').toLowerCase()));
+                    
+                    if (allMatchingUsers.length === 0) {
+                      return (
+                        <View style={{ padding: 20, alignItems: 'center' }}>
+                          <Text style={{ color: '#666', fontSize: 16 }}>No users found matching "{searchQuery}"</Text>
+                        </View>
+                      );
+                    }
+                    
+                    return allMatchingUsers.map(u => {
+                      const isExistingChat = individualConversations.some(c => c._id === u._id);
+                      return (
                         <TouchableOpacity
                           key={u._id}
                           onPress={() => navigation.navigate('UnifiedChat', { selectedUser: u })}
-                          style={{ backgroundColor: 'white', padding: 15, borderRadius: 10, marginBottom: 10, flexDirection: 'row', alignItems: 'center', elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.2, shadowRadius: 2 }}
+                          style={{ 
+                            backgroundColor: isExistingChat ? '#f0f8ff' : 'white', 
+                            padding: 15, 
+                            borderRadius: 10, 
+                            marginBottom: 10, 
+                            flexDirection: 'row', 
+                            alignItems: 'center', 
+                            elevation: 2, 
+                            shadowColor: '#000', 
+                            shadowOffset: { width: 0, height: 1 }, 
+                            shadowOpacity: 0.2, 
+                            shadowRadius: 2,
+                            borderLeftWidth: 4,
+                            borderLeftColor: isExistingChat ? '#00418b' : 'transparent'
+                          }}
                         >
                           <Image source={u.profilePicture ? { uri: u.profilePicture } : require('../assets/profile-icon (2).png')} style={{ width: 40, height: 40, borderRadius: 20, marginRight: 12 }} />
                           <View style={{ flex: 1 }}>
                             <Text style={{ fontWeight: 'bold', fontSize: 16 }}>{u.firstname} {u.lastname}</Text>
-                            <Text style={{ color: '#0a7', fontSize: 12 }}>Click to start new chat</Text>
+                            <Text style={{ color: isExistingChat ? '#00418b' : '#0a7', fontSize: 12 }}>
+                              {isExistingChat ? 'Existing chat' : 'Click to start new chat'}
+                            </Text>
                           </View>
+                          {isExistingChat && (
+                            <Text style={{ color: '#00418b', fontSize: 12, fontWeight: 'bold' }}>💬</Text>
+                          )}
                         </TouchableOpacity>
-                      ))}
-                    </View>
-                  );
-                })();
-                return null;
+                      );
+                    });
+                  })()}
+                </View>
+              )}
+
+              {/* Other users (only shown when not searching) */}
+              {(searchQuery || '').trim() === '' && (() => {
+                const list = (allUsers || [])
+                  .filter(u => !individualConversations.some(c => c._id === u._id));
+                if (list.length === 0) return null;
+                return (
+                  <View style={{ marginTop: 8 }}>
+                    <Text style={{ fontWeight: 'bold', fontSize: 14, marginBottom: 8, color: '#555' }}>Other users</Text>
+                    {list.map(u => (
+                      <TouchableOpacity
+                        key={u._id}
+                        onPress={() => navigation.navigate('UnifiedChat', { selectedUser: u })}
+                        style={{ backgroundColor: 'white', padding: 15, borderRadius: 10, marginBottom: 10, flexDirection: 'row', alignItems: 'center', elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.2, shadowRadius: 2 }}
+                      >
+                        <Image source={u.profilePicture ? { uri: u.profilePicture } : require('../assets/profile-icon (2).png')} style={{ width: 40, height: 40, borderRadius: 20, marginRight: 12 }} />
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ fontWeight: 'bold', fontSize: 16 }}>{u.firstname} {u.lastname}</Text>
+                          <Text style={{ color: '#0a7', fontSize: 12 }}>Click to start new chat</Text>
+                        </View>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                );
               })()}
             </View>
           )}
@@ -1058,31 +1196,104 @@ export default function UnifiedChat() {
                 }}
               />
               <Text style={{ fontWeight: 'bold', fontSize: 16, marginBottom: 10 }}>Select Members:</Text>
-              {allUsers.map(u => (
-                <TouchableOpacity
-                  key={u._id}
-                  onPress={() => toggleParticipantSelection(u._id)}
-                  style={{ 
-                    backgroundColor: selectedParticipants.includes(u._id) ? '#e8f4fd' : 'white', 
-                    padding: 15, 
-                    borderRadius: 10, 
-                    marginBottom: 5,
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    borderWidth: 1,
-                    borderColor: selectedParticipants.includes(u._id) ? '#00418b' : '#eee'
-                  }}>
-                                          <Image
-                          source={u.profilePicture ? { uri: u.profilePicture } : require('../assets/profile-icon (2).png')}
-                          style={{ width: 30, height: 30, borderRadius: 15, marginRight: 10 }}
-                          resizeMode="cover"
-                        />
-                  <Text style={{ flex: 1 }}>{u.firstname} {u.lastname}</Text>
-                  {selectedParticipants.includes(u._id) && (
-                    <Text style={{ color: '#00418b', fontWeight: 'bold' }}>✓</Text>
-                  )}
-                </TouchableOpacity>
-              ))}
+              
+              {/* Create Tab Search for Members */}
+              <TextInput
+                placeholder="Search users to add..."
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                style={{
+                  borderWidth: 1,
+                  borderColor: '#ccc',
+                  borderRadius: 20,
+                  paddingHorizontal: 14,
+                  paddingVertical: 10,
+                  backgroundColor: 'white',
+                  marginBottom: 15
+                }}
+              />
+              
+              {(searchQuery || '').trim() === '' ? (
+                allUsers.map(u => (
+                  <TouchableOpacity
+                    key={u._id}
+                    onPress={() => toggleParticipantSelection(u._id)}
+                    style={{ 
+                      backgroundColor: selectedParticipants.includes(u._id) ? '#e8f4fd' : 'white', 
+                      padding: 15, 
+                      borderRadius: 10, 
+                      marginBottom: 5,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      borderWidth: 1,
+                      borderColor: selectedParticipants.includes(u._id) ? '#00418b' : '#eee'
+                    }}>
+                      <Image
+                        source={u.profilePicture ? { uri: u.profilePicture } : require('../assets/profile-icon (2).png')}
+                        style={{ width: 30, height: 30, borderRadius: 15, marginRight: 10 }}
+                        resizeMode="cover"
+                      />
+                      <Text style={{ flex: 1 }}>{u.firstname} {u.lastname}</Text>
+                      {selectedParticipants.includes(u._id) && (
+                        <Text style={{ color: '#00418b', fontWeight: 'bold' }}>✓</Text>
+                      )}
+                    </TouchableOpacity>
+                  ))
+                                 ) : (
+                   // Show filtered users based on search
+                   (() => {
+                     const filteredUsers = allUsers.filter(u => 
+                       `${u.firstname} ${u.lastname}`.toLowerCase().includes(searchQuery.toLowerCase())
+                     );
+                     
+                     if (filteredUsers.length === 0) {
+                       return (
+                         <View style={{ padding: 20, alignItems: 'center' }}>
+                           <Text style={{ color: '#666', fontSize: 16 }}>No users found matching "{searchQuery}"</Text>
+                         </View>
+                       );
+                     }
+                     
+                     return filteredUsers.map(u => {
+                       const isSelected = selectedParticipants.includes(u._id);
+                       const isInExistingGroup = userGroups.some(g => g.participants && g.participants.includes(u._id));
+                       const hasExistingChat = individualConversations.some(c => c._id === u._id);
+                       
+                       return (
+                         <TouchableOpacity
+                           key={u._id}
+                           onPress={() => toggleParticipantSelection(u._id)}
+                           style={{ 
+                             backgroundColor: isSelected ? '#e8f4fd' : isInExistingGroup ? '#f8f9fa' : 'white', 
+                             padding: 15, 
+                             borderRadius: 10, 
+                             marginBottom: 5,
+                             flexDirection: 'row',
+                             alignItems: 'center',
+                             borderWidth: 1,
+                             borderColor: isSelected ? '#00418b' : isInExistingGroup ? '#28a745' : '#eee',
+                             borderLeftWidth: 4,
+                             borderLeftColor: isSelected ? '#00418b' : isInExistingGroup ? '#28a745' : 'transparent'
+                           }}>
+                           <Image
+                             source={u.profilePicture ? { uri: u.profilePicture } : require('../assets/profile-icon (2).png')}
+                             style={{ width: 30, height: 30, borderRadius: 15, marginRight: 10 }}
+                             resizeMode="cover"
+                           />
+                           <View style={{ flex: 1 }}>
+                             <Text style={{ fontWeight: 'bold', fontSize: 16 }}>{u.firstname} {u.lastname}</Text>
+                             <Text style={{ color: isSelected ? '#00418b' : isInExistingGroup ? '#28a745' : '#666', fontSize: 12 }}>
+                               {isSelected ? 'Selected' : isInExistingGroup ? 'Already in your group' : hasExistingChat ? 'Has existing chat' : 'Available to add'}
+                             </Text>
+                           </View>
+                           {isSelected && <Text style={{ color: '#00418b', fontWeight: 'bold', fontSize: 18 }}>✓</Text>}
+                           {isInExistingGroup && !isSelected && <Text style={{ color: '#28a745', fontSize: 12 }}>👥</Text>}
+                           {hasExistingChat && !isSelected && !isInExistingGroup && <Text style={{ color: '#00418b', fontSize: 12 }}>💬</Text>}
+                         </TouchableOpacity>
+                       );
+                     });
+                   })()
+                 )}
               <TouchableOpacity
                 onPress={handleCreateGroup}
                 style={{ 
@@ -1101,6 +1312,23 @@ export default function UnifiedChat() {
           {!isLoading && activeTab === 'join' && (
             <View>
               <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 10 }}>Join Group</Text>
+              
+              {/* Join Tab Search for Users */}
+              <TextInput
+                placeholder="Search users to chat with..."
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                style={{
+                  borderWidth: 1,
+                  borderColor: '#ccc',
+                  borderRadius: 20,
+                  paddingHorizontal: 14,
+                  paddingVertical: 10,
+                  backgroundColor: 'white',
+                  marginBottom: 15
+                }}
+              />
+              
               <TextInput
                 placeholder="Enter Group ID"
                 value={joinGroupId}
@@ -1130,23 +1358,54 @@ export default function UnifiedChat() {
               {searchQuery.trim() !== '' && (
                 <View style={{ marginTop: 16 }}>
                   <Text style={{ fontWeight: 'bold', fontSize: 16, marginBottom: 10 }}>Users</Text>
-                  {(allUsers || [])
-                    .filter(u => (
+                  {(() => {
+                    const filteredUsers = (allUsers || []).filter(u => 
                       `${u.firstname} ${u.lastname}`.toLowerCase().includes(searchQuery.toLowerCase())
-                    ))
-                    .map(u => (
-                      <TouchableOpacity
-                        key={u._id}
-                        onPress={() => navigation.navigate('UnifiedChat', { selectedUser: u })}
-                        style={{ backgroundColor: 'white', padding: 12, borderRadius: 8, marginBottom: 8, flexDirection: 'row', alignItems: 'center' }}
-                      >
-                        <Image
-                          source={u.profilePicture ? { uri: u.profilePicture } : require('../assets/profile-icon (2).png')}
-                          style={{ width: 28, height: 28, borderRadius: 14, marginRight: 8 }}
-                        />
-                        <Text>{u.firstname} {u.lastname}</Text>
-                      </TouchableOpacity>
-                    ))}
+                    );
+                    
+                    if (filteredUsers.length === 0) {
+                      return (
+                        <View style={{ padding: 20, alignItems: 'center' }}>
+                          <Text style={{ color: '#666', fontSize: 16 }}>No users found matching "{searchQuery}"</Text>
+                        </View>
+                      );
+                    }
+                    
+                    return filteredUsers.map(u => {
+                      const isExistingChat = individualConversations.some(c => c._id === u._id);
+                      const isInGroup = userGroups.some(g => g.participants && g.participants.includes(u._id));
+                      
+                      return (
+                        <TouchableOpacity
+                          key={u._id}
+                          onPress={() => navigation.navigate('UnifiedChat', { selectedUser: u })}
+                          style={{ 
+                            backgroundColor: isExistingChat ? '#f0f8ff' : isInGroup ? '#f8f9fa' : 'white', 
+                            padding: 15, 
+                            borderRadius: 10, 
+                            marginBottom: 10, 
+                            flexDirection: 'row', 
+                            alignItems: 'center',
+                            borderLeftWidth: 4,
+                            borderLeftColor: isExistingChat ? '#00418b' : isInGroup ? '#28a745' : 'transparent'
+                          }}
+                        >
+                          <Image
+                            source={u.profilePicture ? { uri: u.profilePicture } : require('../assets/profile-icon (2).png')}
+                            style={{ width: 40, height: 40, borderRadius: 20, marginRight: 12 }}
+                          />
+                          <View style={{ flex: 1 }}>
+                            <Text style={{ fontWeight: 'bold', fontSize: 16 }}>{u.firstname} {u.lastname}</Text>
+                            <Text style={{ color: isExistingChat ? '#00418b' : isInGroup ? '#28a745' : '#0a7', fontSize: 12 }}>
+                              {isExistingChat ? 'Existing chat' : isInGroup ? 'In your group' : 'Click to start new chat'}
+                            </Text>
+                          </View>
+                          {isExistingChat && <Text style={{ color: '#00418b', fontSize: 12, fontWeight: 'bold' }}>💬</Text>}
+                          {isInGroup && !isExistingChat && <Text style={{ color: '#28a745', fontSize: 12, fontWeight: 'bold' }}>👥</Text>}
+                        </TouchableOpacity>
+                      );
+                    });
+                  })()}
                 </View>
               )}
             </View>
