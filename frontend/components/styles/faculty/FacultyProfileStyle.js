@@ -67,7 +67,7 @@ const FacultyProfileStyle = StyleSheet.create({
     row: {
         flexDirection: 'row',
         width: '100%',
-        justifyContent: 'space-between',
+        justifyContent: 'center',
         marginVertical: 10,
     },
     infoBox: {

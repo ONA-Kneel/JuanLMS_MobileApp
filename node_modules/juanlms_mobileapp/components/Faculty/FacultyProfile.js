@@ -203,11 +203,7 @@ export default function FacultyProfile() {
         </Text>
         <Text style={[FacultyProfileStyle.email, { fontFamily: 'Poppins-Regular' }]}>{user.email}</Text>
         <View style={FacultyProfileStyle.row}>
-          <View style={FacultyProfileStyle.infoBox}>
-            <Text style={[FacultyProfileStyle.infoLabel, { fontFamily: 'Poppins-Regular' }]}>College</Text>
-            <Text style={[FacultyProfileStyle.infoValue, { fontFamily: 'Poppins-SemiBold' }]}>{user.college || 'N/A'}</Text>
-          </View>
-          <View style={FacultyProfileStyle.infoBox}>
+          <View style={[FacultyProfileStyle.infoBox, { flex: 0, width: 'auto' }]}>
             <Text style={[FacultyProfileStyle.infoLabel, { fontFamily: 'Poppins-Regular' }]}>Role</Text>
             <Text style={[FacultyProfileStyle.infoValue, { fontFamily: 'Poppins-SemiBold' }]}>Faculty</Text>
           </View>
