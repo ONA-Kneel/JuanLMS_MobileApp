@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "JuanLMS_MobileApp",
-    "slug": "juanlms-mobile-app",
+    "slug": "JuanLMS_MobileApp",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/JuanLMS-LogoV1.png",
@@ -29,16 +29,18 @@
         "WRITE_EXTERNAL_STORAGE"
       ],
       "softwareKeyboardLayoutMode": "pan",
-      "allowBackup": true
+      "allowBackup": true,
+      "enableProguardInReleaseBuilds": true,
+      "enableShrinkResources": true,
+      "enableR8": true
     },
     "web": {
       "icon": "./assets/JuanLMS-LogoV1.png",
       "bundler": "metro"
     },
     "extra": {
-      "API_URL": "https://juanlms-webapp-server.onrender.com",
       "eas": {
-        "projectId": "230e22b4-83ee-4315-9e68-a21aaaabe2f9"
+        "projectId": "juanlms-mobileapp"
       }
     },
     "plugins": [
@@ -52,11 +54,7 @@
       [
         "@react-native-community/datetimepicker",
         {
-<<<<<<< HEAD
-          "androidMode": "default"
-=======
           "mode": "date"
->>>>>>> main
         }
       ]
     ]
