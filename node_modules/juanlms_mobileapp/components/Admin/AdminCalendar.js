@@ -12,7 +12,11 @@ const { width } = Dimensions.get('window');
 
 const timeToString = (time) => {
   const date = new Date(time);
-  return date.toISOString().split('T')[0];
+  // Use local date methods instead of UTC to avoid timezone issues
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 };
 
 const getMonthYearString = (dateString) => {
@@ -44,8 +48,8 @@ export default function AdminCalendar() {
   const navigation = useNavigation();
   const { user } = useUser();
   const [items, setItems] = useState({});
-  const [selectedDate, setSelectedDate] = useState(timeToString(Date.now()));
-  const [currentMonth, setCurrentMonth] = useState(getMonthYearString(timeToString(Date.now())));
+  const [selectedDate, setSelectedDate] = useState(() => timeToString(new Date()));
+  const [currentMonth, setCurrentMonth] = useState(() => getMonthYearString(timeToString(new Date())));
   const [viewMode, setViewMode] = useState('Month');
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
   const [weekStartDate, setWeekStartDate] = useState(() => {
@@ -148,6 +152,22 @@ export default function AdminCalendar() {
 
     fetchAll();
   }, [classDates]);
+
+  // Ensure selectedDate is always set to today when component mounts
+  useEffect(() => {
+    const today = new Date();
+    const todayString = timeToString(today);
+    console.log('AdminCalendar - Setting selectedDate to today:', todayString);
+    console.log('AdminCalendar - Today object:', today);
+    setSelectedDate(todayString);
+    setCurrentMonth(getMonthYearString(todayString));
+    
+    // Update weekStartDate to match today's week
+    const currentDay = today.getDay();
+    const startOfWeek = new Date(today);
+    startOfWeek.setDate(today.getDate() - currentDay);
+    setWeekStartDate(timeToString(startOfWeek));
+  }, []);
 
   // Fetch academic year information
   useEffect(() => {
@@ -416,6 +436,11 @@ export default function AdminCalendar() {
                   const dayEvents = items[dayString] || [];
                   const isSelected = dayString === selectedDate;
                   const isToday = dayString === timeToString(new Date());
+                  
+                  // Debug logging for the current day being rendered
+                  if (isSelected || isToday) {
+                    console.log(`AdminCalendar - Day ${day.getDate()}: dayString=${dayString}, selectedDate=${selectedDate}, isSelected=${isSelected}, isToday=${isToday}`);
+                  }
                   
                   return (
                     <TouchableOpacity

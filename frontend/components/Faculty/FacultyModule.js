@@ -1,4 +1,4 @@
-import { Text, TouchableOpacity, View, ScrollView, ActivityIndicator, Modal, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
+import { Text, TouchableOpacity, View, ScrollView, ActivityIndicator, Modal, TextInput, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -8,12 +8,8 @@ import { useFonts } from 'expo-font';
 import { useUser } from '../UserContext';
 import * as DocumentPicker from 'expo-document-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
-function formatDateHeader(date) {
-  if (!date) return 'No date';
-  const d = new Date(date);
-  return d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-}
+import { formatDate } from '../../utils/dateUtils';
+import { getAuthHeaders, handleApiError } from '../../utils/apiUtils';
 
 function groupByDate(items, getDate) {
   const groups = {};
@@ -675,7 +671,7 @@ export default function FacultyModule() {
                                         <Text style={{ fontFamily: 'Poppins-Bold', fontSize: 16, color: '#222', marginBottom: 8, marginTop: 18 }}>
                                             {(() => {
                                                 const year = new Date(dateKey).getFullYear();
-                                                return year >= 2099 ? 'Not Posted Yet' : formatDateHeader(dateKey);
+                                                return year >= 2099 ? 'Not Posted Yet' : formatDate(dateKey);
                                             })()}
                                         </Text>
                                         {items.map(item => {
@@ -700,7 +696,7 @@ export default function FacultyModule() {
                                                         <Text style={{ fontFamily: 'Poppins-Bold', color: '#222', fontSize: 18, marginBottom: 2 }}>{item.title}</Text>
                                                         {isFuturePost ? (
                                                             <Text style={{ color: '#888fa1', fontFamily: 'Poppins-Regular', fontSize: 13, marginTop: 4 }}>
-                                                                {isSuperFuture ? 'Not Posted Yet' : `Will be posted on ${formatDateHeader(item.postAt)}`}
+                                                                {isSuperFuture ? 'Not Posted Yet' : `Will be posted on ${formatDate(item.postAt)}`}
                                                             </Text>
                                                         ) : null}
                                                         {/* Description */}

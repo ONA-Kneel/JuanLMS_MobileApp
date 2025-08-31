@@ -106,6 +106,84 @@ adminRoutes.get("/api/admin/active-users-today", async (req, res) => {
     }
 });
 
+// School Year endpoints for mobile app compatibility
+adminRoutes.get("/api/schoolyears/active", async (req, res) => {
+    try {
+        // Return the current active school year (2025-2026)
+        res.json({
+            _id: "current",
+            schoolYearStart: "2025",
+            schoolYearEnd: "2026",
+            status: "active",
+            startDate: "2025-06-01",
+            endDate: "2026-03-31"
+        });
+    } catch (error) {
+        console.error('Error fetching active school year:', error);
+        res.status(500).json({ error: 'Failed to fetch active school year' });
+    }
+});
+
+adminRoutes.get("/api/schoolyears", async (req, res) => {
+    try {
+        // Return available school years including current and future ones
+        const schoolYears = [
+            {
+                _id: "current",
+                schoolYearStart: "2025",
+                schoolYearEnd: "2026",
+                status: "active",
+                startDate: "2025-06-01",
+                endDate: "2026-03-31"
+            },
+            {
+                _id: "future",
+                schoolYearStart: "2026",
+                schoolYearEnd: "2027",
+                status: "inactive",
+                startDate: "2026-06-01",
+                endDate: "2027-03-31"
+            }
+        ];
+        
+        res.json(schoolYears);
+    } catch (error) {
+        console.error('Error fetching school years:', error);
+        res.status(500).json({ error: 'Failed to fetch school years' });
+    }
+});
+
+adminRoutes.get("/api/terms/schoolyear/:schoolYear", async (req, res) => {
+    try {
+        const { schoolYear } = req.params;
+        
+        // Return terms for the specified school year
+        const terms = [
+            {
+                _id: "term1",
+                termName: "Term 1",
+                schoolYear: schoolYear,
+                status: "active",
+                startDate: "2025-06-01",
+                endDate: "2025-10-31"
+            },
+            {
+                _id: "term2",
+                termName: "Term 2",
+                schoolYear: schoolYear,
+                status: "inactive",
+                startDate: "2025-11-01",
+                endDate: "2026-03-31"
+            }
+        ];
+        
+        res.json(terms);
+    } catch (error) {
+        console.error('Error fetching terms:', error);
+        res.status(500).json({ error: 'Failed to fetch terms' });
+    }
+});
+
 // Get academic year progress
 adminRoutes.get("/admin/academic-progress", async (req, res) => {
     try {

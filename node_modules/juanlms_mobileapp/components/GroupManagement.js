@@ -14,6 +14,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useUser } from './UserContext';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getAuthHeaders, handleApiError } from '../utils/apiUtils';
 
 const SOCKET_URL = 'https://juanlms-webapp-server.onrender.com';
 const ALLOWED_ROLES = ['students', 'director', 'admin', 'faculty'];
@@ -23,11 +24,14 @@ export default function GroupManagement() {
   const { user } = useUser();
   const [activeTab, setActiveTab] = useState('create'); // 'create' or 'join'
   const [groupName, setGroupName] = useState('');
+  const [groupDescription, setGroupDescription] = useState('');
   const [joinCode, setJoinCode] = useState('');
   const [selectedMembers, setSelectedMembers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [allUsers, setAllUsers] = useState([]);
   const [showUserSearch, setShowUserSearch] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showJoinModal, setShowJoinModal] = useState(false);
 
   useEffect(() => {
     if (!user || !user._id) return;
@@ -51,56 +55,73 @@ export default function GroupManagement() {
   }, [user]);
 
   const handleCreateGroup = async () => {
-    if (!groupName.trim() || selectedMembers.length === 0) {
-      Alert.alert('Error', 'Please enter a group name and select at least one member.');
-      return;
-    }
-
     try {
-      const token = await AsyncStorage.getItem('jwtToken');
-      const response = await axios.post(`${SOCKET_URL}/api/group-chats`, {
-        name: groupName.trim(),
-        createdBy: user._id,
-        participants: selectedMembers
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      if (!groupName.trim() || selectedMembers.length === 0) {
+        Alert.alert('Error', 'Please provide a group name and select at least one member');
+        return;
+      }
 
-      Alert.alert('Success', 'Group created successfully!', [
-        { text: 'OK', onPress: () => navigation.goBack() }
-      ]);
+      const headers = await getAuthHeaders();
+      
+      const response = await axios.post(`${SOCKET_URL}/group-chats`, {
+        name: groupName.trim(),
+        description: groupDescription.trim(),
+        createdBy: user._id,
+        participants: [user._id, ...selectedMembers.map(member => member._id)]
+      }, { headers });
+
+      if (response.data) {
+        Alert.alert('Success', `Group "${groupName.trim()}" created!`);
+        setGroupName('');
+        setGroupDescription('');
+        setSelectedMembers([]);
+        setShowCreateModal(false);
+        fetchGroups();
+      }
     } catch (error) {
       console.error('Error creating group:', error);
-      Alert.alert('Error', 'Failed to create group. Please try again.');
+      const errorMessage = handleApiError(error, 'Failed to create group');
+      Alert.alert('Error', errorMessage);
+    }
+  };
+
+  const fetchGroups = async () => {
+    try {
+      const headers = await getAuthHeaders();
+      const response = await axios.get(`${SOCKET_URL}/group-chats/user/${user._id}`, {
+        headers
+      });
+      
+      if (response.data) {
+        console.log('✅ Groups fetched successfully:', response.data.length, 'groups');
+        // You can add state to store groups if needed
+      }
+    } catch (error) {
+      console.error('Error fetching groups:', error);
     }
   };
 
   const handleJoinGroup = async () => {
-    if (!joinCode.trim()) {
-      Alert.alert('Error', 'Please enter a join code.');
-      return;
-    }
-
     try {
-      const token = await AsyncStorage.getItem('jwtToken');
-      await axios.post(`${SOCKET_URL}/api/group-chats/${joinCode}/join`, {
-        userId: user._id
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      if (!joinCode.trim()) {
+        Alert.alert('Error', 'Please enter a join code');
+        return;
+      }
 
-      Alert.alert('Success', 'Successfully joined the group!', [
-        { text: 'OK', onPress: () => navigation.goBack() }
-      ]);
+      const headers = await getAuthHeaders();
+      
+      await axios.post(`${SOCKET_URL}/group-chats/${joinCode}/join`, {
+        userId: user._id
+      }, { headers });
+
+      Alert.alert('Success', 'Successfully joined the group!');
+      setJoinCode('');
+      setShowJoinModal(false);
+      fetchGroups();
     } catch (error) {
       console.error('Error joining group:', error);
-      if (error.response?.status === 404) {
-        Alert.alert('Error', 'Group not found. Please check the join code.');
-      } else if (error.response?.status === 400) {
-        Alert.alert('Error', 'You are already a member of this group.');
-      } else {
-        Alert.alert('Error', 'Failed to join group. Please try again.');
-      }
+      const errorMessage = handleApiError(error, 'Failed to join group');
+      Alert.alert('Error', errorMessage);
     }
   };
 
@@ -190,6 +211,20 @@ export default function GroupManagement() {
               placeholder="Group Name"
               value={groupName}
               onChangeText={setGroupName}
+              style={{
+                borderWidth: 1,
+                borderColor: '#ddd',
+                borderRadius: 8,
+                padding: 12,
+                marginBottom: 16,
+                backgroundColor: '#fff'
+              }}
+            />
+
+            <TextInput
+              placeholder="Group Description (optional)"
+              value={groupDescription}
+              onChangeText={setGroupDescription}
               style={{
                 borderWidth: 1,
                 borderColor: '#ddd',

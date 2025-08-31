@@ -56,6 +56,16 @@ ticketsRouter.post('/:ticketId/reply', async (req, res) => {
   const db = database.getDb();
   const { sender, senderId, message } = req.body;
   const now = new Date();
+
+  // Do not allow replies to closed tickets
+  const existing = await db.collection('Tickets').findOne({ _id: new ObjectId(req.params.ticketId) });
+  if (!existing) {
+    return res.status(404).json({ error: 'Ticket not found' });
+  }
+  if (existing.status === 'closed') {
+    return res.status(400).json({ error: 'Cannot reply to a closed ticket' });
+  }
+
   const update = {
     $push: { messages: { sender, senderId, message, timestamp: now } },
     $set: { updatedAt: now }

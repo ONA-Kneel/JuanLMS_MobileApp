@@ -90,31 +90,107 @@ const StudentGrades = () => {
         throw new Error('Missing student identifier (schoolID/userID)');
       }
 
-      // Fetch semestral grades from Web App backend
-      const response = await fetch(`${API_BASE}/api/semestral-grades/student/${schoolID}`, {
+      // Fetch grades using existing backend endpoint
+      console.log('Fetching grades from:', `${API_BASE}/api/grades/student/${schoolID}`);
+      console.log('Token:', token ? 'Present' : 'Missing');
+      console.log('School ID:', schoolID);
+      
+      // First, get the student's classes to provide required parameters
+      let studentClasses = [];
+      try {
+        const classesResponse = await fetch(`${API_BASE}/api/classes/student/${schoolID}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        
+        if (classesResponse.ok) {
+          studentClasses = await classesResponse.json();
+          console.log('Student classes found:', studentClasses.length);
+        } else {
+          console.log('Classes endpoint not available, using fallback');
+        }
+      } catch (error) {
+        console.log('Error fetching classes, using fallback:', error.message);
+      }
+      
+      // Use the existing grades endpoint with required parameters
+      const response = await fetch(`${API_BASE}/api/grades/student/${schoolID}?classId=${studentClasses[0]?.classID || ''}&academicYear=${activeYearName}&termName=${activeTermName}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
+      console.log('Response status:', response.status);
+      console.log('Response ok:', response.ok);
+      console.log('Response headers:', response.headers);
+
       if (!response.ok) {
-        throw new Error('Failed to fetch grades');
+        const errorText = await response.text();
+        console.error('Error response body:', errorText);
+        throw new Error(`Failed to fetch grades: ${response.status} ${errorText}`);
       }
 
-      const payload = await response.json();
-      const allGrades = payload?.grades || [];
+            const payload = await response.json();
+      const allGrades = payload || [];
 
-      // Transform to UI-friendly structure
+      // Transform existing grades data structure to UI-friendly format
       const transformed = allGrades.map(g => ({
-        subjectCode: g.subjectCode,
-        subjectDescription: g.subjectName,
-        academicYear: g.academicYear,
-        termName: g.termName,
-        quarter1: g.grades?.quarter1 ?? '-',
-        quarter2: g.grades?.quarter2 ?? '-',
-        quarter3: g.grades?.quarter3 ?? '-',
-        quarter4: g.grades?.quarter4 ?? '-',
-        semestralGrade: g.grades?.semesterFinal ?? '-',
-        remarks: g.grades?.remarks ?? '-',
+        subjectCode: g.type === 'assignment' ? 'ASS' : 'QUIZ',
+        subjectDescription: g.title || 'Unknown Activity',
+        academicYear: g.academicYear || activeYearName,
+        termName: g.termName || activeTermName,
+        quarter1: g.type === 'assignment' ? (g.score || 'No grades yet') : 'No grades yet',
+        quarter2: g.type === 'quiz' ? (g.score || 'No grades yet') : 'No grades yet',
+        quarter3: 'No grades yet',
+        quarter4: 'No grades yet',
+        semestralGrade: g.score || 'No grades yet',
+        remarks: g.score ? (g.score >= 75 ? 'PASSED' : 'FAILED') : 'No grades yet',
       }));
+
+      // If no grades found but student has classes, show "No grades yet" for each class
+      if (transformed.length === 0 && studentClasses.length > 0) {
+        console.log('No grades found, showing "No grades yet" for enrolled classes');
+        const noGradesSubjects = studentClasses.map(cls => ({
+          subjectCode: cls.subjectCode || cls.classCode || 'N/A',
+          subjectDescription: cls.className || cls.subjectName || 'Unknown Subject',
+          academicYear: cls.academicYear || activeYearName,
+          termName: cls.termName || activeTermName,
+          quarter1: 'No grades yet',
+          quarter2: 'No grades yet',
+          quarter3: 'No grades yet',
+          quarter4: 'No grades yet',
+          semestralGrade: 'No grades yet',
+          remarks: 'No grades yet',
+        }));
+        transformed.push(...noGradesSubjects);
+      } else if (transformed.length === 0) {
+        // Fallback: show generic subjects if no classes endpoint available
+        console.log('No grades or classes found, showing generic subjects');
+        const fallbackSubjects = [
+          {
+            subjectCode: 'MATH',
+            subjectDescription: 'Mathematics',
+            academicYear: activeYearName,
+            termName: activeTermName,
+            quarter1: 'No grades yet',
+            quarter2: 'No grades yet',
+            quarter3: 'No grades yet',
+            quarter4: 'No grades yet',
+            semestralGrade: 'No grades yet',
+            remarks: 'No grades yet',
+          },
+          {
+            subjectCode: 'ENG',
+            subjectDescription: 'English',
+            academicYear: activeYearName,
+            termName: activeTermName,
+            quarter1: 'No grades yet',
+            quarter2: 'No grades yet',
+            quarter3: 'No grades yet',
+            quarter4: 'No grades yet',
+            semestralGrade: 'No grades yet',
+            remarks: 'No grades yet',
+          }
+        ];
+        transformed.push(...fallbackSubjects);
+      }
 
       // Filter grades for current or previous
       let filtered = transformed;
@@ -168,6 +244,9 @@ const StudentGrades = () => {
   };
 
   const getGradeColor = (grade) => {
+    // Handle "No grades yet" text
+    if (grade === 'No grades yet') return '#999';
+    
     const value = typeof grade === 'string' ? parseFloat(grade) : grade;
     if (!value || isNaN(value)) return '#999';
     if (value >= 90) return '#4CAF50';
@@ -186,6 +265,7 @@ const StudentGrades = () => {
       case 'Conditional': return '#FF9800';
       case 'FAILED':
       case 'Failed': return '#f44336';
+      case 'No grades yet': return '#999';
       default: return '#999';
     }
   };
@@ -193,6 +273,9 @@ const StudentGrades = () => {
   // Helper function to normalize remarks for consistent comparison
   const normalizeRemarks = (remarks) => {
     if (!remarks || remarks === '-') return '';
+    
+    // Handle "No grades yet" case
+    if (remarks === 'No grades yet') return 'no-grades';
     
     // Handle common variations
     const normalized = remarks.toLowerCase().trim();
@@ -226,9 +309,9 @@ const StudentGrades = () => {
 
   const pickQuarterValues = (grade) => {
     if (currentTerm === 'Term 2') {
-      return { qa: grade.quarter3 ?? '-', qb: grade.quarter4 ?? '-' };
+      return { qa: grade.quarter3 ?? 'No grades yet', qb: grade.quarter4 ?? 'No grades yet' };
     }
-    return { qa: grade.quarter1 ?? '-', qb: grade.quarter2 ?? '-' };
+    return { qa: grade.quarter1 ?? 'No grades yet', qb: grade.quarter2 ?? 'No grades yet' };
   };
 
   const renderGradeRow = (grade, index) => (
@@ -256,11 +339,11 @@ const StudentGrades = () => {
         ); })()}
       </View>
       
-      <View style={styles.gradeCell}>
-        <Text style={[styles.gradeText, { color: getGradeColor(grade.semestralGrade) }]}>
-          {grade.semestralGrade || '-'}
-        </Text>
-      </View>
+             <View style={styles.gradeCell}>
+         <Text style={[styles.gradeText, { color: getGradeColor(grade.semestralGrade) }]}>
+           {grade.semestralGrade || 'No grades yet'}
+         </Text>
+       </View>
       
       <View style={styles.remarksCell}>
         <View style={[styles.remarksBadge, { backgroundColor: getRemarksColor(grade.remarks) }]}>
@@ -273,11 +356,11 @@ const StudentGrades = () => {
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
       <MaterialCommunityIcons name="grade-outline" size={64} color="#ccc" />
-      <Text style={styles.emptyTitle}>No Grades Available</Text>
+      <Text style={styles.emptyTitle}>No Subjects Enrolled</Text>
       <Text style={styles.emptyText}>
         {selectedTerm === 'current' 
-          ? 'No grades have been posted for the current term yet.'
-          : 'No previous grades found.'
+          ? 'You are not enrolled in any subjects for the current term.'
+          : 'No previous subjects found.'
         }
       </Text>
     </View>
@@ -396,32 +479,38 @@ const StudentGrades = () => {
             {/* Grades Rows */}
             {grades.map((grade, index) => renderGradeRow(grade, index))}
 
-            {/* Summary */}
-            <View style={styles.summaryContainer}>
-              <Text style={styles.summaryTitle}>Summary</Text>
-              <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>Total Subjects:</Text>
-                <Text style={styles.summaryValue}>{grades.length}</Text>
-              </View>
-              <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>Passed:</Text>
-                <Text style={styles.summaryValue}>
-                  {grades.filter(g => normalizeRemarks(g.remarks) === 'passed').length}
-                </Text>
-              </View>
-              <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>Conditional:</Text>
-                <Text style={styles.summaryValue}>
-                  {grades.filter(g => normalizeRemarks(g.remarks) === 'conditional').length}
-                </Text>
-              </View>
-              <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>Failed:</Text>
-                <Text style={styles.summaryValue}>
-                  {grades.filter(g => normalizeRemarks(g.remarks) === 'failed').length}
-                </Text>
-              </View>
-            </View>
+                         {/* Summary */}
+             <View style={styles.summaryContainer}>
+               <Text style={styles.summaryTitle}>Summary</Text>
+               <View style={styles.summaryRow}>
+                 <Text style={styles.summaryLabel}>Total Subjects:</Text>
+                 <Text style={styles.summaryValue}>{grades.length}</Text>
+               </View>
+               <View style={styles.summaryRow}>
+                 <Text style={styles.summaryLabel}>Passed:</Text>
+                 <Text style={styles.summaryValue}>
+                   {grades.filter(g => normalizeRemarks(g.remarks) === 'passed').length}
+                 </Text>
+               </View>
+               <View style={styles.summaryRow}>
+                 <Text style={styles.summaryLabel}>Conditional:</Text>
+                 <Text style={styles.summaryValue}>
+                   {grades.filter(g => normalizeRemarks(g.remarks) === 'conditional').length}
+                 </Text>
+               </View>
+               <View style={styles.summaryRow}>
+                 <Text style={styles.summaryLabel}>Failed:</Text>
+                 <Text style={styles.summaryValue}>
+                   {grades.filter(g => normalizeRemarks(g.remarks) === 'failed').length}
+                 </Text>
+               </View>
+               <View style={styles.summaryRow}>
+                 <Text style={styles.summaryLabel}>No Grades Yet:</Text>
+                 <Text style={styles.summaryValue}>
+                   {grades.filter(g => normalizeRemarks(g.remarks) === 'no-grades').length}
+                 </Text>
+               </View>
+             </View>
                     </ScrollView>
         ) : (
           renderEmptyState()

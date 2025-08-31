@@ -1,7 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
+<<<<<<< HEAD
 import { StyleSheet, Text, View, Image, Alert, Platform } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+=======
+import { StyleSheet, Text, View, ActivityIndicator } from 'react-native';
+>>>>>>> main
 import MyStyles from './styles/MyStyles';
 
 export default function SplashScreen() {
@@ -71,6 +75,7 @@ export default function SplashScreen() {
   }, [navigation]);
 
   return (
+<<<<<<< HEAD
     <View style={[MyStyles.container, { justifyContent: 'center', alignItems: 'center', backgroundColor: '#ffffff' }]}>
       <Image 
         source={require('../assets/JuanLMS-LogoV1.png')} 
@@ -86,7 +91,24 @@ export default function SplashScreen() {
           Runtime Error: {error}
         </Text>
       )}
+=======
+    <View style={MyStyles.container}>
+      <Text style={styles.loadingText}>Loading JuanLMS...</Text>
+      <ActivityIndicator size="large" color="#00418b" style={styles.spinner} />
+>>>>>>> main
       <StatusBar style="auto" />
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  loadingText: {
+    fontSize: 18,
+    fontFamily: 'Poppins-Regular',
+    color: '#333',
+    marginBottom: 20,
+  },
+  spinner: {
+    marginTop: 10,
+  },
+});

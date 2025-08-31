@@ -188,26 +188,21 @@ const FacultyActs = () => {
 
       console.log('DEBUG: Fetching activities for faculty:', user._id);
 
-      // First, get all classes taught by this faculty member
-      const classesResponse = await fetch(`${API_BASE}/api/classes`, {
+      // First, get all classes taught by this faculty member (match web app approach)
+      const facultyKey = user?._id || user?.userID;
+      const classesResponse = await fetch(`${API_BASE}/classes/faculty-classes`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
       if (!classesResponse.ok) {
-        throw new Error('Failed to fetch classes');
+        throw new Error('Failed to fetch faculty classes');
       }
 
       const classesData = await classesResponse.json();
-      // Backend stores Class.facultyID as the public faculty code (user.userID), not Mongo _id
-      const facultyIdentifier = user?.userID || user?._id;
-      const facultyClasses = Array.isArray(classesData) 
-        ? classesData.filter(cls => cls.facultyID === facultyIdentifier)
-        : (classesData.success && classesData.classes) 
-          ? classesData.classes.filter(cls => cls.facultyID === facultyIdentifier)
-          : [];
+      const facultyClasses = Array.isArray(classesData) ? classesData : [];
 
-      console.log('DEBUG: Faculty classes found:', facultyClasses.length);
-      console.log('DEBUG: Faculty classes:', facultyClasses);
+      console.log('DEBUG: Faculty classes found (web app approach):', facultyClasses.length);
+      console.log('DEBUG: Faculty classes details:', facultyClasses.map(c => ({ classID: c.classID, className: c.className, facultyID: c.facultyID })));
 
       if (facultyClasses.length === 0) {
         console.log('DEBUG: No classes found for faculty');
@@ -227,79 +222,79 @@ const FacultyActs = () => {
         facultyID: cls.facultyID
       })));
 
-      // Fetch both assignments and quizzes per class (EXACT SAME LOGIC AS CLASSWORK TAB)
-      const perClassPromises = facultyClassIDs.map((cid) => [
-        // Fetch assignments - using the SAME endpoint as Classwork tab
-        fetch(`${API_BASE}/assignments?classID=${encodeURIComponent(cid)}`, {
+      // Fetch activities and quizzes (match web app approach)
+      // 1. Fetch assignments globally
+      const activityRes = await fetch(`${API_BASE}/assignments`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      // 2. Fetch quizzes per class (like web app does)
+      const allQuizzes = [];
+      for (const facultyClass of facultyClasses) {
+        const quizRes = await fetch(`${API_BASE}/api/quizzes?classID=${facultyClass.classID}`, {
           headers: { Authorization: `Bearer ${token}` }
-        })
-          .then(res => (res.ok ? res.json() : []))
-          .then(assignments => {
-            console.log(`DEBUG: Fetched ${assignments.length} assignments for class ${cid}`);
-            return assignments.map(item => ({ ...item, type: 'assignment' }));
-          })
-          .catch(() => []),
-        // Fetch quizzes - using the SAME endpoint as Classwork tab
-        fetch(`${API_BASE}/api/quizzes?classID=${encodeURIComponent(cid)}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        })
-          .then(res => (res.ok ? res.json() : []))
-          .then(quizzes => {
-            console.log(`DEBUG: Fetched ${quizzes.length} quizzes for class ${cid}`);
-            return quizzes.map(item => ({ ...item, type: 'quiz' }));
-          })
-          .catch(() => [])
-      ]);
-
-      // Flatten the nested promises and wait for all
-      const flattenedPromises = perClassPromises.flat();
-      const perClassResults = await Promise.all(flattenedPromises);
-      let merged = [];
-      perClassResults.forEach((list, index) => {
-        if (Array.isArray(list)) {
-          console.log(`DEBUG: Class ${Math.floor(index/2)} result ${index % 2 === 0 ? 'assignments' : 'quizzes'}:`, list.length, 'items');
-          merged.push(...list);
+        });
+        if (quizRes.ok) {
+          const quizData = await quizRes.json();
+          allQuizzes.push(...(Array.isArray(quizData) ? quizData : []));
         }
-      });
+      }
       
-      console.log('DEBUG: Total merged items before normalization:', merged.length);
-      console.log('DEBUG: Sample merged items:', merged.slice(0, 3).map(item => ({
-        _id: item._id,
-        title: item.title,
-        type: item.type,
-        questions: item.questions,
-        hasQuestions: !!item.questions
-      })));
+      if (activityRes.ok) {
+        const activityData = await activityRes.json();
+        
+        // Filter activities to only include those from faculty's classes
+        const filteredActivities = activityData.filter(activity => {
+          const classID = activity.classID || activity.classInfo?.classID || (activity.assignedTo && activity.assignedTo[0]?.classID);
+          return facultyClassIDs.includes(classID);
+        });
+        
+        // No filtering needed for quizzes since we fetched per class
+        const filteredQuizzes = allQuizzes;
+        
+        // Merge and normalize
+        const assignmentsWithType = filteredActivities.map(a => ({ 
+          ...a, 
+          type: 'assignment',
+          className: a.classInfo?.className || a.className || 'Unknown Class',
+          classCode: a.classInfo?.classCode || a.classCode || 'N/A',
+          classID: a.classID || a.classInfo?.classID || (a.assignedTo && a.assignedTo[0]?.classID)
+        }));
+        
+        const quizzesWithType = filteredQuizzes.map(q => ({ 
+          ...q, 
+          type: 'quiz',
+          className: q.classInfo?.className || q.className || 'Unknown Class',
+          classCode: q.classInfo?.classCode || q.classCode || 'N/A',
+          classID: q.classID || q.classInfo?.classID || (q.assignedTo && q.assignedTo[0]?.classID)
+        }));
+        
+        let merged = [...assignmentsWithType, ...quizzesWithType];
+        
+        // Deduplicate by _id to avoid multiple entries if a quiz is returned for several classes
+        const dedup = new Map();
+        merged.forEach(it => {
+          if (it && it._id && !dedup.has(it._id)) dedup.set(it._id, it);
+        });
+        let allActivities = Array.from(dedup.values());
 
-      // Normalize and enrich with class info for display
-      const normalized = merged.map(item => ({
-        ...item,
-        type: item.type || (item.questions ? 'quiz' : 'assignment'),
-        className: item.classInfo?.className || item.className || 'Unknown Class',
-        classCode: item.classInfo?.classCode || item.classCode || 'N/A',
-        classID: item.classID || item.classInfo?.classID || (item.assignedTo && item.assignedTo[0]?.classID)
-      }));
-
-      // Deduplicate by _id to avoid multiple entries if a quiz is returned for several classes
-      const dedup = new Map();
-      normalized.forEach(it => {
-        if (it && it._id && !dedup.has(it._id)) dedup.set(it._id, it);
-      });
-      let allActivities = Array.from(dedup.values());
-
-      // Sort by due date ascending
-      allActivities.sort((a, b) => new Date(a.dueDate || 0) - new Date(b.dueDate || 0));
-      
-      console.log('DEBUG: Final activities after normalization and deduplication:', allActivities.length);
-      console.log('DEBUG: Final activities by type:', allActivities.reduce((acc, item) => {
-        acc[item.type] = (acc[item.type] || 0) + 1;
-        return acc;
-      }, {}));
-      
-      setActivities(allActivities);
-      
-      // Categorize activities by grading status
-      await categorizeActivities(allActivities);
+        // Sort by due date ascending
+        allActivities.sort((a, b) => new Date(a.dueDate || 0) - new Date(b.dueDate || 0));
+        
+        console.log('DEBUG: Final merged data (web app approach):', {
+          assignmentsCount: assignmentsWithType.length,
+          quizzesCount: quizzesWithType.length,
+          totalCount: merged.length,
+          finalCount: allActivities.length
+        });
+        
+        setActivities(allActivities);
+        
+        // Categorize activities by grading status
+        await categorizeActivities(allActivities);
+      } else {
+        throw new Error('Failed to fetch assignments');
+      }
     } catch (error) {
       console.error('Error fetching activities:', error);
       setError(error.message);

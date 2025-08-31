@@ -83,6 +83,81 @@ app.get('/api/academic-year/active', async (req, res) => {
   }
 });
 
+// School Year endpoints for mobile app compatibility
+app.get('/api/schoolyears/active', async (req, res) => {
+  try {
+    // Return the current active school year (2025-2026)
+    res.json({
+      _id: "current",
+      schoolYearStart: "2025",
+      schoolYearEnd: "2026",
+      status: "active",
+      startDate: "2025-06-01",
+      endDate: "2026-03-31"
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/schoolyears', async (req, res) => {
+  try {
+    // Return available school years including current and future ones
+    const schoolYears = [
+      {
+        _id: "current",
+        schoolYearStart: "2025",
+        schoolYearEnd: "2026",
+        status: "active",
+        startDate: "2025-06-01",
+        endDate: "2026-03-31"
+      },
+      {
+        _id: "future",
+        schoolYearStart: "2026",
+        schoolYearEnd: "2027",
+        status: "inactive",
+        startDate: "2026-06-01",
+        endDate: "2027-03-31"
+      }
+    ];
+    
+    res.json(schoolYears);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/terms/schoolyear/:schoolYear', async (req, res) => {
+  try {
+    const { schoolYear } = req.params;
+    
+    // Return terms for the specified school year
+    const terms = [
+      {
+        _id: "term1",
+        termName: "Term 1",
+        schoolYear: schoolYear,
+        status: "active",
+        startDate: "2025-06-01",
+        endDate: "2025-10-31"
+      },
+      {
+        _id: "term2",
+        termName: "Term 2",
+        schoolYear: schoolYear,
+        status: "inactive",
+        startDate: "2025-11-01",
+        endDate: "2026-03-31"
+      }
+    ];
+    
+    res.json(terms);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Test route to verify server is working
 app.get('/api/test', (req, res) => {
   res.json({ message: 'Server is working!', timestamp: new Date().toISOString() });

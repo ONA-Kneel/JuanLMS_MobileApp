@@ -10,6 +10,8 @@ import { addAuditLog } from '../Admin/auditTrailUtils';
 import * as ImagePicker from 'expo-image-picker';
 import { Platform } from 'react-native';
 import NotificationCenter from '../NotificationCenter';
+import profileService from '../../services/profileService';
+import PasswordChangeModal from '../Shared/PasswordChangeModal';
 
 // Helper to capitalize first letter of each word
 function capitalizeWords(str) {
@@ -18,8 +20,17 @@ function capitalizeWords(str) {
 
 const API_URL = 'https://juanlms-webapp-server.onrender.com';
 
+const buildImageUri = (pathOrUrl) => {
+  if (!pathOrUrl) return null;
+  if (typeof pathOrUrl === 'string' && (pathOrUrl.startsWith('http://') || pathOrUrl.startsWith('https://'))) {
+    return pathOrUrl;
+  }
+  const relative = typeof pathOrUrl === 'string' && pathOrUrl.startsWith('/') ? pathOrUrl : `/${pathOrUrl}`;
+  return API_URL + relative;
+};
+
 export default function PrincipalProfile() {
-  const { user, loading } = useUser();
+  const { user, loading, updateUser } = useUser();
   const navigation = useNavigation();
   const { unreadCount } = useNotifications();
   const { announcements } = useAnnouncements();
@@ -29,6 +40,7 @@ export default function PrincipalProfile() {
   const [isLoading, setIsLoading] = useState(false);
   const fileInputRef = useRef(null);
   const [webPreviewUrl, setWebPreviewUrl] = useState(null);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
 
   const logout = async () => {
     try {
@@ -44,6 +56,11 @@ export default function PrincipalProfile() {
       }
       await AsyncStorage.removeItem('user');
       await AsyncStorage.removeItem('jwtToken');
+      const remember = await AsyncStorage.getItem('rememberMeEnabled');
+      if (remember !== 'true') {
+        await AsyncStorage.removeItem('savedEmail');
+        await AsyncStorage.removeItem('savedPassword');
+      }
       navigation.navigate('Login');
     } catch (error) {
       console.error('Logout error:', error);
@@ -95,8 +112,20 @@ export default function PrincipalProfile() {
   const handleSaveProfile = async () => {
     setIsLoading(true);
     try {
-      // In a real app, you'd make an API call to update the profile
-      // For now, just close the modal
+      const asset = editedUser?.newProfilePicAsset;
+      if (asset && user?._id) {
+        const isWeb = Platform.OS === 'web';
+        const resp = await profileService.uploadProfilePicture(user._id, asset, isWeb);
+        const updated = resp?.user;
+        if (updated?.profilePic) {
+          const newUser = { ...user, profilePic: updated.profilePic, profilePicture: updated.profilePic };
+          if (typeof updateUser === 'function') {
+            await updateUser(newUser);
+          } else {
+            await AsyncStorage.setItem('user', JSON.stringify(newUser));
+          }
+        }
+      }
       setIsEditModalVisible(false);
       Alert.alert('Success', 'Profile updated successfully!');
     } catch (error) {
@@ -148,7 +177,7 @@ export default function PrincipalProfile() {
       <View style={styles.avatarWrapper}>
         {user.profilePic ? (
           <Image
-            source={{ uri: API_URL + user.profilePic }}
+            source={{ uri: buildImageUri(user.profilePic) }}
             style={styles.avatar}
             resizeMode="cover"
           />
@@ -195,7 +224,7 @@ export default function PrincipalProfile() {
             <Feather name="edit" size={20} color="#00418b" />
             <Text style={styles.actionText}>Edit</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.actionBtn}>
+          <TouchableOpacity style={styles.actionBtn} onPress={() => setShowPasswordModal(true)}>
             <Feather name="lock" size={20} color="#00418b" />
             <Text style={styles.actionText}>Password</Text>
           </TouchableOpacity>
@@ -258,12 +287,12 @@ export default function PrincipalProfile() {
                     ? webPreviewUrl
                       ? { uri: webPreviewUrl }
                       : editedUser?.profilePic
-                        ? { uri: API_URL + editedUser.profilePic }
+                        ? { uri: buildImageUri(editedUser.profilePic) }
                         : require('../../assets/profile-icon (2).png')
                     : editedUser?.newProfilePicAsset
                       ? { uri: editedUser.newProfilePicAsset.uri }
                       : editedUser?.profilePic
-                        ? { uri: API_URL + editedUser.profilePic }
+                        ? { uri: buildImageUri(editedUser.profilePic) }
                         : require('../../assets/profile-icon (2).png')
                 }
                 style={styles.modalAvatar}
@@ -309,6 +338,12 @@ export default function PrincipalProfile() {
       <NotificationCenter 
         visible={showNotificationCenter} 
         onClose={() => setShowNotificationCenter(false)} 
+      />
+
+      <PasswordChangeModal
+        visible={showPasswordModal}
+        onClose={() => setShowPasswordModal(false)}
+        userId={user?._id}
       />
     </View>
   );

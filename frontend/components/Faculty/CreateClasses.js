@@ -6,6 +6,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import axios from 'axios';
 import { useUser } from '../UserContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getAuthHeaders, handleApiError } from '../../utils/apiUtils';
 
 export default function CreateClasses() {
     const changeScreen = useNavigation();
@@ -70,28 +71,30 @@ export default function CreateClasses() {
 
     // Submit handler
     const handleSubmit = async () => {
-        if (!className || !classCode || !description || members.length === 0) {
-            Alert.alert('Error', 'Please fill in all fields and add at least one member.');
-            return;
-        }
         try {
-            const token = await AsyncStorage.getItem('jwtToken');
+            if (!className.trim() || !classCode.trim() || !description.trim() || members.length === 0) {
+                Alert.alert('Error', 'Please fill in all required fields and add at least one member.');
+                return;
+            }
+
+            const headers = await getAuthHeaders();
+            
             const res = await axios.post('https://juanlms-webapp-server.onrender.com/api/classes', {
-                className,
-                classCode,
-                classDesc: description,
+                className: className.trim(),
+                classCode: classCode.trim(),
+                classDesc: description.trim(),
                 members: members.map(m => m._id),
                 facultyID: user?._id || ''
-            }, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            if (res.status === 201 && res.data.success) {
+            }, { headers });
+
+            if (res.data) {
+                Alert.alert('Success', 'Class created successfully!');
                 changeScreen.navigate('FDash');
-            } else {
-                Alert.alert('Error', 'Failed to create class.');
             }
-        } catch (err) {
-            Alert.alert('Error', 'Failed to create class.');
+        } catch (error) {
+            console.error('Error creating class:', error);
+            const errorMessage = handleApiError(error, 'Failed to create class');
+            Alert.alert('Error', errorMessage);
         }
     };
 

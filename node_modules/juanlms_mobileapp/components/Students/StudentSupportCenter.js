@@ -6,7 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function StudentSupportCenter() {
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
-  const [view, setView] = useState('main'); // 'main', 'new', 'myTickets'
+  const [view, setView] = useState('main'); // 'main', 'new', 'myTickets', 'ticketDetail'
   const [activeTab, setActiveTab] = useState('all');
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState('newest');
@@ -16,6 +16,11 @@ export default function StudentSupportCenter() {
   const [subject, setSubject] = useState('');
   const [content, setContent] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [selectedTicket, setSelectedTicket] = useState(null);
+  const [reply, setReply] = useState('');
+  const [replyLoading, setReplyLoading] = useState(false);
+  const [replyError, setReplyError] = useState('');
+  const [replySuccess, setReplySuccess] = useState('');
   const navigation = useNavigation();
 
   useEffect(() => {
@@ -88,6 +93,51 @@ export default function StudentSupportCenter() {
       setTickets([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleReply = async () => {
+    if (!reply.trim() || !selectedTicket) return;
+
+    try {
+      setReplyLoading(true);
+      setReplyError('');
+
+      const token = await AsyncStorage.getItem('jwtToken');
+      const user = JSON.parse(await AsyncStorage.getItem('user') || '{}');
+      const userId = user._id || await AsyncStorage.getItem('userID');
+
+      if (!userId) {
+        setReplyError('User ID not found. Please log in again.');
+        return;
+      }
+
+      const response = await fetch(`https://juanlms-webapp-server.onrender.com/api/tickets/${selectedTicket._id}/reply`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          sender: 'user',
+          senderId: userId,
+          message: reply
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to send reply: ${response.status}`);
+      }
+
+      setReply('');
+      setReplySuccess('Reply sent successfully');
+      await fetchMyTickets();
+      setTimeout(() => setReplySuccess(''), 3000);
+    } catch (err) {
+      console.error('Reply error:', err);
+      setReplyError('Failed to send reply. Please try again.');
+    } finally {
+      setReplyLoading(false);
     }
   };
 
@@ -556,14 +606,25 @@ export default function StudentSupportCenter() {
             </View>
           ) : (
             <View style={{ gap: 16 }}>
-              {tickets
-                .filter(ticket => 
+              {(() => {
+                const filtered = tickets.filter(ticket => 
                   ticket.subject?.toLowerCase().includes(search.toLowerCase()) ||
                   ticket.number?.toLowerCase().includes(search.toLowerCase())
-                )
-                .map((ticket) => (
-                  <View
+                );
+                if (filtered.length === 0) {
+                  return (
+                    <View style={{ alignItems: 'center', padding: 40 }}>
+                      <MaterialIcons name="support-agent" size={64} color="#ddd" />
+                      <Text style={{ fontSize: 18, color: '#999', marginTop: 16, fontFamily: 'Poppins-Regular' }}>
+                        No tickets match your search
+                      </Text>
+                    </View>
+                  );
+                }
+                return filtered.map((ticket) => (
+                  <TouchableOpacity
                     key={ticket._id}
+                    onPress={() => { setSelectedTicket(ticket); setView('ticketDetail'); }}
                     style={{
                       backgroundColor: '#fff',
                       borderRadius: 16,
@@ -607,13 +668,147 @@ export default function StudentSupportCenter() {
                     <Text style={{ fontSize: 14, color: '#666', lineHeight: 20, fontFamily: 'Poppins-Regular' }} numberOfLines={3}>
                       {ticket.description}
                     </Text>
-                  </View>
-                ))}
-          </View>
-        )}
+                  </TouchableOpacity>
+                ));
+              })()}
+            </View>
+          )}
         </ScrollView>
       </View>
   );
+  }
+
+  // Ticket Detail View
+  if (view === 'ticketDetail' && selectedTicket) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#f6f7fb' }}>
+        <View style={{ 
+          backgroundColor: '#00418b', 
+          paddingTop: 48, 
+          paddingBottom: 20, 
+          paddingHorizontal: 24,
+          borderBottomLeftRadius: 20,
+          borderBottomRightRadius: 20,
+        }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
+            <TouchableOpacity onPress={() => setView('myTickets')} style={{ marginRight: 16 }}>
+              <MaterialIcons name="arrow-back" size={24} color="#fff" />
+            </TouchableOpacity>
+            <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#fff', fontFamily: 'Poppins-Bold' }}>
+              Ticket Details
+            </Text>
+          </View>
+        </View>
+
+        <ScrollView style={{ flex: 1, padding: 24 }} showsVerticalScrollIndicator={false}>
+          <View style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20, marginBottom: 20, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 }}>
+            <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#333', marginBottom: 12, fontFamily: 'Poppins-Bold' }}>
+              {selectedTicket.subject}
+            </Text>
+            <View style={{ marginBottom: 16 }}>
+              <Text style={{ fontSize: 14, color: '#9575cd', fontWeight: '600', fontFamily: 'Poppins-Medium' }}>
+                Ticket No: {selectedTicket.number} | Status: {selectedTicket.status}
+              </Text>
+            </View>
+            <Text style={{ fontSize: 16, color: '#333', lineHeight: 24, fontFamily: 'Poppins-Regular' }}>
+              {selectedTicket.description}
+            </Text>
+          </View>
+
+          <View style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20, marginBottom: 20, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 }}>
+            <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#333', marginBottom: 16, fontFamily: 'Poppins-Bold' }}>
+              Messages
+            </Text>
+            {selectedTicket.messages && selectedTicket.messages.length > 0 ? (
+              <View style={{ gap: 12 }}>
+                {selectedTicket.messages.map((msg, idx) => (
+                  <View key={idx} style={{ backgroundColor: '#f1f3f4', padding: 12, borderRadius: 8 }}>
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: '#333', marginBottom: 4, fontFamily: 'Poppins-Medium' }}>
+                      {msg.sender}:
+                    </Text>
+                    <Text style={{ fontSize: 14, color: '#333', marginBottom: 4, fontFamily: 'Poppins-Regular' }}>
+                      {msg.message}
+                    </Text>
+                    <Text style={{ fontSize: 12, color: '#666', fontFamily: 'Poppins-Regular' }}>
+                      {new Date(msg.timestamp).toLocaleString()}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <Text style={{ color: '#666', fontStyle: 'italic', fontFamily: 'Poppins-Regular' }}>
+                No messages yet
+              </Text>
+            )}
+          </View>
+
+          <View style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20, marginBottom: 20, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 }}>
+            <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#333', marginBottom: 12, fontFamily: 'Poppins-Bold' }}>
+              Reply
+            </Text>
+            {selectedTicket.status === 'closed' && (
+              <View style={{ backgroundColor: '#fff3e0', borderColor: '#ffcc80', borderWidth: 1, padding: 12, borderRadius: 8, marginBottom: 12 }}>
+                <Text style={{ color: '#f57c00', fontFamily: 'Poppins-Regular' }}>
+                  This ticket is closed. Replies are disabled.
+                </Text>
+              </View>
+            )}
+            {replyError ? (
+              <Text style={{ color: '#e74c3c', marginBottom: 12, fontFamily: 'Poppins-Regular' }}>
+                {replyError}
+              </Text>
+            ) : null}
+            {replySuccess ? (
+              <Text style={{ color: '#27ae60', marginBottom: 12, fontFamily: 'Poppins-Regular' }}>
+                {replySuccess}
+              </Text>
+            ) : null}
+            <TextInput
+              style={{
+                borderWidth: 1,
+                borderColor: '#ddd',
+                borderRadius: 8,
+                padding: 12,
+                fontSize: 14,
+                fontFamily: 'Poppins-Regular',
+                minHeight: 80,
+                textAlignVertical: 'top',
+                marginBottom: 16,
+                backgroundColor: selectedTicket.status === 'closed' ? '#f5f5f5' : '#fff'
+              }}
+              placeholder="Type your reply..."
+              value={reply}
+              onChangeText={setReply}
+              multiline
+              editable={selectedTicket.status !== 'closed'}
+            />
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              <TouchableOpacity
+                style={{
+                  backgroundColor: '#9575cd',
+                  paddingVertical: 12,
+                  paddingHorizontal: 24,
+                  borderRadius: 8,
+                  flex: 1,
+                  alignItems: 'center',
+                  opacity: selectedTicket.status === 'closed' ? 0.5 : 1
+                }}
+                onPress={handleReply}
+                disabled={replyLoading || !reply.trim() || selectedTicket.status === 'closed'}
+              >
+                {replyLoading ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={{ color: '#fff', fontWeight: '600', fontFamily: 'Poppins-Medium' }}>
+                    Send Reply
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </ScrollView>
+      </View>
+    );
   }
 
   return null;
