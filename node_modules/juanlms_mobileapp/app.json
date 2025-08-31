@@ -51,7 +51,12 @@
           "cameraPermission": "The app accesses your camera to let you take profile pictures."
         }
       ],
-      "@react-native-community/datetimepicker"
+      [
+        "@react-native-community/datetimepicker",
+        {
+          "mode": "date"
+        }
+      ]
     ]
   }
 }

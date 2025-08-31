@@ -54,8 +54,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
-    "@react-native-community/cli": "^18.0.0",
-    "@expo/webpack-config": "^20.0.0"
+    "@react-native-community/cli": "^18.0.0"
   },
   "private": true,
   "keywords": [],
