@@ -1,8 +1,7 @@
-import 'react-native-gesture-handler';
 import { Image } from 'react-native';
 import React from 'react';
 import { useFonts } from 'expo-font';
-import { View, ActivityIndicator, Text } from 'react-native';
+import { View, ActivityIndicator } from 'react-native';
 
 //folders
 import SplashScreen from './components/SplashScreen';
@@ -12,6 +11,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Login from './components/Login';
+import ForgotPassword from './components/ForgotPassword';
 import Chat from './components/Chat';
 import GroupChat from './components/GroupChat';
 import GroupManagement from './components/GroupManagement';
@@ -97,6 +97,7 @@ import { ChatProvider } from './ChatContext';
 import { UserProvider } from './components/UserContext';
 import { NotificationProvider } from './NotificationContext';
 import { AnnouncementProvider } from './AnnouncementContext';
+import { TimerProvider } from './TimerContext';
 
 
 //Bottom Navigation Bar
@@ -224,104 +225,106 @@ function PrincipalTabs() {
 //Specific Screen Change
 const Screens = createNativeStackNavigator();
 export default function App() {
-  // Temporarily disable custom fonts to prevent crash
-  const [fontsLoaded, fontError] = useFonts({
-    // 'Poppins-Regular': require('./assets/fonts/Poppins-Regular.ttf'),
-    // 'Poppins-Bold': require('./assets/fonts/Poppins-Bold.ttf'),
-    // 'Poppins-Medium': require('./assets/fonts/Poppins-Medium.ttf'),
-    // 'Poppins-SemiBold': require('./assets/fonts/Poppins-SemiBold.ttf'),
-    // 'Poppins-Light': require('./assets/fonts/Poppins-Light.ttf'),
-    // 'Poppins-Thin': require('./assets/fonts/Poppins-Thin.ttf'),
+  const [fontsLoaded] = useFonts({
+    'Poppins-Regular': require('./assets/fonts/Poppins-Regular.ttf'),
+    'Poppins-Bold': require('./assets/fonts/Poppins-Bold.ttf'),
+    'Poppins-Medium': require('./assets/fonts/Poppins-Medium.ttf'),
+    'Poppins-SemiBold': require('./assets/fonts/Poppins-SemiBold.ttf'),
+    'Poppins-Light': require('./assets/fonts/Poppins-Light.ttf'),
+    'Poppins-Thin': require('./assets/fonts/Poppins-Thin.ttf'),
   });
 
-  React.useEffect(() => {
-    if (fontError) {
-      console.error('Font loading error:', fontError);
-    }
-  }, [fontError]);
+  if (!fontsLoaded) {
+    return (
+      <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
 
-  // Always render the app even if fonts fail to load
-  // This prevents the text rendering crash
   return (
-    <UserProvider>
-    <ChatProvider>
-    <NotificationProvider>
-    <AnnouncementProvider>
-    <NavigationContainer>
-      <Screens.Navigator initialRouteName='SplashScreen'>
+    <TimerProvider>
+      <UserProvider>
+      <ChatProvider>
+        <NotificationProvider>
+          <AnnouncementProvider>
+            <NavigationContainer>
+              <Screens.Navigator initialRouteName='Login'>
 
-        {/*Assisted lang daw dapat */}
+                {/*Assisted lang daw dapat */}
 
-        {/* Used Everytime */}
-        <Screens.Screen name='SplashScreen' component={SplashScreen} options={{ headerShown: false }}/>
-        <Screens.Screen name='Chat' component={Chat} options={{ headerShown: false }}/>
-        <Screens.Screen name='GroupChat' component={GroupChat} options={{ headerShown: false }}/>
-        <Screens.Screen name='GroupManagement' component={GroupManagement} options={{ headerShown: false }}/>
-        <Screens.Screen name='UnifiedChat' component={UnifiedChat} options={{ headerShown: false }}/>
-        <Screens.Screen name='Login' component={Login} options={{ headerShown: false }}/>
+                {/* Used Everytime */}
+                <Screens.Screen name='SplashScreen' component={SplashScreen} options={{ headerShown: false }}/>
+                <Screens.Screen name='Chat' component={Chat} options={{ headerShown: false }}/>
+                <Screens.Screen name='GroupChat' component={GroupChat} options={{ headerShown: false }}/>
+                <Screens.Screen name='GroupManagement' component={GroupManagement} options={{ headerShown: false }}/>
+                <Screens.Screen name='UnifiedChat' component={UnifiedChat} options={{ headerShown: false }}/>
+                <Screens.Screen name='Login' component={Login} options={{ headerShown: false }}/>
+                <Screens.Screen name='ForgotPassword' component={ForgotPassword} options={{ headerShown: false }}/>
 
-        {/* Students */}
-        <Screens.Screen name='SDash' component={StudentTabs} options={{ headerShown: false }}/>
-        <Screens.Screen name='SClasses' component={StudentClasses} options={{ headerShown: false }}/>
-        <Screens.Screen name='SModule' component={StudentModule} options={{ headerShown: false }}/>
-        <Screens.Screen name='SGrade' component={StudentGrades} options={{ headerShown: false }}/>
-        <Screens.Screen name='SActs' component={StudentActs} options={{ headerShown: false }}/>
-        <Screens.Screen name='SProg' component={StudentProgress} options={{ headerShown: false }}/>
-        <Screens.Screen name='SCalendar' component={StudentCalendar} options={{ headerShown: false }}/>
-        <Screens.Screen name ='SMain' component={StudentSCMain} options={{ headerShown: false }}/>
-        <Screens.Screen name ='SReq' component={StudentSupportCenter} options={{ headerShown: false }}/>
-        <Screens.Screen name ='SProfile' component={StudentsProfile} options={{ headerShown: false }}/>
-        <Screens.Screen name='QuizView' component={QuizView} options={{ headerShown: false }}/>
-        <Screens.Screen name='AssignmentDetail' component={AssignmentDetail} options={{ headerShown: false }}/>
-
-
-        {/*Faculties */}
-        {/*Need tangalin ang "add a lesson" na naeedit, need daw upload lang and title lang ang editable*/}
-        <Screens.Screen name='FDash' component={FacultyTabs} options={{ headerShown: false }}/>
-        <Screens.Screen name='FClasses' component={FacultyClasses} options={{ headerShown: false }}/>
-        <Screens.Screen name ='CClass' component={CreateClasses} options={{ headerShown: false }}/>
-        <Screens.Screen name ='FSProg' component={FacultyStudentProgress} options={{ headerShown: false }}/>
-        <Screens.Screen name ='FMod' component={FacultyModule} options={{ headerShown: false }}/>
-        <Screens.Screen name ='CMod' component={CreateModule} options={{ headerShown: false }}/>
-        <Screens.Screen name ='CAct' component={CreateActivity} options={{ headerShown: false }}/>
-        <Screens.Screen name ='CreateAssignment' component={CreateAssignment} options={{ headerShown: false }}/>
-        <Screens.Screen name ='CreateQuiz' component={CreateQuiz} options={{ headerShown: false }}/>
-        <Screens.Screen name='AssignmentSubmissions' component={AssignmentSubmissions} options={{ headerShown: false }} />
-        <Screens.Screen name='QuizSubmissions' component={QuizSubmissions} options={{ headerShown: false }} />
-        <Screens.Screen name ='FActs' component={FacultyActs} options={{ headerShown: false }}/>
-        <Screens.Screen name ='FGrades' component={FacultyGrades} options={{ headerShown: false }}/>
-        <Screens.Screen name ='FMain' component={FacultySCMain} options={{ headerShown: false }}/>
-        <Screens.Screen name ='FReq' component={FacultySupportCenter} options={{ headerShown: false }}/>
-        <Screens.Screen name ='FProfile' component={FacultyProfile} options={{ headerShown: false }}/>
+                {/* Students */}
+                <Screens.Screen name='SDash' component={StudentTabs} options={{ headerShown: false }}/>
+                <Screens.Screen name='SClasses' component={StudentClasses} options={{ headerShown: false }}/>
+                <Screens.Screen name='SModule' component={StudentModule} options={{ headerShown: false }}/>
+                <Screens.Screen name='SGrade' component={StudentGrades} options={{ headerShown: false }}/>
+                <Screens.Screen name='SActs' component={StudentActs} options={{ headerShown: false }}/>
+                <Screens.Screen name='SProg' component={StudentProgress} options={{ headerShown: false }}/>
+                <Screens.Screen name='SCalendar' component={StudentCalendar} options={{ headerShown: false }}/>
+                <Screens.Screen name ='SMain' component={StudentSCMain} options={{ headerShown: false }}/>
+                <Screens.Screen name ='SReq' component={StudentSupportCenter} options={{ headerShown: false }}/>
+                <Screens.Screen name ='SProfile' component={StudentsProfile} options={{ headerShown: false }}/>
+                <Screens.Screen name='QuizView' component={QuizView} options={{ headerShown: false }}/>
+                <Screens.Screen name='AssignmentDetail' component={AssignmentDetail} options={{ headerShown: false }}/>
 
 
-
-        {/* Admininstrators */}
-        <Screens.Screen name='ADash' component={AdminDash} options={{ headerShown: false }}/>
-        <Screens.Screen name='GSched' component={GenSched} options={{ headerShown: false }}/>
-        <Screens.Screen name='AProg' component={AdminProgress} options={{ headerShown: false }}/>
-        <Screens.Screen name='AFaculty' component={AdminFaculty} options={{ headerShown: false }}/>
-        <Screens.Screen name='AProfile' component={AdminProfile} options={{ headerShown: false }}/>
-        <Screens.Screen name='ASupportCenter' component={AdminSupportCenter} options={{ headerShown: false }}/>
+                {/*Faculties */}
+                {/*Need tangalin ang "add a lesson" na naeedit, need daw upload lang and title lang ang editable*/}
+                <Screens.Screen name='FDash' component={FacultyTabs} options={{ headerShown: false }}/>
+                <Screens.Screen name='FClasses' component={FacultyClasses} options={{ headerShown: false }}/>
+                <Screens.Screen name ='CClass' component={CreateClasses} options={{ headerShown: false }}/>
+                <Screens.Screen name ='FSProg' component={FacultyStudentProgress} options={{ headerShown: false }}/>
+                <Screens.Screen name ='FMod' component={FacultyModule} options={{ headerShown: false }}/>
+                <Screens.Screen name ='CMod' component={CreateModule} options={{ headerShown: false }}/>
+                <Screens.Screen name ='CAct' component={CreateActivity} options={{ headerShown: false }}/>
+                <Screens.Screen name ='CreateAssignment' component={CreateAssignment} options={{ headerShown: false }}/>
+                <Screens.Screen name ='CreateQuiz' component={CreateQuiz} options={{ headerShown: false }}/>
+                <Screens.Screen name='AssignmentSubmissions' component={AssignmentSubmissions} options={{ headerShown: false }} />
+                <Screens.Screen name='QuizSubmissions' component={QuizSubmissions} options={{ headerShown: false }} />
+                <Screens.Screen name ='FActs' component={FacultyActs} options={{ headerShown: false }}/>
+                <Screens.Screen name ='FGrades' component={FacultyGrades} options={{ headerShown: false }}/>
+                <Screens.Screen name ='FMain' component={FacultySCMain} options={{ headerShown: false }}/>
+                <Screens.Screen name ='FReq' component={FacultySupportCenter} options={{ headerShown: false }}/>
+                <Screens.Screen name ='FProfile' component={FacultyProfile} options={{ headerShown: false }}/>
 
 
 
-        {/* VPE */}
-        <Screens.Screen name='VPEDash' component={VPETabs} options={{ headerShown: false }}/>
-        <Screens.Screen name='VPEProfile' component={VPEProfile} options={{ headerShown: false }}/>
-        <Screens.Screen name='VPESupportCenter' component={VPESupportCenter} options={{ headerShown: false }}/>
+                {/* Admininstrators */}
+                <Screens.Screen name='ADash' component={AdminDash} options={{ headerShown: false }}/>
+                <Screens.Screen name='GSched' component={GenSched} options={{ headerShown: false }}/>
+                <Screens.Screen name='AProg' component={AdminProgress} options={{ headerShown: false }}/>
+                <Screens.Screen name='AFaculty' component={AdminFaculty} options={{ headerShown: false }}/>
+                <Screens.Screen name='AProfile' component={AdminProfile} options={{ headerShown: false }}/>
+                <Screens.Screen name='ASupportCenter' component={AdminSupportCenter} options={{ headerShown: false }}/>
 
-        {/* Principal */}
-        <Screens.Screen name='PrincipalDash' component={PrincipalTabs} options={{ headerShown: false }}/>
-        <Screens.Screen name='PrincipalProfile' component={PrincipalProfile} options={{ headerShown: false }}/>
-        <Screens.Screen name='PrincipalSupportCenter' component={PrincipalSupportCenter} options={{ headerShown: false }}/>
+
+
+                {/* VPE */}
+                <Screens.Screen name='VPEDash' component={VPETabs} options={{ headerShown: false }}/>
+                <Screens.Screen name='VPEProfile' component={VPEProfile} options={{ headerShown: false }}/>
+                <Screens.Screen name='VPESupportCenter' component={VPESupportCenter} options={{ headerShown: false }}/>
+
+                {/* Principal */}
+                <Screens.Screen name='PrincipalDash' component={PrincipalTabs} options={{ headerShown: false }}/>
+                <Screens.Screen name='PrincipalProfile' component={PrincipalProfile} options={{ headerShown: false }}/>
+                <Screens.Screen name='PrincipalSupportCenter' component={PrincipalSupportCenter} options={{ headerShown: false }}/>
 
 
               </Screens.Navigator>
-      </NavigationContainer>
-    </AnnouncementProvider>
-    </NotificationProvider>
-    </ChatProvider>
-    </UserProvider>
+            </NavigationContainer>
+          </AnnouncementProvider>
+        </NotificationProvider>
+      </ChatProvider>
+      </UserProvider>
+    </TimerProvider>
   );
 }

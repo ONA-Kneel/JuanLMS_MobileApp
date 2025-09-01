@@ -6,6 +6,7 @@ import io from 'socket.io-client';
 import axios from 'axios';
 import AdminChatStyle from './styles/administrator/AdminChatStyle';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getAuthHeaders, handleApiError } from '../utils/apiUtils';
 
 const SOCKET_URL = 'https://juanlms-webapp-server.onrender.com';
 

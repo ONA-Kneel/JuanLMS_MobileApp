@@ -154,5 +154,14 @@ const LoginStyle = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'System',
   },
+  errorText: {
+    width: '100%',
+    color: '#D9534F',
+    fontSize: 13,
+    fontFamily: 'Poppins-Regular',
+    marginTop: -12,
+    marginBottom: 16,
+    textAlign: 'left',
+  },
 });
 export default LoginStyle;

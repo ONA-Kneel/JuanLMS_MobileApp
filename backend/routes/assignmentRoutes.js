@@ -12,6 +12,34 @@ import Class from '../models/Class.js';
 
 const router = express.Router();
 
+// Debug middleware to log all requests to assignment routes
+router.use((req, res, next) => {
+  console.log('=== ASSIGNMENT ROUTES DEBUG ===');
+  console.log('Request method:', req.method);
+  console.log('Request URL:', req.url);
+  console.log('Request path:', req.path);
+  console.log('Request params:', req.params);
+  console.log('Request originalUrl:', req.originalUrl);
+  console.log('Request baseUrl:', req.baseUrl);
+  console.log('=== END ASSIGNMENT ROUTES DEBUG ===');
+  next();
+});
+
+// Simple test route to verify assignment routes are working
+router.get('/test', (req, res) => {
+  res.json({ 
+    message: 'Assignment routes are working!', 
+    timestamp: new Date().toISOString(),
+    requestInfo: {
+      method: req.method,
+      url: req.url,
+      path: req.path,
+      baseUrl: req.baseUrl,
+      originalUrl: req.originalUrl
+    }
+  });
+});
+
 // Multer setup for file uploads
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -38,22 +66,12 @@ router.get('/', /*authenticateToken,*/ async (req, res) => {
   // Fetch quizzes for this class
   let quizzes = [];
   if (classID) {
-    console.log('DEBUG: Searching for quizzes with classID:', classID);
     quizzes = await Quiz.find({
       $or: [
         { classID: classID }, // For backward compatibility with old quizzes
         { 'assignedTo.classID': classID } // For new quizzes with correct structure
       ]
     }).sort({ createdAt: -1 });
-    console.log('DEBUG: Found quizzes:', quizzes.length);
-    quizzes.forEach((quiz, index) => {
-      console.log(`DEBUG: Quiz ${index}:`, {
-        _id: quiz._id,
-        title: quiz.title,
-        assignedTo: quiz.assignedTo,
-        classID: quiz.classID
-      });
-    });
   } else {
     quizzes = await Quiz.find().sort({ createdAt: -1 });
   }
@@ -89,14 +107,6 @@ router.get('/', /*authenticateToken,*/ async (req, res) => {
   }));
 
   let combined = [...assignmentsWithType, ...quizzesWithType];
-  
-  console.log('DEBUG: Final combined data:', {
-    assignmentsCount: assignmentsWithType.length,
-    quizzesCount: quizzesWithType.length,
-    totalCount: combined.length,
-    assignments: assignmentsWithType.map(a => ({ _id: a._id, title: a.title, type: a.type })),
-    quizzes: quizzesWithType.map(q => ({ _id: q._id, title: q.title, type: q.type }))
-  });
 
   // Sort by dueDate if available, otherwise by createdAt
   combined.sort((a, b) => {
@@ -351,50 +361,71 @@ router.post('/:id/view', /*authenticateToken,*/ async (req, res) => {
   }
 });
 
-// Get assignment by ID
-router.get('/:id', /*authenticateToken,*/ async (req, res) => {
-  try {
-    const assignment = await Assignment.findById(req.params.id);
-    if (!assignment) return res.status(404).json({ error: 'Assignment not found' });
-    res.json(assignment);
-  } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch assignment.' });
-  }
-});
-
 // Student submits an assignment (with file upload)
 router.post('/:id/submit', /*authenticateToken,*/ upload.array('files', 5), async (req, res) => {
   try {
     // const student = req.user._id;
     const { studentId, context } = req.body;
     const assignment = req.params.id;
+    // Check if already submitted
+    let submission = await Submission.findOne({ assignment, student: studentId });
+    const isResubmission = !!submission;
+    
     let files = [];
     if (req.files && req.files.length > 0) {
       files = req.files.map(f => ({
         url: `/uploads/submissions/${f.filename}`,
-        name: f.originalname
+        name: f.filename,
+        originalName: f.originalname,
+        uploadedAt: new Date(),
+        isReplacement: isResubmission,
+        replacementTime: isResubmission ? new Date() : undefined,
+        isLate: false, // Will be calculated below
+        fileSize: f.size,
+        mimetype: f.mimetype
       }));
     }
-    // Check if already submitted
-    let submission = await Submission.findOne({ assignment, student: studentId });
+    
+    // Check if submission is late
+    const assignmentData = await Assignment.findById(assignment);
+    const now = new Date();
+    const dueDate = assignmentData?.dueDate ? new Date(assignmentData.dueDate) : null;
+    const isLate = dueDate && now > dueDate;
+    
+    // Update isLate flag for all files
+    files.forEach(file => {
+      file.isLate = isLate;
+    });
+    
     if (submission) {
+      // This is a resubmission - update existing submission
       submission.files = files;
-      submission.context = context || submission.context; // Update context if provided
-      submission.submittedAt = new Date();
-      submission.status = 'turned-in';
+      submission.context = context || submission.context;
+      submission.lastUpdated = new Date();
+      submission.hasReplacement = true;
+      submission.replacementCount = (submission.replacementCount || 0) + 1;
       await submission.save();
     } else {
+      // This is a new submission
       submission = new Submission({ 
         assignment, 
         student: studentId, 
         files, 
         context,
         submittedAt: new Date(),
-        status: 'turned-in'
+        status: 'turned-in',
+        originalSubmissionDate: new Date(),
+        lastUpdated: new Date()
       });
       await submission.save();
     }
-    res.json(submission);
+    
+    res.json({
+      submission,
+      isResubmission,
+      replacementCount: submission.replacementCount || 0,
+      isLate
+    });
   } catch (err) {
     res.status(500).json({ error: 'Failed to submit assignment.' });
   }
@@ -409,6 +440,47 @@ router.get('/:id/submissions', /*authenticateToken,*/ async (req, res) => {
   } catch (err) {
     console.error('Error fetching submissions:', err);
     res.status(500).json({ error: 'Failed to fetch submissions.' });
+  }
+});
+
+// Get submission history for a specific student and assignment
+router.get('/:id/submission/:studentId', /*authenticateToken,*/ async (req, res) => {
+  try {
+    const { id, studentId } = req.params;
+    
+    const submission = await Submission.findOne({ 
+      assignment: id, 
+      student: studentId 
+    }).populate('student', 'userID firstname lastname email');
+    
+    if (!submission) {
+      return res.status(404).json({ error: 'Submission not found.' });
+    }
+    
+    // Calculate timing status
+    const assignment = await Assignment.findById(id);
+    const dueDate = assignment?.dueDate ? new Date(assignment.dueDate) : null;
+    const now = new Date();
+    
+    let timingStatus = 'on-time';
+    if (dueDate && submission.lastUpdated > dueDate) {
+      const daysLate = Math.floor((now - dueDate) / (1000 * 60 * 60 * 24));
+      if (daysLate === 0) {
+        timingStatus = 'late';
+      } else {
+        timingStatus = 'overdue';
+      }
+    }
+    
+    res.json({
+      submission,
+      timingStatus,
+      dueDate: assignment?.dueDate,
+      daysLate: dueDate && now > dueDate ? Math.floor((now - dueDate) / (1000 * 60 * 60 * 24)) : 0
+    });
+  } catch (err) {
+    console.error('Error fetching submission history:', err);
+    res.status(500).json({ error: 'Failed to fetch submission history.' });
   }
 });
 
@@ -430,6 +502,126 @@ router.post('/:id/grade', /*authenticateToken,*/ async (req, res) => {
     res.json(submission);
   } catch (err) {
     res.status(500).json({ error: 'Failed to grade submission.' });
+  }
+});
+
+// IMPORTANT: Place specific routes BEFORE general ones to avoid route conflicts
+// Test endpoint to verify route path
+router.get('/:id/test-replace', async (req, res) => {
+  try {
+    const { id } = req.params;
+    console.log('=== TEST REPLACE ENDPOINT HIT ===');
+    console.log('Assignment ID:', id);
+    console.log('Assignment ID type:', typeof id);
+    console.log('Assignment ID length:', id?.length);
+    console.log('=== END TEST DEBUG ===');
+    
+    res.json({ 
+      message: 'Test endpoint working',
+      assignmentId: id,
+      assignmentIdType: typeof id,
+      assignmentIdLength: id?.length
+    });
+  } catch (error) {
+    console.error('Error in test endpoint:', error);
+    res.status(500).json({ error: 'Test endpoint error' });
+  }
+});
+
+// Student replaces a file in their submission
+router.post('/:id/replace-file', upload.single('replacementFile'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { studentId, isLate, submissionTime } = req.body;
+    
+    console.log('=== REPLACE-FILE ENDPOINT HIT ===');
+    console.log('Request params:', req.params);
+    console.log('Request body:', req.body);
+    console.log('Request file:', req.file);
+    console.log('Assignment ID from params:', id);
+    console.log('Assignment ID type:', typeof id);
+    console.log('Assignment ID length:', id?.length);
+    console.log('=== END REPLACE-FILE DEBUG ===');
+    
+    // Validate the assignment ID
+    if (!id || id.length !== 24) {
+      console.error('Invalid assignment ID received:', id, 'Length:', id?.length);
+      return res.status(400).json({ 
+        error: 'Invalid assignment ID format.',
+        receivedId: id,
+        idLength: id?.length,
+        expectedLength: 24
+      });
+    }
+    
+    if (!req.file) {
+      return res.status(400).json({ error: 'No replacement file provided.' });
+    }
+
+    if (!studentId) {
+      return res.status(400).json({ error: 'Student ID is required.' });
+    }
+
+    // Find the existing submission
+    const submission = await Submission.findOne({ 
+      assignment: id, 
+      student: studentId 
+    });
+
+    if (!submission) {
+      console.error('Submission not found for assignment:', id, 'student:', studentId);
+      return res.status(404).json({ 
+        error: 'Submission not found.',
+        assignmentId: id,
+        studentId: studentId
+      });
+    }
+
+    // Create the new file object
+    const newFile = {
+      url: `/uploads/submissions/${req.file.filename}`,
+      name: req.file.filename,
+      originalName: req.file.originalname,
+      mimetype: req.file.mimetype,
+      fileSize: req.file.size,
+      path: req.file.path,
+      uploadedAt: new Date(),
+      isReplacement: true,
+      replacementTime: new Date(),
+      isLate: isLate === 'true',
+      submissionTime: submissionTime ? new Date(submissionTime) : new Date()
+    };
+
+    // Replace the original files with the new replacement file
+    // Remove all previous files and add only the new replacement file
+    submission.files = [newFile];
+
+    // Update submission metadata
+    submission.lastUpdated = new Date();
+    submission.hasReplacement = true;
+    submission.replacementCount = (submission.replacementCount || 0) + 1;
+    submission.latestFile = newFile;
+
+    await submission.save();
+
+    res.json({ 
+      message: 'File successfully replaced. The original file has been removed and replaced with the new file.',
+      file: newFile,
+      submission: {
+        id: submission._id,
+        hasReplacement: submission.hasReplacement,
+        replacementCount: submission.replacementCount,
+        lastUpdated: submission.lastUpdated
+      }
+    });
+
+  } catch (error) {
+    console.error('Error in file replacement:', error);
+    res.status(500).json({
+      error: 'Internal server error during file replacement.',
+      details: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 });
 
@@ -484,7 +676,7 @@ router.get('/faculty/:facultyId', /*authenticateToken,*/ async (req, res) => {
       const classInfo = classes.find(cls => cls.classID === assignment.classID);
       return {
         ...assignment.toObject(),
-        className: classInfo ? classInfo.className : 'Unknown Class',
+        className: classInfo ? classInfo.className : null,
         classCode: classInfo ? classInfo.classCode : 'N/A'
       };
     });
@@ -496,4 +688,4 @@ router.get('/faculty/:facultyId', /*authenticateToken,*/ async (req, res) => {
   }
 });
 
-export default router; 
+export default router;

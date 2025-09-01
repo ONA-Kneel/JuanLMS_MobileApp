@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   Text,
   TouchableOpacity,
@@ -11,11 +11,13 @@ import {
   FlatList,
   Dimensions,
   AppState,
+  StyleSheet,
 } from 'react-native';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { useUser } from '../UserContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useTimer } from '../../TimerContext';
 
 const API_BASE = 'https://juanlms-webapp-server.onrender.com';
 const { width } = Dimensions.get('window');
@@ -25,7 +27,11 @@ const QuizView = React.memo(function QuizView() {
   const route = useRoute();
   const { user } = useUser();
   const { quizId, review } = route.params;
-
+  const { startTimer, removeTimer, getRemainingTime, formatTime, pauseTimer, resumeTimer } = useTimer();
+  const [timeRemaining, setTimeRemaining] = useState(0);
+  const [quizStarted, setQuizStarted] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  
   const [quiz, setQuiz] = useState(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState({});
@@ -88,6 +94,91 @@ const QuizView = React.memo(function QuizView() {
     }
   }, [quizId, review]);
 
+  useEffect(() => {
+    if (quiz && !review && quiz.timing?.duration) {
+      const duration = quiz.timing.duration;
+      setTimeRemaining(duration);
+      
+      // Start timer when quiz begins
+      if (quizStarted) {
+        startTimer(quizId, duration, handleTimeUp);
+      }
+    }
+    
+    return () => {
+      if (quizId) {
+        removeTimer(quizId);
+      }
+    };
+  }, [quiz, quizStarted, review]);
+
+  const handleTimeUp = () => {
+    Alert.alert(
+      'Time\'s Up!',
+      'The quiz time has expired. Your answers will be submitted automatically.',
+      [
+        {
+          text: 'OK',
+          onPress: () => {
+            // Auto-submit quiz
+            submitQuiz();
+          }
+        }
+      ]
+    );
+  };
+
+  const startQuiz = () => {
+    setQuizStarted(true);
+    setStartTime(new Date());
+    if (quiz.timing?.duration) {
+      startTimer(quizId, quiz.timing.duration, handleTimeUp);
+    }
+  };
+
+  const pauseQuiz = () => {
+    if (quiz.timing?.duration) {
+      pauseTimer(quizId);
+      setIsPaused(true);
+    }
+  };
+
+  const resumeQuiz = () => {
+    if (quiz.timing?.duration) {
+      const remaining = getRemainingTime(quizId);
+      if (remaining > 0) {
+        resumeTimer(quizId, remaining, handleTimeUp);
+        setIsPaused(false);
+      }
+    }
+  };
+
+  const renderTimer = () => {
+    if (review || !quiz.timing?.duration || !quizStarted) return null;
+    
+    const remaining = getRemainingTime(quizId);
+    const isLowTime = remaining <= 60; // Show warning when less than 1 minute
+    
+    return (
+      <View style={[styles.timerContainer, isLowTime && styles.timerWarning]}>
+        <MaterialIcons 
+          name="timer" 
+          size={24} 
+          color={isLowTime ? '#f44336' : '#2196F3'} 
+        />
+        <Text style={[styles.timerText, isLowTime && styles.timerWarningText]}>
+          {formatTime(remaining)}
+        </Text>
+        {isPaused && (
+          <TouchableOpacity onPress={resumeQuiz} style={styles.resumeButton}>
+            <MaterialIcons name="play-arrow" size={20} color="#4CAF50" />
+            <Text style={styles.resumeButtonText}>Resume</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    );
+  };
+
   // Debug state changes
   useEffect(() => {
     console.log('State changed - isReviewMode:', isReviewMode, 'quizResult:', !!quizResult, 'quiz:', !!quiz);
@@ -116,6 +207,23 @@ const QuizView = React.memo(function QuizView() {
       setCurrentQuestionIndex(0);
     }
   }, [quiz, currentQuestionIndex]);
+  
+  // Debug: Monitor answers state changes
+  useEffect(() => {
+    console.log('=== ANSWERS STATE CHANGE DEBUG ===');
+    console.log('Answers state updated:', answers);
+    console.log('Current question index:', currentQuestionIndex);
+    console.log('Answers keys:', Object.keys(answers));
+    if (quiz?.questions) {
+      console.log('Current question:', quiz.questions[currentQuestionIndex]);
+      console.log('Current answer:', answers[currentQuestionIndex]);
+      console.log('All questions have answers:', quiz.questions.map((q, i) => ({ 
+        questionIndex: i, 
+        hasAnswer: answers[i] !== undefined,
+        answerValue: answers[i]
+      })));
+    }
+  }, [answers, currentQuestionIndex, quiz?.questions]);
 
   // Monitor app state changes (similar to web version's focus/blur monitoring)
   useEffect(() => {
@@ -220,13 +328,32 @@ const QuizView = React.memo(function QuizView() {
       let hasTimeLimit = false;
       let timeLimitSeconds = 0;
       
-      quizData.questions.forEach((question, index) => {
+      console.log('=== QUIZ LOADING DEBUG ===');
+      console.log('Quiz questions:', quizData.questions);
+      
+      // Ensure all questions have answers initialized
+      for (let i = 0; i < quizData.questions.length; i++) {
+        const question = quizData.questions[i];
+        
+        console.log(`Question ${i}:`, {
+          id: question._id,
+          type: question.type,
+          text: question.question,
+          choices: question.choices,
+          correctAnswers: question.correctAnswers,
+          correctAnswer: question.correctAnswer
+        });
+        
         if (question.type === 'multiple') {
-          initialAnswers[index] = [];
+          initialAnswers[i] = [];
         } else {
-          initialAnswers[index] = '';
+          initialAnswers[i] = '';
         }
-      });
+      }
+      
+      console.log('Initial answers structure:', initialAnswers);
+      console.log('Answers keys:', Object.keys(initialAnswers));
+      console.log('Expected question count:', quizData.questions.length);
       
       if (quizData.timeLimit && quizData.timeLimit > 0) {
         hasTimeLimit = true;
@@ -236,6 +363,20 @@ const QuizView = React.memo(function QuizView() {
       // Batch all state updates together for better performance
       setQuiz(quizData);
       setAnswers(initialAnswers);
+      
+      // Debug: Log the initial state
+      console.log('=== STATE UPDATE DEBUG ===');
+      console.log('Quiz data set:', quizData._id);
+      console.log('Initial answers set:', initialAnswers);
+      console.log('Answers state should now contain:', Object.keys(initialAnswers).length, 'questions');
+      console.log('Answers validation after initialization:');
+      console.log('- All questions have answers:', Object.keys(initialAnswers).length === quizData.questions.length);
+      console.log('- Answer types:', Object.keys(initialAnswers).map(key => ({
+        questionIndex: key,
+        answerType: typeof initialAnswers[key],
+        answerValue: initialAnswers[key],
+        isArray: Array.isArray(initialAnswers[key])
+      })));
       if (hasTimeLimit) {
         setTimeLeft(timeLimitSeconds);
       }
@@ -310,26 +451,28 @@ const QuizView = React.memo(function QuizView() {
 
   // Performance optimization: Memoize event handlers
   const handleAnswerChange = useCallback((questionIndex, value, isMultipleChoice = false) => {
+    console.log(`handleAnswerChange called: questionIndex=${questionIndex}, value=${value}, isMultipleChoice=${isMultipleChoice}`);
+    
     if (isMultipleChoice) {
       setAnswers(prev => {
         const currentAnswers = prev[questionIndex] || [];
-        if (currentAnswers.includes(value)) {
-          return {
-            ...prev,
-            [questionIndex]: currentAnswers.filter(ans => ans !== value)
-          };
-        } else {
-          return {
-            ...prev,
-            [questionIndex]: [...currentAnswers, value]
-          };
-        }
+        const newAnswers = currentAnswers.includes(value) 
+          ? currentAnswers.filter(ans => ans !== value)
+          : [...currentAnswers, value];
+        
+        console.log(`Multiple choice answer updated for question ${questionIndex}:`, newAnswers);
+        return {
+          ...prev,
+          [questionIndex]: newAnswers
+        };
       });
     } else {
-      setAnswers(prev => ({
-        ...prev,
-        [questionIndex]: value
-      }));
+      setAnswers(prev => {
+        const newAnswers = { ...prev, [questionIndex]: value };
+        console.log(`Single choice answer updated for question ${questionIndex}:`, value);
+        console.log('Updated answers state:', newAnswers);
+        return newAnswers;
+      });
     }
   }, []);
 
@@ -337,36 +480,43 @@ const QuizView = React.memo(function QuizView() {
   const handleChoiceSelect = useCallback((choice, questionType) => {
     if (isReviewMode) return; // Disable in review mode
     
+    console.log(`handleChoiceSelect called: choice=${choice}, questionType=${questionType}, currentQuestionIndex=${currentQuestionIndex}`);
+    
     if (questionType === 'multiple') {
       // For multiple choice, toggle the selection
       const currentAnswers = answers[currentQuestionIndex] || [];
-      if (currentAnswers.includes(choice)) {
-        setAnswers(prev => ({
-          ...prev,
-          [currentQuestionIndex]: currentAnswers.filter(ans => ans !== choice)
-        }));
-      } else {
-        setAnswers(prev => ({
-          ...prev,
-          [currentQuestionIndex]: [...currentAnswers, choice]
-        }));
-      }
-    } else {
-      // For single choice (true/false, etc.)
+      const newAnswers = currentAnswers.includes(choice)
+        ? currentAnswers.filter(ans => ans !== choice)
+        : [...currentAnswers, choice];
+      
+      console.log(`Multiple choice selection updated for question ${currentQuestionIndex}:`, newAnswers);
       setAnswers(prev => ({
         ...prev,
-        [currentQuestionIndex]: choice
+        [currentQuestionIndex]: newAnswers
       }));
+    } else {
+      // For single choice (true/false, etc.)
+      console.log(`Single choice selection updated for question ${currentQuestionIndex}:`, choice);
+      setAnswers(prev => {
+        const newAnswers = { ...prev, [currentQuestionIndex]: choice };
+        console.log('Updated answers state:', newAnswers);
+        return newAnswers;
+      });
     }
   }, [isReviewMode, answers, currentQuestionIndex]);
 
   // Performance optimization: Memoize text input handler
   const handleTextInput = useCallback((text, questionIndex) => {
     if (isReviewMode) return; // Disable in review mode
-    setAnswers(prev => ({
-      ...prev,
-      [questionIndex]: text
-    }));
+    
+    console.log(`handleTextInput called: text=${text}, questionIndex=${questionIndex}`);
+    
+    setAnswers(prev => {
+      const newAnswers = { ...prev, [questionIndex]: text };
+      console.log(`Text input updated for question ${questionIndex}:`, text);
+      console.log('Updated answers state:', newAnswers);
+      return newAnswers;
+    });
   }, [isReviewMode]);
 
   const handleSubmitQuiz = async () => {
@@ -376,15 +526,31 @@ const QuizView = React.memo(function QuizView() {
       
       // Check for unanswered questions (similar to web version)
       const unanswered = [];
-      Object.keys(answers).forEach(index => {
-        const questionIndex = parseInt(index);
-        const question = quiz.questions[questionIndex];
-        const answer = answers[index];
+      console.log('=== ANSWER VALIDATION DEBUG ===');
+      console.log('Current answers state:', answers);
+      console.log('Quiz questions count:', quiz.questions.length);
+      console.log('Answers keys:', Object.keys(answers));
+      
+      // Check all questions, not just the ones with answers
+      for (let i = 0; i < quiz.questions.length; i++) {
+        const question = quiz.questions[i];
+        const answer = answers[i];
+        
+        console.log(`Question ${i + 1}:`, {
+          questionText: question?.question,
+          questionType: question?.type,
+          answer: answer,
+          answerType: typeof answer,
+          isArray: Array.isArray(answer),
+          isEmpty: !answer || (Array.isArray(answer) && answer.length === 0) || answer === ''
+        });
         
         if (!answer || (Array.isArray(answer) && answer.length === 0) || answer === '') {
-          unanswered.push(questionIndex + 1);
+          unanswered.push(i + 1);
         }
-      });
+      }
+      
+      console.log('Unanswered questions:', unanswered);
       
       if (unanswered.length > 0) {
         setUnansweredQuestions(unanswered);
@@ -426,46 +592,127 @@ const QuizView = React.memo(function QuizView() {
       return newTimes;
     });
     
-    // Format answers to match the QuizResponse model
-    const formattedAnswers = Object.keys(answers).map(index => {
-      const questionIndex = parseInt(index);
-      const question = quiz.questions[questionIndex];
-      return {
-        questionId: question._id || questionIndex, // Use question ID if available, fallback to index
-        answer: answers[index]
-      };
-    });
+          // Format answers to match what the backend expects
+      // The backend expects answers array with objects containing questionId and answer
+      const formattedAnswers = [];
+      
+      console.log('=== ANSWER FORMATTING DEBUG ===');
+      console.log('Processing answers for submission...');
+      
+      for (let i = 0; i < quiz.questions.length; i++) {
+        const question = quiz.questions[i];
+        const answer = answers[i];
+        
+        console.log(`Question ${i}:`, {
+          questionId: question?._id,
+          questionType: question?.type,
+          answer: answer,
+          answerType: typeof answer,
+          isArray: Array.isArray(answer)
+        });
+        
+        if (!question || !question._id) {
+          console.error(`Question ${i} is missing _id:`, question);
+          continue;
+        }
+        
+        // For the backend submission, we need to send answers in the format:
+        // [{ questionId: "id1", answer: "value1" }, { questionId: "id2", answer: "value2" }]
+        const formattedAnswer = {
+          questionId: question._id,
+          answer: answer || (question.type === 'multiple' ? [] : '')
+        };
+        
+        console.log(`Formatted answer ${i}:`, formattedAnswer);
+        formattedAnswers.push(formattedAnswer);
+      }
+    
+          // Debug logging
+      console.log('=== QUIZ SUBMISSION DEBUG ===');
+      console.log('Original answers state:', answers);
+      console.log('Formatted answers for submission:', formattedAnswers);
+      console.log('Quiz questions:', quiz.questions);
+      console.log('Answers validation:');
+      console.log('- Total questions:', quiz.questions.length);
+      console.log('- Formatted answers count:', formattedAnswers.length);
+      console.log('- Answers with values:', Object.keys(answers).filter(key => {
+        const answer = answers[key];
+        return answer !== undefined && answer !== '' && (!Array.isArray(answer) || answer.length > 0);
+      }).length);
+      console.log('- Empty answers:', Object.keys(answers).filter(key => {
+        const answer = answers[key];
+        return answer === undefined || answer === '' || (Array.isArray(answer) && answer.length === 0);
+      }).length);
+      
+      // Validate that we have answers for all questions
+      if (formattedAnswers.length === 0) {
+        throw new Error('No valid answers to submit');
+      }
+      
+      if (formattedAnswers.length !== quiz.questions.length) {
+        console.warn(`Warning: Only ${formattedAnswers.length} answers for ${quiz.questions.length} questions`);
+        console.warn('This might cause issues with answer processing');
+      }
 
     try {
       setSubmitting(true);
       
       const token = await AsyncStorage.getItem('jwtToken');
+      const requestBody = {
+        studentId: user._id,
+        answers: formattedAnswers,
+        violationCount: violationCount,
+        violationEvents: violationEvents,
+        questionTimes: questionTimes
+      };
+      
+      console.log('=== SUBMISSION REQUEST DEBUG ===');
+      console.log('Request body being sent:', JSON.stringify(requestBody, null, 2));
+      console.log('Request body summary:', {
+        studentId: requestBody.studentId,
+        answersCount: requestBody.answers.length,
+        answersStructure: requestBody.answers.map((a, i) => ({
+          index: i,
+          questionId: a.questionId,
+          answerType: typeof a.answer,
+          answerValue: a.answer,
+          isArray: Array.isArray(a.answer)
+        }))
+      });
+      
       const response = await fetch(`${API_BASE}/api/quizzes/${quizId}/submit`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify({
-          studentId: user._id,
-          answers: formattedAnswers,
-          violationCount: violationCount,
-          violationEvents: violationEvents,
-          questionTimes: questionTimes
-        })
+        body: JSON.stringify(requestBody)
       });
 
       if (!response.ok) {
-        throw new Error('Failed to submit quiz');
+        const errorText = await response.text();
+        console.error('Quiz submission failed:', response.status, response.statusText);
+        console.error('Error response:', errorText);
+        throw new Error(`Failed to submit quiz: ${response.status} ${response.statusText}`);
       }
 
       const result = await response.json();
+      console.log('=== QUIZ SUBMISSION RESULT ===');
       console.log('Quiz submission result:', result);
+      console.log('Response status:', response.status);
+      console.log('Response headers:', response.headers);
       
       // Use backend totals when provided
       const calculatedScore = result.score || 0;
       const totalPoints = typeof result.total === 'number' ? result.total : (quiz.points || 100);
       const percentage = typeof result.percentage === 'number' ? result.percentage : Math.round((calculatedScore / (totalPoints || 1)) * 100);
+
+      console.log('=== QUIZ RESULT PROCESSING ===');
+      console.log('Calculated score:', calculatedScore);
+      console.log('Total points:', totalPoints);
+      console.log('Percentage:', percentage);
+      console.log('Time spent:', result.timeSpent);
+      console.log('Submitted at:', result.submittedAt);
 
       setQuizResult({
         score: calculatedScore,
@@ -478,18 +725,17 @@ const QuizView = React.memo(function QuizView() {
       // Ask user whether to reveal now
       setShowRevealModal(true);
     } catch (error) {
+      console.error('=== QUIZ SUBMISSION ERROR ===');
       console.error('Error submitting quiz:', error);
-      Alert.alert('Error', 'Failed to submit quiz');
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+      Alert.alert('Error', `Failed to submit quiz: ${error.message}`);
     } finally {
       setSubmitting(false);
     }
   };
 
-  const formatTime = (seconds) => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-  };
+  // formatTime is now provided by TimerContext
 
   // Performance optimization: Memoize question rendering function
   const renderQuestion = useCallback((question, index) => {
@@ -562,10 +808,10 @@ const QuizView = React.memo(function QuizView() {
         {question.type === 'multiple' && question.choices && Array.isArray(question.choices) && (
           <View style={styles.choicesContainer}>
             {question.choices.map((choice, choiceIndex) => {
-              // Handle both cases: student answer might be stored as choice text or choice index
+              // Check if this choice is selected (answers are now stored as choice text)
               const isSelected = Array.isArray(currentAnswer) 
-                ? currentAnswer.includes(choiceIndex) || currentAnswer.includes(choice)
-                : currentAnswer === choiceIndex || currentAnswer === choice;
+                ? currentAnswer.includes(choice)
+                : currentAnswer === choice;
               
               // For multiple choice, check if this choice is the correct answer
               let isCorrectAnswer = false;
@@ -591,7 +837,7 @@ const QuizView = React.memo(function QuizView() {
                   <TouchableOpacity
                     style={choiceStyle}
                     disabled={isReviewMode} // Disable in review mode
-                    onPress={() => !isReviewMode && handleChoiceSelect(choiceIndex, question.type)}
+                    onPress={() => !isReviewMode && handleChoiceSelect(choice, question.type)}
                   >
                     <Text style={[
                       styles.choiceText,
@@ -670,15 +916,19 @@ const QuizView = React.memo(function QuizView() {
   // Performance optimization: Memoize navigation handlers
   const goToNextQuestion = useCallback(() => {
     if (quiz?.questions && currentQuestionIndex < quiz.questions.length - 1) {
+      console.log(`Navigating to next question: ${currentQuestionIndex + 1}`);
+      console.log('Current answers state before navigation:', answers);
       setCurrentQuestionIndex(currentQuestionIndex + 1);
     }
-  }, [currentQuestionIndex, quiz?.questions?.length]);
+  }, [currentQuestionIndex, quiz?.questions?.length, answers]);
 
   const goToPreviousQuestion = useCallback(() => {
     if (currentQuestionIndex > 0) {
+      console.log(`Navigating to previous question: ${currentQuestionIndex - 1}`);
+      console.log('Current answers state before navigation:', answers);
       setCurrentQuestionIndex(currentQuestionIndex - 1);
     }
-  }, [currentQuestionIndex]);
+  }, [currentQuestionIndex, answers]);
 
   // Performance optimization: Memoize availability check
   const isAvailable = useCallback(() => {
@@ -697,6 +947,62 @@ const QuizView = React.memo(function QuizView() {
     
     return true;
   }, [quiz]);
+
+  // Motivational message based on score (similar to web app)
+  const getMotivationalMessage = (score, total) => {
+    if (score === total) return "Perfect! 🎉 Congratulations, you aced it!";
+    if (score >= total * 0.8) return "Great job! Keep up the good work!";
+    if (score >= total * 0.5) return "Not bad! Review and try again for a higher score!";
+    return "Don't give up! Every attempt is a step closer to success!";
+  };
+
+  // Enhanced score display component
+  const renderScoreDisplay = () => {
+    if (!quizResult) return null;
+    
+    const message = getMotivationalMessage(quizResult.score, quizResult.totalPoints);
+    
+    return (
+      <View style={styles.scoreDisplayContainer}>
+        <View style={styles.scoreHeader}>
+          <MaterialIcons name="emoji-events" size={48} color="#FFD700" />
+          <Text style={styles.scoreTitle}>Quiz Results</Text>
+        </View>
+        
+        <View style={styles.scoreMain}>
+          <Text style={styles.scoreValue}>
+            {quizResult.score || 0} / {quizResult.totalPoints || 0}
+          </Text>
+          <Text style={styles.scorePercentage}>
+            {quizResult.percentage || 0}%
+          </Text>
+          <Text style={styles.motivationalMessage}>{message}</Text>
+        </View>
+        
+        <View style={styles.scoreDetails}>
+          {quizResult.timeSpent && (
+            <View style={styles.scoreDetailRow}>
+              <MaterialIcons name="schedule" size={20} color="#666" />
+              <Text style={styles.scoreDetailLabel}>Time Spent:</Text>
+              <Text style={styles.scoreDetailValue}>
+                {formatTime(quizResult.timeSpent)}
+              </Text>
+            </View>
+          )}
+          
+          {quizResult.submittedAt && (
+            <View style={styles.scoreDetailRow}>
+              <MaterialIcons name="event" size={20} color="#666" />
+              <Text style={styles.scoreDetailLabel}>Submitted:</Text>
+              <Text style={styles.scoreDetailValue}>
+                {new Date(quizResult.submittedAt).toLocaleString()}
+              </Text>
+            </View>
+          )}
+        </View>
+      </View>
+    );
+  };
 
   if (loading && !error) {
     return (
@@ -853,40 +1159,13 @@ const QuizView = React.memo(function QuizView() {
           <MaterialIcons name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{quiz.title}</Text>
-        {!isReviewMode && timeLeft !== null && (
-          <View style={styles.timerContainer}>
-            <MaterialIcons name="timer" size={20} color="white" />
-            <Text style={styles.timerText}>{formatTime(timeLeft)}</Text>
-          </View>
-        )}
+        {renderTimer()}
       </View>
 
       {/* Score Header - Show in review mode when quiz result exists */}
       {isReviewMode && quizResult && (
         <View style={styles.scoreHeader}>
-          <View style={styles.scoreContainer}>
-            <Text style={styles.scoreTitle}>Quiz Results</Text>
-            <View style={styles.scoreRow}>
-              <Text style={styles.scoreLabel}>Score:</Text>
-              <Text style={styles.scoreValue}>
-                {quizResult.score || 0} / {quizResult.totalPoints || 0}
-              </Text>
-            </View>
-            <View style={styles.scoreRow}>
-              <Text style={styles.scoreLabel}>Percentage:</Text>
-              <Text style={styles.scoreValue}>
-                {quizResult.percentage || 0}%
-              </Text>
-            </View>
-            {quizResult.timeSpent && (
-              <View style={styles.scoreRow}>
-                <Text style={styles.scoreLabel}>Time Spent:</Text>
-                <Text style={styles.scoreValue}>
-                  {formatTime(quizResult.timeSpent || 0)}
-                </Text>
-              </View>
-            )}
-          </View>
+          {renderScoreDisplay()}
         </View>
       )}
 
@@ -1075,45 +1354,25 @@ const QuizView = React.memo(function QuizView() {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.resultsModal}>
-            <View style={styles.resultsHeader}>
-              <MaterialIcons 
-                name="check-circle" 
-                size={64} 
-                color="#4CAF50" 
-              />
-              <Text style={styles.resultsTitle}>Quiz Submitted!</Text>
-            </View>
-
-            {quizResult && (
-              <View style={styles.resultsContent}>
-                <View style={styles.resultRow}>
-                  <Text style={styles.resultLabel}>Score:</Text>
-                  <Text style={styles.resultValue}>
-                    {quizResult.score || 0} / {quizResult.totalPoints || 0}
-                  </Text>
+            {renderScoreDisplay()}
+            
+            {Array.isArray(quizCheckedAnswers) && quizCheckedAnswers.length > 0 && (
+              <View style={styles.answersSummary}>
+                <Text style={styles.answersSummaryTitle}>Question Summary</Text>
+                <View style={styles.answersList}>
+                  {quizCheckedAnswers.map((answer, idx) => (
+                    <View key={idx} style={styles.answerItem}>
+                      <MaterialIcons 
+                        name={answer.correct ? "check-circle" : "cancel"} 
+                        size={20} 
+                        color={answer.correct ? "#4CAF50" : "#F44336"} 
+                      />
+                      <Text style={styles.answerItemText}>
+                        Q{idx + 1}: {answer.correct ? 'Correct' : 'Incorrect'}
+                      </Text>
+                    </View>
+                  ))}
                 </View>
-                <View style={styles.resultRow}>
-                  <Text style={styles.resultLabel}>Percentage:</Text>
-                  <Text style={styles.resultValue}>
-                    {quizResult.percentage || 0}%
-                  </Text>
-                </View>
-                <View style={styles.resultRow}>
-                  <Text style={styles.resultLabel}>Time Spent:</Text>
-                  <Text style={styles.resultValue}>
-                    {formatTime(quizResult.timeSpent || 0)}
-                  </Text>
-                </View>
-                {Array.isArray(quizCheckedAnswers) && quizCheckedAnswers.length > 0 && (
-                  <View style={{ marginTop: 8 }}>
-                    <Text style={[styles.resultLabel, { marginBottom: 8 }]}>Answers:</Text>
-                    {quizCheckedAnswers.map((it, idx) => (
-                      <View key={idx} style={{ paddingVertical: 6 }}>
-                        <Text style={{ fontSize: 14, color: '#333' }}>Q{idx + 1}: {it.correct ? 'Correct' : 'Incorrect'}</Text>
-                      </View>
-                    ))}
-                  </View>
-                )}
               </View>
             )}
 
@@ -1743,5 +2002,109 @@ const styles = {
   selectedChoiceText: {
     color: '#00418b',
     fontWeight: 'bold',
+  },
+  timerWarning: {
+    backgroundColor: '#ffebee', // Light red background
+  },
+  timerWarningText: {
+    color: '#f44336', // Red text
+  },
+  resumeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: '#e8f5e9', // Light green background
+    borderRadius: 20,
+  },
+  resumeButtonText: {
+    color: '#4CAF50',
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginLeft: 8,
+  },
+  scoreDisplayContainer: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 24,
+    margin: 20,
+    alignItems: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  scoreMain: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  scoreValue: {
+    fontSize: 48,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 8,
+  },
+  scorePercentage: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#00418b',
+    marginBottom: 12,
+  },
+  motivationalMessage: {
+    fontSize: 18,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 24,
+  },
+  scoreDetails: {
+    width: '100%',
+    marginTop: 16,
+  },
+  scoreDetailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  scoreDetailLabel: {
+    fontSize: 16,
+    color: '#666',
+    fontWeight: '500',
+  },
+  scoreDetailValue: {
+    fontSize: 16,
+    color: '#333',
+    fontWeight: 'bold',
+  },
+  answersSummary: {
+    marginTop: 20,
+    padding: 16,
+    backgroundColor: '#f7fbff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    width: '100%',
+  },
+  answersSummaryTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  answersList: {
+    //
+  },
+  answerItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  answerItemText: {
+    fontSize: 16,
+    color: '#333',
+    marginLeft: 8,
   },
 };

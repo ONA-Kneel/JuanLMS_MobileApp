@@ -9,6 +9,8 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MaterialIcons } from '@expo/vector-icons';
+import { formatDate } from '../../utils/dateUtils';
+import { getAuthHeaders, handleApiError } from '../../utils/apiUtils';
 
 const API_BASE = 'https://juanlms-webapp-server.onrender.com';
 
@@ -638,7 +640,7 @@ export default function StudentModule(){
                                                                 fontSize: 14, 
                                                                 marginBottom: 6 
                                                             }}>
-                                                                {item.className || 'Unknown Class'}
+                                                                {item.className || 'N/A'}
                                                             </Text>
                                                             
                                                             {item.description && (

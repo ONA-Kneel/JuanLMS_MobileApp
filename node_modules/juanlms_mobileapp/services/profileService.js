@@ -1,8 +1,9 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
+import * as FileSystem from 'expo-file-system';
 
-const API_URL = 'https://juanlms-webapp-server.onrender.com'; // Update this with your actual API URL
+const API_URL = 'https://juanlms-webapp-server.onrender.com'; // Ensure this matches your backend base URL
 
 const profileService = {
   async updateProfile(userId, profileData) {
@@ -19,16 +20,44 @@ const profileService = {
     }
   },
 
-  async changePassword(userId, passwordData) {
+  async requestPasswordChangeOtp(userId) {
     try {
-      const token = await AsyncStorage.getItem('token');
-      const response = await axios.post(`${API_URL}/users/${userId}/password`, passwordData, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+      const token = await AsyncStorage.getItem('jwtToken');
+      const response = await axios.post(`${API_URL}/users/${userId}/request-password-change-otp`, {}, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       return response.data;
     } catch (error) {
+      if (error.response) throw new Error(error.response.data?.message || 'Failed to request OTP');
+      throw error;
+    }
+  },
+
+  async validatePasswordChangeOtp(userId, otp) {
+    try {
+      const token = await AsyncStorage.getItem('jwtToken');
+      const response = await axios.post(`${API_URL}/users/${userId}/validate-otp`, { otp }, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      return response.data;
+    } catch (error) {
+      if (error.response) throw new Error(error.response.data?.message || 'Invalid or expired OTP');
+      throw error;
+    }
+  },
+
+  async changePassword(userId, currentPassword, newPassword) {
+    try {
+      const token = await AsyncStorage.getItem('jwtToken');
+      const response = await axios.patch(`${API_URL}/users/${userId}/change-password`, {
+        currentPassword,
+        newPassword,
+      }, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      return response.data;
+    } catch (error) {
+      if (error.response) throw new Error(error.response.data?.error || 'Failed to change password');
       throw error;
     }
   },
@@ -49,33 +78,73 @@ const profileService = {
 
   async uploadProfilePicture(userId, imageAsset, isWeb = false) {
     try {
-      const token = await AsyncStorage.getItem('token');
-      let formData;
+      const token = await AsyncStorage.getItem('jwtToken');
+      const formData = new FormData();
       if (isWeb) {
-        formData = imageAsset; // already FormData
+        // imageAsset is a File from an <input type="file"/>
+        formData.append('image', imageAsset);
       } else {
-        const getMimeType = (uri) => {
-          if (uri.endsWith('.png')) return 'image/png';
-          if (uri.endsWith('.jpg') || uri.endsWith('.jpeg')) return 'image/jpeg';
-          return 'image/jpeg';
+        let uploadUri = imageAsset?.uri;
+        // Android content:// URIs cause issues for multipart uploads; copy to cache as file://
+        if (Platform.OS === 'android' && typeof uploadUri === 'string' && uploadUri.startsWith('content://')) {
+          try {
+            const targetPath = FileSystem.cacheDirectory + (imageAsset?.fileName || 'profile.jpg');
+            await FileSystem.copyAsync({ from: uploadUri, to: targetPath });
+            uploadUri = targetPath;
+          } catch (copyErr) {
+            console.warn('Failed to copy content URI to cache, proceeding with original URI:', copyErr?.message);
+          }
+        }
+        const getMimeType = (uri, fallbackType) => {
+          const lower = (uri || '').toLowerCase();
+          if (lower.endsWith('.png')) return 'image/png';
+          if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg';
+          return fallbackType || 'image/jpeg';
         };
-        formData = new FormData();
-        formData.append('profilePicture', {
-          uri: imageAsset.uri,
-          name: imageAsset.fileName || 'profile.jpg',
-          type: imageAsset.type || getMimeType(imageAsset.uri),
+        const pickNameFromUri = (uri, fallbackName) => {
+          if (typeof uri === 'string') {
+            const parts = uri.split('/');
+            const last = parts[parts.length - 1];
+            if (last && last.indexOf('.') > -1) return last;
+          }
+          return fallbackName || 'profile.jpg';
+        };
+        const name = imageAsset?.fileName || pickNameFromUri(uploadUri, 'profile.jpg');
+        const type = imageAsset?.type || getMimeType(uploadUri, undefined);
+        formData.append('image', {
+          uri: uploadUri,
+          name,
+          type,
         });
       }
-      const response = await axios.put(`${API_URL}/users/${userId}/profile-picture`, formData, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        },
-      });
-      if (response.data && response.data.profile_picture) {
-        // Update the local storage with the new profile picture URL
-        await AsyncStorage.setItem('userProfilePicture', response.data.profile_picture);
+      try {
+        const response = await axios.post(`${API_URL}/users/${userId}/upload-profile`, formData, {
+          headers: {
+            Authorization: token ? `Bearer ${token}` : undefined,
+            // Let Axios set the proper multipart boundary automatically
+            Accept: 'application/json',
+          },
+        });
+        return response.data;
+      } catch (axiosErr) {
+        // Fallback: On React Native, retry with fetch if Axios returns a Network Error
+        const isNetworkError = !axiosErr.response;
+        const isNative = Platform.OS === 'ios' || Platform.OS === 'android';
+        if (isNetworkError && isNative) {
+          const fetchHeaders = token ? { 'Authorization': `Bearer ${token}` } : {};
+          const fetchResp = await fetch(`${API_URL}/users/${userId}/upload-profile`, {
+            method: 'POST',
+            headers: fetchHeaders,
+            body: formData,
+          });
+          if (!fetchResp.ok) {
+            const text = await fetchResp.text();
+            throw new Error(text || `Upload failed with status ${fetchResp.status}`);
+          }
+          return await fetchResp.json();
+        }
+        throw axiosErr;
       }
-      return response.data;
     } catch (error) {
       console.error('Error uploading profile picture:', error);
       if (error.response) {

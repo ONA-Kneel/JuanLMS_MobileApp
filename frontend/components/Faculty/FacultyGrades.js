@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   RefreshControl,
   Dimensions,
+  Modal,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -30,6 +31,7 @@ const FacultyGrades = () => {
   const [currentTerm, setCurrentTerm] = useState('');
   const [user, setUser] = useState(null);
   const [profilePicError, setProfilePicError] = useState(false);
+  const [showClassDropdown, setShowClassDropdown] = useState(false);
 
   const API_BASE = 'https://juanlms-webapp-server.onrender.com';
 
@@ -87,12 +89,66 @@ const FacultyGrades = () => {
       setProfilePicError(false);
 
       const facultyId = user.userID || user._id;
+      
+      // First, try to get all faculty classes (even without grades)
+      let allClasses = [];
+      try {
+        // Use the correct endpoint for faculty classes
+        const classesRes = await fetch(`${API_BASE}/api/classes/faculty-classes`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (classesRes.ok) {
+          allClasses = await classesRes.json();
+          console.log('All faculty classes found:', allClasses.length);
+        } else {
+          // Fallback to my-classes endpoint
+          console.log('faculty-classes endpoint failed, trying my-classes endpoint');
+          const myClassesRes = await fetch(`${API_BASE}/api/classes/my-classes`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          if (myClassesRes.ok) {
+            allClasses = await myClassesRes.json();
+            console.log('All faculty classes found via my-classes:', allClasses.length);
+          } else {
+            // Final fallback to faculty-assignments endpoint
+            console.log('my-classes endpoint failed, trying faculty-assignments endpoint');
+            try {
+              const assignmentsRes = await fetch(`${API_BASE}/api/faculty-assignments`, {
+                headers: { Authorization: `Bearer ${token}` }
+              });
+              if (assignmentsRes.ok) {
+                const assignments = await assignmentsRes.json();
+                // Convert faculty assignments to class-like objects
+                allClasses = assignments.map(assignment => ({
+                  classID: `${assignment.subjectName}-${assignment.sectionName}`,
+                  className: assignment.subjectName,
+                  section: assignment.sectionName,
+                  trackName: assignment.trackName,
+                  strandName: assignment.strandName,
+                  gradeLevel: assignment.gradeLevel,
+                  academicYear: assignment.schoolYear,
+                  termName: assignment.termName
+                }));
+                console.log('All faculty classes found via faculty-assignments:', allClasses.length);
+              }
+            } catch (assignmentError) {
+              console.log('faculty-assignments endpoint also failed:', assignmentError.message);
+            }
+          }
+        }
+      } catch (error) {
+        console.log('Could not fetch faculty classes, will use grades data instead');
+      }
+
+      // Then get grades data
       const res = await fetch(`${API_BASE}/api/semestral-grades/faculty/${facultyId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (!res.ok) throw new Error('Failed to fetch grades');
       const payload = await res.json();
       const allGrades = payload?.grades || [];
+      console.log('All grades received:', allGrades.length);
+      console.log('Sample grade:', allGrades[0]);
 
       // Filter by current/previous term like student view
       const byTerm = allGrades.filter(g => {
@@ -102,9 +158,15 @@ const FacultyGrades = () => {
         }
         return g.academicYear !== academicYear || g.termName !== currentTerm;
       });
+      console.log('Grades after term filtering:', byTerm.length);
+      console.log('Selected term:', selectedTerm);
+      console.log('Academic year:', academicYear);
+      console.log('Current term:', currentTerm);
 
-      // Build class options
+      // Build class options - prioritize classes from grades, then add any missing classes
       const byClass = new Map();
+      
+      // Add classes from grades data
       byTerm.forEach(g => {
         const key = g.classID || `${g.subjectCode}-${g.section || ''}`;
         if (!byClass.has(key)) {
@@ -112,25 +174,81 @@ const FacultyGrades = () => {
             id: key,
             classID: g.classID || key,
             title: g.subjectName || g.subjectCode || 'Class',
-            section: g.section || ''
+            section: g.section || '',
+            hasGrades: true
           });
         }
       });
+
+      // Add classes from faculty classes API that don't have grades yet
+      allClasses.forEach(cls => {
+        const key = cls.classID || cls._id;
+        if (!byClass.has(key)) {
+          byClass.set(key, {
+            id: key,
+            classID: key,
+            title: cls.className || cls.subjectName || cls.subjectCode || 'Class',
+            section: cls.section || cls.sectionName || '',
+            hasGrades: false,
+            // Additional metadata from faculty assignments
+            trackName: cls.trackName,
+            strandName: cls.strandName,
+            gradeLevel: cls.gradeLevel,
+            academicYear: cls.academicYear,
+            termName: cls.termName
+          });
+        }
+      });
+
+      // If still no classes found, try to create from all grades
+      if (byClass.size === 0 && allGrades.length > 0) {
+        console.log('No classes found, creating from all grades');
+        allGrades.forEach(g => {
+          const key = g.classID || `${g.subjectCode}-${g.section || ''}`;
+          if (!byClass.has(key)) {
+            byClass.set(key, {
+              id: key,
+              classID: g.classID || key,
+              title: g.subjectName || g.subjectCode || 'Class',
+              section: g.section || '',
+              hasGrades: true
+            });
+          }
+        });
+      }
+      
       const options = Array.from(byClass.values());
+      console.log('Final class options:', options.length, options);
       setClassOptions(options);
-      const activeClassId = selectedClassId || options[0]?.id || null;
-      if (!selectedClassId && activeClassId) setSelectedClassId(activeClassId);
+      
+      // Only set selectedClassId if none is currently selected
+      if (!selectedClassId && options.length > 0) {
+        setSelectedClassId(options[0].id);
+      }
 
       // Students for chosen class
-      const selectedGrades = byTerm.filter(g => (g.classID || `${g.subjectCode}-${g.section || ''}`) === activeClassId);
-      const students = selectedGrades.map(g => ({
-        studentId: g.studentId,
-        studentName: g.studentName,
-        schoolID: g.schoolID,
-        semesterFinal: g.grades?.semesterFinal ?? '-',
-        remarks: g.grades?.remarks ?? '-',
-      }));
-      setStudentsForClass(students);
+      const currentSelectedClassId = selectedClassId || options[0]?.id;
+      if (currentSelectedClassId) {
+        // Try to get students from term-filtered grades first
+        let selectedGrades = byTerm.filter(g => (g.classID || `${g.subjectCode}-${g.section || ''}`) === currentSelectedClassId);
+        
+        // If no students found, try from all grades
+        if (selectedGrades.length === 0) {
+          selectedGrades = allGrades.filter(g => (g.classID || `${g.subjectCode}-${g.section || ''}`) === currentSelectedClassId);
+        }
+        
+        const students = selectedGrades.map(g => ({
+          studentId: g.studentId,
+          studentName: g.studentName,
+          schoolID: g.schoolID,
+          semesterFinal: g.grades?.semesterFinal ?? '-',
+          remarks: g.grades?.remarks ?? '-',
+        }));
+        console.log('Students found for class:', students.length);
+        setStudentsForClass(students);
+      } else {
+        setStudentsForClass([]);
+      }
       setError('');
     } catch (error) {
       console.error('Error fetching grades:', error);
@@ -149,7 +267,22 @@ const FacultyGrades = () => {
 
   const handleClassSelect = (opt) => {
     setSelectedClassId(opt.id);
+    setShowClassDropdown(false);
     fetchFacultyGrades();
+  };
+
+  const getSelectedClassName = () => {
+    const selectedClass = classOptions.find(opt => opt.id === selectedClassId);
+    if (!selectedClass) return 'Select Class';
+    
+    let displayName = selectedClass.title;
+    if (selectedClass.section) {
+      displayName += ` - ${selectedClass.section}`;
+    }
+    if (selectedClass.gradeLevel) {
+      displayName += ` (${selectedClass.gradeLevel})`;
+    }
+    return displayName;
   };
 
   const formatDateTime = (date) => {
@@ -233,18 +366,27 @@ const FacultyGrades = () => {
     </View>
   );
 
-  const renderEmptyState = () => (
-    <View style={styles.emptyState}>
-      <MaterialCommunityIcons name="school-outline" size={64} color="#ccc" />
-      <Text style={styles.emptyTitle}>No Classes Found</Text>
-      <Text style={styles.emptyText}>
-        {selectedTerm === 'current' 
-          ? 'No grades available for the current term yet.'
-          : 'No previous grades found.'
-        }
-      </Text>
-    </View>
-  );
+  const renderEmptyState = () => {
+    const selectedClass = classOptions.find(opt => opt.id === selectedClassId);
+    const hasGrades = selectedClass?.hasGrades;
+    
+    return (
+      <View style={styles.emptyState}>
+        <MaterialCommunityIcons name="school-outline" size={64} color="#ccc" />
+        <Text style={styles.emptyTitle}>
+          {hasGrades === false ? 'No Grades Found Yet' : 'No Classes Found'}
+        </Text>
+        <Text style={styles.emptyText}>
+          {hasGrades === false 
+            ? 'This class has no grades recorded yet. Grades will appear here once they are entered.'
+            : selectedTerm === 'current' 
+              ? 'No grades available for the current term yet.'
+              : 'No previous grades found.'
+          }
+        </Text>
+      </View>
+    );
+  };
 
   if (loading) {
     return (
@@ -302,33 +444,19 @@ const FacultyGrades = () => {
         </View>
       </View>
 
-      {/* Class Selection */}
+      {/* Class Selection Dropdown */}
       {classOptions.length > 0 && (
         <View style={styles.classSelector}>
           <Text style={styles.selectorLabel}>Select Class:</Text>
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false}
-            style={styles.classScroll}
+          <TouchableOpacity
+            style={styles.dropdownButton}
+            onPress={() => setShowClassDropdown(true)}
           >
-            {classOptions.map((opt) => (
-              <TouchableOpacity
-                key={opt.id}
-                style={[
-                  styles.classTab,
-                  selectedClassId === opt.id && styles.classTabActive
-                ]}
-                onPress={() => handleClassSelect(opt)}
-              >
-                <Text style={[
-                  styles.classTabText,
-                  selectedClassId === opt.id && styles.classTabTextActive
-                ]}>
-                  {opt.title}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+            <Text style={styles.dropdownButtonText}>
+              {getSelectedClassName()}
+            </Text>
+            <MaterialIcons name="keyboard-arrow-down" size={24} color="#666" />
+          </TouchableOpacity>
         </View>
       )}
 
@@ -352,6 +480,85 @@ const FacultyGrades = () => {
           </Text>
         </TouchableOpacity>
       </View>
+
+      {/* Class Dropdown Modal */}
+      <Modal
+        visible={showClassDropdown}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowClassDropdown(false)}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowClassDropdown(false)}
+        >
+          <View style={styles.dropdownModal}>
+            <View style={styles.dropdownHeader}>
+              <Text style={styles.dropdownTitle}>Select Class</Text>
+              <TouchableOpacity onPress={() => setShowClassDropdown(false)}>
+                <MaterialIcons name="close" size={24} color="#666" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.dropdownList} showsVerticalScrollIndicator={false}>
+              {classOptions.map((opt) => (
+                                 <TouchableOpacity
+                   key={opt.id}
+                   style={[
+                     styles.dropdownItem,
+                     selectedClassId === opt.id && styles.dropdownItemActive
+                   ]}
+                   onPress={() => handleClassSelect(opt)}
+                 >
+                   <View style={styles.dropdownItemContent}>
+                     <Text style={[
+                       styles.dropdownItemTitle,
+                       selectedClassId === opt.id && styles.dropdownItemTitleActive
+                     ]}>
+                       {opt.title}
+                     </Text>
+                     {opt.section && (
+                       <Text style={[
+                         styles.dropdownItemSection,
+                         selectedClassId === opt.id && styles.dropdownItemSectionActive
+                       ]}>
+                         Section: {opt.section}
+                       </Text>
+                     )}
+                     {opt.trackName && opt.strandName && (
+                       <Text style={[
+                         styles.dropdownItemTrack,
+                         selectedClassId === opt.id && styles.dropdownItemTrackActive
+                       ]}>
+                         {opt.trackName} - {opt.strandName}
+                       </Text>
+                     )}
+                     {opt.gradeLevel && (
+                       <Text style={[
+                         styles.dropdownItemGradeLevel,
+                         selectedClassId === opt.id && styles.dropdownItemGradeLevelActive
+                       ]}>
+                         {opt.gradeLevel}
+                       </Text>
+                     )}
+                     {!opt.hasGrades && (
+                       <Text style={[
+                         styles.dropdownItemNoGrades,
+                         selectedClassId === opt.id && styles.dropdownItemNoGradesActive
+                       ]}>
+                         No grades yet
+                       </Text>
+                     )}
+                   </View>
+                   {selectedClassId === opt.id && (
+                     <MaterialIcons name="check" size={20} color="#00418b" />
+                   )}
+                 </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
       {/* Grades Content */}
       <View style={StudentGradesStyle.contentWrapper}>
@@ -474,26 +681,22 @@ const styles = {
     marginBottom: 12,
     fontFamily: 'Poppins-SemiBold',
   },
-  classScroll: {
+  dropdownButton: {
     flexDirection: 'row',
-  },
-  classTab: {
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 8,
     paddingHorizontal: 16,
-    paddingVertical: 8,
-    marginRight: 8,
-    borderRadius: 20,
-    backgroundColor: '#f0f0f0',
+    paddingVertical: 12,
   },
-  classTabActive: {
-    backgroundColor: '#00418b',
-  },
-  classTabText: {
-    color: '#666',
-    fontSize: 14,
+  dropdownButtonText: {
+    fontSize: 16,
+    color: '#333',
     fontFamily: 'Poppins-Medium',
-  },
-  classTabTextActive: {
-    color: '#fff',
+    flex: 1,
   },
   termSelector: {
     flexDirection: 'row',
@@ -708,6 +911,101 @@ const styles = {
     textAlign: 'center',
     lineHeight: 24,
     fontFamily: 'Poppins-Regular',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  dropdownModal: {
+    backgroundColor: 'white',
+    borderRadius: 16,
+    width: '90%',
+    maxWidth: 400,
+    maxHeight: '70%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  dropdownHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  dropdownTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    fontFamily: 'Poppins-Bold',
+  },
+  dropdownList: {
+    maxHeight: 400,
+  },
+  dropdownItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  dropdownItemActive: {
+    backgroundColor: '#e3f2fd',
+  },
+  dropdownItemContent: {
+    flex: 1,
+  },
+  dropdownItemTitle: {
+    fontSize: 16,
+    color: '#333',
+    fontFamily: 'Poppins-Medium',
+    marginBottom: 4,
+  },
+  dropdownItemTitleActive: {
+    color: '#00418b',
+    fontFamily: 'Poppins-SemiBold',
+  },
+  dropdownItemSection: {
+    fontSize: 14,
+    color: '#666',
+    fontFamily: 'Poppins-Regular',
+  },
+  dropdownItemSectionActive: {
+    color: '#00418b',
+  },
+  dropdownItemNoGrades: {
+    fontSize: 12,
+    color: '#ff9800',
+    fontFamily: 'Poppins-Regular',
+    fontStyle: 'italic',
+  },
+  dropdownItemNoGradesActive: {
+    color: '#ff9800',
+  },
+  dropdownItemTrack: {
+    fontSize: 12,
+    color: '#666',
+    fontFamily: 'Poppins-Regular',
+    marginTop: 2,
+  },
+  dropdownItemTrackActive: {
+    color: '#00418b',
+  },
+  dropdownItemGradeLevel: {
+    fontSize: 12,
+    color: '#666',
+    fontFamily: 'Poppins-Regular',
+    marginTop: 2,
+  },
+  dropdownItemGradeLevelActive: {
+    color: '#00418b',
   },
 };
 

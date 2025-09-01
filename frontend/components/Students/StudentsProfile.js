@@ -14,6 +14,7 @@ import { updateUser } from '../UserContext';
 import * as FileSystem from 'expo-file-system';
 import { Platform } from 'react-native';
 import NotificationCenter from '../NotificationCenter';
+import PasswordChangeModal from '../Shared/PasswordChangeModal';
 
 // Helper to capitalize first letter of each word
 function capitalizeWords(str) {
@@ -22,8 +23,17 @@ function capitalizeWords(str) {
 
 const API_URL = 'https://juanlms-webapp-server.onrender.com'; // or your production URL
 
+const buildImageUri = (pathOrUrl) => {
+  if (!pathOrUrl) return null;
+  if (typeof pathOrUrl === 'string' && (pathOrUrl.startsWith('http://') || pathOrUrl.startsWith('https://'))) {
+    return pathOrUrl;
+  }
+  const relative = typeof pathOrUrl === 'string' && pathOrUrl.startsWith('/') ? pathOrUrl : `/${pathOrUrl}`;
+  return API_URL + relative;
+};
+
 export default function StudentsProfile() {
-  const { user, loading } = useUser();
+  const { user, loading, updateUser } = useUser();
   const navigation = useNavigation();
   const { unreadCount } = useNotifications();
   const { announcements } = useAnnouncements();
@@ -33,19 +43,21 @@ export default function StudentsProfile() {
   const [isLoading, setIsLoading] = useState(false);
   const fileInputRef = useRef(null);
   const [webPreviewUrl, setWebPreviewUrl] = useState(null);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
 
-  const computeTrack = (u) => {
-    if (!u) return 'General';
+  const computeStrand = (u) => {
+    if (!u) return 'Not specified';
+    if (u.strand && typeof u.strand === 'string') return u.strand;
     if (u.track && typeof u.track === 'string') return u.track;
-    const source = [u.strand, u.course, u.program, u.section, u.gradeLevel]
+    const source = [u.course, u.program, u.section, u.gradeLevel]
       .filter(Boolean)
       .join(' ')
       .toLowerCase();
-    if (!source) return 'General';
+    if (!source) return 'Not specified';
     const tvlKeywords = ['tvl', 'ict', 'home economics', 'he', 'industrial arts', 'ia', 'agri', 'agri-fishery', 'af'];
     const academicKeywords = ['academic', 'stem', 'abm', 'humss', 'gas'];
-    if (tvlKeywords.some(k => source.includes(k))) return 'TVL Track';
-    if (academicKeywords.some(k => source.includes(k))) return 'Academic Track';
+    if (tvlKeywords.some(k => source.includes(k))) return 'TVL';
+    if (academicKeywords.some(k => source.includes(k))) return 'Academic';
     return 'General';
   };
 
@@ -62,6 +74,12 @@ export default function StudentsProfile() {
         });
       }
       await AsyncStorage.removeItem('user');
+      // If Remember Me is enabled, keep saved credentials; otherwise ensure cleared
+      const remember = await AsyncStorage.getItem('rememberMeEnabled');
+      if (remember !== 'true') {
+        await AsyncStorage.removeItem('savedEmail');
+        await AsyncStorage.removeItem('savedPassword');
+      }
       navigation.navigate('Login');
     } catch (error) {
       console.error('Logout error:', error);
@@ -113,14 +131,12 @@ export default function StudentsProfile() {
   const handleSaveProfile = async () => {
     setIsLoading(true);
     try {
-      const token = await AsyncStorage.getItem('jwtToken');
       let profilePicPath = editedUser?.profilePic;
       let data;
       if (editedUser?.newProfilePicAsset) {
         if (Platform.OS === 'web') {
-          const formData = new FormData();
-          formData.append('profilePicture', editedUser.newProfilePicAsset);
-          data = await profileService.uploadProfilePicture(user._id, formData, true, token);
+          // Pass File directly; service will append as 'image'
+          data = await profileService.uploadProfilePicture(user._id, editedUser.newProfilePicAsset, true);
         } else {
           let asset = editedUser.newProfilePicAsset;
           let localUri = asset.uri;
@@ -134,10 +150,11 @@ export default function StudentsProfile() {
             fileName: asset.fileName || 'profile.jpg',
             type: asset.type || 'image/jpeg',
           };
-          data = await profileService.uploadProfilePicture(user._id, patchedAsset, false, token);
+          data = await profileService.uploadProfilePicture(user._id, patchedAsset, false);
         }
-        if (data.success && (data.profilePic || data.profile_picture)) {
-          profilePicPath = data.profilePic || data.profile_picture;
+        const updated = data?.user;
+        if (updated?.profilePic) {
+          profilePicPath = updated.profilePic;
         }
       }
       // Always update user context/state with the new profilePic
@@ -192,7 +209,7 @@ export default function StudentsProfile() {
       <View style={StudentsProfileStyle.avatarWrapper}>
         {user.profilePic ? (
           <Image
-            source={{ uri: API_URL + user.profilePic }}
+            source={{ uri: buildImageUri(user.profilePic) }}
             style={StudentsProfileStyle.avatar}
             resizeMode="cover"
           />
@@ -222,8 +239,8 @@ export default function StudentsProfile() {
         <Text style={StudentsProfileStyle.email}>{user.email}</Text>
         <View style={StudentsProfileStyle.row}>
           <View style={StudentsProfileStyle.infoBox}>
-            <Text style={[StudentsProfileStyle.infoLabel, { fontFamily: 'Poppins-Regular' }]}>Track</Text>
-            <Text style={[StudentsProfileStyle.infoValue, { fontFamily: 'Poppins-SemiBold' }]}>{computeTrack(user)}</Text>
+            <Text style={[StudentsProfileStyle.infoLabel, { fontFamily: 'Poppins-Regular' }]}>Strand</Text>
+            <Text style={[StudentsProfileStyle.infoValue, { fontFamily: 'Poppins-SemiBold' }]}>{computeStrand(user)}</Text>
           </View>
           <View style={StudentsProfileStyle.infoBox}>
             <Text style={[StudentsProfileStyle.infoLabel, { fontFamily: 'Poppins-Regular' }]}>Role</Text>
@@ -238,7 +255,7 @@ export default function StudentsProfile() {
             <Feather name="edit" size={20} color="#00418b" />
             <Text style={StudentsProfileStyle.actionText}>Edit</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={StudentsProfileStyle.actionBtn}>
+          <TouchableOpacity style={StudentsProfileStyle.actionBtn} onPress={() => setShowPasswordModal(true)}>
             <Feather name="lock" size={20} color="#00418b" />
             <Text style={StudentsProfileStyle.actionText}>Password</Text>
           </TouchableOpacity>
@@ -299,12 +316,12 @@ export default function StudentsProfile() {
                     ? webPreviewUrl
                       ? { uri: webPreviewUrl }
                       : editedUser?.profilePic
-                        ? { uri: API_URL + editedUser.profilePic }
+                        ? { uri: buildImageUri(editedUser.profilePic) }
                         : require('../../assets/profile-icon (2).png')
                     : editedUser?.newProfilePicAsset
                       ? { uri: editedUser.newProfilePicAsset.uri }
                       : editedUser?.profilePic
-                        ? { uri: API_URL + editedUser.profilePic }
+                        ? { uri: buildImageUri(editedUser.profilePic) }
                         : require('../../assets/profile-icon (2).png')
                 }
                 style={StudentsProfileStyle.avatar}
@@ -349,6 +366,12 @@ export default function StudentsProfile() {
       <NotificationCenter 
         visible={showNotificationCenter} 
         onClose={() => setShowNotificationCenter(false)} 
+      />
+
+      <PasswordChangeModal
+        visible={showPasswordModal}
+        onClose={() => setShowPasswordModal(false)}
+        userId={user?._id}
       />
     </View>
   );

@@ -9,14 +9,28 @@ import {
   Alert,
   Modal,
   TextInput,
-  FlatList,
 } from 'react-native';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../UserContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useTimer } from '../../TimerContext';
+import * as DocumentPicker from 'expo-document-picker';
+
+// Check if DocumentPicker is available
+const isDocumentPickerAvailable = () => {
+  try {
+    const isAvailable = DocumentPicker && DocumentPicker.getDocumentAsync;
+    return isAvailable;
+  } catch (error) {
+    console.error('DocumentPicker availability check failed:', error);
+    return false;
+  }
+};
 
 const API_BASE = 'https://juanlms-webapp-server.onrender.com';
+
+
 
 // Helper function to format date and time
 const formatDateTime = (dateString) => {
@@ -34,16 +48,15 @@ const formatDateTime = (dateString) => {
 // Activity Card Component
 function ActivityCard({ activity, onActivityPress }) {
   const navigation = useNavigation();
+  const { formatTime } = useTimer();
   
-  // Validate props
   if (!activity || !onActivityPress) {
-    console.error('DEBUG: ActivityCard received invalid props:', { activity, onActivityPress });
+    console.error('ActivityCard received invalid props:', { activity, onActivityPress });
     return null;
   }
 
-  // Validate required activity properties
   if (!activity._id || !activity.type || !activity.title) {
-    console.error('DEBUG: ActivityCard received invalid activity object:', activity);
+    console.error('ActivityCard received invalid activity object:', activity);
     return null;
   }
 
@@ -61,22 +74,112 @@ function ActivityCard({ activity, onActivityPress }) {
   const icon = getActivityIcon(activity.type);
 
   const handleViewButtonPress = () => {
-    console.log('DEBUG: ActivityCard view button pressed for:', activity._id);
     try {
       onActivityPress(activity);
     } catch (error) {
-      console.error('DEBUG: Error in ActivityCard view button press:', error);
+      console.error('Error in ActivityCard view button press:', error);
     }
   };
 
   const handleResultsButtonPress = () => {
-    console.log('DEBUG: ActivityCard results button pressed for:', activity._id);
     try {
       navigation.navigate('QuizView', { quizId: activity._id, review: true });
     } catch (error) {
-      console.error('DEBUG: Error in ActivityCard results button press:', error);
+      console.error('Error in ActivityCard results button press:', error);
     }
   };
+
+  const getMotivationalMessage = (score, total) => {
+    if (score === total) return "🎉 Perfect! You aced it!";
+    if (score >= total * 0.8) return "🌟 Great job! Keep it up!";
+    if (score >= total * 0.5) return "👍 Good effort! Review for improvement!";
+    return "💪 Keep trying! Every attempt helps!";
+  };
+
+     const renderTimingInfo = () => {
+     if (activity.type === 'quiz') {
+       const now = new Date();
+       const openDate = activity.openDate;
+       const closeDate = activity.closeDate;
+       const duration = activity.duration;
+       
+       if (activity.quizStatus === 'not_open' && openDate) {
+         const timeUntilOpen = Math.ceil((openDate - now) / 1000);
+         return (
+           <View style={styles.timingInfo}>
+             <MaterialIcons name="schedule" size={16} color="#FF9800" />
+             <Text style={styles.timingText}>
+               Opens in {formatTime(timeUntilOpen)}
+             </Text>
+           </View>
+         );
+       }
+       
+       if (activity.quizStatus === 'open' && closeDate) {
+         const timeRemaining = Math.ceil((closeDate - now) / 1000);
+         return (
+           <View style={styles.timingInfo}>
+             <MaterialIcons name="timer" size={16} color="#4CAF50" />
+             <Text style={styles.timingText}>
+               Closes in {formatTime(timeRemaining)}
+             </Text>
+           </View>
+         );
+       }
+       
+       // Show past due indicator
+       if (activity.autoAssigned) {
+         return (
+           <View style={[styles.timingInfo, { backgroundColor: '#ffebee', borderColor: '#F44336' }]}>
+             <MaterialIcons name="schedule" size={16} color="#F44336" />
+             <Text style={[styles.timingText, { color: '#F44336' }]}>
+               ⏰ Past Due - Auto-assigned Zero
+             </Text>
+           </View>
+         );
+       }
+       
+       if (duration > 0) {
+         return (
+           <View style={styles.timingInfo}>
+             <MaterialIcons name="access-time" size={16} color="#2196F3" />
+             <Text style={styles.timingText}>
+               Duration: {formatTime(duration)}
+             </Text>
+           </View>
+         );
+       }
+     } else if (activity.type === 'assignment') {
+       // Show assignment timing info
+       const now = new Date();
+       const dueDate = activity.dueDate ? new Date(activity.dueDate) : null;
+       
+       if (dueDate && now > dueDate && !activity.isSubmitted) {
+         // Assignment is past due and not submitted
+         return (
+           <View style={[styles.timingInfo, { backgroundColor: '#f5f5f5', borderColor: '#9E9E9E' }]}>
+             <MaterialIcons name="lock" size={16} color="#9E9E9E" />
+             <Text style={[styles.timingText, { color: '#9E9E9E' }]}>
+               🔒 Submission Closed - Past Due
+             </Text>
+           </View>
+         );
+       } else if (dueDate && now <= dueDate && !activity.isSubmitted) {
+         // Assignment is not yet due
+         const timeUntilDue = Math.ceil((dueDate - now) / 1000);
+         return (
+           <View style={styles.timingInfo}>
+             <MaterialIcons name="schedule" size={16} color="#FF9800" />
+             <Text style={styles.timingText}>
+               Due in {formatTime(timeUntilDue)}
+             </Text>
+           </View>
+         );
+       }
+     }
+     
+     return null;
+   };
 
   return (
     <View style={styles.activityCard}>
@@ -90,7 +193,9 @@ function ActivityCard({ activity, onActivityPress }) {
         </View>
         <View style={styles.activityContent}>
           <Text style={styles.activityTitle}>{activity.title}</Text>
-          <Text style={styles.activityClass}>{activity.className || 'Unknown Class'}</Text>
+          {activity.className && (
+            <Text style={styles.activityClass}>{activity.className}</Text>
+          )}
           {activity.description && (
             <Text style={styles.activityDescription} numberOfLines={2}>
               {activity.description}
@@ -113,22 +218,83 @@ function ActivityCard({ activity, onActivityPress }) {
         </View>
       </View>
       
+      {renderTimingInfo()}
+      
       <View style={styles.activityFooter}>
-        <View style={styles.activityStats}>
-          <View style={styles.statItem}>
-            <MaterialIcons name="schedule" size={16} color="#666" />
-            <Text style={styles.statText}>
-              {activity.isSubmitted ? 'Completed' : 'Pending'}
-            </Text>
-          </View>
-          {activity.isSubmitted && activity.score !== undefined && (
-            <View style={styles.statItem}>
-              <MaterialIcons name="grade" size={16} color="#4CAF50" />
-              <Text style={styles.statText}>
-                Score: {activity.score}/{activity.type === 'quiz' ? (activity.totalPoints || activity.points || 100) : (activity.points || 100)}
-              </Text>
-            </View>
-          )}
+                 <View style={styles.activityStats}>
+           <View style={styles.statItem}>
+             <MaterialIcons 
+               name={activity.type === 'assignment' && !activity.isSubmitted && activity.dueDate && new Date(activity.dueDate) < new Date() 
+                 ? "lock" 
+                 : "schedule"} 
+               size={16} 
+               color={activity.autoAssigned ? "#F44336" : 
+                 (activity.type === 'assignment' && !activity.isSubmitted && activity.dueDate && new Date(activity.dueDate) < new Date()) 
+                   ? "#9E9E9E" 
+                   : "#666"} 
+             />
+             <Text style={[
+               styles.statText,
+               activity.autoAssigned && { color: "#F44336", fontStyle: "italic" },
+               (activity.type === 'assignment' && !activity.isSubmitted && activity.dueDate && new Date(activity.dueDate) < new Date()) && { 
+                 color: "#9E9E9E", 
+                 fontStyle: "italic" 
+               }
+             ]}>
+               {activity.autoAssigned ? 'Auto-Zero' : 
+                 (activity.type === 'assignment' && !activity.isSubmitted && activity.dueDate && new Date(activity.dueDate) < new Date()) 
+                   ? 'Submission Closed' 
+                   : (activity.isSubmitted ? 'Completed' : 'Pending')
+               }
+             </Text>
+           </View>
+           
+           {/* Show replacement status for assignments */}
+           {activity.type === 'assignment' && activity.isSubmitted && activity.hasReplacement && (
+             <View style={styles.statItem}>
+               <MaterialIcons name="file-upload" size={16} color="#FF9800" />
+               <Text style={styles.statText}>
+                 🔄 Replaced ({activity.replacementCount || 1}x)
+                 {activity.replacementIsLate && (
+                   <Text style={{ color: '#f44336', fontWeight: 'bold' }}> - Late</Text>
+                 )}
+               </Text>
+             </View>
+           )}
+           
+           {/* Show submission timing status */}
+           {activity.type === 'assignment' && activity.isSubmitted && activity.dueDate && (
+             <View style={styles.statItem}>
+               <MaterialIcons 
+                 name="schedule" 
+                 size={16} 
+                 color={new Date(activity.dueDate) < new Date() ? '#f44336' : '#4CAF50'} 
+               />
+               <Text style={[
+                 styles.statText,
+                 { color: new Date(activity.dueDate) < new Date() ? '#f44336' : '#4CAF50' }
+               ]}>
+                 {new Date(activity.dueDate) < new Date() ? 'Past Due' : 'On Time'}
+               </Text>
+             </View>
+           )}
+           
+           {activity.isSubmitted && activity.score !== undefined && (
+             <View style={styles.statItem}>
+               <MaterialIcons 
+                 name="grade" 
+                 size={16} 
+                 color={activity.autoAssigned ? "#F44336" : "#4CAF50"} 
+               />
+               <Text style={[
+                 styles.statText,
+                 activity.autoAssigned && { color: "#F44336", fontStyle: "italic" }
+               ]}>
+                 Score: {activity.score}/{activity.type === 'quiz' ? (activity.totalPoints || activity.points || 100) : (activity.points || 100)}
+                 {activity.autoAssigned && " (Auto-assigned)"}
+               </Text>
+             </View>
+           )}
           {activity.isSubmitted && activity.type === 'quiz' && activity.percentage !== undefined && (
             <View style={styles.statItem}>
               <MaterialIcons name="percent" size={16} color="#FF9800" />
@@ -140,34 +306,114 @@ function ActivityCard({ activity, onActivityPress }) {
           {activity.isSubmitted && activity.type === 'quiz' && activity.timeSpent !== undefined && (
             <View style={styles.statItem}>
               <MaterialIcons name="schedule" size={16} color="#2196F3" />
-              <Text style={styles.statText}>
-                {Math.floor(activity.timeSpent / 60)}m {activity.timeSpent % 60}s
+            </View>
+          )}
+          
+          {/* Motivational message for completed quizzes */}
+          {activity.isSubmitted && activity.type === 'quiz' && activity.score !== undefined && (
+            <View style={[
+              styles.motivationalContainer,
+              activity.autoAssigned && { backgroundColor: '#ffebee' }
+            ]}>
+              <Text style={[
+                styles.motivationalText,
+                activity.autoAssigned && { color: '#F44336' }
+              ]}>
+                {activity.autoAssigned 
+                  ? "⏰ Quiz expired - Auto-assigned zero score" 
+                  : getMotivationalMessage(activity.score, activity.type === 'quiz' ? (activity.totalPoints || activity.points || 100) : (activity.points || 100))
+                }
               </Text>
             </View>
           )}
         </View>
 
-        <View style={styles.actionButtonsRow}>
-          {activity.type === 'quiz' && activity.isSubmitted && (
-            <TouchableOpacity 
-              style={[styles.actionButton, styles.resultsButton]}
-              onPress={handleResultsButtonPress}
-            >
-              <MaterialIcons name="check-circle" size={16} color="#4CAF50" />
-              <Text style={styles.resultsButtonText}>View Results</Text>
-            </TouchableOpacity>
-          )}
+                 <View style={styles.actionButtonsRow}>
+           {activity.type === 'quiz' && activity.isSubmitted && (
+             <TouchableOpacity 
+               style={[styles.actionButton, styles.resultsButton]}
+               onPress={handleResultsButtonPress}
+             >
+               <MaterialIcons 
+                 name="check-circle" 
+                 size={16} 
+                 color={activity.autoAssigned ? "#F44336" : "#4CAF50"} 
+               />
+               <Text style={[
+                 styles.resultsButtonText,
+                 activity.autoAssigned && { color: "#F44336" }
+               ]}>
+                 {activity.autoAssigned ? 'View Zero Score' : 'View Results'}
+               </Text>
+             </TouchableOpacity>
+           )}
 
-          <TouchableOpacity 
-            style={[styles.actionButton, styles.viewButton]}
-            onPress={handleViewButtonPress}
-          >
-            <MaterialIcons name="visibility" size={16} color="#2196F3" />
-            <Text style={styles.viewButtonText}>
-              {activity.isSubmitted ? 'View Details' : 'Start'}
-            </Text>
-          </TouchableOpacity>
-        </View>
+           {activity.type === 'assignment' && activity.isSubmitted && (
+             <TouchableOpacity 
+               style={[
+                 styles.actionButton, 
+                 styles.replacementButton,
+                 (activity.dueDate && new Date(activity.dueDate) < new Date()) && styles.disabledButton
+               ]}
+               onPress={() => {
+                 console.log('=== REPLACEMENT BUTTON PRESSED ===');
+                 console.log('Original activity object:', activity);
+                 console.log('Original activity._id:', activity._id);
+                 console.log('Original activity._id type:', typeof activity._id);
+                 console.log('Original activity._id length:', activity._id?.length);
+                 
+                 // Create a clean copy of the activity object to avoid corruption
+                 const cleanActivity = {
+                   _id: String(activity._id), // Ensure ID is a string and not truncated
+                   title: activity.title,
+                   type: activity.type,
+                   className: activity.className,
+                   dueDate: activity.dueDate,
+                   isSubmitted: activity.isSubmitted,
+                   action: 'replace'
+                 };
+                 
+                 console.log('Clean activity object:', cleanActivity);
+                 console.log('Clean activity._id:', cleanActivity._id);
+                 console.log('Clean activity._id type:', typeof cleanActivity._id);
+                 console.log('Clean activity._id length:', cleanActivity._id.length);
+                 
+                 // Validate the ID length before proceeding
+                 if (cleanActivity._id.length !== 24) {
+                   console.error('Activity ID appears to be truncated:', cleanActivity._id);
+                   Alert.alert('Error', 'Invalid activity ID. Please try refreshing the page.');
+                   return;
+                 }
+                 
+                 console.log('=== REPLACEMENT BUTTON END ===');
+                 onActivityPress(cleanActivity);
+               }}
+               disabled={activity.dueDate && new Date(activity.dueDate) < new Date()}
+             >
+               <MaterialIcons 
+                 name="file-upload" 
+                 size={16} 
+                 color={(activity.dueDate && new Date(activity.dueDate) < new Date()) ? "#9E9E9E" : "#FF9800"} 
+               />
+               <Text style={[
+                 styles.replacementButtonText,
+                 (activity.dueDate && new Date(activity.dueDate) < new Date()) && { color: "#9E9E9E" }
+               ]}>
+                 {(activity.dueDate && new Date(activity.dueDate) < new Date()) ? 'Submission Closed' : 'Replace File'}
+               </Text>
+             </TouchableOpacity>
+           )}
+
+           <TouchableOpacity 
+             style={[styles.actionButton, styles.viewButton]}
+             onPress={handleViewButtonPress}
+           >
+             <MaterialIcons name="visibility" size={16} color="#2196F3" />
+             <Text style={styles.viewButtonText}>
+               {activity.isSubmitted ? 'View Details' : 'Start'}
+             </Text>
+           </TouchableOpacity>
+         </View>
       </View>
     </View>
   );
@@ -177,7 +423,6 @@ function ActivityCard({ activity, onActivityPress }) {
 export default function StudentActs() {
   const navigation = useNavigation();
   const { user } = useUser();
-  const [currentDateTime, setCurrentDateTime] = useState(new Date());
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -186,27 +431,11 @@ export default function StudentActs() {
   const [showActivityModal, setShowActivityModal] = useState(false);
   const [activeTab, setActiveTab] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
-
-  // Debug modal state changes
-  useEffect(() => {
-    console.log('DEBUG: Modal state changed:', {
-      showModal: showActivityModal,
-      selectedActivity: selectedActivity?._id,
-      selectedActivityType: selectedActivity?.type,
-      hasUser: !!user,
-      userId: user?._id
-    });
-  }, [showActivityModal, selectedActivity, user]);
-
-  // Debug activities state changes
-  useEffect(() => {
-    console.log('DEBUG: Activities state changed:', {
-      total: activities.length,
-      upcoming: activities.filter(a => !a.isSubmitted && (!a.dueDate || new Date(a.dueDate) > new Date())).length,
-      pastDue: activities.filter(a => !a.isSubmitted && a.dueDate && new Date(a.dueDate) < new Date()).length,
-      completed: activities.filter(a => a.isSubmitted).length
-    });
-  }, [activities]);
+  const [completedActivities, setCompletedActivities] = useState([]);
+  const [showReplacementModal, setShowReplacementModal] = useState(false);
+  const [selectedAssignmentForReplacement, setSelectedAssignmentForReplacement] = useState(null);
+  const [replacementFile, setReplacementFile] = useState(null);
+  const [uploadingReplacement, setUploadingReplacement] = useState(false);
 
   useEffect(() => {
     if (user && user._id) {
@@ -214,18 +443,54 @@ export default function StudentActs() {
     }
   }, [user]);
 
-  // Add focus listener to refresh activities when returning to this screen
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
       fetchActivities();
     });
     return unsubscribe;
   }, [navigation]);
-  
-  // Add submission status checking for each activity
+
+  // Separate effect to handle file replacement trigger
+  useEffect(() => {
+    const params = navigation.getState()?.routes?.[navigation.getState()?.routes?.length - 1]?.params;
+    
+    console.log('=== NAVIGATION PARAMS EFFECT ===');
+    console.log('Navigation params:', params);
+    console.log('triggerFileReplacement:', params?.triggerFileReplacement);
+    console.log('assignmentId from params:', params?.assignmentId);
+    console.log('assignmentId type:', typeof params?.assignmentId);
+    console.log('assignmentId length:', params?.assignmentId?.length);
+    
+    if (params?.triggerFileReplacement && params?.assignmentId && activities.length > 0) {
+      // Ensure the assignmentId is a valid string
+      const assignmentId = String(params.assignmentId);
+      console.log('assignmentId after String() conversion:', assignmentId);
+      console.log('assignmentId length after conversion:', assignmentId.length);
+      
+      if (assignmentId.length !== 24) {
+        console.error('Invalid assignment ID from navigation:', assignmentId);
+        return;
+      }
+      
+      const assignment = activities.find(a => String(a._id) === assignmentId);
+      console.log('Found assignment:', assignment);
+      console.log('Assignment _id:', assignment?._id);
+      console.log('Assignment _id type:', typeof assignment?._id);
+      console.log('Assignment _id length:', assignment?._id?.length);
+      
+      if (assignment) {
+        setTimeout(() => {
+          console.log('Calling handleFileReplacement with assignment:', assignment);
+          handleFileReplacement(assignment);
+        }, 1000); // Longer delay to ensure activities are fully loaded
+      }
+    }
+    
+    console.log('=== END NAVIGATION PARAMS EFFECT ===');
+  }, [navigation, activities]);
+
   const checkSubmissionStatuses = async (activitiesList) => {
     try {
-      console.log('DEBUG: checkSubmissionStatuses called with', activitiesList.length, 'activities');
       const token = await AsyncStorage.getItem('jwtToken');
       const updatedActivities = await Promise.all(
         activitiesList.map(async (activity) => {
@@ -236,51 +501,61 @@ export default function StudentActs() {
               });
               if (response.ok) {
                 const submissions = await response.json();
-                console.log(`DEBUG: Submissions for assignment ${activity._id}:`, submissions);
                 const studentSubmission = submissions.find(sub => {
-                  // Use web app logic for assignment submission matching
-                  let matches = false;
-                  
-                  // Check assignment field matching (multiple possible field names)
                   const assignmentMatches = sub.assignment === activity._id || 
                                           sub.assignment?._id === activity._id ||
                                           sub.assignmentId === activity._id;
                   
-                  if (!assignmentMatches) {
-                    return false;
-                  }
+                  if (!assignmentMatches) return false;
                   
-                  // Check student field matching
+                  let matches = false;
                   if (sub.student && typeof sub.student === 'object' && sub.student._id) {
-                    // student is populated User object - check multiple possible ID fields
-                    matches = sub.student._id === user.userID || 
+                    matches = sub.student._id === user._id || 
                              sub.student._id === user._id ||
-                             sub.student.userID === user.userID ||
-                             sub.student.studentID === user.userID;
+                             sub.student.userID === user._id ||
+                             sub.student.studentID === user._id;
                   } else {
-                    // student is direct ID
-                    matches = sub.student === user.userID || 
+                    matches = sub.student === user._id || 
                              sub.student === user._id ||
-                             sub.student === user.userID.toString() || 
+                             sub.student === user._id.toString() || 
                              sub.student === user._id.toString();
                   }
-                  
-                  console.log(`DEBUG: Checking submission ${sub._id}: student=${sub.student}, assignment=${sub.assignment}, assignmentMatches=${assignmentMatches}, studentMatches=${matches}`);
                   
                   return matches;
                 });
                 
                 if (studentSubmission) {
+                  // Calculate timing status
+                  const now = new Date();
+                  const dueDate = activity.dueDate ? new Date(activity.dueDate) : null;
+                  let timingStatus = 'on-time';
+                  let daysLate = 0;
+                  
+                  if (dueDate && studentSubmission.lastUpdated && new Date(studentSubmission.lastUpdated) > dueDate) {
+                    daysLate = Math.floor((now - dueDate) / (1000 * 60 * 60 * 24));
+                    if (daysLate === 0) {
+                      timingStatus = 'late';
+                    } else {
+                      timingStatus = 'overdue';
+                    }
+                  }
+                  
                   return { 
                     ...activity, 
                     submittedAt: studentSubmission.submittedAt || new Date(), 
                     status: 'submitted',
                     submissionId: studentSubmission._id,
                     isSubmitted: true,
-                    score: studentSubmission.grade || 0
+                    score: studentSubmission.grade || 0,
+                    // Enhanced replacement information
+                    hasReplacement: studentSubmission.hasReplacement || false,
+                    replacementCount: studentSubmission.replacementCount || 0,
+                    lastUpdated: studentSubmission.lastUpdated || studentSubmission.submittedAt,
+                    originalSubmissionDate: studentSubmission.originalSubmissionDate || studentSubmission.submittedAt,
+                    timingStatus: timingStatus,
+                    daysLate: daysLate
                   };
                 } else {
-                  // No submission found, mark as not submitted
                   return {
                     ...activity,
                     isSubmitted: false,
@@ -292,83 +567,93 @@ export default function StudentActs() {
             } catch (error) {
               console.error('Error checking submission status:', error);
             }
-                    } else if (activity.type === 'quiz') {
+          } else if (activity.type === 'quiz') {
             try {
-              console.log('DEBUG: Checking quiz submission for:', activity._id, 'user:', user._id, 'activity points:', activity.points);
-              // Use the same approach as web app: fetch all responses and filter
+              // Check if quiz is currently open and has timing constraints
+              const now = new Date();
+              const openDate = activity.timing?.open ? new Date(activity.timing.open) : null;
+              const closeDate = activity.timing?.close ? new Date(activity.timing.close) : null;
+              const duration = activity.timing?.duration || 0; // in seconds
+              
+              // Determine quiz status
+              let quizStatus = 'not_open';
+              if (openDate && now < openDate) {
+                quizStatus = 'not_open';
+              } else if (closeDate && now > closeDate) {
+                quizStatus = 'closed';
+              } else if (openDate && closeDate && now >= openDate && now <= closeDate) {
+                quizStatus = 'open';
+              } else if (!openDate && !closeDate) {
+                quizStatus = 'always_open';
+              }
+
+              // Add timing information to activity
+              activity.quizStatus = quizStatus;
+              activity.openDate = openDate;
+              activity.closeDate = closeDate;
+              activity.duration = duration;
+              activity.isCurrentlyOpen = quizStatus === 'open' || quizStatus === 'always_open';
+              
+              // Check if quiz is past due and should auto-assign zero
+              const isPastDue = closeDate && now > closeDate;
+              const hasDueDate = activity.dueDate && new Date(activity.dueDate) < now;
+              const shouldAutoZero = isPastDue || hasDueDate;
+              
               const response = await fetch(`${API_BASE}/api/quizzes/${activity._id}/responses`, {
                 headers: { Authorization: `Bearer ${token}` }
               });
               if (response.ok) {
                 const responseData = await response.json();
-                console.log('Quiz responses for', activity._id, ':', responseData);
-                console.log('DEBUG: Raw quiz response data structure:', responseData.map(r => ({
-                  _id: r._id,
-                  quizId: r.quizId,
-                  studentId: r.studentId,
-                  score: r.score,
-                  total: r.total
-                })));
                 
                 if (Array.isArray(responseData)) {
-                  // Find responses by this student (using web app logic for compatibility)
                   const studentResponse = responseData.find(resp => {
-                    console.log('Checking response:', resp);
-                    console.log('Response studentId field:', resp.studentId);
-                    console.log('Response student field:', resp.student);
-                    console.log('Current userId:', user.userID);
-                    console.log('Current userObjectId:', user._id);
-                    
-                    // Check both student and studentId fields for compatibility (like web app)
-                    const studentField = resp.student || resp.studentId;
+                    const studentField = resp.student || resp.studentId || resp.userId;
                     const matchesQuiz = resp.quiz === activity._id || 
                                        resp.quiz?._id === activity._id ||
                                        resp.quizId === activity._id;
                                        
                     const matchesStudent = studentField && (
-                      studentField._id === user.userID ||           // Match with student ID (S441)
-                      studentField._id === user._id ||              // Match with MongoDB ObjectId
-                      studentField === user.userID ||               // Direct match with student ID
-                      studentField === user._id ||                  // Direct match with ObjectId
-                      studentField.userID === user.userID ||        // Match userID field
-                      studentField.studentID === user.userID        // Match studentID field
+                      studentField._id === user._id ||
+                      studentField === user._id ||
+                      studentField.userID === user._id ||
+                      studentField.studentID === user._id
                     );
-                    
-                    console.log('Response matches current student:', matchesStudent);
-                    console.log(`DEBUG: Quiz match: ${matchesQuiz}, Student match: ${matchesStudent}`);
                     
                     return matchesQuiz && matchesStudent;
                   });
                   
-                  if (studentResponse) {
-                    console.log('Found student response for quiz:', activity._id, studentResponse);
-                    
-                    // Calculate percentage if not provided
-                    let percentage = studentResponse.percentage;
-                    if (percentage === undefined && studentResponse.score !== undefined && studentResponse.total !== undefined) {
-                      percentage = Math.round((studentResponse.score / studentResponse.total) * 100);
-                    }
-                    
-                    // Update the activity with submission info
-                    activity.submittedAt = studentResponse.submittedAt || new Date();
-                    activity.status = 'submitted';
-                    activity.isSubmitted = true;
-                    activity.score = studentResponse.score || 0;
-                    activity.totalPoints = studentResponse.total || activity.points || 10;
-                    activity.percentage = percentage || 0;
-                    activity.timeSpent = studentResponse.timeSpent || 'N/A';
-                    
-                    console.log('Updated quiz activity:', activity._id, 'score:', activity.score, 'totalPoints:', activity.totalPoints, 'percentage:', activity.percentage);
-                  } else {
-                    console.log('No student response found for quiz:', activity._id);
-                    activity.isSubmitted = false;
-                    activity.status = 'not_submitted';
-                    activity.score = 0;
-                    activity.totalPoints = activity.points || 10;
-                    activity.percentage = 0;
-                  }
+                                     if (studentResponse) {
+                     let percentage = studentResponse.percentage;
+                     if (percentage === undefined && studentResponse.score !== undefined && studentResponse.total !== undefined) {
+                       percentage = Math.round((studentResponse.score / studentResponse.total) * 100);
+                     }
+                     
+                     activity.submittedAt = studentResponse.submittedAt || new Date();
+                     activity.status = 'submitted';
+                     activity.isSubmitted = true;
+                     activity.score = studentResponse.score || 0;
+                     activity.totalPoints = studentResponse.total || activity.points || 10;
+                     activity.percentage = percentage || 0;
+                     activity.timeSpent = studentResponse.timeSpent || 'N/A';
+                   } else {
+                     // Check if quiz is past due and should auto-assign zero
+                     if (shouldAutoZero) {
+                       activity.isSubmitted = true; // Mark as submitted to show the zero score
+                       activity.status = 'auto_zero';
+                       activity.score = 0;
+                       activity.totalPoints = activity.points || 10;
+                       activity.percentage = 0;
+                       activity.submittedAt = closeDate || activity.dueDate || new Date(); // Use close date or due date as submission time
+                       activity.autoAssigned = true; // Flag to indicate this was auto-assigned
+                     } else {
+                       activity.isSubmitted = false;
+                       activity.status = 'not_submitted';
+                       activity.score = 0;
+                       activity.totalPoints = activity.points || 10;
+                       activity.percentage = 0;
+                     }
+                   }
                 } else {
-                  console.log('Quiz response data is not an array for:', activity._id);
                   activity.isSubmitted = false;
                   activity.status = 'not_submitted';
                   activity.score = 0;
@@ -376,7 +661,6 @@ export default function StudentActs() {
                   activity.percentage = 0;
                 }
               } else {
-                console.log('Quiz response not OK for:', activity._id, 'status:', response.status);
                 activity.isSubmitted = false;
                 activity.status = 'error';
                 activity.score = 0;
@@ -393,18 +677,13 @@ export default function StudentActs() {
             }
           }
           
-          // Return the activity with its current state
           return activity;
         })
       );
       
-      console.log('DEBUG: checkSubmissionStatuses returning', updatedActivities.length, 'activities');
-      console.log('DEBUG: Sample activities with status:', updatedActivities.slice(0, 3).map(a => ({
-        title: a.title,
-        type: a.type,
-        isSubmitted: a.isSubmitted,
-        status: a.status
-      })));
+      const completed = updatedActivities.filter(a => a.isSubmitted);
+      setCompletedActivities(completed);
+      
       return updatedActivities;
     } catch (error) {
       console.error('Error checking submission statuses:', error);
@@ -416,109 +695,34 @@ export default function StudentActs() {
     try {
       setLoading(true);
       setError('');
-      
       const token = await AsyncStorage.getItem('jwtToken');
       
-      if (!token) {
-        console.error('DEBUG: No JWT token found');
-        setError('Authentication token not found. Please log in again.');
-        setLoading(false);
-        return;
-      }
-      
       if (!user || !user._id) {
-        console.warn('DEBUG: User not ready, skipping activities fetch');
-        setLoading(false);
-        return;
+        throw new Error('User data not found');
       }
 
-      console.log('DEBUG: Fetching activities for student:', user._id);
-      console.log('DEBUG: User object:', { userID: user.userID, _id: user._id, firstname: user.firstname, lastname: user.lastname });
+      console.log('=== fetchActivities START ===');
+      console.log('User ID:', user._id);
+      console.log('User ID type:', typeof user._id);
+      console.log('User ID length:', user._id?.length);
 
-      // Get classes where this student is enrolled using the my-classes endpoint
-      const classesResponse = await fetch(`${API_BASE}/api/classes/my-classes`, {
+      // Get classes where this student is enrolled
+      const classesResponse = await fetch(`${API_BASE}/classes/my-classes`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
       if (!classesResponse.ok) {
-        const errorText = await classesResponse.text();
-        console.error('DEBUG: Failed to fetch classes:', classesResponse.status, errorText);
-        throw new Error(`Failed to fetch classes: ${classesResponse.status}`);
+        throw new Error('Failed to fetch student classes');
       }
 
       const classesData = await classesResponse.json();
-      
-      // The my-classes endpoint already filters classes based on user role and membership
       const studentClasses = Array.isArray(classesData) ? classesData : [];
-
-      console.log('DEBUG: Student classes found:', studentClasses.length);
+      
+      console.log('Student classes found:', studentClasses.length);
+      console.log('First class:', studentClasses[0]);
 
       if (studentClasses.length === 0) {
-        console.log('DEBUG: No classes found for student, trying alternative approach...');
-        
-        // Fallback approach - fetch all activities directly
-        const allAssignmentsResponse = await fetch(`${API_BASE}/assignments`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        
-        const allQuizzesResponse = await fetch(`${API_BASE}/api/quizzes`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        
-        let allActivities = [];
-        
-        if (allAssignmentsResponse.ok) {
-          const assignments = await allAssignmentsResponse.json();
-          // Filter assignments assigned to this student
-          const studentAssignments = assignments.filter(assignment => {
-            const entry = assignment.assignedTo?.find?.(e => e.classID);
-            return entry && Array.isArray(entry.studentIDs) && entry.studentIDs.includes(user.userID);
-          });
-          allActivities.push(...studentAssignments.map(item => ({ ...item, type: 'assignment' })));
-        }
-        
-        if (allQuizzesResponse.ok) {
-          const quizzes = await allQuizzesResponse.json();
-          // Filter quizzes assigned to this student
-          const studentQuizzes = quizzes.filter(quiz => {
-            const entry = quiz.assignedTo?.find?.(e => e.classID);
-            return entry && Array.isArray(entry.studentIDs) && entry.studentIDs.includes(user.userID);
-          });
-          allActivities.push(...studentQuizzes.map(item => ({ ...item, type: 'quiz' })));
-        }
-        
-        // Filter for posted activities only
-        const now = new Date();
-        const postedActivities = allActivities.filter(item => {
-          if (item.type === 'assignment') {
-            const scheduleEnabled = item?.schedulePost === true;
-            const postAt = item?.postAt ? new Date(item.postAt) : null;
-            if (scheduleEnabled && postAt) return postAt <= now;
-            return true;
-          } else if (item.type === 'quiz') {
-            const openEnabled = item?.timing?.openEnabled;
-            const openDate = item?.timing?.open ? new Date(item.timing.open) : null;
-            if (openEnabled && openDate) return openDate <= now;
-            return true;
-          }
-          return false;
-        });
-        
-        // Add basic class info for fallback activities
-        const postedActivitiesWithClassInfo = postedActivities.map(item => ({
-          ...item,
-          className: item.className || 'Unknown Class',
-          classCode: item.classCode || 'N/A',
-          classID: item.classID || (item.assignedTo && item.assignedTo[0]?.classID)
-        }));
-        
-        const activitiesWithStatus = await checkSubmissionStatuses(postedActivitiesWithClassInfo);
-        activitiesWithStatus.sort((a, b) => new Date(a.dueDate || 0) - new Date(b.dueDate || 0));
-        console.log('DEBUG: Setting activities state (fallback):', activitiesWithStatus.length);
-        setActivities(activitiesWithStatus);
-        if (activitiesWithStatus.length === 0) {
-          console.warn('DEBUG: Fallback produced 0 activities. Check if endpoints return data and item types include className/dates.');
-        }
+        setActivities([]);
         setLoading(false);
         return;
       }
@@ -526,396 +730,167 @@ export default function StudentActs() {
       // Get all class IDs for this student
       const studentClassIDs = studentClasses.map(cls => cls.classID);
 
-      // Fetch both assignments and quizzes per class
-      const perClassPromises = studentClassIDs.map((cid) => [
-        fetch(`${API_BASE}/assignments?classID=${encodeURIComponent(cid)}`, {
+      // Fetch assignments per class (like StudentClasses.js does successfully)
+      const allAssignments = [];
+      for (const studentClass of studentClasses) {
+        const assignmentRes = await fetch(`${API_BASE}/assignments?classID=${encodeURIComponent(studentClass.classID)}`, {
           headers: { Authorization: `Bearer ${token}` }
-        })
-          .then(res => (res.ok ? res.json() : []))
-          .then(assignments => {
-            console.log('DEBUG: Assignments fetched for class', cid, ':', assignments);
-            // Filter assignments assigned to this student (same logic as web app)
-            const studentAssignments = assignments.filter(assignment => {
-              const entry = assignment.assignedTo?.find?.(e => e.classID === cid);
-              return entry && Array.isArray(entry.studentIDs) && entry.studentIDs.includes(user.userID);
-            });
-            console.log('DEBUG: Student assignments for class', cid, ':', studentAssignments.length);
-            return studentAssignments.map(item => ({ ...item, type: 'assignment' }));
-          })
-          .catch(() => []),
-        fetch(`${API_BASE}/api/quizzes?classID=${encodeURIComponent(cid)}`, {
+        });
+        if (assignmentRes.ok) {
+          const assignmentData = await assignmentRes.json();
+          console.log(`Assignments for class ${studentClass.classID}:`, assignmentData.length);
+          if (assignmentData.length > 0) {
+            console.log('First assignment:', assignmentData[0]);
+            console.log('First assignment ID:', assignmentData[0]._id);
+            console.log('First assignment ID type:', typeof assignmentData[0]._id);
+            console.log('First assignment ID length:', assignmentData[0]._id?.length);
+          }
+          allAssignments.push(...(Array.isArray(assignmentData) ? assignmentData : []));
+        }
+      }
+      
+      // Fetch quizzes per class
+      const allQuizzes = [];
+      for (const studentClass of studentClasses) {
+        const quizRes = await fetch(`${API_BASE}/api/quizzes?classID=${encodeURIComponent(studentClass.classID)}`, {
           headers: { Authorization: `Bearer ${token}` }
-        })
-          .then(res => (res.ok ? res.json() : []))
-          .then(quizzes => {
-            console.log('DEBUG: Quizzes fetched for class', cid, ':', quizzes);
-            // Filter quizzes assigned to this student (same logic as web app)
-            const studentQuizzes = quizzes.filter(quiz => {
-              const entry = quiz.assignedTo?.find?.(e => e.classID === cid);
-              return entry && Array.isArray(entry.studentIDs) && entry.studentIDs.includes(user.userID);
-            });
-            console.log('DEBUG: Student quizzes for class', cid, ':', studentQuizzes.length);
-            return studentQuizzes.map(item => {
-              console.log('DEBUG: Individual quiz item:', item._id, 'title:', item.title, 'points:', item.points, 'questions:', item.questions?.length);
-              return { ...item, type: 'quiz' };
-            });
-          })
-          .catch(() => [])
-      ]);
-
-      const flattenedPromises = perClassPromises.flat();
-      const perClassResults = await Promise.all(flattenedPromises);
-      let merged = [];
-      perClassResults.forEach((list, index) => {
-        if (Array.isArray(list)) {
-          merged.push(...list);
+        });
+        if (quizRes.ok) {
+          const quizData = await quizRes.json();
+          allQuizzes.push(...(Array.isArray(quizData) ? quizData : []));
         }
-      });
-      
-      console.log('DEBUG: Merged activities before filtering:', merged);
-
-      // Filter for ONLY POSTED activities
-      const now = new Date();
-      const postedActivities = merged.filter(item => {
-        if (item.type === 'assignment') {
-          const scheduleEnabled = item?.schedulePost === true;
-          const postAt = item?.postAt ? new Date(item.postAt) : null;
-          if (scheduleEnabled && postAt) {
-            const isPosted = postAt <= now;
-            console.log('DEBUG: Assignment', item._id, 'schedulePost:', scheduleEnabled, 'postAt:', postAt, 'isPosted:', isPosted);
-            return isPosted;
-          }
-          console.log('DEBUG: Assignment', item._id, 'no schedule, considered posted');
-          return true;
-        } else if (item.type === 'quiz') {
-          const openEnabled = item?.timing?.openEnabled;
-          const openDate = item?.timing?.open ? new Date(item.timing.open) : null;
-          if (openEnabled && openDate) {
-            const isPosted = openDate <= now;
-            console.log('DEBUG: Quiz', item._id, 'openEnabled:', openEnabled, 'openDate:', openDate, 'isPosted:', isPosted);
-            return isPosted;
-          }
-          console.log('DEBUG: Quiz', item._id, 'no timing, considered posted');
-          return true;
-        }
-        console.log('DEBUG: Unknown type item', item._id, 'type:', item.type);
-        return false;
-      });
-      
-      console.log('DEBUG: Posted activities after filtering:', postedActivities);
-
-      // Normalize and enrich with class info for display
-      const normalized = postedActivities.map(item => {
-        console.log('DEBUG: Normalizing item:', item._id, 'type:', item.type, 'points:', item.points, 'questions:', item.questions?.length, 'timing:', item.timing);
-        
-        // Find the class info for this activity
-        let classInfo = null;
-        if (item.classID) {
-          classInfo = studentClasses.find(cls => cls.classID === item.classID);
-        } else if (item.assignedTo && item.assignedTo[0]?.classID) {
-          classInfo = studentClasses.find(cls => cls.classID === item.assignedTo[0].classID);
-        }
-        
-        const normalizedItem = {
-          ...item,
-          type: item.type || (item.questions ? 'quiz' : 'assignment'),
-          className: classInfo?.className || item.classInfo?.className || item.className || 'Unknown Class',
-          classCode: classInfo?.classCode || item.classInfo?.classCode || item.classCode || 'N/A',
-          classID: item.classID || item.classInfo?.classID || (item.assignedTo && item.assignedTo[0]?.classID),
-          points: item.points !== undefined ? item.points : (item.type === 'quiz' ? 100 : 0)
-        };
-        console.log('DEBUG: Normalized item:', normalizedItem._id, 'final type:', normalizedItem.type, 'final points:', normalizedItem.points, 'className:', normalizedItem.className);
-        return normalizedItem;
-      });
-
-      // Deduplicate by _id
-      const dedup = new Map();
-      normalized.forEach(it => {
-        if (it && it._id && !dedup.has(it._id)) dedup.set(it._id, it);
-      });
-      let allActivities = Array.from(dedup.values());
-
-      // Sort by due date ascending
-      allActivities.sort((a, b) => new Date(a.dueDate || 0) - new Date(b.dueDate || 0));
-      
-      // Check submission statuses for posted activities only
-      console.log('DEBUG: About to check submission statuses for', allActivities.length, 'activities');
-      const activitiesWithStatus = await checkSubmissionStatuses(allActivities);
-      
-      console.log('DEBUG: Final activities with status:', activitiesWithStatus);
-      
-      // Debug completion status
-      console.log('DEBUG: Completion status breakdown:');
-      activitiesWithStatus.forEach(activity => {
-        console.log(`- ${activity.title} (${activity.type}): isSubmitted=${activity.isSubmitted}, status=${activity.status}, score=${activity.score}`);
-      });
-      
-      // Summary of completion status
-      const completedCount = activitiesWithStatus.filter(a => a.isSubmitted).length;
-      const pendingCount = activitiesWithStatus.filter(a => !a.isSubmitted).length;
-      console.log(`DEBUG: Summary - Total: ${activitiesWithStatus.length}, Completed: ${completedCount}, Pending: ${pendingCount}`);
-      
-      // Log quiz-specific information
-      const quizActivities = activitiesWithStatus.filter(a => a.type === 'quiz');
-      console.log('DEBUG: Quiz activities:', quizActivities.map(q => ({
-        id: q._id,
-        title: q.title,
-        points: q.points,
-        totalPoints: q.totalPoints,
-        score: q.score,
-        percentage: q.percentage,
-        timeSpent: q.timeSpent,
-        isSubmitted: q.isSubmitted,
-        status: q.status
-      })));
-      
-      // Log assignment-specific information
-      const assignmentActivities = activitiesWithStatus.filter(a => a.type === 'assignment');
-      console.log('DEBUG: Assignment activities:', assignmentActivities.map(a => ({
-        id: a._id,
-        title: a.title,
-        points: a.points,
-        score: a.score,
-        isSubmitted: a.isSubmitted,
-        status: a.status
-      })));
-      
-      // Log all activities summary
-      console.log('DEBUG: Activities summary - Total:', activitiesWithStatus.length, 'Quizzes:', quizActivities.length, 'Assignments:', assignmentActivities.length);
-      
-      // Log any activities with missing or unexpected data
-      const activitiesWithIssues = activitiesWithStatus.filter(a => {
-        if (a.type === 'quiz') {
-          return !a.points || !a.totalPoints || a.score === undefined;
-        } else if (a.type === 'assignment') {
-          return !a.points || a.score === undefined;
-        }
-        return false;
-      });
-      
-      if (activitiesWithIssues.length > 0) {
-        console.log('DEBUG: Activities with potential issues:', activitiesWithIssues.map(a => ({
-          id: a._id,
-          type: a.type,
-          title: a.title,
-          points: a.points,
-          totalPoints: a.totalPoints,
-          score: a.score,
-          isSubmitted: a.isSubmitted
-        })));
       }
       
-      // Log successful quiz activities for verification
-      const successfulQuizzes = activitiesWithStatus.filter(a => a.type === 'quiz' && a.isSubmitted && a.score !== undefined && a.totalPoints);
-      if (successfulQuizzes.length > 0) {
-        console.log('DEBUG: Successful quiz activities:', successfulQuizzes.map(q => ({
-          id: q._id,
-          title: q.title,
-          points: q.points,
-          totalPoints: q.totalPoints,
-          score: q.score,
-          percentage: q.percentage,
-          timeSpent: q.timeSpent
-        })));
-      }
+      // Since we're fetching per class, we already have the right assignments
+       // No need for complex filtering - just use what we fetched
+       const filteredActivities = allAssignments;
+       
+       // For quizzes, also simplify filtering since we fetched per class
+       const filteredQuizzes = allQuizzes;
+       
+       // Merge and normalize
+       const assignmentsWithType = filteredActivities.map(a => ({ 
+         ...a, 
+         type: 'assignment',
+         className: a.classInfo?.className || a.className,
+         classCode: a.classInfo?.classCode || a.classCode || 'N/A',
+         classID: a.classID || a.classInfo?.classID || (a.assignedTo && a.assignedTo[0]?.classID)
+       }));
+       
+       console.log('=== ASSIGNMENT PROCESSING DEBUG ===');
+       console.log('Total assignments found:', filteredActivities.length);
+       if (filteredActivities.length > 0) {
+         console.log('First assignment before processing:', filteredActivities[0]);
+         console.log('First assignment ID before processing:', filteredActivities[0]._id);
+         console.log('First assignment ID type before processing:', typeof filteredActivities[0]._id);
+         console.log('First assignment ID length before processing:', filteredActivities[0]._id?.length);
+         
+         console.log('First assignment after processing:', assignmentsWithType[0]);
+         console.log('First assignment ID after processing:', assignmentsWithType[0]._id);
+         console.log('First assignment ID type after processing:', typeof assignmentsWithType[0]._id);
+         console.log('First assignment ID length after processing:', assignmentsWithType[0]._id?.length);
+       }
+       console.log('=== END ASSIGNMENT PROCESSING DEBUG ===');
+       
+       const quizzesWithType = filteredQuizzes.map(q => ({ 
+         ...q, 
+         type: 'quiz',
+         className: q.classInfo?.className || q.className,
+         classCode: q.classInfo?.classCode || q.classCode || 'N/A',
+         classID: q.classID || q.classInfo?.classID || (q.assignedTo && q.assignedTo[0]?.classID)
+       }));
+       
+       let merged = [...assignmentsWithType, ...quizzesWithType];
+       
+       // Deduplicate by _id to avoid multiple entries if a quiz is returned for several classes
+       const dedup = new Map();
+       merged.forEach(it => {
+         if (it && it._id && !dedup.has(it._id)) dedup.set(it._id, it);
+       });
+       let allActivities = Array.from(dedup.values());
+
+       // Filter for ONLY POSTED activities
+       const now = new Date();
+       
+       const postedActivities = allActivities.filter(item => {
+         if (item.type === 'assignment') {
+           const scheduleEnabled = item?.schedulePost === true;
+           const postAt = item?.postAt ? new Date(item.postAt) : null;
+           if (scheduleEnabled && postAt) {
+             const isPosted = postAt <= now;
+             return isPosted;
+           }
+           return true;
+         } else if (item.type === 'quiz') {
+           return true;
+           
+           // For quizzes, we need to be more lenient with the posting logic
+           // Newly created quizzes should appear immediately unless explicitly scheduled
+           
+           const timing = item?.timing;
+           const openEnabled = timing?.openEnabled;
+           const openDate = timing?.open ? new Date(timing.open) : null;
+           const closeDate = timing?.close ? new Date(timing.close) : null;
+           
+           // If no timing object exists, consider quiz as posted (legacy quizzes)
+           if (!timing) {
+             return true;
+           }
+           
+           // If timing exists but openEnabled is false or undefined, consider as posted
+           if (openEnabled === false || openEnabled === undefined) {
+             return true;
+           }
+           
+           // If openEnabled is true but no open date, consider as posted (immediate posting)
+           if (openEnabled === true && !openDate) {
+             return true;
+           }
+           
+           // If openEnabled is true and open date exists, check if it's time to open
+           if (openEnabled === true && openDate) {
+             const isPosted = openDate <= now;
+             return isPosted;
+           }
+           
+           // Default case: consider as posted
+           return true;
+         }
+         return false;
+       });
       
-      // Log any activities that might have score display issues
-      const scoreDisplayIssues = activitiesWithStatus.filter(a => {
-        if (a.type === 'quiz' && a.isSubmitted) {
-          return a.score !== undefined && a.totalPoints && a.score > a.totalPoints;
-        }
-        return false;
-      });
+
       
-      if (scoreDisplayIssues.length > 0) {
-        console.log('DEBUG: Activities with score display issues:', scoreDisplayIssues.map(a => ({
-          id: a._id,
-          title: a.title,
-          score: a.score,
-          totalPoints: a.totalPoints,
-          percentage: a.percentage
-        })));
-      }
+      // Add basic class info for activities
+      const postedActivitiesWithClassInfo = postedActivities.map(item => ({
+        ...item,
+        className: item.className,
+        classCode: item.classCode || 'N/A',
+        classID: item.classID || (item.assignedTo && item.assignedTo[0]?.classID)
+      }));
       
-      // Final verification log
-      console.log('DEBUG: Setting activities state with', activitiesWithStatus.length, 'activities');
+      const activitiesWithStatus = await checkSubmissionStatuses(postedActivitiesWithClassInfo);
+      activitiesWithStatus.sort((a, b) => new Date(a.dueDate || 0) - new Date(b.dueDate || 0));
       
-      // Log the first few activities for quick verification
+      console.log('=== FINAL ACTIVITIES DEBUG ===');
+      console.log('Total activities with status:', activitiesWithStatus.length);
       if (activitiesWithStatus.length > 0) {
-        console.log('DEBUG: First 3 activities preview:', activitiesWithStatus.slice(0, 3).map(a => ({
-          id: a._id,
-          type: a.type,
-          title: a.title,
-          points: a.points,
-          totalPoints: a.totalPoints,
-          score: a.score,
-          isSubmitted: a.isSubmitted
-        })));
-      }
-      
-      // Log any activities with missing critical data
-      const criticalIssues = activitiesWithStatus.filter(a => {
-        if (a.type === 'quiz') {
-          return !a.title || !a.points || (a.isSubmitted && a.score === undefined);
-        } else if (a.type === 'assignment') {
-          return !a.title || !a.points || (a.isSubmitted && a.score === undefined);
+        const firstAssignment = activitiesWithStatus.find(a => a.type === 'assignment');
+        if (firstAssignment) {
+          console.log('First assignment in final list:', firstAssignment);
+          console.log('First assignment ID in final list:', firstAssignment._id);
+          console.log('First assignment ID type in final list:', typeof firstAssignment._id);
+          console.log('First assignment ID length in final list:', firstAssignment._id?.length);
         }
-        return false;
-      });
-      
-      if (criticalIssues.length > 0) {
-        console.warn('DEBUG: Activities with critical data issues:', criticalIssues.map(a => ({
-          id: a._id,
-          type: a.type,
-          title: a.title,
-          points: a.points,
-          score: a.score,
-          isSubmitted: a.isSubmitted
-        })));
       }
+      console.log('=== END FINAL ACTIVITIES DEBUG ===');
       
-      // Log the final state that will be set
-      console.log('DEBUG: Final activities state to be set:', {
-        totalCount: activitiesWithStatus.length,
-        quizCount: activitiesWithStatus.filter(a => a.type === 'quiz').length,
-        assignmentCount: activitiesWithStatus.filter(a => a.type === 'assignment').length,
-        submittedCount: activitiesWithStatus.filter(a => a.isSubmitted).length,
-        quizSubmittedCount: activitiesWithStatus.filter(a => a.type === 'quiz' && a.isSubmitted).length,
-        assignmentSubmittedCount: activitiesWithStatus.filter(a => a.type === 'assignment' && a.isSubmitted).length
-      });
-      
-      // Log any quiz activities that should display scores
-      const quizScoreActivities = activitiesWithStatus.filter(a => a.type === 'quiz' && a.isSubmitted && a.score !== undefined);
-      if (quizScoreActivities.length > 0) {
-        console.log('DEBUG: Quiz activities that should display scores:', quizScoreActivities.map(q => ({
-          id: q._id,
-          title: q.title,
-          score: q.score,
-          totalPoints: q.totalPoints,
-          percentage: q.percentage,
-          timeSpent: q.timeSpent,
-          points: q.points
-        })));
-      }
-      
-      // Log any quiz activities that might have display issues
-      const quizDisplayIssues = activitiesWithStatus.filter(a => {
-        if (a.type === 'quiz' && a.isSubmitted) {
-          return !a.totalPoints || a.score === undefined || a.percentage === undefined;
-        }
-        return false;
-      });
-      
-      if (quizDisplayIssues.length > 0) {
-        console.warn('DEBUG: Quiz activities with potential display issues:', quizDisplayIssues.map(q => ({
-          id: q._id,
-          title: q.title,
-          score: q.score,
-          totalPoints: q.totalPoints,
-          percentage: q.percentage,
-          timeSpent: q.timeSpent,
-          points: q.points
-        })));
-      }
-      
-      // Log the final activities array for inspection
-      console.log('DEBUG: Final activities array:', JSON.stringify(activitiesWithStatus, null, 2));
-      
-      // Log any activities with missing data that might cause display issues
-      const missingDataActivities = activitiesWithStatus.filter(a => {
-        if (a.type === 'quiz') {
-          return !a.title || !a.className || !a.dueDate || !a.points;
-        } else if (a.type === 'assignment') {
-          return !a.title || !a.className || !a.dueDate || !a.points;
-        }
-        return false;
-      });
-      
-      if (missingDataActivities.length > 0) {
-        console.warn('DEBUG: Activities with missing display data:', missingDataActivities.map(a => ({
-          id: a._id,
-          type: a.type,
-          title: a.title,
-          className: a.className,
-          dueDate: a.dueDate,
-          points: a.points
-        })));
-      }
-      
-      // Log the final state summary
-      console.log('DEBUG: Final state summary:', {
-        totalActivities: activitiesWithStatus.length,
-        quizActivities: activitiesWithStatus.filter(a => a.type === 'quiz').length,
-        assignmentActivities: activitiesWithStatus.filter(a => a.type === 'assignment').length,
-        submittedQuizzes: activitiesWithStatus.filter(a => a.type === 'quiz' && a.isSubmitted).length,
-        submittedAssignments: activitiesWithStatus.filter(a => a.type === 'assignment' && a.isSubmitted).length,
-        quizScores: activitiesWithStatus.filter(a => a.type === 'quiz' && a.isSubmitted && a.score !== undefined).length,
-        quizPercentages: activitiesWithStatus.filter(a => a.type === 'quiz' && a.isSubmitted && a.percentage !== undefined).length,
-        quizTimeSpent: activitiesWithStatus.filter(a => a.type === 'quiz' && a.isSubmitted && a.timeSpent !== undefined).length
-      });
-      
-      // Log any activities that might have rendering issues
-      const renderingIssues = activitiesWithStatus.filter(a => {
-        if (a.type === 'quiz' && a.isSubmitted) {
-          return !a.score || !a.totalPoints || a.score > a.totalPoints;
-        }
-        return false;
-      });
-      
-      if (renderingIssues.length > 0) {
-        console.warn('DEBUG: Activities with potential rendering issues:', renderingIssues.map(a => ({
-          id: a._id,
-          type: a.type,
-          title: a.title,
-          score: a.score,
-          totalPoints: a.totalPoints,
-          percentage: a.percentage
-        })));
-      }
-      
-      // Log the final activities state for verification
-      console.log('DEBUG: Final activities state verification:', {
-        activities: activitiesWithStatus.map(a => ({
-          id: a._id,
-          type: a.type,
-          title: a.title,
-          points: a.points,
-          totalPoints: a.totalPoints,
-          score: a.score,
-          percentage: a.percentage,
-          timeSpent: a.timeSpent,
-          isSubmitted: a.isSubmitted
-        }))
-      });
-      
-      // Log any activities that might have display issues in the UI
-      const uiDisplayIssues = activitiesWithStatus.filter(a => {
-        if (a.type === 'quiz' && a.isSubmitted) {
-          return !a.score || !a.totalPoints || !a.percentage || !a.timeSpent;
-        }
-        return false;
-      });
-      
-      if (uiDisplayIssues.length > 0) {
-        console.warn('DEBUG: Activities with UI display issues:', uiDisplayIssues.map(a => ({
-          id: a._id,
-          type: a.type,
-          title: a.title,
-          score: a.score,
-          totalPoints: a.totalPoints,
-          percentage: a.percentage,
-          timeSpent: a.timeSpent
-        })));
-      }
-      
-      console.log('DEBUG: Setting activities state (main):', activitiesWithStatus.length);
       setActivities(activitiesWithStatus);
-    } catch (err) {
-      console.error('Error fetching activities:', err);
-      setError('Failed to load activities: ' + err.message);
+    } catch (error) {
+      console.error('Error fetching activities:', error);
+      setError(error.message);
     } finally {
       setLoading(false);
-      setRefreshing(false);
     }
   };
 
@@ -926,174 +901,332 @@ export default function StudentActs() {
 
   const handleActivityPress = (activity) => {
     try {
-      console.log('DEBUG: handleActivityPress called with:', {
-        activityId: activity?._id,
-        activityType: activity?.type,
-        isSubmitted: activity?.isSubmitted,
-        hasUser: !!user,
-        userId: user?._id,
-        userID: user?.userID
-      });
-
-      // Validate activity object
       if (!activity || !activity._id) {
-        console.error('DEBUG: Invalid activity object:', activity);
+        console.error('Invalid activity data in handleActivityPress:', activity);
         Alert.alert('Error', 'Invalid activity data. Please try refreshing the page.');
         return;
       }
 
-      // Validate user context
       if (!user || !user._id) {
-        console.error('DEBUG: User context not available:', user);
+        console.error('User session not available in handleActivityPress');
         Alert.alert('Error', 'User session not available. Please log in again.');
         return;
       }
 
-      // If quiz is already submitted, open the modal with a View Results action
+      // Handle file replacement for assignments
+      if (activity.action === 'replace' && activity.type === 'assignment') {
+        handleFileReplacement(activity);
+        return;
+      }
+
       if (activity.type === 'quiz' && activity.isSubmitted) {
-        console.log('DEBUG: Opening quiz results modal for:', activity._id);
         setSelectedActivity(activity);
         setShowActivityModal(true);
         return;
       }
       
-      // For assignments already submitted, keep the info modal notice
-      if (activity.type !== 'quiz' && activity.isSubmitted) {
-        console.log('DEBUG: Assignment already completed, showing alert for:', activity._id);
-        Alert.alert(
-          'Already Completed',
-          `You have already completed this ${activity.type === 'quiz' ? 'quiz' : 'assignment'}.`,
-          [{ text: 'OK', style: 'default' }]
-        );
+      // For assignments, allow viewing even if submitted
+      if (activity.type === 'assignment' && activity.isSubmitted) {
+        setSelectedActivity(activity);
+        setShowActivityModal(true);
         return;
       }
 
-      console.log('DEBUG: Opening activity details modal for:', activity._id);
       setSelectedActivity(activity);
       setShowActivityModal(true);
       
     } catch (error) {
-      console.error('DEBUG: Error in handleActivityPress:', error);
+      console.error('Error in handleActivityPress:', error);
       Alert.alert('Error', 'Failed to open activity details. Please try again.');
     }
   };
 
   const navigateToActivity = (activity) => {
     try {
-      console.log('DEBUG: navigateToActivity called with:', {
-        activityId: activity?._id,
-        activityType: activity?.type,
-        isSubmitted: activity?.isSubmitted,
-        hasNavigation: !!navigation
-      });
-
-      // Validate activity object
       if (!activity || !activity._id) {
-        console.error('DEBUG: Invalid activity object in navigateToActivity:', activity);
+        console.error('Invalid activity data:', activity);
         Alert.alert('Error', 'Invalid activity data for navigation.');
         return;
       }
 
-      // Validate navigation object
       if (!navigation) {
-        console.error('DEBUG: Navigation object not available');
+        console.error('Navigation not available');
         Alert.alert('Error', 'Navigation not available.');
         return;
       }
 
       setShowActivityModal(false);
       
-      // If quiz is already submitted, open in review mode
       if (activity.type === 'quiz') {
         if (activity.isSubmitted) {
-          console.log('DEBUG: Navigating to QuizView in review mode for:', activity._id);
           navigation.navigate('QuizView', { quizId: activity._id, review: true });
         } else {
-          console.log('DEBUG: Navigating to QuizView for new quiz:', activity._id);
           navigation.navigate('QuizView', { quizId: activity._id });
         }
-      } else {
-        console.log('DEBUG: Navigating to AssignmentDetail for:', activity._id);
+      } else if (activity.type === 'assignment') {
         navigation.navigate('AssignmentDetail', { 
           assignmentId: activity._id,
           assignment: activity,
+          viewMode: activity.isSubmitted, // Pass viewMode for submitted assignments
           onSubmissionComplete: () => {
             setTimeout(() => {
               fetchActivities();
             }, 100);
           }
         });
+      } else {
+        console.error('Unknown activity type:', activity.type);
+        Alert.alert('Error', `Unknown activity type: ${activity.type}`);
       }
     } catch (error) {
-      console.error('DEBUG: Error in navigateToActivity:', error);
+      console.error('Error in navigateToActivity:', error);
       Alert.alert('Error', 'Failed to navigate to activity. Please try again.');
     }
   };
 
-  // Filter activities based on selected tab and search query
+  const handleFileReplacement = (assignment) => {
+    if (!assignment || !assignment._id) {
+      console.error('Invalid assignment in handleFileReplacement');
+      return;
+    }
+    
+    console.log('=== handleFileReplacement START ===');
+    console.log('Original assignment object:', assignment);
+    console.log('Original assignment._id:', assignment._id);
+    console.log('Original assignment._id type:', typeof assignment._id);
+    console.log('Original assignment._id length:', assignment._id?.length);
+    
+    // Create a clean copy of the assignment with explicit ID handling
+    const cleanAssignment = {
+      _id: String(assignment._id), // Ensure ID is a string and not truncated
+      title: assignment.title,
+      type: assignment.type,
+      className: assignment.className,
+      dueDate: assignment.dueDate,
+      isSubmitted: assignment.isSubmitted
+    };
+    
+    console.log('Clean assignment object:', cleanAssignment);
+    console.log('Clean assignment._id:', cleanAssignment._id);
+    console.log('Clean assignment._id type:', typeof cleanAssignment._id);
+    console.log('Clean assignment._id length:', cleanAssignment._id.length);
+    
+    // Validate the ID length (MongoDB ObjectIds are 24 characters)
+    if (cleanAssignment._id.length !== 24) {
+      console.error('Assignment ID appears to be truncated:', cleanAssignment._id);
+      Alert.alert('Error', 'Invalid assignment ID. Please try refreshing the page.');
+      return;
+    }
+    
+    console.log('handleFileReplacement - Clean assignment created:', {
+      id: cleanAssignment._id,
+      idLength: cleanAssignment._id.length,
+      title: cleanAssignment.title
+    });
+    
+    setSelectedAssignmentForReplacement(cleanAssignment);
+    setShowReplacementModal(true);
+    
+    console.log('=== handleFileReplacement END ===');
+  };
+
+  const uploadReplacementFile = async () => {
+    if (!replacementFile || !selectedAssignmentForReplacement) {
+      Alert.alert('Error', 'Please select a file to upload.');
+      return;
+    }
+
+    try {
+      setUploadingReplacement(true);
+      const token = await AsyncStorage.getItem('jwtToken');
+      
+      console.log('=== uploadReplacementFile START ===');
+      console.log('selectedAssignmentForReplacement:', selectedAssignmentForReplacement);
+      console.log('selectedAssignmentForReplacement._id:', selectedAssignmentForReplacement._id);
+      console.log('selectedAssignmentForReplacement._id type:', typeof selectedAssignmentForReplacement._id);
+      console.log('selectedAssignmentForReplacement._id length:', selectedAssignmentForReplacement._id?.length);
+      
+      // Validate assignment ID thoroughly
+      const assignmentId = String(selectedAssignmentForReplacement._id);
+      console.log('assignmentId after String() conversion:', assignmentId);
+      console.log('assignmentId type after conversion:', typeof assignmentId);
+      console.log('assignmentId length after conversion:', assignmentId.length);
+      
+      if (!assignmentId || assignmentId.length !== 24) {
+        throw new Error(`Invalid assignment ID: ${assignmentId} (length: ${assignmentId?.length})`);
+      }
+      
+      // Create form data for file upload
+      const formData = new FormData();
+      
+      // Create the file object that FormData expects
+      const fileToUpload = {
+        uri: replacementFile.uri,
+        type: replacementFile.type || 'application/octet-stream',
+        name: replacementFile.name || 'replacement_file'
+      };
+      
+      formData.append('replacementFile', fileToUpload);
+      formData.append('studentId', user._id);
+      
+      console.log('=== USER ID DEBUG ===');
+      console.log('user object:', user);
+      console.log('user._id:', user._id);
+      console.log('user._id type:', typeof user._id);
+      console.log('user._id length:', user._id?.length);
+      console.log('=== END USER ID DEBUG ===');
+      
+      // Check if submission is late
+      const now = new Date();
+      const dueDate = selectedAssignmentForReplacement.dueDate ? new Date(selectedAssignmentForReplacement.dueDate) : null;
+      const isLate = dueDate && now > dueDate;
+      
+      formData.append('isLate', isLate.toString());
+      formData.append('submissionTime', now.toISOString());
+      
+      console.log('=== FORMDATA DEBUG ===');
+      console.log('FormData entries:');
+      for (let [key, value] of formData.entries()) {
+        console.log(`  ${key}:`, value);
+      }
+      console.log('=== END FORMDATA DEBUG ===');
+
+      // Construct URL with validated ID
+      const uploadUrl = `${API_BASE}/assignments/${assignmentId}/replace-file`;
+      
+      console.log('=== URL CONSTRUCTION DEBUG ===');
+      console.log('API_BASE:', API_BASE);
+      console.log('assignmentId:', assignmentId);
+      console.log('assignmentId length:', assignmentId.length);
+      console.log('uploadUrl:', uploadUrl);
+      console.log('uploadUrl length:', uploadUrl.length);
+      console.log('=== END URL DEBUG ===');
+      
+      // Test URL construction by logging each part separately
+      console.log('URL Construction Test:');
+      console.log('  API_BASE:', `"${API_BASE}"`);
+      console.log('  /assignments/:', '"/assignments/"');
+      console.log('  assignmentId:', `"${assignmentId}"`);
+      console.log('  /replace-file:', '"/replace-file"');
+      console.log('  Final URL:', `"${uploadUrl}"`);
+      
+      console.log('Uploading replacement file:', {
+        assignmentId: assignmentId,
+        assignmentIdLength: assignmentId.length,
+        uploadUrl: uploadUrl,
+        fileName: replacementFile.name,
+        fileSize: replacementFile.size
+      });
+
+      const response = await fetch(uploadUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          // Don't set Content-Type for FormData - let the browser set it with boundary
+        },
+        body: formData,
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        Alert.alert(
+          'Success', 
+          `File replacement uploaded successfully! ${isLate ? 'Note: This is a late submission.' : 'Submitted on time.'}`,
+          [{ text: 'OK', onPress: () => {
+            setShowReplacementModal(false);
+            setReplacementFile(null);
+            setSelectedAssignmentForReplacement(null);
+            fetchActivities(); // Refresh to show updated status
+          }}]
+        );
+      } else {
+        // Try to get the response as text first to see what's actually being returned
+        const responseText = await response.text();
+        
+        // Try to parse as JSON if possible
+        let errorData;
+        try {
+          errorData = JSON.parse(responseText);
+        } catch (parseError) {
+          errorData = { message: `Server returned HTML instead of JSON. Status: ${response.status}` };
+        }
+        
+        Alert.alert('Error', errorData.message || 'Failed to upload replacement file.');
+      }
+    } catch (error) {
+      console.error('Error uploading replacement file:', error);
+      Alert.alert('Error', `Failed to upload replacement file: ${error.message}`);
+    } finally {
+      setUploadingReplacement(false);
+      console.log('=== uploadReplacementFile END ===');
+    }
+  };
+
+  const selectReplacementFile = async () => {
+    try {
+      // Check if DocumentPicker is available
+      if (!isDocumentPickerAvailable()) {
+        throw new Error('DocumentPicker not available on this device');
+      }
+      
+      const result = await DocumentPicker.getDocumentAsync({
+        type: '*/*',
+        copyToCacheDirectory: true,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const selectedFile = result.assets[0];
+        
+        const fileData = {
+          name: selectedFile.name,
+          type: selectedFile.mimeType || 'application/octet-stream',
+          size: selectedFile.size || 0,
+          uri: selectedFile.uri
+        };
+        
+        setReplacementFile(fileData);
+      }
+    } catch (error) {
+      console.error('Error picking document:', error);
+      
+      // Provide more specific error messages
+      if (error.message === 'DocumentPicker not available on this device') {
+        Alert.alert('Error', 'Document picker is not available on this device. Please try updating the app.');
+      } else {
+        Alert.alert('Error', `Failed to pick document: ${error.message}`);
+      }
+    }
+  };
+
   const filteredActivities = activities.filter(activity => {
     const matchesSearch = activity.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          (activity.description && activity.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
                          (activity.className && activity.className.toLowerCase().includes(searchQuery.toLowerCase()));
 
+    if (activeTab === 'completed') {
+      return completedActivities.includes(activity) && matchesSearch;
+    }
+
     if (activeTab === 'upcoming') {
       if (!activity.dueDate) {
-        const result = matchesSearch && !activity.isSubmitted;
-        console.log(`DEBUG: ${activity.title} in upcoming tab (no due date): isSubmitted=${activity.isSubmitted}, result=${result}`);
-        return result;
+        return matchesSearch && !activity.isSubmitted;
       }
       const now = new Date();
       const dueDate = new Date(activity.dueDate);
-      const result = dueDate > now && !activity.isSubmitted && matchesSearch;
-      console.log(`DEBUG: ${activity.title} in upcoming tab: dueDate=${activity.dueDate}, isSubmitted=${activity.isSubmitted}, result=${result}`);
-      return result;
+      return dueDate > now && !activity.isSubmitted && matchesSearch;
     } else if (activeTab === 'pastDue') {
       if (!activity.dueDate) {
-        console.log(`DEBUG: ${activity.title} in pastDue tab (no due date): excluded`);
-        return false; // keep pastDue strict
+        return false;
       }
       const now = new Date();
       const dueDate = new Date(activity.dueDate);
-      const result = dueDate < now && !activity.isSubmitted && matchesSearch;
-      console.log(`DEBUG: ${activity.title} in pastDue tab: dueDate=${activity.dueDate}, isSubmitted=${activity.isSubmitted}, result=${result}`);
-      return result;
-    } else if (activeTab === 'completed') {
-      const result = activity.isSubmitted && matchesSearch;
-      console.log(`DEBUG: ${activity.title} in completed tab: isSubmitted=${activity.isSubmitted}, result=${result}`);
-      return result;
+      return dueDate < now && !activity.isSubmitted && matchesSearch;
     }
     
-    return matchesSearch; // activeTab === 'all'
+    return matchesSearch;
   });
 
-  // Test function to validate activities data structure
-  const validateActivitiesData = () => {
-    console.log('DEBUG: Validating activities data structure...');
-    if (!Array.isArray(activities)) {
-      console.error('DEBUG: Activities is not an array:', activities);
-      return false;
-    }
-    
-    activities.forEach((activity, index) => {
-      console.log(`DEBUG: Activity ${index}:`, {
-        _id: activity._id,
-        type: activity.type,
-        title: activity.title,
-        className: activity.className,
-        isSubmitted: activity.isSubmitted,
-        hasRequiredFields: !!(activity._id && activity.type && activity.title)
-      });
-    });
-    
-    return true;
-  };
 
-  // Call validation when activities change
-  useEffect(() => {
-    if (activities.length > 0) {
-      validateActivitiesData();
-    }
-  }, [activities]);
 
   if (loading) {
     return (
@@ -1119,40 +1252,19 @@ export default function StudentActs() {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>My Activities</Text>
         <View style={styles.headerButtons}>
           <TouchableOpacity 
-            style={styles.debugButton}
-            onPress={() => {
-              const testActivity = {
-                _id: 'test123',
-                type: 'quiz',
-                title: 'Test Quiz',
-                description: 'This is a test quiz for debugging',
-                className: 'Test Class',
-                dueDate: new Date().toISOString(),
-                points: 100,
-                isSubmitted: false
-              };
-              console.log('DEBUG: Testing with sample activity:', testActivity);
-              handleActivityPress(testActivity);
-            }}
-          >
-            <MaterialIcons name="bug-report" size={20} color="#fff" />
-            <Text style={styles.debugButtonText}>Test</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
             style={styles.refreshButton}
             onPress={onRefresh}
           >
-            <MaterialIcons name="refresh" size={24} color="#fff" />
+            <MaterialIcons name="refresh" size={20} color="#fff" />
+            <Text style={styles.refreshButtonText}>Refresh</Text>
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* Search */}
       <View style={styles.searchContainer}>
         <View style={styles.searchBox}>
           <MaterialIcons name="search" size={20} color="#666" />
@@ -1165,39 +1277,37 @@ export default function StudentActs() {
         </View>
       </View>
 
-      {/* Activity Tabs - compact segmented control */}
-      <View style={styles.activityTabsContainer}>
-        <View style={styles.activityTabsBar}>
+      <View style={styles.gradingTabsContainer}>
+        <View style={styles.gradingTabsBar}>
           {[
             { key: 'all', label: 'All', count: activities.length },
             { key: 'upcoming', label: 'Upcoming', count: activities.filter(a => {
               if (!a.isSubmitted) {
-                if (!a.dueDate) return true; // include items without dueDate
+                if (!a.dueDate) return true;
                 return new Date(a.dueDate) > new Date();
               }
               return false;
             }).length },
             { key: 'pastDue', label: 'Past Due', count: activities.filter(a => !a.isSubmitted && a.dueDate && new Date(a.dueDate) < new Date()).length },
-            { key: 'completed', label: 'Completed', count: activities.filter(a => a.isSubmitted).length }
+            { key: 'completed', label: 'Completed', count: completedActivities.length }
           ].map((tab) => (
             <TouchableOpacity
               key={tab.key}
               style={[
-                styles.activityTabSegment,
-                activeTab === tab.key && styles.activityTabSegmentActive
+                styles.gradingTabSegment,
+                activeTab === tab.key && styles.gradingTabSegmentActive
               ]}
               onPress={() => setActiveTab(tab.key)}
             >
               <Text style={[
-                styles.activityTabText,
-                activeTab === tab.key && styles.activityTabTextActive
+                styles.gradingTabText,
+                activeTab === tab.key && styles.gradingTabTextActive
               ]}>{`${tab.label} (${tab.count})`}</Text>
             </TouchableOpacity>
           ))}
         </View>
       </View>
 
-      {/* Activities List */}
       <ScrollView 
         style={styles.activitiesContainer}
         refreshControl={
@@ -1227,7 +1337,6 @@ export default function StudentActs() {
         )}
       </ScrollView>
 
-      {/* Activity Details Modal */}
       <Modal
         visible={showActivityModal}
         transparent
@@ -1264,7 +1373,7 @@ export default function StudentActs() {
                   <View style={styles.modalDetailRow}>
                     <Text style={styles.modalDetailLabel}>Class:</Text>
                     <Text style={styles.modalDetailValue}>
-                      {selectedActivity.className || 'Unknown Class'}
+                      {selectedActivity.className || 'N/A'}
                     </Text>
                   </View>
                   <View style={styles.modalDetailRow}>
@@ -1287,8 +1396,12 @@ export default function StudentActs() {
                     <>
                       <View style={styles.modalDetailRow}>
                         <Text style={styles.modalDetailLabel}>Score:</Text>
-                        <Text style={styles.modalDetailValue}>
+                        <Text style={[
+                          styles.modalDetailValue,
+                          selectedActivity.autoAssigned && { color: '#F44336', fontStyle: 'italic' }
+                        ]}>
                           {selectedActivity.score}/{selectedActivity.totalPoints || selectedActivity.points || 100}
+                          {selectedActivity.autoAssigned && " (Auto-assigned)"}
                         </Text>
                       </View>
                       {selectedActivity.percentage !== undefined && (
@@ -1313,6 +1426,14 @@ export default function StudentActs() {
                           </Text>
                         </View>
                       )}
+                      {selectedActivity.autoAssigned && (
+                        <View style={styles.modalDetailRow}>
+                          <Text style={styles.modalDetailLabel}>Status:</Text>
+                          <Text style={[styles.modalDetailValue, { color: '#F44336', fontStyle: 'italic' }]}>
+                            Auto-assigned Zero (Past Due)
+                          </Text>
+                        </View>
+                      )}
                     </>
                   )}
                 </View>
@@ -1330,7 +1451,9 @@ export default function StudentActs() {
                 >
                   <Text style={styles.modalActionButtonText}>
                     {selectedActivity.type === 'quiz'
-                      ? (selectedActivity.isSubmitted ? 'View Results' : 'Take Quiz')
+                      ? (selectedActivity.isSubmitted 
+                          ? (selectedActivity.autoAssigned ? 'View Zero Score' : 'View Results')
+                          : 'Take Quiz')
                       : 'View Assignment'}
                   </Text>
                 </TouchableOpacity>
@@ -1346,12 +1469,293 @@ export default function StudentActs() {
                 </TouchableOpacity>
               </View>
             )}
-          </View>
-        </View>
-      </Modal>
-    </View>
-  );
-}
+                     </View>
+         </View>
+       </Modal>
+
+                       {/* File Replacement Modal */}
+         <Modal
+           visible={showReplacementModal}
+           transparent
+           animationType="slide"
+           onRequestClose={() => setShowReplacementModal(false)}
+         >
+          <View style={styles.modalOverlay}>
+           <View style={styles.modal}>
+                           <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Replace Assignment File</Text>
+                <TouchableOpacity onPress={() => setShowReplacementModal(false)}>
+                  <MaterialIcons name="close" size={24} color="#666" />
+                </TouchableOpacity>
+              </View>
+              
+              
+
+             <View style={styles.modalContent}>
+               {selectedAssignmentForReplacement && (
+                 <>
+                   <View style={styles.modalSection}>
+                     <Text style={styles.modalSectionTitle}>Assignment Details</Text>
+                     <View style={styles.modalDetailRow}>
+                       <Text style={styles.modalDetailLabel}>Title:</Text>
+                       <Text style={styles.modalDetailValue}>
+                         {selectedAssignmentForReplacement.title}
+                       </Text>
+                     </View>
+                     <View style={styles.modalDetailRow}>
+                       <Text style={styles.modalDetailLabel}>Class:</Text>
+                       <Text style={styles.modalDetailValue}>
+                         {selectedAssignmentForReplacement.className}
+                       </Text>
+                     </View>
+                     <View style={styles.modalDetailRow}>
+                       <Text style={styles.modalDetailLabel}>Due Date:</Text>
+                       <Text style={styles.modalDetailValue}>
+                         {selectedAssignmentForReplacement.dueDate ? formatDateTime(selectedAssignmentForReplacement.dueDate) : 'No due date'}
+                       </Text>
+                     </View>
+                     <View style={styles.modalDetailRow}>
+                       <Text style={styles.modalDetailLabel}>Current Status:</Text>
+                       <Text style={styles.modalDetailValue}>
+                         {selectedAssignmentForReplacement.isSubmitted 
+                           ? 'Submitted' 
+                           : (selectedAssignmentForReplacement.dueDate && new Date(selectedAssignmentForReplacement.dueDate) < new Date())
+                             ? 'Submission Closed'
+                             : 'Not Submitted'
+                         }
+                       </Text>
+                     </View>
+                   </View>
+
+                   <View style={styles.modalSection}>
+                     <Text style={styles.modalSectionTitle}>Upload Replacement File</Text>
+                     
+                                           {replacementFile ? (
+                        <View style={styles.fileInfoContainer}>
+                          <MaterialIcons name="description" size={24} color="#4CAF50" />
+                          <View style={styles.fileInfoText}>
+                            <Text style={styles.fileName}>{replacementFile.name}</Text>
+                                                     <Text style={styles.fileSize}>
+                            {replacementFile.size ? (replacementFile.size / 1024 / 1024).toFixed(2) : '0'} MB
+                          </Text>
+                          </View>
+                          <TouchableOpacity 
+                            style={styles.removeFileButton}
+                            onPress={() => setReplacementFile(null)}
+                          >
+                            <MaterialIcons name="close" size={20} color="#F44336" />
+                          </TouchableOpacity>
+                        </View>
+                      ) : (
+                        <View>
+                          <TouchableOpacity 
+                            style={styles.fileUploadButton}
+                            onPress={selectReplacementFile}
+                          >
+                            <MaterialIcons name="cloud-upload" size={24} color="#2196F3" />
+                            <Text style={styles.fileUploadText}>Select Replacement File</Text>
+                          </TouchableOpacity>
+                          
+                          
+                        </View>
+                      )}
+
+                     <View style={styles.replacementInfoContainer}>
+                       <MaterialIcons name="info" size={16} color="#FF9800" />
+                       <Text style={styles.replacementInfoText}>
+                         This will replace your current submission. The new file will be marked as the latest upload.
+                         {selectedAssignmentForReplacement.hasReplacement && (
+                           <Text style={{ fontWeight: 'bold' }}>
+                             {'\n'}Previous replacements: {selectedAssignmentForReplacement.replacementCount || 1}
+                           </Text>
+                         )}
+                       </Text>
+                     </View>
+
+                     {selectedAssignmentForReplacement.dueDate && (
+                       <View style={[
+                         styles.timingWarningContainer,
+                         new Date() > new Date(selectedAssignmentForReplacement.dueDate) && { backgroundColor: '#ffebee' }
+                       ]}>
+                         <MaterialIcons 
+                           name="schedule" 
+                           size={16} 
+                           color={new Date() > new Date(selectedAssignmentForReplacement.dueDate) ? "#F44336" : "#4CAF50"} 
+                         />
+                         <Text style={[
+                           styles.timingWarningText,
+                           new Date() > new Date(selectedAssignmentForReplacement.dueDate) && { color: "#F44336" }
+                         ]}>
+                           {new Date() > new Date(selectedAssignmentForReplacement.dueDate) 
+                             ? "🔒 Submission Closed - Assignment is past due"
+                             : "✅ Submission is on time."
+                           }
+                         </Text>
+                       </View>
+                     )}
+                   </View>
+
+                   <TouchableOpacity
+                     style={[
+                       styles.modalActionButton,
+                       (!replacementFile || uploadingReplacement || (selectedAssignmentForReplacement.dueDate && new Date(selectedAssignmentForReplacement.dueDate) < new Date())) && styles.disabledButton
+                     ]}
+                     onPress={uploadReplacementFile}
+                     disabled={!replacementFile || uploadingReplacement || (selectedAssignmentForReplacement.dueDate && new Date(selectedAssignmentForReplacement.dueDate) < new Date())}
+                   >
+                     {uploadingReplacement ? (
+                       <ActivityIndicator size="small" color="#fff" />
+                     ) : (
+                       <Text style={styles.modalActionButtonText}>
+                         {(selectedAssignmentForReplacement.dueDate && new Date(selectedAssignmentForReplacement.dueDate) < new Date())
+                           ? 'Submission Closed'
+                           : 'Upload Replacement File'
+                         }
+                       </Text>
+                     )}
+                   </TouchableOpacity>
+
+                   {/* Debug button to test URL construction */}
+          <TouchableOpacity
+            style={[styles.actionButton, { backgroundColor: '#FF5722', marginBottom: 10 }]}
+            onPress={() => {
+              const assignmentId = String(selectedAssignmentForReplacement._id);
+              const testUrl = `${API_BASE}/assignments/${assignmentId}/replace-file`;
+              console.log('=== DEBUG URL TEST ===');
+              console.log('API_BASE:', API_BASE);
+              console.log('Assignment ID:', assignmentId);
+              console.log('Assignment ID length:', assignmentId.length);
+              console.log('Full URL:', testUrl);
+              console.log('Selected Assignment Object:', selectedAssignmentForReplacement);
+              console.log('=== END DEBUG ===');
+              Alert.alert('Debug Info', `ID: ${assignmentId}\nLength: ${assignmentId.length}\nURL: ${testUrl}`);
+            }}
+          >
+            <Text style={styles.actionButtonText}>Test URL Construction</Text>
+          </TouchableOpacity>
+
+          {/* Test button to verify basic assignment route */}
+          <TouchableOpacity
+            style={[styles.actionButton, { backgroundColor: '#4CAF50', marginBottom: 10 }]}
+            onPress={async () => {
+              try {
+                const assignmentId = String(selectedAssignmentForReplacement._id);
+                const testUrl = `${API_BASE}/assignments/${assignmentId}`;
+                console.log('Testing basic assignment route:', testUrl);
+                
+                const token = await AsyncStorage.getItem('jwtToken');
+                const response = await fetch(testUrl, {
+                  headers: { Authorization: `Bearer ${token}` }
+                });
+                
+                if (response.ok) {
+                  const data = await response.json();
+                  console.log('Basic assignment route working, data:', data);
+                  Alert.alert('Success', 'Basic assignment route is working!');
+                } else {
+                  console.log('Basic assignment route failed:', response.status, response.statusText);
+                  Alert.alert('Error', `Basic route failed: ${response.status}`);
+                }
+              } catch (error) {
+                console.error('Error testing basic route:', error);
+                Alert.alert('Error', `Test failed: ${error.message}`);
+              }
+            }}
+          >
+            <Text style={styles.actionButtonText}>Test Basic Assignment Route</Text>
+          </TouchableOpacity>
+
+          {/* Test button to verify test-replace endpoint */}
+          <TouchableOpacity
+            style={[styles.actionButton, { backgroundColor: '#9C27B0', marginBottom: 10 }]}
+            onPress={async () => {
+              try {
+                const assignmentId = String(selectedAssignmentForReplacement._id);
+                const testUrl = `${API_BASE}/assignments/${assignmentId}/test-replace`;
+                console.log('Testing test-replace endpoint:', testUrl);
+                
+                const token = await AsyncStorage.getItem('jwtToken');
+                const response = await fetch(testUrl, {
+                  headers: { Authorization: `Bearer ${token}` }
+                });
+                
+                if (response.ok) {
+                  const data = await response.json();
+                  console.log('Test-replace endpoint working, data:', data);
+                  Alert.alert('Success', 'Test-replace endpoint is working!');
+                } else {
+                  console.log('Test-replace endpoint failed:', response.status, response.statusText);
+                  Alert.alert('Error', `Test-replace failed: ${response.status}`);
+                }
+              } catch (error) {
+                console.error('Error testing test-replace endpoint:', error);
+                Alert.alert('Error', `Test-replace failed: ${error.message}`);
+              }
+            }}
+          >
+            <Text style={styles.actionButtonText}>Test Test-Replace Endpoint</Text>
+          </TouchableOpacity>
+
+          {/* Simple test button to verify assignment ID */}
+          <TouchableOpacity
+            style={[styles.actionButton, { backgroundColor: '#E91E63', marginBottom: 10 }]}
+            onPress={() => {
+              const assignmentId = String(selectedAssignmentForReplacement._id);
+              console.log('=== SIMPLE ID TEST ===');
+              console.log('Assignment ID:', assignmentId);
+              console.log('Assignment ID type:', typeof assignmentId);
+              console.log('Assignment ID length:', assignmentId.length);
+              console.log('Assignment ID first 8 chars:', assignmentId.substring(0, 8));
+              console.log('Assignment ID last 8 chars:', assignmentId.substring(assignmentId.length - 8));
+              console.log('=== END SIMPLE ID TEST ===');
+              Alert.alert('ID Test', `ID: ${assignmentId}\nLength: ${assignmentId.length}\nFirst 8: ${assignmentId.substring(0, 8)}\nLast 8: ${assignmentId.substring(assignmentId.length - 8)}`);
+            }}
+          >
+            <Text style={styles.actionButtonText}>Test Assignment ID</Text>
+          </TouchableOpacity>
+
+          {/* Test button to fetch assignment directly by ID */}
+          <TouchableOpacity
+            style={[styles.actionButton, { backgroundColor: '#607D8B', marginBottom: 10 }]}
+            onPress={async () => {
+              try {
+                const assignmentId = String(selectedAssignmentForReplacement._id);
+                const testUrl = `${API_BASE}/assignments/${assignmentId}`;
+                console.log('Testing direct assignment fetch:', testUrl);
+                
+                const token = await AsyncStorage.getItem('jwtToken');
+                const response = await fetch(testUrl, {
+                  headers: { Authorization: `Bearer ${token}` }
+                });
+                
+                if (response.ok) {
+                  const data = await response.json();
+                  console.log('Direct assignment fetch working, data:', data);
+                  console.log('Fetched assignment ID:', data._id);
+                  console.log('Fetched assignment ID type:', typeof data._id);
+                  console.log('Fetched assignment ID length:', data._id?.length);
+                  Alert.alert('Success', 'Direct assignment fetch working!');
+                } else {
+                  console.log('Direct assignment fetch failed:', response.status, response.statusText);
+                  Alert.alert('Error', `Direct fetch failed: ${response.status}`);
+                }
+              } catch (error) {
+                console.error('Error testing direct assignment fetch:', error);
+                Alert.alert('Error', `Direct fetch failed: ${error.message}`);
+              }
+            }}
+          >
+            <Text style={styles.actionButtonText}>Test Direct Assignment Fetch</Text>
+          </TouchableOpacity>
+                 </>
+               )}
+             </View>
+           </View>
+         </View>
+       </Modal>
+     </View>
+   );
+ }
 
 const styles = {
   container: {
@@ -1359,46 +1763,40 @@ const styles = {
     backgroundColor: '#f5f5f5',
   },
   header: {
-    backgroundColor: '#00418b',
-    paddingVertical: 20,
-    paddingHorizontal: 20,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    padding: 12,
+    paddingTop: 18,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+    zIndex: 20,
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
-    color: '#fff',
+    color: '#333',
     fontFamily: 'Poppins-Bold',
   },
   headerButtons: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  debugButton: {
-    backgroundColor: '#00418b',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 6,
-    marginRight: 8,
+  refreshButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#fff',
+    backgroundColor: '#00418b',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    marginRight: 8,
   },
-  debugButtonText: {
+  refreshButtonText: {
     color: '#fff',
-    fontSize: 12,
-    fontWeight: 'bold',
-    fontFamily: 'Poppins-Bold',
     marginLeft: 4,
-  },
-  refreshButton: {
-    padding: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: 6,
+    fontWeight: '600',
+    fontFamily: 'Poppins-Medium',
   },
   searchContainer: {
     paddingHorizontal: 10,
@@ -1420,35 +1818,35 @@ const styles = {
     fontSize: 14,
     fontFamily: 'Poppins-Regular',
   },
-  activityTabsContainer: {
+  gradingTabsContainer: {
     paddingVertical: 4,
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
   },
-  activityTabsBar: {
+  gradingTabsBar: {
     marginHorizontal: 10,
     backgroundColor: '#f1f3f8',
     borderRadius: 10,
     flexDirection: 'row',
     padding: 2,
   },
-  activityTabSegment: {
+  gradingTabSegment: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 6,
     borderRadius: 8,
   },
-  activityTabSegmentActive: {
+  gradingTabSegmentActive: {
     backgroundColor: '#00418b',
   },
-  activityTabText: {
+  gradingTabText: {
     color: '#3a3a3a',
     fontSize: 12,
     fontFamily: 'Poppins-Medium',
   },
-  activityTabTextActive: {
+  gradingTabTextActive: {
     color: '#fff',
   },
   activitiesContainer: {
@@ -1668,6 +2066,12 @@ const styles = {
     color: '#333',
     fontFamily: 'Poppins-Bold',
   },
+  modalSubtitle: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 10,
+    fontFamily: 'Poppins-Regular',
+  },
   modalContent: {
     padding: 20,
   },
@@ -1747,4 +2151,142 @@ const styles = {
     marginTop: 20,
     fontFamily: 'Poppins-Regular',
   },
-};
+  timingInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+    marginTop: 4,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 6,
+  },
+  timingText: {
+    fontSize: 10,
+    color: '#666',
+    marginLeft: 4,
+    fontFamily: 'Poppins-Regular',
+  },
+  motivationalContainer: {
+    marginTop: 10,
+    padding: 10,
+    backgroundColor: '#e8f5e9',
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+     motivationalText: {
+     fontSize: 12,
+     color: '#4CAF50',
+     fontFamily: 'Poppins-Medium',
+     textAlign: 'center',
+   },
+   replacementButton: {
+     backgroundColor: '#fff3e0',
+     marginRight: 8,
+   },
+   replacementButtonText: {
+     color: '#FF9800',
+     fontSize: 10,
+     marginLeft: 2,
+     fontFamily: 'Poppins-Medium',
+   },
+   fileInfoContainer: {
+     flexDirection: 'row',
+     alignItems: 'center',
+     backgroundColor: '#f8f9fa',
+     padding: 12,
+     borderRadius: 8,
+     marginBottom: 12,
+   },
+   fileInfoText: {
+     flex: 1,
+     marginLeft: 12,
+   },
+   fileName: {
+     fontSize: 14,
+     fontWeight: '600',
+     color: '#333',
+     fontFamily: 'Poppins-Medium',
+   },
+   fileSize: {
+     fontSize: 12,
+     color: '#666',
+     marginTop: 2,
+     fontFamily: 'Poppins-Regular',
+   },
+   removeFileButton: {
+     padding: 4,
+   },
+   fileUploadButton: {
+     flexDirection: 'row',
+     alignItems: 'center',
+     justifyContent: 'center',
+     backgroundColor: '#e3f2fd',
+     padding: 16,
+     borderRadius: 8,
+     borderWidth: 2,
+     borderColor: '#2196F3',
+     borderStyle: 'dashed',
+     marginBottom: 12,
+   },
+   fileUploadText: {
+     color: '#2196F3',
+     fontSize: 14,
+     marginLeft: 8,
+     fontFamily: 'Poppins-Medium',
+   },
+   replacementInfoContainer: {
+     flexDirection: 'row',
+     alignItems: 'flex-start',
+     backgroundColor: '#fff3e0',
+     padding: 12,
+     borderRadius: 8,
+     marginBottom: 12,
+   },
+   replacementInfoText: {
+     color: '#E65100',
+     fontSize: 12,
+     marginLeft: 8,
+     fontFamily: 'Poppins-Regular',
+     flex: 1,
+     lineHeight: 16,
+   },
+   timingWarningContainer: {
+     flexDirection: 'row',
+     alignItems: 'center',
+     backgroundColor: '#e8f5e9',
+     padding: 12,
+     borderRadius: 8,
+     marginBottom: 16,
+   },
+   timingWarningText: {
+     color: '#4CAF50',
+     fontSize: 12,
+     marginLeft: 8,
+     fontFamily: 'Poppins-Regular',
+     flex: 1,
+     lineHeight: 16,
+   },
+   disabledButton: {
+     backgroundColor: '#ccc',
+     opacity: 0.6,
+   },
+   replacementText: {
+     color: '#FF9800',
+     fontSize: 12,
+     fontWeight: 'bold',
+   },
+   timingStatusText: {
+     fontSize: 12,
+     fontWeight: 'bold',
+   },
+   onTimeText: {
+     color: '#4CAF50',
+   },
+   lateText: {
+     color: '#FF9800',
+   },
+   overdueText: {
+     color: '#F44336',
+   },
+ };
