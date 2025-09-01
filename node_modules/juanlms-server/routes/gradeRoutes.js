@@ -8,6 +8,11 @@ import User from '../models/User.js';
 
 const router = express.Router();
 
+// Test route to verify grades router is working
+router.get('/test', (req, res) => {
+  res.json({ message: 'Grades router is working!', timestamp: new Date().toISOString() });
+});
+
 // Get grades for a specific student in a specific class
 router.get('/student/:studentId', /*authenticateToken,*/ async (req, res) => {
   try {
@@ -298,6 +303,171 @@ router.get('/faculty/:facultyId/summary', /*authenticateToken,*/ async (req, res
   } catch (err) {
     console.error('Error fetching faculty grades summary:', err);
     res.status(500).json({ error: 'Failed to fetch grades summary.' });
+  }
+});
+
+// Get semestral grades for a student (mobile app endpoint)
+router.get('/semestral-grades/student/:studentId', async (req, res) => {
+  try {
+    console.log('=== SEMESTRAL GRADES ENDPOINT CALLED ===');
+    console.log('Student ID:', req.params.studentId);
+    console.log('Request headers:', req.headers);
+    
+    const { studentId } = req.params;
+    
+    // Get student info
+    try {
+      const student = await User.findById(studentId);
+      console.log('Student found:', student ? 'Yes' : 'No');
+      if (!student) {
+        console.log('Student not found, returning 404');
+        return res.status(404).json({ error: 'Student not found.' });
+      }
+    } catch (dbError) {
+      console.error('Database error finding student:', dbError);
+      return res.status(500).json({ error: 'Database error finding student.' });
+    }
+
+    // Get all classes where the student is enrolled
+    let classes;
+    try {
+      classes = await Class.find({
+        $or: [
+          { students: studentId },
+          { 'students.studentID': studentId },
+          { 'students.userID': studentId }
+        ]
+      });
+
+      console.log('Classes found for student:', classes.length);
+      console.log('Class IDs:', classes.map(c => c.classID));
+
+      if (classes.length === 0) {
+        console.log('No classes found, returning empty grades array');
+        return res.json({ grades: [] });
+      }
+    } catch (dbError) {
+      console.error('Database error finding classes:', dbError);
+      return res.status(500).json({ error: 'Database error finding classes.' });
+    }
+
+    const allGrades = [];
+
+    // Process each class
+    for (const classInfo of classes) {
+      try {
+        // Get assignments for this class
+        const assignments = await Assignment.find({ classID: classInfo.classID });
+        const assignmentIds = assignments.map(a => a._id);
+        
+        // Get assignment submissions and grades
+        const submissions = await Submission.find({ 
+          student: studentId, 
+          assignment: { $in: assignmentIds } 
+        }).populate('assignment', 'title points dueDate');
+        
+        // Get quizzes for this class
+        const quizzes = await Quiz.find({ 
+          $or: [
+            { classID: classInfo.classID },
+            { classIDs: classInfo.classID }
+          ]
+        });
+        const quizIds = quizzes.map(q => q._id);
+        
+        // Get quiz responses and grades
+        const quizResponses = await QuizResponse.find({ 
+          studentId, 
+          quizId: { $in: quizIds } 
+        }).populate('quizId', 'title questions');
+        
+        // Check if student has any grades for this class
+        const hasGrades = submissions.some(s => s.grade !== undefined) || 
+                         quizResponses.some(r => r.score !== undefined);
+        
+        if (hasGrades) {
+          // Calculate class grades when grades exist
+          let totalPoints = 0;
+          let earnedPoints = 0;
+          let assignmentCount = 0;
+          let quizCount = 0;
+          
+          // Process assignment grades
+          submissions.forEach(submission => {
+            if (submission.assignment && submission.grade !== undefined) {
+              totalPoints += submission.assignment.points || 0;
+              earnedPoints += submission.grade || 0;
+              assignmentCount++;
+            }
+          });
+          
+          // Process quiz grades
+          quizResponses.forEach(response => {
+            if (response.quizId && response.score !== undefined) {
+              const quizTotal = response.quizId.questions.reduce((sum, q) => sum + (q.points || 1), 0);
+              totalPoints += quizTotal;
+              earnedPoints += response.score || 0;
+              quizCount++;
+            }
+          });
+          
+          // Calculate average grade
+          const averageGrade = totalPoints > 0 ? (earnedPoints / totalPoints) * 100 : 0;
+          
+          // Determine remarks based on average
+          let remarks = 'PASSED';
+          if (averageGrade < 75) {
+            remarks = 'FAILED';
+          } else if (averageGrade < 80) {
+            remarks = 'Conditional';
+          }
+          
+          // Add class grade to allGrades
+          allGrades.push({
+            subjectCode: classInfo.subjectCode || classInfo.classCode || 'N/A',
+            subjectName: classInfo.className || classInfo.subjectName || 'Unknown Subject',
+            academicYear: classInfo.academicYear || '2024-2025',
+            termName: classInfo.termName || 'Term 1',
+            grades: {
+              quarter1: assignmentCount > 0 ? Math.round(averageGrade) : '-',
+              quarter2: quizCount > 0 ? Math.round(averageGrade) : '-',
+              quarter3: '-',
+              quarter4: '-',
+              semesterFinal: Math.round(averageGrade),
+              remarks: remarks
+            }
+          });
+        } else {
+          // Add class with "No grades yet" status
+          allGrades.push({
+            subjectCode: classInfo.subjectCode || classInfo.classCode || 'N/A',
+            subjectName: classInfo.className || classInfo.subjectName || 'Unknown Subject',
+            academicYear: classInfo.academicYear || '2024-2025',
+            termName: classInfo.termName || 'Term 1',
+            grades: {
+              quarter1: 'No grades yet',
+              quarter2: 'No grades yet',
+              quarter3: 'No grades yet',
+              quarter4: 'No grades yet',
+              semesterFinal: 'No grades yet',
+              remarks: 'No grades yet'
+            }
+          });
+        }
+        
+      } catch (classError) {
+        console.error(`Error processing class ${classInfo.classID}:`, classError);
+        // Continue with other classes
+      }
+    }
+    
+    console.log('Sending response with grades:', allGrades.length);
+    res.json({ grades: allGrades });
+    
+  } catch (err) {
+    console.error('Error fetching semestral grades:', err);
+    console.error('Error stack:', err.stack);
+    res.status(500).json({ error: 'Failed to fetch semestral grades.' });
   }
 });
 

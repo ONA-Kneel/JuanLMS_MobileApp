@@ -14,6 +14,10 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
+    if (participants.length > 50) {
+      return res.status(400).json({ error: 'Group cannot have more than 50 participants' });
+    }
+
     // Ensure creator is included in participants
     const allParticipants = participants.includes(createdBy) 
       ? participants 
@@ -23,11 +27,26 @@ router.post('/', async (req, res) => {
       name,
       description: description || '',
       createdBy,
-      participants: allParticipants
+      participants: allParticipants,
+      admins: [createdBy] // Creator is automatically an admin
     });
 
     await newGroup.save();
-    res.status(201).json(newGroup);
+
+    // Return the created group with all fields
+    res.status(201).json({
+      _id: newGroup._id,
+      name: newGroup.name,
+      description: newGroup.description,
+      createdBy: newGroup.createdBy,
+      participants: newGroup.participants,
+      admins: newGroup.admins,
+      isActive: newGroup.isActive,
+      maxParticipants: newGroup.maxParticipants,
+      joinCode: newGroup.joinCode,
+      createdAt: newGroup.createdAt,
+      updatedAt: newGroup.updatedAt
+    });
   } catch (error) {
     console.error('Error creating group:', error);
     res.status(500).json({ error: 'Failed to create group' });
@@ -38,7 +57,8 @@ router.post('/', async (req, res) => {
 router.get('/user/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
-    const groups = await GroupChat.find({ participants: userId });
+    const groups = await GroupChat.find({ isActive: true, participants: userId });
+    
     res.json(groups);
   } catch (error) {
     console.error('Error fetching user groups:', error);
@@ -57,20 +77,63 @@ router.post('/:groupId/join', async (req, res) => {
     }
 
     const group = await GroupChat.findById(groupId);
-    if (!group) {
-      return res.status(404).json({ error: 'Group not found' });
+    if (!group || !group.isActive) {
+      return res.status(404).json({ error: 'Group not found or inactive' });
     }
 
     if (group.participants.includes(userId)) {
       return res.status(400).json({ error: 'User is already a member' });
     }
 
-    group.participants.push(userId);
-    await group.save();
+    if (group.participants.length >= group.maxParticipants) {
+      return res.status(400).json({ error: 'Group is at maximum capacity' });
+    }
 
+    const success = group.addParticipant(userId);
+    if (!success) {
+      return res.status(400).json({ error: 'Failed to add user to group' });
+    }
+
+    await group.save();
     res.json(group);
   } catch (error) {
     console.error('Error joining group:', error);
+    res.status(500).json({ error: 'Failed to join group' });
+  }
+});
+
+// Join a group using join code
+router.post('/join/:joinCode', async (req, res) => {
+  try {
+    const { joinCode } = req.params;
+    const { userId } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ error: 'User ID is required' });
+    }
+
+    const group = await GroupChat.findOne({ joinCode, isActive: true });
+    if (!group) {
+      return res.status(404).json({ error: 'Group not found or inactive' });
+    }
+
+    if (group.participants.includes(userId)) {
+      return res.status(400).json({ error: 'User is already a member' });
+    }
+
+    if (group.participants.length >= group.maxParticipants) {
+      return res.status(400).json({ error: 'Group is at maximum capacity' });
+    }
+
+    const success = group.addParticipant(userId);
+    if (!success) {
+      return res.status(400).json({ error: 'Failed to add user to group' });
+    }
+
+    await group.save();
+    res.json(group);
+  } catch (error) {
+    console.error('Error joining group by code:', error);
     res.status(500).json({ error: 'Failed to join group' });
   }
 });
@@ -86,8 +149,8 @@ router.post('/:groupId/leave', async (req, res) => {
     }
 
     const group = await GroupChat.findById(groupId);
-    if (!group) {
-      return res.status(404).json({ error: 'Group not found' });
+    if (!group || !group.isActive) {
+      return res.status(404).json({ error: 'Group not found or inactive' });
     }
 
     if (group.createdBy === userId) {
@@ -98,17 +161,20 @@ router.post('/:groupId/leave', async (req, res) => {
       return res.status(400).json({ error: 'User is not a member of this group' });
     }
 
-    group.participants = group.participants.filter(id => id !== userId);
-    await group.save();
+    const success = group.removeParticipant(userId);
+    if (!success) {
+      return res.status(400).json({ error: 'Failed to remove user from group' });
+    }
 
-    res.json({ success: true });
+    await group.save();
+    res.json({ message: 'Successfully left the group' });
   } catch (error) {
     console.error('Error leaving group:', error);
     res.status(500).json({ error: 'Failed to leave group' });
   }
 });
 
-// Remove a member from group (creator only)
+// Remove a member from group (admin only)
 router.post('/:groupId/remove-member', async (req, res) => {
   try {
     const { groupId } = req.params;
@@ -119,29 +185,66 @@ router.post('/:groupId/remove-member', async (req, res) => {
     }
 
     const group = await GroupChat.findById(groupId);
-    if (!group) {
-      return res.status(404).json({ error: 'Group not found' });
+    if (!group || !group.isActive) {
+      return res.status(404).json({ error: 'Group not found or inactive' });
     }
 
-    if (group.createdBy !== userId) {
-      return res.status(403).json({ error: 'Only group creator can remove members' });
+    if (!group.isAdmin(userId)) {
+      return res.status(403).json({ error: 'Only admins can remove members' });
     }
 
     if (memberId === group.createdBy) {
-      return res.status(400).json({ error: 'Creator cannot be removed' });
+      return res.status(400).json({ error: 'Cannot remove group creator' });
     }
 
     if (!group.participants.includes(memberId)) {
       return res.status(400).json({ error: 'User is not a member of this group' });
     }
 
-    group.participants = group.participants.filter(id => id !== memberId);
-    await group.save();
+    const success = group.removeParticipant(memberId);
+    if (!success) {
+      return res.status(400).json({ error: 'Failed to remove member from group' });
+    }
 
-    res.json({ success: true });
+    await group.save();
+    res.json({ message: 'Member removed successfully' });
   } catch (error) {
     console.error('Error removing member:', error);
     res.status(500).json({ error: 'Failed to remove member' });
+  }
+});
+
+// Get group by join code
+router.get('/join/:joinCode', async (req, res) => {
+  try {
+    const { joinCode } = req.params;
+    const group = await GroupChat.findOne({ joinCode, isActive: true });
+    
+    if (!group) {
+      return res.status(404).json({ error: 'Group not found or inactive' });
+    }
+
+    res.json({
+      _id: group._id,
+      name: group.name,
+      description: group.description,
+      participants: group.participants.length,
+      maxParticipants: group.maxParticipants
+    });
+  } catch (error) {
+    console.error('Error finding group by join code:', error);
+    res.status(500).json({ error: 'Failed to find group' });
+  }
+});
+
+// Get all groups (admin only)
+router.get('/', async (req, res) => {
+  try {
+    const groups = await GroupChat.find({ isActive: true });
+    res.json(groups);
+  } catch (error) {
+    console.error('Error fetching groups:', error);
+    res.status(500).json({ error: 'Failed to fetch groups' });
   }
 });
 
@@ -157,7 +260,7 @@ router.get('/:groupId/messages', async (req, res) => {
 
     // Check if user is a member of the group
     const group = await GroupChat.findById(groupId);
-    if (!group || !group.participants.includes(userId)) {
+    if (!group || !group.isActive || !group.participants.includes(userId)) {
       return res.status(403).json({ error: 'Access denied' });
     }
 
@@ -183,7 +286,7 @@ router.post('/:groupId/messages', async (req, res) => {
 
     // Check if user is a member of the group
     const group = await GroupChat.findById(groupId);
-    if (!group || !group.participants.includes(senderId)) {
+    if (!group || !group.isActive || !group.participants.includes(senderId)) {
       return res.status(403).json({ error: 'Access denied' });
     }
 

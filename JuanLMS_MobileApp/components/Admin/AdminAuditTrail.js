@@ -4,7 +4,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import moment from 'moment';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useIsFocused } from '@react-navigation/native';
-import { Picker } from '@react-native-picker/picker';
+import CustomDropdown from '../Shared/CustomDropdown';
 
 function groupLogsByDay(logs) {
   return logs.reduce((acc, log) => {
@@ -41,16 +41,13 @@ export default function AdminAuditTrail() {
 
   // Prepare user dropdown options
   const usersByRole = getUniqueUsersByRole(logs);
-  const pickerItems = [
-    <Picker.Item key="all" label="All Users" value="all" />,
+  const dropdownItems = [
+    { label: "All Users", value: "all" },
     ...Object.entries(usersByRole).flatMap(([role, users]) =>
-      users.map(user => (
-        <Picker.Item
-          key={`${user.userId}-${role}`}
-          label={`${user.userName} (${role})`}
-          value={`${user.userId}-${role}`}
-        />
-      ))
+      users.map(user => ({
+        label: `${user.userName} (${role})`,
+        value: `${user.userId}-${role}`
+      }))
     )
   ];
 
@@ -71,14 +68,13 @@ export default function AdminAuditTrail() {
       </View>
       {/* User Dropdown Filter */}
       <View style={styles.filters}>
-        <Picker
+        <CustomDropdown
           selectedValue={selectedUser}
           onValueChange={setSelectedUser}
+          items={dropdownItems}
+          placeholder="Select User"
           style={styles.picker}
-          dropdownIconColor="#00418b"
-        >
-          {pickerItems}
-        </Picker>
+        />
       </View>
       {/* Audit Trail List */}
       <FlatList

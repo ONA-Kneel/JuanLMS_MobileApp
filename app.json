@@ -2,26 +2,27 @@
   "expo": {
     "name": "JuanLMS_MobileApp",
     "slug": "juanlms-mobile-app",
+    "owner": "kneelpngnbn", 
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./frontend/assets/JuanLMS-LogoV1.png",
+    "icon": "./assets/JuanLMS-LogoV1.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": false,
+    "newArchEnabled": true,
     "splash": {
-      "image": "./frontend/assets/JuanLMS-LogoV1.png",
+      "image": "./assets/JuanLMS-LogoV1.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.juanlms.mobileapp"
+      "bundleIdentifier": "com.kneelpngnbn.juanlms.mobileapp"
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./frontend/assets/JuanLMS-LogoV1.png",
+        "foregroundImage": "./assets/JuanLMS-LogoV1.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.juanlms.mobileapp",
+      "package": "com.kneelpngnbn.juanlms.mobileapp",
       "versionCode": 1,
       "permissions": [
         "CAMERA",
@@ -29,16 +30,17 @@
         "WRITE_EXTERNAL_STORAGE"
       ],
       "softwareKeyboardLayoutMode": "pan",
-      "allowBackup": true
+      "allowBackup": true,
+      "buildConfigFields": {
+        "androidx.core:core": "1.13.1",
+        "androidx.media:media": "1.0.0"
+      }
     },
     "web": {
-      "icon": "./frontend/assets/JuanLMS-LogoV1.png"
+      "icon": "./assets/JuanLMS-LogoV1.png"
     },
     "extra": {
-      "EXPO_PUBLIC_API_URL": "https://juanlms-webapp-server.onrender.com",
-      "eas": {
-        "projectId": "230e22b4-83ee-4315-9e68-a21aaaabe2f9"
-      }
+      "API_URL": "https://juanlms-webapp-server.onrender.com"
     },
     "plugins": [
       [
