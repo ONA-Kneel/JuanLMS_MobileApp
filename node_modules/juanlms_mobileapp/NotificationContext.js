@@ -63,7 +63,7 @@ export const NotificationProvider = ({ children }) => {
       
       if (!token || !userId) return;
       
-      const response = await fetch(`${API_BASE}/notifications/${userId}`, {
+      const response = await fetch(`${API_BASE}/api/notifications/${userId}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -95,7 +95,7 @@ export const NotificationProvider = ({ children }) => {
       
       if (!token) return false;
       
-      const response = await fetch(`${API_BASE}/notifications/${notificationId}/read`, {
+      const response = await fetch(`${API_BASE}/api/notifications/${notificationId}/read`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -129,7 +129,7 @@ export const NotificationProvider = ({ children }) => {
       
       if (!token || !userId) return false;
       
-      const response = await fetch(`${API_BASE}/notifications/${userId}/read-all`, {
+      const response = await fetch(`${API_BASE}/api/notifications/${userId}/read-all`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,
