@@ -149,8 +149,6 @@ const adminNavItems = [
   { label: 'Dashboard', icon: 'view-dashboard', route: 'AdminDashB' },
   { label: 'Calendar', icon: 'calendar', route: 'ACalendar' },
   { label: 'Chats', icon: 'chat', route: 'AChat' },
-  { label: 'Audit Trail', icon: 'history', route: 'AAuditTrail' },
-  { label: 'Support Center', icon: 'help-circle', route: 'ASupportCenter' },
   // { label: 'Profile', icon: 'account', route: 'AProfile' },
 ];
 
@@ -165,8 +163,8 @@ function AdminDash() {
       <Tabs.Screen name='AdminDashB' component={AdminDashboard} />
       <Tabs.Screen name='ACalendar' component={AdminCalendar} />
       <Tabs.Screen name='AChat' component={AdminChats} />
-      <Tabs.Screen name='AAuditTrail' component={AdminAuditTrail} />
-      <Tabs.Screen name='ASupportCenter' component={AdminSupportCenter} />
+      {/* <Tabs.Screen name='AAuditTrail' component={AdminAuditTrail} /> */}
+      {/* <Tabs.Screen name='ASupportCenter' component={AdminSupportCenter} /> */}
       {/* <Tabs.Screen name='AProfile' component={AdminProfile} /> */}
     </Tabs.Navigator>
   );
@@ -304,8 +302,7 @@ export default function App() {
                 <Screens.Screen name='AProg' component={AdminProgress} options={{ headerShown: false }}/>
                 <Screens.Screen name='AFaculty' component={AdminFaculty} options={{ headerShown: false }}/>
                 <Screens.Screen name='AProfile' component={AdminProfile} options={{ headerShown: false }}/>
-                <Screens.Screen name='ASupportCenter' component={AdminSupportCenter} options={{ headerShown: false }}/>
-
+                {/* Admin Support Center removed from nav */}
 
 
                 {/* VPE */}

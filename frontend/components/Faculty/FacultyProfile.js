@@ -4,6 +4,7 @@ import { MaterialIcons, Feather } from '@expo/vector-icons';
 import FacultyProfileStyle from '../styles/faculty/FacultyProfileStyle';
 import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../UserContext';
+import ConfirmLogoutModal from '../Shared/ConfirmLogoutModal';
 import { useNotifications } from '../../NotificationContext';
 import { useAnnouncements } from '../../AnnouncementContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -36,7 +37,9 @@ export default function FacultyProfile() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
 
-  const logout = async () => {
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const logout = () => setShowLogoutConfirm(true);
+  const handleConfirmLogout = async () => {
     if (user) {
       await addAuditLog({
         userId: user._id,
@@ -53,6 +56,7 @@ export default function FacultyProfile() {
       await AsyncStorage.removeItem('savedEmail');
       await AsyncStorage.removeItem('savedPassword');
     }
+    setShowLogoutConfirm(false);
     navigation.navigate('Login');
   };
 
@@ -285,6 +289,12 @@ export default function FacultyProfile() {
         visible={showPasswordModal}
         onClose={() => setShowPasswordModal(false)}
         userId={user?._id}
+      />
+
+      <ConfirmLogoutModal
+        visible={showLogoutConfirm}
+        onCancel={() => setShowLogoutConfirm(false)}
+        onConfirm={handleConfirmLogout}
       />
     </View>
   );

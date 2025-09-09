@@ -589,7 +589,7 @@ const FacultyActs = () => {
     if (selectedFilter === 'assignment') return matchesSearch && activity.type === 'assignment';
     
     return matchesSearch;
-  });
+  }).sort((a, b) => new Date(b.dueDate || b.createdAt || 0) - new Date(a.dueDate || a.createdAt || 0));
 
   if (loading) {
     return (
