@@ -12,6 +12,13 @@ const { width } = Dimensions.get('window');
 
 export default function AdminDashboard() {
   const changeScreen = useNavigation();
+  const resolveProfileUri = () => {
+    const API_BASE = 'https://juanlms-webapp-server.onrender.com';
+    const uri = user?.profilePic || user?.profilePicture;
+    if (!uri) return null;
+    if (typeof uri === 'string' && uri.startsWith('/uploads/')) return API_BASE + uri;
+    return uri;
+  };
   const { user } = useUser();
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
   const [recentLogs, setRecentLogs] = useState([]);
@@ -370,9 +377,9 @@ export default function AdminDashboard() {
             <Text style={AdminDashStyle.headerSubtitle2}>{formatDateTime(currentDateTime)}</Text>
           </View>
           <TouchableOpacity onPress={() => navigateToScreen('AProfile')}>
-            {user?.profilePicture ? (
+            {resolveProfileUri() ? (
               <Image 
-                source={{ uri: user.profilePicture }} 
+                source={{ uri: resolveProfileUri() }} 
                 style={{ width: 36, height: 36, borderRadius: 18 }}
                 resizeMode="cover"
               />
