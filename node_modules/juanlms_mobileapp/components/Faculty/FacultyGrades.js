@@ -422,24 +422,29 @@ const FacultyGrades = () => {
               <View style={styles.profileInitialsContainer}>
                 <ActivityIndicator size="small" color="white" />
               </View>
-            ) : user?.profilePicture && !profilePicError ? (
-              <Image 
-                source={{ uri: user.profilePicture }} 
-                style={styles.profileImage}
-                resizeMode="cover"
-                onError={() => setProfilePicError(true)}
-              />
-            ) : user ? (
-              <View style={styles.profileInitialsContainer}>
-                <Text style={styles.profileInitialsText}>
-                  {`${user.firstname?.charAt(0) || ''}${user.lastname?.charAt(0) || ''}`}
-                </Text>
-              </View>
-            ) : (
-              <View style={styles.profileInitialsContainer}>
-                <Text style={styles.profileInitialsText}>U</Text>
-              </View>
-            )}
+            ) : (() => {
+              const API_BASE = 'https://juanlms-webapp-server.onrender.com';
+              const raw = user?.profilePic || user?.profilePicture;
+              const uri = raw && typeof raw === 'string' && raw.startsWith('/uploads/') ? (API_BASE + raw) : raw;
+              return uri && !profilePicError ? (
+                <Image 
+                  source={{ uri }} 
+                  style={styles.profileImage}
+                  resizeMode="cover"
+                  onError={() => setProfilePicError(true)}
+                />
+              ) : user ? (
+                <View style={styles.profileInitialsContainer}>
+                  <Text style={styles.profileInitialsText}>
+                    {`${user.firstname?.charAt(0) || ''}${user.lastname?.charAt(0) || ''}`}
+                  </Text>
+                </View>
+              ) : (
+                <View style={styles.profileInitialsContainer}>
+                  <Text style={styles.profileInitialsText}>U</Text>
+                </View>
+              );
+            })()}
           </TouchableOpacity>
         </View>
       </View>
