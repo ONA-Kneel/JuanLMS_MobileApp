@@ -65,7 +65,7 @@ export default function NotificationCenter({ visible, onClose }) {
     if (activeTab === 'updates') {
       return notifications;
     } else {
-      return acknowledgedAnnouncements;
+      return announcements; // Fixed: Show announcements instead of acknowledgedAnnouncements
     }
   };
 

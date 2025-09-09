@@ -1,15 +1,15 @@
 {
   "expo": {
-    "name": "JuanLMS_MobileApp",
+    "name": "JuanLMS",
     "slug": "juanlms-mobile-app",
     "owner": "kneelpngnbn", 
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/JuanLMS-LogoV1.png",
+    "icon": "./assets/juanlms.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/JuanLMS-LogoV1.png",
+      "image": "./assets/juanlms.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -19,7 +19,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/JuanLMS-LogoV1.png",
+        "foregroundImage": "./assets/juanlms.png",
         "backgroundColor": "#ffffff"
       },
       "package": "com.kneelpngnbn.juanlms.mobileapp",
@@ -37,7 +37,7 @@
       }
     },
     "web": {
-      "icon": "./assets/JuanLMS-LogoV1.png"
+      "icon": "./assets/juanlms.png"
     },
     "extra": {
       "API_URL": "https://juanlms-webapp-server.onrender.com"

@@ -61,7 +61,13 @@ export const NotificationProvider = ({ children }) => {
       setLoading(true);
       const token = await AsyncStorage.getItem('jwtToken');
       
-      if (!token || !userId) return;
+      console.log('Fetching notifications for user:', userId);
+      console.log('Token exists:', !!token);
+      
+      if (!token || !userId) {
+        console.log('Missing token or userId, skipping notification fetch');
+        return;
+      }
       
       const response = await fetch(`${API_BASE}/api/notifications/${userId}`, {
         headers: {
@@ -70,12 +76,17 @@ export const NotificationProvider = ({ children }) => {
         },
       });
 
+      console.log('Notifications response status:', response.status);
+
       if (response.ok) {
         const data = await response.json();
+        console.log('Notifications fetched successfully:', data.length, 'items');
         setNotifications(data);
         updateUnreadCount(data);
       } else {
         console.error('Failed to fetch notifications:', response.status);
+        const errorText = await response.text();
+        console.error('Error response:', errorText);
         setNotifications([]);
         setUnreadCount(0);
       }

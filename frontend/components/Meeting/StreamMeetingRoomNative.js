@@ -3,11 +3,26 @@ import { Modal, View, Text, TouchableOpacity, ActivityIndicator, StyleSheet, Pla
 import {
 	StreamVideo,
 	StreamVideoClient,
-	Call,
 	CallContent,
 } from '@stream-io/video-react-native-sdk';
-import InCallManager from 'react-native-incall-manager';
-import NetInfo from '@react-native-community/netinfo';
+
+// Optional dependencies - import only if available
+let InCallManager = null;
+let NetInfo = null;
+
+if (Platform.OS !== 'web') {
+  try {
+    InCallManager = require('react-native-incall-manager');
+  } catch (e) {
+    console.warn('react-native-incall-manager not available:', e.message);
+  }
+
+  try {
+    NetInfo = require('@react-native-community/netinfo');
+  } catch (e) {
+    console.warn('@react-native-community/netinfo not available:', e.message);
+  }
+}
 
 // A minimal Stream video meeting room for React Native.
 // Props:
@@ -33,6 +48,7 @@ export default function StreamMeetingRoomNative({
 	const [call, setCall] = useState(null);
 	const [isJoining, setIsJoining] = useState(false);
 	const [error, setError] = useState('');
+	const [debugInfo, setDebugInfo] = useState('');
 
 	const apiKey = credentials?.apiKey;
 	const userToken = credentials?.token;
@@ -73,6 +89,7 @@ export default function StreamMeetingRoomNative({
 			if (!isOpen) return;
 			if (!apiKey || !userToken || !userId) {
 				setError('Missing Stream credentials');
+				setDebugInfo(`API Key: ${apiKey ? 'Present' : 'Missing'}, Token: ${userToken ? 'Present' : 'Missing'}, UserId: ${userId ? 'Present' : 'Missing'}`);
 				return;
 			}
 			if (!resolvedCallId) {
@@ -81,28 +98,74 @@ export default function StreamMeetingRoomNative({
 			}
 			setIsJoining(true);
 			setError('');
+			setDebugInfo('Starting to join meeting...');
+			
+			// Check if token is expired
+			try {
+				const tokenPayload = JSON.parse(atob(userToken.split('.')[1]));
+				const now = Math.floor(Date.now() / 1000);
+				if (tokenPayload.exp && tokenPayload.exp < now) {
+					setError('Stream token has expired. Please refresh the app.');
+					setDebugInfo(`Token expired at: ${new Date(tokenPayload.exp * 1000).toISOString()}`);
+					return;
+				}
+				setDebugInfo(`Token valid until: ${new Date(tokenPayload.exp * 1000).toISOString()}`);
+			} catch (e) {
+				console.warn('Could not parse token:', e);
+			}
+			
 			try {
 				// Start audio routing like a real call (earpiece/speaker, audio focus)
-				try { InCallManager.start({ media: 'audio' }); InCallManager.setForceSpeakerphoneOn(true); } catch {}
+				try { 
+					if (InCallManager) {
+						InCallManager.start({ media: 'audio' }); 
+						InCallManager.setForceSpeakerphoneOn(true); 
+					}
+				} catch (e) {
+					console.warn('InCallManager error:', e);
+				}
 
 				// Track connectivity
-				netUnsubscribe = NetInfo.addEventListener(state => {
-					setIsOffline(!(state?.isConnected && state?.isInternetReachable !== false));
-				});
+				if (NetInfo) {
+					netUnsubscribe = NetInfo.addEventListener(state => {
+						setIsOffline(!(state?.isConnected && state?.isInternetReachable !== false));
+					});
+				}
 
+				setDebugInfo('Creating StreamVideoClient...');
 				const c = new StreamVideoClient({ apiKey });
+				
+				setDebugInfo('Connecting user...');
 				await c.connectUser(userInfo, userToken);
 				if (cancelled) return;
+				
+				setDebugInfo('Creating call instance...');
 				const callInstance = c.call('default', resolvedCallId);
+				
+				setDebugInfo('Joining call...');
 				await callInstance.join({ create: true });
 				if (cancelled) {
 					await cleanup(c, callInstance);
 					return;
 				}
+				
+				setDebugInfo('Call joined successfully!');
 				setClient(c);
 				setCall(callInstance);
+				
+				// Monitor call state
+				callInstance.on('call.ended', () => {
+					console.log('Call ended event received');
+					handleLeave();
+				});
+				
+				callInstance.on('call.updated', (event) => {
+					console.log('Call updated:', event);
+				});
 			} catch (e) {
+				console.error('Meeting join error:', e);
 				setError(e?.message || 'Failed to join the call');
+				setDebugInfo(`Error: ${e?.message || 'Unknown error'}`);
 			} finally {
 				if (!cancelled) setIsJoining(false);
 			}
@@ -117,7 +180,13 @@ export default function StreamMeetingRoomNative({
 
 	const handleLeave = useCallback(async () => {
 		await cleanup(client, call);
-		try { InCallManager.stop(); } catch {}
+		try { 
+			if (InCallManager) {
+				InCallManager.stop(); 
+			}
+		} catch (e) {
+			console.warn('InCallManager stop error:', e);
+		}
 		if (onLeave) onLeave();
 		if (onClose) onClose();
 	}, [cleanup, client, call, onLeave, onClose]);
@@ -151,13 +220,27 @@ export default function StreamMeetingRoomNative({
 							<View style={styles.center}>
 								<ActivityIndicator size="large" color="#2563EB" />
 								<Text style={styles.infoText}>Joining meeting...</Text>
+								{debugInfo ? <Text style={styles.debugText}>{debugInfo}</Text> : null}
 							</View>
 						) : (
-							<StreamVideo client={client}>
-								<Call call={call}>
-									<CallContent />
-								</Call>
-							</StreamVideo>
+							<View style={{ flex: 1 }}>
+								{console.log('Rendering StreamVideo with client:', !!client, 'call:', !!call)}
+								<View style={styles.center}>
+									<Text style={styles.infoText}>Meeting Room</Text>
+									<Text style={styles.debugText}>Client: {client ? 'Connected' : 'Not connected'}</Text>
+									<Text style={styles.debugText}>Call: {call ? 'Active' : 'Not active'}</Text>
+									<Text style={styles.debugText}>Call ID: {resolvedCallId}</Text>
+								</View>
+								<StreamVideo client={client}>
+									<CallContent 
+										call={call}
+										onCallEnded={() => {
+											console.log('Call ended');
+											handleLeave();
+										}}
+									/>
+								</StreamVideo>
+							</View>
 						)}
 					</View>
 				</View>
@@ -226,6 +309,12 @@ const styles = StyleSheet.create({
 	infoText: {
 		marginTop: 12,
 		color: '#374151',
+	},
+	debugText: {
+		marginTop: 4,
+		fontSize: 12,
+		color: '#9CA3AF',
+		textAlign: 'center',
 	},
 	errorText: {
 		color: '#DC2626',

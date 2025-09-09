@@ -26,7 +26,13 @@ export const AnnouncementProvider = ({ children }) => {
       setLoading(true);
       const token = await AsyncStorage.getItem('jwtToken');
       
-      if (!token) return;
+      console.log('Fetching announcements...');
+      console.log('Token exists:', !!token);
+      
+      if (!token) {
+        console.log('No token found, skipping announcement fetch');
+        return;
+      }
       
       const response = await fetch(`${API_BASE}/api/general-announcements`, {
         headers: {
@@ -35,11 +41,16 @@ export const AnnouncementProvider = ({ children }) => {
         },
       });
 
+      console.log('Announcements response status:', response.status);
+      
       if (response.ok) {
         const data = await response.json();
+        console.log('Announcements fetched successfully:', data.length, 'items');
         setAnnouncements(data);
       } else {
-        console.error('Failed to fetch announcements');
+        console.error('Failed to fetch announcements, status:', response.status);
+        const errorText = await response.text();
+        console.error('Error response:', errorText);
         setAnnouncements([]);
       }
     } catch (error) {
