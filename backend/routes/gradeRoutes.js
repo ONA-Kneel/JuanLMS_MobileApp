@@ -1,4 +1,5 @@
 import express from 'express';
+import mongoose from 'mongoose';
 import Submission from '../models/Submission.js';
 import QuizResponse from '../models/QuizResponse.js';
 import Class from '../models/Class.js';
@@ -7,6 +8,22 @@ import Quiz from '../models/Quiz.js';
 import User from '../models/User.js';
 
 const router = express.Router();
+
+// Helper: resolve various student identifiers (ObjectId, schoolID, userID) to Mongo ObjectId
+async function resolveStudentObjectId(rawId) {
+  try {
+    if (mongoose.Types.ObjectId.isValid(rawId)) {
+      return new mongoose.Types.ObjectId(rawId);
+    }
+  } catch {}
+  // Try by schoolID
+  let user = await User.findOne({ schoolID: rawId }).select('_id');
+  if (user) return user._id;
+  // Try by userID
+  user = await User.findOne({ userID: rawId }).select('_id');
+  if (user) return user._id;
+  return null;
+}
 
 // Test route to verify grades router is working
 router.get('/test', (req, res) => {
@@ -19,13 +36,24 @@ router.get('/student/:studentId', /*authenticateToken,*/ async (req, res) => {
     const { studentId } = req.params;
     const { classId, academicYear, termName } = req.query;
 
+    // Soft-guard: if classId missing, return empty list instead of 500 to avoid UI "Failed to load"
+    if (!classId) {
+      return res.json([]);
+    }
+
+    // Resolve student identifier to Mongo ObjectId
+    const studentObjectId = await resolveStudentObjectId(studentId);
+    if (!studentObjectId) {
+      return res.json([]);
+    }
+
     // Fetch assignments for the class
     const assignments = await Assignment.find({ classID: classId });
     const assignmentIds = assignments.map(a => a._id);
     
     // Fetch assignment submissions and grades
     const submissions = await Submission.find({ 
-      student: studentId, 
+      student: studentObjectId, 
       assignment: { $in: assignmentIds } 
     }).populate('assignment', 'title points dueDate');
     
@@ -40,7 +68,7 @@ router.get('/student/:studentId', /*authenticateToken,*/ async (req, res) => {
     
     // Fetch quiz responses and grades
     const quizResponses = await QuizResponse.find({ 
-      studentId, 
+      studentId: studentObjectId, 
       quizId: { $in: quizIds } 
     }).populate('quizId', 'title questions');
     
@@ -314,10 +342,14 @@ router.get('/semestral-grades/student/:studentId', async (req, res) => {
     console.log('Request headers:', req.headers);
     
     const { studentId } = req.params;
+    const studentObjectId = await resolveStudentObjectId(studentId);
+    if (!studentObjectId) {
+      return res.status(404).json({ error: 'Student not found.' });
+    }
     
     // Get student info
     try {
-      const student = await User.findById(studentId);
+      const student = await User.findById(studentObjectId);
       console.log('Student found:', student ? 'Yes' : 'No');
       if (!student) {
         console.log('Student not found, returning 404');
@@ -333,7 +365,7 @@ router.get('/semestral-grades/student/:studentId', async (req, res) => {
     try {
       classes = await Class.find({
         $or: [
-          { students: studentId },
+          { students: studentObjectId },
           { 'students.studentID': studentId },
           { 'students.userID': studentId }
         ]
@@ -362,7 +394,7 @@ router.get('/semestral-grades/student/:studentId', async (req, res) => {
         
         // Get assignment submissions and grades
         const submissions = await Submission.find({ 
-          student: studentId, 
+          student: studentObjectId, 
           assignment: { $in: assignmentIds } 
         }).populate('assignment', 'title points dueDate');
         
@@ -377,7 +409,7 @@ router.get('/semestral-grades/student/:studentId', async (req, res) => {
         
         // Get quiz responses and grades
         const quizResponses = await QuizResponse.find({ 
-          studentId, 
+          studentId: studentObjectId, 
           quizId: { $in: quizIds } 
         }).populate('quizId', 'title questions');
         
