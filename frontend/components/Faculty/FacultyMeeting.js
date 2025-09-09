@@ -9,12 +9,18 @@ import {
   Modal,
   TextInput,
   StyleSheet,
-  Dimensions
+  Dimensions,
+  Platform,
+  PermissionsAndroid
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../UserContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+let StreamMeetingRoomNative = null;
+if (Platform.OS !== 'web') {
+  try { StreamMeetingRoomNative = require('../Meeting/StreamMeetingRoomNative').default; } catch (e) { /* noop on web */ }
+}
 
 const { width } = Dimensions.get('window');
 
@@ -34,6 +40,7 @@ export default function FacultyMeeting() {
     scheduledTime: '',
     duration: ''
   });
+  const [activeMeeting, setActiveMeeting] = useState(null);
 
   useEffect(() => {
     fetchClasses();
@@ -192,9 +199,26 @@ export default function FacultyMeeting() {
 
       if (response.ok) {
         const result = await response.json();
-        // Open meeting URL in browser or handle navigation
-        Alert.alert('Meeting', `Joining meeting: ${meeting.title}`);
-        // You can implement actual meeting joining logic here
+        const enriched = { ...meeting, roomUrl: result.roomUrl, meetingId: String(meeting._id) };
+        if (Platform.OS === 'web') {
+          try { window.open(result.roomUrl, '_blank'); } catch (e) { Alert.alert('Meeting', 'Open this link: ' + result.roomUrl); }
+        } else {
+          try {
+            if (Platform.OS === 'android') {
+              const cam = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.CAMERA);
+              const mic = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.RECORD_AUDIO);
+              if (cam !== PermissionsAndroid.RESULTS.GRANTED || mic !== PermissionsAndroid.RESULTS.GRANTED) {
+                Alert.alert('Permissions required', 'Camera and microphone permissions are needed to join the meeting.');
+                return;
+              }
+            }
+          } catch (e) { /* ignore */ }
+          if (!StreamMeetingRoomNative) {
+            Alert.alert('Meeting', 'Native meeting module is unavailable. Make sure you run a development build (not Expo Go).');
+            return;
+          }
+          setActiveMeeting(enriched);
+        }
       } else {
         const result = await response.json();
         Alert.alert('Error', result.message || 'Failed to join meeting');
@@ -571,6 +595,23 @@ export default function FacultyMeeting() {
           </View>
         </View>
       </Modal>
+      {activeMeeting && Platform.OS !== 'web' && StreamMeetingRoomNative && (
+        <StreamMeetingRoomNative
+          isOpen={!!activeMeeting}
+          onClose={() => setActiveMeeting(null)}
+          onLeave={() => setActiveMeeting(null)}
+          meetingData={activeMeeting}
+          currentUser={{ name: user?.name || user?.username || 'Host' }}
+          credentials={{
+            apiKey: 'mmhfdzb5evj2',
+            token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL3Byb250by5nZXRzdHJlYW0uaW8iLCJzdWIiOiJ1c2VyL1dvb2xseV9QYXRjaCIsInVzZXJfaWQiOiJXb29sbHlfUGF0Y2giLCJ2YWxpZGl0eV9pbl9zZWNvbmRzIjo2MDQ4MDAsImlhdCI6MTc1NzM0MDk5OCwiZXhwIjoxNzU3OTQ1Nzk4fQ.nsL1ALmGwSTl8QUawile5zJdsCjGPW8lOkDy5vRWm2I',
+            userId: 'Woolly_Patch',
+            callId: '9IH1mIBCkfbdP9y4q34W2',
+          }}
+          isHost={true}
+          hostUserId={'Woolly_Patch'}
+        />
+      )}
     </ScrollView>
   );
 }
