@@ -7,6 +7,9 @@ const userSchema = new mongoose.Schema({
   password: String,
   role: String,
   profilePicture: String,
+  // Common identifiers used across the app
+  userID: { type: String },
+  schoolID: { type: String },
   // any other fields
 });
 
