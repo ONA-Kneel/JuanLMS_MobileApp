@@ -30,6 +30,7 @@ const StudentGrades = () => {
   const [currentTerm, setCurrentTerm] = useState('');
   const [user, setUser] = useState(null);
   const [profilePicError, setProfilePicError] = useState(false);
+  const [gradesUnavailable, setGradesUnavailable] = useState(false);
 
   const API_BASE = 'https://juanlms-webapp-server.onrender.com';
 
@@ -90,6 +91,30 @@ const StudentGrades = () => {
         throw new Error('Missing student identifier (schoolID/userID)');
       }
 
+      // Quick health check to avoid calling unavailable endpoints
+      try {
+        const health = await fetch(`${API_BASE}/api/grades/health`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (!health.ok) {
+          console.log('Grades health endpoint not available, skipping grades fetch');
+          setGrades([]);
+          setError('');
+          setGradesUnavailable(true);
+          setLoading(false);
+          setRefreshing(false);
+          return;
+        }
+      } catch (e) {
+        console.log('Grades health check failed, skipping grades fetch');
+        setGrades([]);
+        setError('');
+        setGradesUnavailable(true);
+        setLoading(false);
+        setRefreshing(false);
+        return;
+      }
+
       // Fetch grades using existing backend endpoint
       console.log('Fetching grades from:', `${API_BASE}/api/grades/student/${schoolID}`);
       console.log('Token:', token ? 'Present' : 'Missing');
@@ -123,12 +148,16 @@ const StudentGrades = () => {
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('Error response body:', errorText);
-        throw new Error(`Failed to fetch grades: ${response.status} ${errorText}`);
+        console.log('Grades endpoint unavailable or failed, returning empty list. Status:', response.status, errorText);
+        setGrades([]);
+        setError('');
+        setGradesUnavailable(true);
+        return;
       }
 
-            const payload = await response.json();
+      const payload = await response.json();
       const allGrades = payload || [];
+      setGradesUnavailable(false);
 
       // Transform existing grades data structure to UI-friendly format
       const transformed = allGrades.map(g => ({
@@ -356,12 +385,13 @@ const StudentGrades = () => {
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
       <MaterialCommunityIcons name="grade-outline" size={64} color="#ccc" />
-      <Text style={styles.emptyTitle}>No Subjects Enrolled</Text>
+      <Text style={styles.emptyTitle}>
+        {gradesUnavailable ? 'Grades Service Unavailable' : 'Grades Not Available'}
+      </Text>
       <Text style={styles.emptyText}>
-        {selectedTerm === 'current' 
-          ? 'You are not enrolled in any subjects for the current term.'
-          : 'No previous subjects found.'
-        }
+        {gradesUnavailable 
+          ? 'Grades service is currently unavailable. Please ask your faculty about your grades.'
+          : 'Grades are not available yet. Please ask your faculty about that.'}
       </Text>
     </View>
   );

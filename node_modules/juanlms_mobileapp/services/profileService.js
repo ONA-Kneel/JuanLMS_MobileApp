@@ -94,6 +94,10 @@ const profileService = {
             uploadUri = targetPath;
           } catch (copyErr) {
             console.warn('Failed to copy content URI to cache, proceeding with original URI:', copyErr?.message);
+            // Fallback: try to use the original URI if copy fails
+            if (!uploadUri.startsWith('file://')) {
+              throw new Error('Unable to process image file for upload');
+            }
           }
         }
         const getMimeType = (uri, fallbackType) => {
