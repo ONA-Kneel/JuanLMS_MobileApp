@@ -109,8 +109,11 @@ export default function StudentsProfile() {
     if (!result.canceled && result.assets && result.assets.length > 0) {
       setEditedUser(prev => ({
         ...prev,
+        ...user, // Initialize with current user data
         newProfilePicAsset: result.assets[0],
       }));
+      // Automatically save the photo when selected directly
+      setTimeout(() => handleDirectPhotoChange(), 100);
     }
   };
 
@@ -120,9 +123,12 @@ export default function StudentsProfile() {
     if (file) {
       setEditedUser(prev => ({
         ...prev,
+        ...user, // Initialize with current user data
         newProfilePicAsset: file, // store the File object
       }));
       setWebPreviewUrl(URL.createObjectURL(file)); // Add preview URL for web
+      // Automatically save the photo when selected directly
+      setTimeout(() => handleDirectPhotoChange(), 100);
     }
   };
 
@@ -172,6 +178,13 @@ export default function StudentsProfile() {
       Alert.alert('Error', 'Failed to update profile picture. Please try again.');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Handle direct photo change (not from modal)
+  const handleDirectPhotoChange = async () => {
+    if (editedUser?.newProfilePicAsset) {
+      await handleSaveProfile();
     }
   };
 
@@ -235,6 +248,10 @@ export default function StudentsProfile() {
       </View>
       {/* Card */}
       <View style={StudentsProfileStyle.card}>
+        <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }} onPress={Platform.OS === 'web' ? pickImageWeb : pickImage}>
+          <Feather name="edit" size={15} color="#00418b" style={{ marginRight: 6 }} />
+          <Text style={[StudentsProfileStyle.actionText, { fontFamily: 'Poppins-Regular' }]}>Change Photo</Text>
+        </TouchableOpacity>
         <Text style={StudentsProfileStyle.name}>
           {capitalizeWords(`${user.firstname} ${user.lastname}`)}
           <Text style={StudentsProfileStyle.emoji}>👨‍🎓</Text>

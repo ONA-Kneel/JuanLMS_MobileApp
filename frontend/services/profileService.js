@@ -8,7 +8,7 @@ const API_URL = 'https://juanlms-webapp-server.onrender.com'; // Ensure this mat
 const profileService = {
   async updateProfile(userId, profileData) {
     try {
-      const token = await AsyncStorage.getItem('token');
+      const token = await AsyncStorage.getItem('jwtToken');
       const response = await axios.post(`${API_URL}/users/${userId}/profile`, profileData, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -64,7 +64,7 @@ const profileService = {
 
   async updateNotifications(userId, notificationSettings) {
     try {
-      const token = await AsyncStorage.getItem('token');
+      const token = await AsyncStorage.getItem('jwtToken');
       const response = await axios.post(`${API_URL}/users/${userId}/notifications`, notificationSettings, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -171,7 +171,7 @@ const profileService = {
 
   async updateTrack(userId, track) {
     try {
-      const token = await AsyncStorage.getItem('token');
+      const token = await AsyncStorage.getItem('jwtToken');
       const response = await axios.post(`${API_URL}/users/${userId}/track`, { track }, {
         headers: { Authorization: `Bearer ${token}` },
       });
