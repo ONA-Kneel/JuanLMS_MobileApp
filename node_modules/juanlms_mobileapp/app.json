@@ -46,10 +46,7 @@
       "icon": "./assets/juanlms.png"
     },
     "extra": {
-      "API_URL": "https://juanlms-webapp-server.onrender.com",
-      "eas": {
-        "projectId": "18db174f-10c3-4875-b9b3-a171569c5e8f"
-      }
+      "API_URL": "https://juanlms-webapp-server.onrender.com"
     },
     "plugins": [
       [

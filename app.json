@@ -2,14 +2,14 @@
   "expo": {
     "name": "JuanLMS",
     "slug": "juanlms-mobile-app",
-    "owner": "kneelpngnbn", 
+    "owner": "kneelpngnbn",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/juanlms.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/juanlms.png",
+      "image": "./assets/JuanLMS-LogoV1.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -25,9 +25,15 @@
       "package": "com.kneelpngnbn.juanlms.mobileapp",
       "versionCode": 1,
       "permissions": [
-        "CAMERA",
-        "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE"
+        "android.permission.INTERNET",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.BLUETOOTH",
+        "android.permission.BLUETOOTH_CONNECT",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.BLUETOOTH_ADMIN",
+        "android.permission.WAKE_LOCK"
       ],
       "softwareKeyboardLayoutMode": "pan",
       "allowBackup": true,
@@ -55,7 +61,9 @@
         {
           "androidMode": "default"
         }
-      ]
+      ],
+      "@stream-io/video-react-native-sdk",
+      "expo-build-properties"
     ]
   }
 }
