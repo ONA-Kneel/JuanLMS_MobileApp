@@ -42,6 +42,8 @@ export default function PrincipalProfile() {
   const fileInputRef = useRef(null);
   const [webPreviewUrl, setWebPreviewUrl] = useState(null);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [showPhotoConfirmModal, setShowPhotoConfirmModal] = useState(false);
+  const [selectedPhotoAsset, setSelectedPhotoAsset] = useState(null);
 
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const logout = () => setShowLogoutConfirm(true);
@@ -89,10 +91,8 @@ export default function PrincipalProfile() {
       quality: 0.7,
     });
     if (!result.canceled && result.assets && result.assets.length > 0) {
-      setEditedUser(prev => ({
-        ...prev,
-        newProfilePicAsset: result.assets[0],
-      }));
+      setSelectedPhotoAsset(result.assets[0]);
+      setShowPhotoConfirmModal(true);
     }
   };
 
@@ -100,11 +100,9 @@ export default function PrincipalProfile() {
   const handleWebFileChange = (event) => {
     const file = event.target.files[0];
     if (file) {
-      setEditedUser(prev => ({
-        ...prev,
-        newProfilePicAsset: file,
-      }));
+      setSelectedPhotoAsset(file);
       setWebPreviewUrl(URL.createObjectURL(file));
+      setShowPhotoConfirmModal(true);
     }
   };
 
@@ -138,6 +136,43 @@ export default function PrincipalProfile() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Handle confirmed photo change
+  const handleConfirmPhotoChange = async () => {
+    if (selectedPhotoAsset) {
+      setIsLoading(true);
+      try {
+        const isWeb = Platform.OS === 'web';
+        const resp = await profileService.uploadProfilePicture(user._id, selectedPhotoAsset, isWeb);
+        const updated = resp?.user;
+        if (updated?.profilePic) {
+          const newUser = { ...user, profilePic: updated.profilePic, profilePicture: updated.profilePic };
+          if (typeof updateUser === 'function') {
+            await updateUser(newUser);
+          } else {
+            await AsyncStorage.setItem('user', JSON.stringify(newUser));
+          }
+        }
+        
+        setShowPhotoConfirmModal(false);
+        setSelectedPhotoAsset(null);
+        setWebPreviewUrl(null);
+        Alert.alert('Success', 'Profile updated successfully!');
+      } catch (error) {
+        console.error('Error updating profile picture:', error);
+        Alert.alert('Error', 'Failed to update profile picture. Please try again.');
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  };
+
+  // Handle cancel photo change
+  const handleCancelPhotoChange = () => {
+    setShowPhotoConfirmModal(false);
+    setSelectedPhotoAsset(null);
+    setWebPreviewUrl(null);
   };
 
   if (loading) {
@@ -355,6 +390,64 @@ export default function PrincipalProfile() {
         onCancel={() => setShowLogoutConfirm(false)}
         onConfirm={handleConfirmLogout}
       />
+
+      {/* Photo Confirmation Modal */}
+      <Modal
+        visible={showPhotoConfirmModal}
+        animationType="slide"
+        transparent={true}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Text style={[styles.modalTitle, { fontFamily: 'Poppins-Bold', marginBottom: 20 }]}>
+              Confirm Profile Photo
+            </Text>
+            <Text style={[styles.modalSubtitle, { fontFamily: 'Poppins-Regular', marginBottom: 20, textAlign: 'center' }]}>
+              Are you sure you want this photo as your profile?
+            </Text>
+            
+            {/* Photo Preview */}
+            <View style={[styles.imagePicker, { marginBottom: 30, alignSelf: 'center' }]}>
+              <Image
+                source={
+                  Platform.OS === 'web'
+                    ? webPreviewUrl
+                      ? { uri: webPreviewUrl }
+                      : selectedPhotoAsset
+                        ? { uri: URL.createObjectURL(selectedPhotoAsset) }
+                        : require('../../assets/profile-icon (2).png')
+                    : selectedPhotoAsset
+                      ? { uri: selectedPhotoAsset.uri }
+                      : require('../../assets/profile-icon (2).png')
+                }
+                style={[styles.avatar, { width: 120, height: 120 }]}
+                resizeMode="cover"
+              />
+            </View>
+            
+            <View style={styles.modalButtons}>
+              <TouchableOpacity 
+                style={[styles.modalButton, styles.cancelButton]} 
+                onPress={handleCancelPhotoChange}
+                disabled={isLoading}
+              >
+                <Text style={[styles.buttonText, { fontFamily: 'Poppins-Regular' }]}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.modalButton, styles.saveButton]} 
+                onPress={handleConfirmPhotoChange}
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <ActivityIndicator size="small" color="#00418b" />
+                ) : (
+                  <Text style={[styles.buttonText, { fontFamily: 'Poppins-Regular' }]}>Yes</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -497,6 +590,11 @@ const styles = {
     color: 'white',
     fontSize: 22,
     fontWeight: 'bold',
+    marginBottom: 18,
+  },
+  modalSubtitle: {
+    color: 'white',
+    fontSize: 16,
     marginBottom: 18,
   },
   imagePicker: {

@@ -161,6 +161,11 @@ const StudentsProfileStyle = StyleSheet.create({
         fontWeight: 'bold',
         marginBottom: 18,
     },
+    modalSubtitle: {
+        color: 'white',
+        fontSize: 16,
+        marginBottom: 18,
+    },
     imagePicker: {
         alignItems: 'center',
         marginBottom: 18,

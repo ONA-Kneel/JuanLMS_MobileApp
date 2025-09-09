@@ -36,6 +36,8 @@ export default function FacultyProfile() {
   const [editedUser, setEditedUser] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [showPhotoConfirmModal, setShowPhotoConfirmModal] = useState(false);
+  const [selectedPhotoAsset, setSelectedPhotoAsset] = useState(null);
 
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const logout = () => setShowLogoutConfirm(true);
@@ -88,10 +90,8 @@ export default function FacultyProfile() {
       quality: 0.7,
     });
     if (!result.canceled && result.assets && result.assets.length > 0) {
-      setEditedUser(prev => ({
-        ...prev,
-        newProfilePicAsset: result.assets[0],
-      }));
+      setSelectedPhotoAsset(result.assets[0]);
+      setShowPhotoConfirmModal(true);
     }
   };
 
@@ -118,6 +118,43 @@ export default function FacultyProfile() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Handle confirmed photo change
+  const handleConfirmPhotoChange = async () => {
+    if (selectedPhotoAsset) {
+      setIsLoading(true);
+      try {
+        let profilePicPath = user?.profilePic;
+        const data = await profileService.uploadProfilePicture(user._id, selectedPhotoAsset, false);
+        const updated = data?.user;
+        if (updated?.profilePic) {
+          profilePicPath = updated.profilePic;
+        }
+        
+        // Update user context/state with the new profilePic
+        await updateUser({
+          ...user,
+          profilePic: profilePicPath,
+          profilePicture: profilePicPath,
+        });
+        
+        setShowPhotoConfirmModal(false);
+        setSelectedPhotoAsset(null);
+        Alert.alert('Profile Updated', 'Your profile picture has been changed successfully.');
+      } catch (error) {
+        console.error('Error updating profile picture:', error);
+        Alert.alert('Error', 'Failed to update profile picture. Please try again.');
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  };
+
+  // Handle cancel photo change
+  const handleCancelPhotoChange = () => {
+    setShowPhotoConfirmModal(false);
+    setSelectedPhotoAsset(null);
   };
 
   return (
@@ -296,6 +333,56 @@ export default function FacultyProfile() {
         onCancel={() => setShowLogoutConfirm(false)}
         onConfirm={handleConfirmLogout}
       />
+
+      {/* Photo Confirmation Modal */}
+      <Modal
+        visible={showPhotoConfirmModal}
+        animationType="slide"
+        transparent={true}
+      >
+        <View style={FacultyProfileStyle.modalContainer}>
+          <View style={FacultyProfileStyle.modalContent}>
+            <Text style={[FacultyProfileStyle.modalTitle, { fontFamily: 'Poppins-Bold', marginBottom: 20 }]}>
+              Confirm Profile Photo
+            </Text>
+            <Text style={[FacultyProfileStyle.modalSubtitle, { fontFamily: 'Poppins-Regular', marginBottom: 20, textAlign: 'center' }]}>
+              Are you sure you want this photo as your profile?
+            </Text>
+            
+            {/* Photo Preview */}
+            <View style={[FacultyProfileStyle.imagePicker, { marginBottom: 30, alignSelf: 'center' }]}>
+              <Image
+                source={selectedPhotoAsset
+                  ? { uri: selectedPhotoAsset.uri }
+                  : require('../../assets/profile-icon (2).png')}
+                style={[FacultyProfileStyle.avatar, { width: 120, height: 120 }]}
+                resizeMode="cover"
+              />
+            </View>
+            
+            <View style={FacultyProfileStyle.modalButtons}>
+              <TouchableOpacity 
+                style={[FacultyProfileStyle.modalButton, FacultyProfileStyle.cancelButton]} 
+                onPress={handleCancelPhotoChange}
+                disabled={isLoading}
+              >
+                <Text style={[FacultyProfileStyle.buttonText, { fontFamily: 'Poppins-Regular' }]}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[FacultyProfileStyle.modalButton, FacultyProfileStyle.saveButton]} 
+                onPress={handleConfirmPhotoChange}
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <ActivityIndicator size="small" color="#00418b" />
+                ) : (
+                  <Text style={[FacultyProfileStyle.buttonText, { fontFamily: 'Poppins-Regular' }]}>Yes</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
