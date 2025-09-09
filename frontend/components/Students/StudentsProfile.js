@@ -4,6 +4,7 @@ import { MaterialIcons, Feather } from '@expo/vector-icons';
 import StudentsProfileStyle from '../styles/Stud/StudentsProfileStyle';
 import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../UserContext';
+import ConfirmLogoutModal from '../Shared/ConfirmLogoutModal';
 import { useNotifications } from '../../NotificationContext';
 import { useAnnouncements } from '../../AnnouncementContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -61,7 +62,9 @@ export default function StudentsProfile() {
     return 'General';
   };
 
-  const logout = async () => {
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const logout = () => setShowLogoutConfirm(true);
+  const handleConfirmLogout = async () => {
     try {
       if (user) {
         await addAuditLog({
@@ -74,12 +77,12 @@ export default function StudentsProfile() {
         });
       }
       await AsyncStorage.removeItem('user');
-      // If Remember Me is enabled, keep saved credentials; otherwise ensure cleared
       const remember = await AsyncStorage.getItem('rememberMeEnabled');
       if (remember !== 'true') {
         await AsyncStorage.removeItem('savedEmail');
         await AsyncStorage.removeItem('savedPassword');
       }
+      setShowLogoutConfirm(false);
       navigation.navigate('Login');
     } catch (error) {
       console.error('Logout error:', error);
@@ -372,6 +375,12 @@ export default function StudentsProfile() {
         visible={showPasswordModal}
         onClose={() => setShowPasswordModal(false)}
         userId={user?._id}
+      />
+
+      <ConfirmLogoutModal
+        visible={showLogoutConfirm}
+        onCancel={() => setShowLogoutConfirm(false)}
+        onConfirm={handleConfirmLogout}
       />
     </View>
   );

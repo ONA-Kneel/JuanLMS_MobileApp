@@ -173,6 +173,14 @@ export default function StudentDashboard() {
     }
   };
 
+  const resolveProfileUri = () => {
+    const API_BASE = 'https://juanlms-webapp-server.onrender.com';
+    const uri = user?.profilePic || user?.profilePicture;
+    if (!uri) return null;
+    if (typeof uri === 'string' && uri.startsWith('/uploads/')) return API_BASE + uri;
+    return uri;
+  };
+
   return (
     <View style={StudentDashboardStyle.container}>
       {/* Blue background */}
@@ -189,9 +197,9 @@ export default function StudentDashboard() {
              <Text style={StudentDashboardStyle.headerSubtitle2}>{formatDateTime(currentDateTime)}</Text>
           </View>
           <TouchableOpacity onPress={() => changeScreen.navigate('SProfile')}>
-            {user?.profilePicture ? (
+            {resolveProfileUri() ? (
               <Image 
-                source={{ uri: user.profilePicture }} 
+                source={{ uri: resolveProfileUri() }} 
                 style={{ width: 36, height: 36, borderRadius: 18 }}
                 resizeMode="cover"
               />

@@ -439,8 +439,8 @@ export default function VPEAnnouncements() {
 
   const deleteAnnouncement = async (announcement) => {
     Alert.alert(
-      'Delete Announcement',
-      `Are you sure you want to delete "${announcement.title}"? This action cannot be undone.`,
+      'Confirm Delete',
+      `Delete "${announcement.title}"? This cannot be undone.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -450,14 +450,12 @@ export default function VPEAnnouncements() {
             try {
               const token = await AsyncStorage.getItem('jwtToken');
               const headers = token ? { Authorization: `Bearer ${token}` } : {};
-              
               await axios.delete(`${API_BASE_URL}/api/general-announcements/${announcement.id}`, { headers });
-              
-              Alert.alert('Success', 'Announcement deleted successfully!');
+              Alert.alert('Deleted', 'Announcement removed.');
               fetchAnnouncements();
             } catch (error) {
               console.error('Error deleting announcement:', error);
-              Alert.alert('Error', 'Failed to delete announcement. Please try again.');
+              Alert.alert('Error', 'Failed to delete announcement.');
             }
           }
         }
@@ -505,7 +503,7 @@ export default function VPEAnnouncements() {
       const response = await axios.put(`${API_BASE_URL}/api/general-announcements/${editingAnnouncement.id}`, announcementData, { headers });
       
       if (response.data) {
-        Alert.alert('Success', 'Announcement updated successfully!');
+        Alert.alert('Saved', 'Announcement updated.');
         setShowEditModal(false);
         closeDropdowns();
         resetForm();
@@ -583,7 +581,7 @@ export default function VPEAnnouncements() {
       const response = await axios.post(`${API_BASE_URL}/api/general-announcements`, announcementData, { headers });
       
       if (response.data) {
-        Alert.alert('Success', 'Announcement created successfully!');
+        Alert.alert('Posted', 'Announcement created.');
         setShowCreateModal(false);
         closeDropdowns();
         resetForm();

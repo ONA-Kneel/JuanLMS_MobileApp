@@ -357,18 +357,23 @@ export default function AdminCalendar() {
             </Text>
           </View>
           <TouchableOpacity onPress={() => navigation.navigate('AProfile')}>
-            {user?.profilePicture ? (
-              <Image 
-                source={{ uri: user.profilePicture }} 
-                style={AdminCalendarStyle.profileImage}
-                resizeMode="cover"
-              />
-            ) : (
-              <Image 
-                source={require('../../assets/profile-icon (2).png')} 
-                style={AdminCalendarStyle.profileImage}
-              />
-            )}
+            {(() => {
+              const API_BASE = 'https://juanlms-webapp-server.onrender.com';
+              const raw = user?.profilePic || user?.profilePicture;
+              const uri = raw && typeof raw === 'string' && raw.startsWith('/uploads/') ? (API_BASE + raw) : raw;
+              return uri ? (
+                <Image 
+                  source={{ uri }} 
+                  style={AdminCalendarStyle.profileImage}
+                  resizeMode="cover"
+                />
+              ) : (
+                <Image 
+                  source={require('../../assets/profile-icon (2).png')} 
+                  style={AdminCalendarStyle.profileImage}
+                />
+              );
+            })()}
           </TouchableOpacity>
         </View>
       </View>

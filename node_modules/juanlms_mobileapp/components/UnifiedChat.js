@@ -918,7 +918,13 @@ export default function UnifiedChat() {
                           <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>{(chat.name || '').charAt(0).toUpperCase()}</Text>
                         </View>
                       ) : (
-                        <Image source={chat.profilePic ? { uri: chat.profilePic } : require('../assets/profile-icon (2).png')} style={{ width: 40, height: 40, borderRadius: 20, marginRight: 12 }} />
+                        (() => {
+                          const raw = chat.profilePic;
+                          const uri = raw && typeof raw === 'string' && raw.startsWith('/uploads/') ? (API_URL + raw) : raw;
+                          return (
+                            <Image source={uri ? { uri } : require('../assets/profile-icon (2).png')} style={{ width: 40, height: 40, borderRadius: 20, marginRight: 12 }} />
+                          );
+                        })()
                       )}
                       <View style={{ flex: 1 }}>
                         <Text style={{ fontWeight: 'bold', fontSize: 16 }}>{chat.type === 'group' ? chat.name : `${chat.firstname} ${chat.lastname}`}</Text>

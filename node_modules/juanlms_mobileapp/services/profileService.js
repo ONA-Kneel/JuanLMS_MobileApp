@@ -82,7 +82,8 @@ const profileService = {
       const formData = new FormData();
       if (isWeb) {
         // imageAsset is a File from an <input type="file"/>
-        formData.append('image', imageAsset);
+        // Backend expects field name 'profilePicture'
+        formData.append('profilePicture', imageAsset);
       } else {
         let uploadUri = imageAsset?.uri;
         // Android content:// URIs cause issues for multipart uploads; copy to cache as file://
@@ -111,20 +112,26 @@ const profileService = {
         };
         const name = imageAsset?.fileName || pickNameFromUri(uploadUri, 'profile.jpg');
         const type = imageAsset?.type || getMimeType(uploadUri, undefined);
-        formData.append('image', {
+        // Backend expects field name 'profilePicture'
+        formData.append('profilePicture', {
           uri: uploadUri,
           name,
           type,
         });
       }
       try {
-        const response = await axios.post(`${API_URL}/users/${userId}/upload-profile`, formData, {
+        // Backend route: POST /users/:id/profile-picture
+        const response = await axios.post(`${API_URL}/users/${userId}/profile-picture`, formData, {
           headers: {
             Authorization: token ? `Bearer ${token}` : undefined,
             // Let Axios set the proper multipart boundary automatically
             Accept: 'application/json',
           },
         });
+        // Normalize response to expected shape used by callers
+        if (response?.data?.profile_picture) {
+          return { user: { profilePic: response.data.profile_picture } };
+        }
         return response.data;
       } catch (axiosErr) {
         // Fallback: On React Native, retry with fetch if Axios returns a Network Error
@@ -132,7 +139,7 @@ const profileService = {
         const isNative = Platform.OS === 'ios' || Platform.OS === 'android';
         if (isNetworkError && isNative) {
           const fetchHeaders = token ? { 'Authorization': `Bearer ${token}` } : {};
-          const fetchResp = await fetch(`${API_URL}/users/${userId}/upload-profile`, {
+          const fetchResp = await fetch(`${API_URL}/users/${userId}/profile-picture`, {
             method: 'POST',
             headers: fetchHeaders,
             body: formData,
@@ -141,7 +148,11 @@ const profileService = {
             const text = await fetchResp.text();
             throw new Error(text || `Upload failed with status ${fetchResp.status}`);
           }
-          return await fetchResp.json();
+          const json = await fetchResp.json();
+          if (json?.profile_picture) {
+            return { user: { profilePic: json.profile_picture } };
+          }
+          return json;
         }
         throw axiosErr;
       }

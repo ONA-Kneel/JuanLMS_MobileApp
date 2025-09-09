@@ -12,6 +12,13 @@ const { width } = Dimensions.get('window');
 
 export default function AdminDashboard() {
   const changeScreen = useNavigation();
+  const resolveProfileUri = () => {
+    const API_BASE = 'https://juanlms-webapp-server.onrender.com';
+    const uri = user?.profilePic || user?.profilePicture;
+    if (!uri) return null;
+    if (typeof uri === 'string' && uri.startsWith('/uploads/')) return API_BASE + uri;
+    return uri;
+  };
   const { user } = useUser();
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
   const [recentLogs, setRecentLogs] = useState([]);
@@ -344,15 +351,7 @@ export default function AdminDashboard() {
     );
   }
 
-  // Debug info (remove in production)
-  console.log('DEBUG: AdminDashboard render state:', {
-    hasUser: !!user,
-    userId: user?._id,
-    userRole: user?.role,
-    userStats,
-    lastLogins: lastLogins?.length,
-    recentLogs: recentLogs?.length
-  });
+  //
 
   return (
     <View style={AdminDashStyle.container}>
@@ -370,9 +369,9 @@ export default function AdminDashboard() {
             <Text style={AdminDashStyle.headerSubtitle2}>{formatDateTime(currentDateTime)}</Text>
           </View>
           <TouchableOpacity onPress={() => navigateToScreen('AProfile')}>
-            {user?.profilePicture ? (
+            {resolveProfileUri() ? (
               <Image 
-                source={{ uri: user.profilePicture }} 
+                source={{ uri: resolveProfileUri() }} 
                 style={{ width: 36, height: 36, borderRadius: 18 }}
                 resizeMode="cover"
               />
@@ -387,42 +386,7 @@ export default function AdminDashboard() {
         </View>
       </View>
 
-      {/* Debug Info - Remove in production */}
-      {__DEV__ && (
-        <View style={{ padding: 10, backgroundColor: '#f0f0f0', margin: 10, borderRadius: 8 }}>
-          <Text style={{ fontFamily: 'Poppins-Bold', fontSize: 12, color: '#666' }}>DEBUG INFO:</Text>
-          <Text style={{ fontFamily: 'Poppins-Regular', fontSize: 10, color: '#666' }}>
-            User: {user?._id ? 'Logged In' : 'Not Logged In'}
-          </Text>
-          <Text style={{ fontFamily: 'Poppins-Regular', fontSize: 10, color: '#666' }}>
-            Role: {user?.role || 'Unknown'}
-          </Text>
-          <Text style={{ fontFamily: 'Poppins-Regular', fontSize: 10, color: '#666' }}>
-            Stats: {userStats ? 'Loaded' : 'Not Loaded'}
-          </Text>
-          <TouchableOpacity 
-            style={{ 
-              backgroundColor: '#00418b', 
-              padding: 8, 
-              borderRadius: 6, 
-              marginTop: 8,
-              alignSelf: 'center'
-            }}
-            onPress={() => {
-              console.log('DEBUG: Manual refresh triggered');
-              setLoading(true);
-              setError(null);
-              // Trigger a refresh by calling the data fetching functions
-              fetchDashboardData();
-              fetchAcademicYear();
-            }}
-          >
-            <Text style={{ color: '#fff', fontFamily: 'Poppins-Regular', fontSize: 12 }}>
-              Refresh Dashboard
-            </Text>
-          </TouchableOpacity>
-        </View>
-      )}
+      
 
       {error && (
         <View style={{ backgroundColor: '#fee', padding: 12, marginHorizontal: 20, borderRadius: 8, marginBottom: 10 }}>
@@ -463,35 +427,7 @@ export default function AdminDashboard() {
            </View>
          </View>
 
-         {/* Debug Info - Temporary */}
-         <View style={{ backgroundColor: '#f0f8ff', padding: 16, borderRadius: 12, marginBottom: 20 }}>
-           <Text style={{ fontFamily: 'Poppins-Bold', color: '#00418b', marginBottom: 8 }}>Debug Info</Text>
-           <Text style={{ fontFamily: 'Poppins-Regular', color: '#666', fontSize: 12 }}>
-             Admin: {userStats.admin} | Faculty: {userStats.faculty} | Student: {userStats.student}
-           </Text>
-           <TouchableOpacity 
-             style={{ 
-               backgroundColor: '#00418b', 
-               padding: 8, 
-               borderRadius: 6, 
-               marginTop: 8,
-               alignSelf: 'center'
-             }}
-             onPress={async () => {
-               try {
-                 const data = await adminService.getUserStats();
-                 console.log('Manual refresh user stats:', data);
-                 setUserStats(data);
-               } catch (error) {
-                 console.error('Manual refresh failed:', error);
-               }
-             }}
-           >
-             <Text style={{ color: '#fff', fontFamily: 'Poppins-Regular', fontSize: 12 }}>
-               Refresh User Stats
-             </Text>
-           </TouchableOpacity>
-         </View>
+         
 
         {/* Progress Bars */}
         <View style={AdminDashStyle.progressSection}>
@@ -557,42 +493,7 @@ export default function AdminDashboard() {
            </View>
          </View>
 
-        {/* Audit Trail Preview */}
-        <View style={AdminDashStyle.tableSection}>
-          <Text style={AdminDashStyle.sectionTitle}>Recent Activities</Text>
-          <View style={AdminDashStyle.tableCard}>
-            <View style={AdminDashStyle.tableHeader}>
-              <Text style={[AdminDashStyle.tableHeaderText, { flex: 2 }]}>User</Text>
-              <Text style={[AdminDashStyle.tableHeaderText, { flex: 1 }]}>Action</Text>
-              <Text style={[AdminDashStyle.tableHeaderText, { flex: 2 }]}>Time</Text>
-            </View>
-            {recentLogs.length > 0 ? (
-              recentLogs.map((log, index) => (
-                <View 
-                  key={index} 
-                  style={[
-                    AdminDashStyle.tableRow, 
-                    { backgroundColor: index % 2 === 0 ? '#ffffff' : '#f8f9fa' }
-                  ]}
-                >
-                  <Text style={[AdminDashStyle.tableCellText, { flex: 2 }]} numberOfLines={1}>
-                    {log.userName}
-                  </Text>
-                  <Text style={[AdminDashStyle.tableCellText, { flex: 1 }]} numberOfLines={1}>
-                    {log.action}
-                  </Text>
-                  <Text style={[AdminDashStyle.tableCellText, { flex: 2 }]} numberOfLines={1}>
-                    {formatDate(log.timestamp)}
-                  </Text>
-                </View>
-              ))
-            ) : (
-              <View style={AdminDashStyle.emptyState}>
-                <Text style={AdminDashStyle.emptyStateText}>No recent activities found</Text>
-              </View>
-            )}
-          </View>
-        </View>
+        
 
         {/* Quick Actions */}
         <View style={AdminDashStyle.quickActionsSection}>
@@ -614,21 +515,6 @@ export default function AdminDashboard() {
               <Text style={AdminDashStyle.quickActionText}>Chats</Text>
                 </TouchableOpacity>
             
-            <TouchableOpacity 
-              style={AdminDashStyle.quickActionCard}
-              onPress={() => navigateToScreen('AAuditTrail')}
-            >
-              <MaterialIcons name="history" size={32} color="#00418b" />
-              <Text style={AdminDashStyle.quickActionText}>Audit Trail</Text>
-                </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={AdminDashStyle.quickActionCard}
-              onPress={() => navigateToScreen('ASupportCenter')}
-            >
-              <MaterialIcons name="help" size={32} color="#00418b" />
-              <Text style={AdminDashStyle.quickActionText}>Support</Text>
-            </TouchableOpacity>
           </View>
         </View>
       </ScrollView>

@@ -4,6 +4,7 @@ import { MaterialIcons, Feather } from '@expo/vector-icons';
 import AdminProfileStyle from '../styles/administrator/AdminProfileStyle';
 import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../UserContext';
+import ConfirmLogoutModal from '../Shared/ConfirmLogoutModal';
 import { useNotifications } from '../../NotificationContext';
 import { useAnnouncements } from '../../AnnouncementContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -36,7 +37,9 @@ export default function AdminProfile() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
 
-  const logout = async () => {
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const logout = () => setShowLogoutConfirm(true);
+  const handleConfirmLogout = async () => {
     if (user) {
       await addAuditLog({
         userId: user._id,
@@ -48,12 +51,12 @@ export default function AdminProfile() {
       });
     }
     await AsyncStorage.removeItem('user');
-    // Preserve saved credentials if Remember Me is enabled; otherwise clear them
     const remember = await AsyncStorage.getItem('rememberMeEnabled');
     if (remember !== 'true') {
       await AsyncStorage.removeItem('savedEmail');
       await AsyncStorage.removeItem('savedPassword');
     }
+    setShowLogoutConfirm(false);
     navigation.navigate('Login');
   };
 
@@ -277,6 +280,12 @@ export default function AdminProfile() {
         visible={showPasswordModal}
         onClose={() => setShowPasswordModal(false)}
         userId={user?._id}
+      />
+
+      <ConfirmLogoutModal
+        visible={showLogoutConfirm}
+        onCancel={() => setShowLogoutConfirm(false)}
+        onConfirm={handleConfirmLogout}
       />
     </View>
   );

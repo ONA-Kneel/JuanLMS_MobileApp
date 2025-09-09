@@ -870,7 +870,8 @@ export default function StudentActs() {
       }));
       
       const activitiesWithStatus = await checkSubmissionStatuses(postedActivitiesWithClassInfo);
-      activitiesWithStatus.sort((a, b) => new Date(a.dueDate || 0) - new Date(b.dueDate || 0));
+      // Sort: latest first within activities tabs
+      activitiesWithStatus.sort((a, b) => new Date(b.dueDate || b.createdAt || 0) - new Date(a.dueDate || a.createdAt || 0));
       
       console.log('=== FINAL ACTIVITIES DEBUG ===');
       console.log('Total activities with status:', activitiesWithStatus.length);
@@ -1327,7 +1328,7 @@ export default function StudentActs() {
             </Text>
           </View>
         ) : (
-          filteredActivities.map((activity, index) => (
+          [...filteredActivities].sort((a, b) => new Date(b.dueDate || b.createdAt || 0) - new Date(a.dueDate || a.createdAt || 0)).map((activity, index) => (
             <ActivityCard
               key={`${activity._id}_${index}`}
               activity={activity}
