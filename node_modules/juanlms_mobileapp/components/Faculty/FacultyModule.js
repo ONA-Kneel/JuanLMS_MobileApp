@@ -10,6 +10,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { formatDate } from '../../utils/dateUtils';
 import { getAuthHeaders, handleApiError } from '../../utils/apiUtils';
+import { MaterialIcons } from '@expo/vector-icons';
 
 function groupByDate(items, getDate) {
   const groups = {};
@@ -56,6 +57,7 @@ export default function FacultyModule() {
     const [savingEdit, setSavingEdit] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [deleteAnnouncementId, setDeleteAnnouncementId] = useState(null);
+    const [announcementMenuOpen, setAnnouncementMenuOpen] = useState(null);
 
     // Edit/Delete state for modules
     const [showEditModuleModal, setShowEditModuleModal] = useState(false);
@@ -571,15 +573,23 @@ export default function FacultyModule() {
                                         >
                                             {item.content}
                                         </Text>
-                                        {/* Edit/Delete buttons (faculty only) */}
+                                        {/* Actions menu (faculty only) */}
                                         {user?.role === 'faculty' && (
-                                            <View style={{ flexDirection: 'row', position: 'absolute', top: 12, right: 12 }}>
-                                                <TouchableOpacity onPress={() => openEditModal(item)} style={{ backgroundColor: '#ffd600', borderRadius: 5, paddingVertical: 4, paddingHorizontal: 10, marginRight: 8 }}>
-                                                    <Text style={{ color: '#222', fontFamily: 'Poppins-Bold', fontSize: 13 }}>Edit</Text>
+                                            <View style={{ position: 'absolute', top: 8, right: 8 }}>
+                                                <TouchableOpacity onPress={() => setAnnouncementMenuOpen(prev => prev === item._id ? null : item._id)} style={{ padding: 6 }}>
+                                                    <Icon name="dots-vertical" size={20} color="#666" />
                                                 </TouchableOpacity>
-                                                <TouchableOpacity onPress={() => openDeleteModal(item._id)} style={{ backgroundColor: '#d32f2f', borderRadius: 5, paddingVertical: 4, paddingHorizontal: 10 }}>
-                                                    <Text style={{ color: '#fff', fontFamily: 'Poppins-Bold', fontSize: 13 }}>Delete</Text>
-                                                </TouchableOpacity>
+                                                {announcementMenuOpen === item._id && (
+                                                    <View style={{ marginTop: 4, backgroundColor: '#fff', borderRadius: 8, elevation: 4, shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 6 }}>
+                                                        <TouchableOpacity onPress={() => { setAnnouncementMenuOpen(null); openEditModal(item); }} style={{ paddingHorizontal: 14, paddingVertical: 10 }}>
+                                                            <Text style={{ color: '#333', fontFamily: 'Poppins-Regular' }}>Edit</Text>
+                                                        </TouchableOpacity>
+                                                        <View style={{ height: 1, backgroundColor: '#eee' }} />
+                                                        <TouchableOpacity onPress={() => { setAnnouncementMenuOpen(null); openDeleteModal(item._id); }} style={{ paddingHorizontal: 14, paddingVertical: 10 }}>
+                                                            <Text style={{ color: '#d32f2f', fontFamily: 'Poppins-Regular' }}>Delete</Text>
+                                                        </TouchableOpacity>
+                                                    </View>
+                                                )}
                                             </View>
                                         )}
                                     </View>
