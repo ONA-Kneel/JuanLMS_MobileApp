@@ -82,8 +82,8 @@ const profileService = {
       const formData = new FormData();
       if (isWeb) {
         // imageAsset is a File from an <input type="file"/>
-        // Backend expects field name 'profilePicture'
-        formData.append('profilePicture', imageAsset);
+        // Web endpoint expects field name 'image'
+        formData.append('image', imageAsset);
       } else {
         let uploadUri = imageAsset?.uri;
         // Android content:// URIs cause issues for multipart uploads; copy to cache as file://
@@ -116,25 +116,27 @@ const profileService = {
         };
         const name = imageAsset?.fileName || pickNameFromUri(uploadUri, 'profile.jpg');
         const type = imageAsset?.type || getMimeType(uploadUri, undefined);
-        // Backend expects field name 'profilePicture'
-        formData.append('profilePicture', {
+        // Web endpoint expects field name 'image'
+        formData.append('image', {
           uri: uploadUri,
           name,
           type,
         });
       }
       try {
-        // Backend route: POST /users/:id/profile-picture
-        const response = await axios.post(`${API_URL}/users/${userId}/profile-picture`, formData, {
+        // Use WebApp-compatible endpoint: POST /users/:id/upload-profile
+        const response = await axios.post(`${API_URL}/users/${userId}/upload-profile`, formData, {
           headers: {
             Authorization: token ? `Bearer ${token}` : undefined,
-            // Let Axios set the proper multipart boundary automatically
+            // Explicitly set multipart for React Native to avoid RN defaulting to urlencoded
+            ...(Platform.OS === 'ios' || Platform.OS === 'android' ? { 'Content-Type': 'multipart/form-data' } : {}),
             Accept: 'application/json',
           },
         });
         // Normalize response to expected shape used by callers
-        if (response?.data?.profile_picture) {
-          return { user: { profilePic: response.data.profile_picture } };
+        if (response?.data?.profile_picture || response?.data?.url) {
+          const pic = response.data.profile_picture || response.data.url;
+          return { user: { profilePic: pic } };
         }
         return response.data;
       } catch (axiosErr) {
@@ -142,8 +144,12 @@ const profileService = {
         const isNetworkError = !axiosErr.response;
         const isNative = Platform.OS === 'ios' || Platform.OS === 'android';
         if (isNetworkError && isNative) {
-          const fetchHeaders = token ? { 'Authorization': `Bearer ${token}` } : {};
-          const fetchResp = await fetch(`${API_URL}/users/${userId}/profile-picture`, {
+          const fetchHeaders = {
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+            // For RN fetch with FormData, ensure multipart header to avoid urlencoded default
+            'Content-Type': 'multipart/form-data',
+          };
+          const fetchResp = await fetch(`${API_URL}/users/${userId}/upload-profile`, {
             method: 'POST',
             headers: fetchHeaders,
             body: formData,
@@ -153,8 +159,9 @@ const profileService = {
             throw new Error(text || `Upload failed with status ${fetchResp.status}`);
           }
           const json = await fetchResp.json();
-          if (json?.profile_picture) {
-            return { user: { profilePic: json.profile_picture } };
+          if (json?.profile_picture || json?.url) {
+            const pic = json.profile_picture || json.url;
+            return { user: { profilePic: pic } };
           }
           return json;
         }

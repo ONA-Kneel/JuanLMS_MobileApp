@@ -900,9 +900,9 @@ export default function StudentModule(){
                                             <Text style={styles.loadingText}>Loading image...</Text>
                                         </View>
                                     )}
-                                    
+
                                     {/* Error state */}
-                                    {!imageLoading && selectedFile?.error && (
+                                    {selectedFile?.error ? (
                                         <View style={styles.errorContainer}>
                                             <MaterialIcons name="error-outline" size={48} color="#f44336" />
                                             <Text style={styles.errorText}>Failed to load image</Text>
@@ -917,14 +917,11 @@ export default function StudentModule(){
                                                 <Text style={styles.retryButtonText}>Retry</Text>
                                             </TouchableOpacity>
                                         </View>
-                                    )}
-                                    
-                                    {/* Image display */}
-                                    {!imageLoading && !selectedFile?.error && (
+                                    ) : (
                                         <Image
-                                            source={{ 
+                                            source={{
                                                 uri: selectedFile.fileUrl,
-                                                cache: 'reload', // Force reload to avoid cache issues
+                                                cache: 'reload',
                                                 headers: {
                                                     'Cache-Control': 'no-cache'
                                                 }
@@ -945,12 +942,10 @@ export default function StudentModule(){
                                                 console.error('Error details:', error);
                                                 console.error('Image URL was:', selectedFile.fileUrl);
                                                 setImageLoading(false);
-                                                // Set error state instead of closing modal
                                                 setSelectedFile(prev => ({ ...prev, error: true }));
                                             }}
                                             onLoadEnd={() => {
                                                 console.log('Image loading ended for:', selectedFile.fileName);
-                                                // Only set loading to false if no error occurred
                                                 if (!selectedFile?.error) {
                                                     setImageLoading(false);
                                                 }
