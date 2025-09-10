@@ -6,7 +6,7 @@ const userSchema = new mongoose.Schema({
   email: String,
   password: String,
   role: String,
-  profilePicture: String,
+  profilePic: { type: String, default: null },
   // Common identifiers used across the app
   userID: { type: String },
   schoolID: { type: String },

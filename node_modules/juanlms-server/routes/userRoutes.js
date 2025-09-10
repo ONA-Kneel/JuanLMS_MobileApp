@@ -106,7 +106,14 @@ userRoutes.delete("/users/:id", async (req, res) => {
 // Upload profile picture route - Updated to match web app approach
 userRoutes.post("/users/:id/profile-picture", upload.single('image'), async (req, res) => {
     try {
+        console.log("=== PROFILE PICTURE UPLOAD DEBUG ===");
+        console.log("Request received for user ID:", req.params.id);
+        console.log("Request headers:", req.headers);
+        console.log("Request file:", req.file);
+        console.log("Request body:", req.body);
+        
         if (!req.file) {
+            console.log("ERROR: No file uploaded");
             return res.status(400).json({ error: "No file uploaded" });
         }
 
@@ -114,24 +121,31 @@ userRoutes.post("/users/:id/profile-picture", upload.single('image'), async (req
         
         // Handle both Cloudinary and local storage (like web app)
         const profilePicUrl = req.file.secure_url || req.file.path || req.file.filename;
+        console.log("Profile pic URL:", profilePicUrl);
         
         if (!mongoose.Types.ObjectId.isValid(userId)) {
+            console.log("ERROR: Invalid user ID format");
             return res.status(400).json({ error: "Invalid user ID" });
         }
 
+        console.log("Looking for user with ID:", userId);
         const user = await User.findById(userId);
+        console.log("User found:", user ? "YES" : "NO");
         if (!user) {
+            console.log("ERROR: User not found in database");
             return res.status(404).json({ error: "User not found" });
         }
 
+        console.log("Updating user profile picture...");
         // Update only the profilePic field using findByIdAndUpdate to avoid validation issues
         const updatedUser = await User.findByIdAndUpdate(
             userId, 
             { profilePic: profilePicUrl },
             { new: true, runValidators: false } // Skip validation to avoid contactNo requirement
         );
+        console.log("User updated successfully:", updatedUser ? "YES" : "NO");
 
-        res.json({
+        const response = {
             message: "Profile image uploaded and linked successfully",
             imageFilename: profilePicUrl,
             user: {
@@ -140,9 +154,12 @@ userRoutes.post("/users/:id/profile-picture", upload.single('image'), async (req
                 lastname: updatedUser.lastname,
                 profilePic: updatedUser.profilePic,
             },
-        });
+        };
+        console.log("Sending response:", response);
+        res.json(response);
     } catch (error) {
-        console.error("Error uploading profile picture:", error);
+        console.error("ERROR uploading profile picture:", error);
+        console.error("Error stack:", error.stack);
         res.status(500).json({ error: "Failed to upload profile image" });
     }
 });

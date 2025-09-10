@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system';
 
-const API_URL = 'https://juanlms-webapp-server.onrender.com'; // Ensure this matches your backend base URL
+const API_URL = 'https://juanlms-webapp-server.onrender.com'; // Use web app's backend
 
 const profileService = {
   async updateProfile(userId, profileData) {
@@ -78,11 +78,19 @@ const profileService = {
 
   async uploadProfilePicture(userId, imageAsset, isWeb = false) {
     try {
+      console.log("=== FRONTEND UPLOAD DEBUG ===");
+      console.log("User ID:", userId);
+      console.log("Image Asset:", imageAsset);
+      console.log("Is Web:", isWeb);
+      
       const token = await AsyncStorage.getItem('jwtToken');
+      console.log("Token found:", token ? "YES" : "NO");
+      
       const formData = new FormData();
       if (isWeb) {
         // imageAsset is a File from an <input type="file"/>
         // Backend expects field name 'image'
+        console.log("Adding image to formData for web");
         formData.append('image', imageAsset);
       } else {
         let uploadUri = imageAsset?.uri;
@@ -116,6 +124,10 @@ const profileService = {
         };
         const name = imageAsset?.fileName || pickNameFromUri(uploadUri, 'profile.jpg');
         const type = imageAsset?.type || getMimeType(uploadUri, undefined);
+        console.log("Mobile upload - URI:", uploadUri);
+        console.log("Mobile upload - Name:", name);
+        console.log("Mobile upload - Type:", type);
+        
         // Backend expects field name 'image'
         formData.append('image', {
           uri: uploadUri,
@@ -123,15 +135,18 @@ const profileService = {
           type,
         });
       }
+      
+      console.log("Making request to:", `${API_URL}/users/${userId}/upload-profile`);
       try {
-        // Backend route: POST /users/:id/profile-picture
-        const response = await axios.post(`${API_URL}/users/${userId}/profile-picture`, formData, {
+        // Backend route: POST /users/:id/upload-profile (web app's endpoint)
+        const response = await axios.post(`${API_URL}/users/${userId}/upload-profile`, formData, {
           headers: {
-            Authorization: token ? `Bearer ${token}` : undefined,
+            // Note: upload-profile endpoint doesn't require authentication
             // Let Axios set the proper multipart boundary automatically
             Accept: 'application/json',
           },
         });
+        console.log("Response received:", response.data);
         // Normalize response to expected shape used by callers
         if (response?.data?.user?.profilePic) {
           return { user: { profilePic: response.data.user.profilePic } };
@@ -144,9 +159,8 @@ const profileService = {
         if (isNetworkError && isNative) {
           const fetchHeaders = {
             'Accept': 'application/json',
-            'Authorization': token ? `Bearer ${token}` : undefined,
           };
-          const fetchResp = await fetch(`${API_URL}/users/${userId}/profile-picture`, {
+          const fetchResp = await fetch(`${API_URL}/users/${userId}/upload-profile`, {
             method: 'POST',
             headers: fetchHeaders,
             body: formData,
