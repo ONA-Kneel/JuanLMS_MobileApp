@@ -128,8 +128,7 @@ const profileService = {
         const response = await axios.post(`${API_URL}/users/${userId}/upload-profile`, formData, {
           headers: {
             Authorization: token ? `Bearer ${token}` : undefined,
-            // Explicitly set multipart for React Native to avoid RN defaulting to urlencoded
-            ...(Platform.OS === 'ios' || Platform.OS === 'android' ? { 'Content-Type': 'multipart/form-data' } : {}),
+            // Do NOT set Content-Type manually for multipart; let axios/RN set boundary
             Accept: 'application/json',
           },
         });
@@ -146,8 +145,7 @@ const profileService = {
         if (isNetworkError && isNative) {
           const fetchHeaders = {
             ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-            // For RN fetch with FormData, ensure multipart header to avoid urlencoded default
-            'Content-Type': 'multipart/form-data',
+            // Do NOT set Content-Type; RN fetch will add correct multipart boundary
           };
           const fetchResp = await fetch(`${API_URL}/users/${userId}/upload-profile`, {
             method: 'POST',

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, View, Image, Alert, Platform } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import MyStyles from './styles/MyStyles';
 
 export default function SplashScreen() {
@@ -27,41 +28,48 @@ export default function SplashScreen() {
     const timer = setTimeout(async () => {
       console.log('⏰ Timer fired - attempting navigation');
       try {
-        // Add extra safety checks
         if (!navigation) {
           throw new Error('Navigation object is null');
         }
-        
-        console.log('🔄 Attempting navigation.replace...');
-        console.log('🎯 Target screen: Login');
-        navigation.replace('Login');
-        console.log('✅ Navigation successful');
-        
+
+        // Decide destination based on persisted auth and remember-me
+        const remember = await AsyncStorage.getItem('rememberMeEnabled');
+        const token = await AsyncStorage.getItem('jwtToken');
+        const storedUser = await AsyncStorage.getItem('user');
+        const user = storedUser ? JSON.parse(storedUser) : null;
+
+        const roleNavigationMap = {
+          'students': 'SDash',
+          'faculty': 'FDash',
+          'admin': 'ADash',
+          'parent': 'PDash',
+          'director': 'DDash',
+          'vpe': 'VPEDash',
+          'vice president of education': 'VPEDash',
+          'vicepresident': 'VPEDash',
+          'vice president': 'VPEDash',
+          'principal': 'PrincipalDash'
+        };
+
+        const canAutoEnter = remember === 'true' && !!token && !!user && !!user.role;
+        if (canAutoEnter) {
+          const target = roleNavigationMap[user.role];
+          if (target) {
+            console.log('🔐 Auto-enter with remember me. Role:', user.role, '→', target);
+            navigation.reset({ index: 0, routes: [{ name: target }] });
+            return;
+          }
+        }
+
+        console.log('🎯 Fallback to Login');
+        navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
       } catch (error) {
         console.error('❌ Navigation failed:', error);
         console.error('❌ Error stack:', error.stack);
         setError(error.message);
-        
-        // Show user-friendly error
-        Alert.alert(
-          'Navigation Error', 
-          `Failed to navigate: ${error.message}`,
-          [
-            {
-              text: 'Try Again',
-              onPress: () => {
-                try {
-                  console.log('🔄 Retry navigation...');
-                  navigation.navigate('Login');
-                } catch (e) {
-                  console.error('Second navigation attempt failed:', e);
-                }
-              }
-            }
-          ]
-        );
+        Alert.alert('Navigation Error', `Failed to navigate: ${error.message}`);
       }
-    }, 3000);
+    }, 1500);
 
     return () => {
       console.log('🧹 SplashScreen cleanup');

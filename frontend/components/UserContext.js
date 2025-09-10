@@ -40,8 +40,19 @@ export function UserProvider({ children }) {
     }
   };
 
+  // Centralized logout: clear state and persisted auth
+  const logout = async () => {
+    try {
+      setUser(null);
+      await AsyncStorage.removeItem('user');
+      await AsyncStorage.removeItem('jwtToken');
+    } catch (error) {
+      console.error('Error during logout:', error);
+    }
+  };
+
   return (
-    <UserContext.Provider value={{ user, setUser, updateUser, setUserAndToken }}>
+    <UserContext.Provider value={{ user, setUser, updateUser, setUserAndToken, logout }}>
       {children}
     </UserContext.Provider>
   );

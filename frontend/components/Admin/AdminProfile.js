@@ -27,7 +27,7 @@ const buildImageUri = (pathOrUrl) => {
 
 
 export default function AdminProfile() {
-  const { user, updateUser } = useUser();
+  const { user, updateUser, logout: logoutFromContext } = useUser();
   const navigation = useNavigation();
   const { unreadCount } = useNotifications();
   const { announcements } = useAnnouncements();
@@ -50,14 +50,14 @@ export default function AdminProfile() {
         timestamp: new Date().toISOString(),
       });
     }
-    await AsyncStorage.removeItem('user');
+    await logoutFromContext?.();
     const remember = await AsyncStorage.getItem('rememberMeEnabled');
     if (remember !== 'true') {
       await AsyncStorage.removeItem('savedEmail');
       await AsyncStorage.removeItem('savedPassword');
     }
     setShowLogoutConfirm(false);
-    navigation.navigate('Login');
+    navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
   };
 
   if (!user) {

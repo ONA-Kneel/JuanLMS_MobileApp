@@ -34,7 +34,7 @@ const buildImageUri = (pathOrUrl) => {
 };
 
 export default function StudentsProfile() {
-  const { user, loading, updateUser } = useUser();
+  const { user, loading, updateUser, logout: logoutFromContext } = useUser();
   const navigation = useNavigation();
   const { unreadCount } = useNotifications();
   const { announcements } = useAnnouncements();
@@ -76,14 +76,14 @@ export default function StudentsProfile() {
           timestamp: new Date().toISOString(),
         });
       }
-      await AsyncStorage.removeItem('user');
+      await logoutFromContext?.();
       const remember = await AsyncStorage.getItem('rememberMeEnabled');
       if (remember !== 'true') {
         await AsyncStorage.removeItem('savedEmail');
         await AsyncStorage.removeItem('savedPassword');
       }
       setShowLogoutConfirm(false);
-      navigation.navigate('Login');
+      navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
     } catch (error) {
       console.error('Logout error:', error);
       Alert.alert('Error', 'Failed to logout. Please try again.');
