@@ -53,6 +53,9 @@ export default function StudentModule(){
     const [selectedFile, setSelectedFile] = useState(null);
     const [showFileViewer, setShowFileViewer] = useState(false);
     const [imageLoading, setImageLoading] = useState(false);
+    const [imageScale, setImageScale] = useState(1);
+    const [imageTranslateX, setImageTranslateX] = useState(0);
+    const [imageTranslateY, setImageTranslateY] = useState(0);
 
     useEffect(() => {
         console.log('DEBUG StudentModule: useEffect classId:', classId);
@@ -315,6 +318,23 @@ export default function StudentModule(){
         setShowFileViewer(false);
         setSelectedFile(null);
         setImageLoading(false);
+        setImageScale(1);
+        setImageTranslateX(0);
+        setImageTranslateY(0);
+    };
+
+    const resetImageTransform = () => {
+        setImageScale(1);
+        setImageTranslateX(0);
+        setImageTranslateY(0);
+    };
+
+    const handleImagePress = () => {
+        if (imageScale === 1) {
+            setImageScale(2);
+        } else {
+            resetImageTransform();
+        }
     };
 
     // Add timeout for image loading to prevent stuck states
@@ -885,9 +905,16 @@ export default function StudentModule(){
                             <Text style={styles.fileViewerTitle}>
                                 {selectedFile?.fileName || 'File Viewer'}
                             </Text>
-                            <TouchableOpacity onPress={closeFileViewer} style={styles.closeButton}>
-                                <MaterialIcons name="close" size={24} color="#666" />
-                            </TouchableOpacity>
+                            <View style={styles.headerActions}>
+                                {imageScale > 1 && (
+                                    <Text style={styles.zoomIndicator}>
+                                        {Math.round(imageScale * 100)}%
+                                    </Text>
+                                )}
+                                <TouchableOpacity onPress={closeFileViewer} style={styles.closeButton}>
+                                    <MaterialIcons name="close" size={24} color="#666" />
+                                </TouchableOpacity>
+                            </View>
                         </View>
                         
                         {/* File Content */}
@@ -918,39 +945,54 @@ export default function StudentModule(){
                                             </TouchableOpacity>
                                         </View>
                                     ) : (
-                                        <Image
-                                            source={{
-                                                uri: selectedFile.fileUrl,
-                                                cache: 'reload',
-                                                headers: {
-                                                    'Cache-Control': 'no-cache'
-                                                }
-                                            }}
-                                            style={styles.imageViewer}
-                                            resizeMode="contain"
-                                            onLoadStart={() => {
-                                                console.log('Image loading started for:', selectedFile.fileName);
-                                                console.log('Image URL:', selectedFile.fileUrl);
-                                                setImageLoading(true);
-                                            }}
-                                            onLoad={() => {
-                                                console.log('Image loaded successfully for:', selectedFile.fileName);
-                                                setImageLoading(false);
-                                            }}
-                                            onError={(error) => {
-                                                console.error('Image loading error for:', selectedFile.fileName);
-                                                console.error('Error details:', error);
-                                                console.error('Image URL was:', selectedFile.fileUrl);
-                                                setImageLoading(false);
-                                                setSelectedFile(prev => ({ ...prev, error: true }));
-                                            }}
-                                            onLoadEnd={() => {
-                                                console.log('Image loading ended for:', selectedFile.fileName);
-                                                if (!selectedFile?.error) {
+                                        <TouchableOpacity
+                                            style={styles.imageContainer}
+                                            onPress={handleImagePress}
+                                            activeOpacity={0.9}
+                                        >
+                                            <Image
+                                                source={{
+                                                    uri: selectedFile.fileUrl,
+                                                    cache: 'reload',
+                                                    headers: {
+                                                        'Cache-Control': 'no-cache'
+                                                    }
+                                                }}
+                                                style={[
+                                                    styles.imageViewer,
+                                                    {
+                                                        transform: [
+                                                            { scale: imageScale },
+                                                            { translateX: imageTranslateX },
+                                                            { translateY: imageTranslateY }
+                                                        ]
+                                                    }
+                                                ]}
+                                                resizeMode="contain"
+                                                onLoadStart={() => {
+                                                    console.log('Image loading started for:', selectedFile.fileName);
+                                                    console.log('Image URL:', selectedFile.fileUrl);
+                                                    setImageLoading(true);
+                                                }}
+                                                onLoad={() => {
+                                                    console.log('Image loaded successfully for:', selectedFile.fileName);
                                                     setImageLoading(false);
-                                                }
-                                            }}
-                                        />
+                                                }}
+                                                onError={(error) => {
+                                                    console.error('Image loading error for:', selectedFile.fileName);
+                                                    console.error('Error details:', error);
+                                                    console.error('Image URL was:', selectedFile.fileUrl);
+                                                    setImageLoading(false);
+                                                    setSelectedFile(prev => ({ ...prev, error: true }));
+                                                }}
+                                                onLoadEnd={() => {
+                                                    console.log('Image loading ended for:', selectedFile.fileName);
+                                                    if (!selectedFile?.error) {
+                                                        setImageLoading(false);
+                                                    }
+                                                }}
+                                            />
+                                        </TouchableOpacity>
                                     )}
                                 </>
                             )}
@@ -959,7 +1001,14 @@ export default function StudentModule(){
                         {/* Action Buttons */}
                         <View style={styles.fileActions}>
                             <TouchableOpacity
-                                style={styles.downloadButton}
+                                style={[styles.actionButton, styles.resetButton]}
+                                onPress={resetImageTransform}
+                            >
+                                <MaterialIcons name="refresh" size={20} color="#00418b" />
+                                <Text style={styles.resetButtonText}>Reset</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.actionButton, styles.downloadButton]}
                                 onPress={() => {
                                     if (selectedFile?.fileUrl) {
                                         Linking.openURL(selectedFile.fileUrl).catch(() => {
@@ -989,9 +1038,14 @@ const styles = {
     fileViewerModal: {
         backgroundColor: 'white',
         borderRadius: 12,
-        width: '90%',
-        maxHeight: '80%',
+        width: '95%',
+        height: '90%',
         overflow: 'hidden',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 8,
     },
     fileViewerHeader: {
         flexDirection: 'row',
@@ -1009,6 +1063,20 @@ const styles = {
         flex: 1,
         marginRight: 16,
     },
+    headerActions: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+    },
+    zoomIndicator: {
+        fontSize: 14,
+        fontWeight: 'bold',
+        color: '#00418b',
+        backgroundColor: 'rgba(0, 65, 139, 0.1)',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 12,
+    },
     closeButton: {
         padding: 4,
     },
@@ -1016,13 +1084,21 @@ const styles = {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        padding: 20,
-        minHeight: 300,
+        padding: 10,
+        minHeight: 400,
     },
     imageViewer: {
         width: '100%',
         height: '100%',
         borderRadius: 8,
+        maxWidth: '100%',
+        maxHeight: '100%',
+    },
+    imageContainer: {
+        width: '100%',
+        height: '100%',
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     loadingContainer: {
         position: 'absolute',
@@ -1073,20 +1149,35 @@ const styles = {
     },
     fileActions: {
         flexDirection: 'row',
-        justifyContent: 'center',
+        justifyContent: 'space-between',
         padding: 16,
         borderTopWidth: 1,
         borderTopColor: '#e0e0e0',
         backgroundColor: '#f8f9fa',
+        gap: 12,
     },
-    downloadButton: {
-        backgroundColor: '#00418b',
+    actionButton: {
         flexDirection: 'row',
         alignItems: 'center',
         paddingHorizontal: 20,
         paddingVertical: 12,
         borderRadius: 8,
         gap: 8,
+        flex: 1,
+        justifyContent: 'center',
+    },
+    resetButton: {
+        backgroundColor: 'white',
+        borderWidth: 2,
+        borderColor: '#00418b',
+    },
+    resetButtonText: {
+        color: '#00418b',
+        fontSize: 16,
+        fontWeight: 'bold',
+    },
+    downloadButton: {
+        backgroundColor: '#00418b',
     },
     downloadButtonText: {
         color: 'white',

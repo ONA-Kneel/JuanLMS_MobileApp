@@ -86,139 +86,164 @@ const StudentGrades = () => {
       }
 
       // Determine student identifier (prefer schoolID like web app)
-      const schoolID = user.schoolID || user.userID || user._id;
+      let schoolID = user.schoolID || user.userID || user._id;
+      
+      // Try to get schoolID from JWT token like web app
+      try {
+        const tokenRaw = await AsyncStorage.getItem('jwtToken');
+        if (tokenRaw) {
+          const payload = JSON.parse(atob(tokenRaw.split('.')[1] || '')) || {};
+          const claimSchool = payload.schoolID || payload.schoolId;
+          const claimUser = payload.userID || payload.userId || payload.sub;
+          if (claimSchool) schoolID = claimSchool;
+          if ((!schoolID || schoolID === 'null' || schoolID === 'undefined') && claimUser) {
+            schoolID = claimUser;
+          }
+        }
+      } catch (e) {
+        console.log('Could not parse JWT token for schoolID');
+      }
+      
+      if (!schoolID || schoolID === 'null' || schoolID === 'undefined') {
+        schoolID = user.userID || user._id;
+      }
+      
       if (!schoolID) {
         throw new Error('Missing student identifier (schoolID/userID)');
       }
-
-      // Quick health check to avoid calling unavailable endpoints
-      try {
-        const health = await fetch(`${API_BASE}/api/grades/health`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (!health.ok) {
-          console.log('Grades health endpoint not available, skipping grades fetch');
-          setGrades([]);
-          setError('');
-          setGradesUnavailable(true);
-          setLoading(false);
-          setRefreshing(false);
-          return;
-        }
-      } catch (e) {
-        console.log('Grades health check failed, skipping grades fetch');
-        setGrades([]);
-        setError('');
-        setGradesUnavailable(true);
-        setLoading(false);
-        setRefreshing(false);
-        return;
-      }
-
-      // Fetch grades using existing backend endpoint
-      console.log('Fetching grades from:', `${API_BASE}/api/grades/student/${schoolID}`);
-      console.log('Token:', token ? 'Present' : 'Missing');
-      console.log('School ID:', schoolID);
       
-      // First, get the student's classes to provide required parameters
-      let studentClasses = [];
+      console.log('🔍 Fetching grades using School ID:', schoolID);
+
+      // Try to fetch grades from the Semestral_Grades_Collection endpoint using schoolID (like web app)
+      let transformed = [];
+      
       try {
-        const classesResponse = await fetch(`${API_BASE}/api/classes/student/${schoolID}`, {
+        const response = await fetch(`${API_BASE}/api/semestral-grades/student/${schoolID}?termName=${activeTermName}&academicYear=${activeYearName}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         
-        if (classesResponse.ok) {
-          studentClasses = await classesResponse.json();
-          console.log('Student classes found:', studentClasses.length);
-        } else {
-          console.log('Classes endpoint not available, using fallback');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.grades) {
+            console.log('✅ Grades loaded from Semestral_Grades_Collection using School ID:', schoolID);
+            console.log('Grades data:', data.grades);
+            
+            // Transform the grades data to match the expected format
+            transformed = data.grades.map(grade => ({
+              subjectCode: grade.subjectCode,
+              subjectDescription: grade.subjectName,
+              academicYear: grade.academicYear || activeYearName,
+              termName: grade.termName || activeTermName,
+              quarter1: grade.grades.quarter1 || '-',
+              quarter2: grade.grades.quarter2 || '-',
+              quarter3: grade.grades.quarter3 || '-',
+              quarter4: grade.grades.quarter4 || '-',
+              semestralGrade: grade.grades.semesterFinal || '-',
+              remarks: grade.grades.semesterFinal ? (parseFloat(grade.grades.semesterFinal) >= 75 ? 'PASSED' : 'FAILED') : 'No grades yet',
+            }));
+            
+            setGradesUnavailable(false);
+          }
         }
       } catch (error) {
-        console.log('Error fetching classes, using fallback:', error.message);
+        console.log('Semestral grades endpoint not available, trying traditional grades...');
       }
       
-      // Use the existing grades endpoint with required parameters
-      const response = await fetch(`${API_BASE}/api/grades/student/${schoolID}?classId=${studentClasses[0]?.classID || ''}&academicYear=${activeYearName}&termName=${activeTermName}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-
-      console.log('Response status:', response.status);
-      console.log('Response ok:', response.ok);
-      console.log('Response headers:', response.headers);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.log('Grades endpoint unavailable or failed, returning empty list. Status:', response.status, errorText);
-        setGrades([]);
-        setError('');
+      // Fallback: Try to fetch from traditional grades endpoint
+      if (transformed.length === 0) {
+        try {
+          const traditionalResponse = await fetch(`${API_BASE}/api/traditional-grades/student/${schoolID}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          
+          if (traditionalResponse.ok) {
+            const traditionalData = await traditionalResponse.json();
+            if (traditionalData.success && traditionalData.grades) {
+              console.log('✅ Grades loaded from traditional grades endpoint using School ID:', schoolID);
+              console.log('Traditional grades data:', traditionalData.grades);
+              
+              // Transform traditional grades to match expected format
+              transformed = traditionalData.grades.map(grade => ({
+                subjectCode: grade.subjectCode || 'N/A',
+                subjectDescription: grade.subjectName || 'N/A',
+                academicYear: grade.academicYear || activeYearName,
+                termName: grade.termName || activeTermName,
+                quarter1: grade.quarter1 || '-',
+                quarter2: grade.quarter2 || '-',
+                quarter3: grade.quarter3 || '-',
+                quarter4: grade.quarter4 || '-',
+                semestralGrade: grade.semesterFinal || '-',
+                remarks: grade.semesterFinal ? (parseFloat(grade.semesterFinal) >= 75 ? 'PASSED' : 'FAILED') : 'No grades yet',
+              }));
+              
+              setGradesUnavailable(false);
+            }
+          }
+        } catch (error) {
+          console.log('Traditional grades endpoint not available, using fallback');
+        }
+      }
+      
+      // If no grades found from either endpoint, try localStorage as last resort (like web app)
+      if (transformed.length === 0) {
+        console.log('No grades found from API endpoints, checking localStorage...');
+        try {
+          const savedGrades = await AsyncStorage.getItem('classGrades');
+          if (savedGrades) {
+            const parsedGrades = JSON.parse(savedGrades);
+            const studentGrades = parsedGrades.find(g => 
+              g.schoolID === schoolID
+            );
+            
+            if (studentGrades) {
+              console.log('✅ Grades loaded from localStorage using School ID:', schoolID);
+              console.log('LocalStorage grades:', studentGrades);
+              
+              // Transform localStorage grades to match expected format
+              transformed = [{
+                subjectCode: studentGrades.subjectCode || 'N/A',
+                subjectDescription: studentGrades.subjectName || 'N/A',
+                academicYear: studentGrades.academicYear || activeYearName,
+                termName: studentGrades.termName || activeTermName,
+                quarter1: studentGrades.grades.quarter1 || '-',
+                quarter2: studentGrades.grades.quarter2 || '-',
+                quarter3: studentGrades.grades.quarter3 || '-',
+                quarter4: studentGrades.grades.quarter4 || '-',
+                semestralGrade: studentGrades.grades.semesterFinal || '-',
+                remarks: studentGrades.grades.semesterFinal ? (parseFloat(studentGrades.grades.semesterFinal) >= 75 ? 'PASSED' : 'FAILED') : 'No grades yet',
+              }];
+              
+              setGradesUnavailable(false);
+            }
+          }
+        } catch (parseError) {
+          console.error('Error parsing localStorage grades:', parseError);
+        }
+      }
+      
+      if (transformed.length === 0) {
+        console.log('❌ No grades found from any source for School ID:', schoolID);
         setGradesUnavailable(true);
-        return;
       }
 
-      const payload = await response.json();
-      const allGrades = payload || [];
-      setGradesUnavailable(false);
-
-      // Transform existing grades data structure to UI-friendly format
-      const transformed = allGrades.map(g => ({
-        subjectCode: g.type === 'assignment' ? 'ASS' : 'QUIZ',
-        subjectDescription: g.title || 'Unknown Activity',
-        academicYear: g.academicYear || activeYearName,
-        termName: g.termName || activeTermName,
-        quarter1: g.type === 'assignment' ? (g.score || 'No grades yet') : 'No grades yet',
-        quarter2: g.type === 'quiz' ? (g.score || 'No grades yet') : 'No grades yet',
-        quarter3: 'No grades yet',
-        quarter4: 'No grades yet',
-        semestralGrade: g.score || 'No grades yet',
-        remarks: g.score ? (g.score >= 75 ? 'PASSED' : 'FAILED') : 'No grades yet',
-      }));
-
-      // If no grades found but student has classes, show "No grades yet" for each class
-      if (transformed.length === 0 && studentClasses.length > 0) {
-        console.log('No grades found, showing "No grades yet" for enrolled classes');
-        const noGradesSubjects = studentClasses.map(cls => ({
-          subjectCode: cls.subjectCode || cls.classCode || 'N/A',
-          subjectDescription: cls.className || cls.subjectName || 'Unknown Subject',
-          academicYear: cls.academicYear || activeYearName,
-          termName: cls.termName || activeTermName,
-          quarter1: 'No grades yet',
-          quarter2: 'No grades yet',
-          quarter3: 'No grades yet',
-          quarter4: 'No grades yet',
-          semestralGrade: 'No grades yet',
-          remarks: 'No grades yet',
-        }));
-        transformed.push(...noGradesSubjects);
-      } else if (transformed.length === 0) {
-        // Fallback: show generic subjects if no classes endpoint available
-        console.log('No grades or classes found, showing generic subjects');
+      // If no grades found, show fallback subjects (like web app)
+      if (transformed.length === 0) {
+        console.log('No grades found, showing fallback subjects');
         const fallbackSubjects = [
           {
-            subjectCode: 'MATH',
-            subjectDescription: 'Mathematics',
+            subjectCode: 'INT-CK-25',
+            subjectDescription: 'Introduction to Cooking',
             academicYear: activeYearName,
             termName: activeTermName,
-            quarter1: 'No grades yet',
-            quarter2: 'No grades yet',
-            quarter3: 'No grades yet',
-            quarter4: 'No grades yet',
-            semestralGrade: 'No grades yet',
-            remarks: 'No grades yet',
-          },
-          {
-            subjectCode: 'ENG',
-            subjectDescription: 'English',
-            academicYear: activeYearName,
-            termName: activeTermName,
-            quarter1: 'No grades yet',
-            quarter2: 'No grades yet',
-            quarter3: 'No grades yet',
-            quarter4: 'No grades yet',
-            semestralGrade: 'No grades yet',
+            quarter1: '-',
+            quarter2: '-',
+            quarter3: '-',
+            quarter4: '-',
+            semestralGrade: '-',
             remarks: 'No grades yet',
           }
         ];
-        transformed.push(...fallbackSubjects);
+        transformed = fallbackSubjects;
       }
 
       // Filter grades for current or previous
@@ -326,6 +351,13 @@ const StudentGrades = () => {
     return remarksMap[normalized] || normalized;
   };
 
+  // Helper function to get semester name based on term (like web app)
+  const getSemesterName = (termName) => {
+    if (termName === 'Term 1') return '1st Semester';
+    if (termName === 'Term 2') return '2nd Semester';
+    return termName;
+  };
+
   const getQuarterLabels = () => {
     if (currentTerm === 'Term 1') {
       return { q1: '1st Quarter', q2: '2nd Quarter' };
@@ -420,7 +452,7 @@ const StudentGrades = () => {
             </Text>
             {academicYear && currentTerm && (
               <Text style={styles.academicInfo}>
-                {academicYear} - {currentTerm} Term
+                {academicYear} - {getSemesterName(currentTerm)}
               </Text>
             )}
                         </View>

@@ -137,9 +137,15 @@ export default function StudentsProfile() {
       let profilePicPath = editedUser?.profilePic;
       let data;
       if (editedUser?.newProfilePicAsset) {
+        // Use the correct user ID format (prefer _id, fallback to userID)
+        const userId = user._id || user.userID;
+        if (!userId) {
+          throw new Error('User ID not found');
+        }
+        
         if (Platform.OS === 'web') {
           // Pass File directly; service will append as 'image'
-          data = await profileService.uploadProfilePicture(user._id, editedUser.newProfilePicAsset, true);
+          data = await profileService.uploadProfilePicture(userId, editedUser.newProfilePicAsset, true);
         } else {
           let asset = editedUser.newProfilePicAsset;
           let localUri = asset.uri;
@@ -153,7 +159,7 @@ export default function StudentsProfile() {
             fileName: asset.fileName || 'profile.jpg',
             type: asset.type || 'image/jpeg',
           };
-          data = await profileService.uploadProfilePicture(user._id, patchedAsset, false);
+          data = await profileService.uploadProfilePicture(userId, patchedAsset, false);
         }
         const updated = data?.user;
         if (updated?.profilePic) {
@@ -169,7 +175,8 @@ export default function StudentsProfile() {
       setIsEditModalVisible(false);
       Alert.alert('Profile Updated', 'Your profile picture has been changed successfully.');
     } catch (error) {
-      Alert.alert('Error', 'Failed to update profile picture. Please try again.');
+      console.error('Profile upload error:', error);
+      Alert.alert('Error', `Failed to update profile picture: ${error.message || 'Please try again.'}`);
     } finally {
       setIsLoading(false);
     }
