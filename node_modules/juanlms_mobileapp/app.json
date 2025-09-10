@@ -11,7 +11,7 @@
     "splash": {
       "image": "./assets/JuanLMS-LogoV1.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "##03045E"
     },
     "ios": {
       "supportsTablet": true,
@@ -20,7 +20,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/San Juan.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "##03045E"
       },
       "package": "com.kneelpngnbn.juanlms.mobileapp",
       "versionCode": 1,
