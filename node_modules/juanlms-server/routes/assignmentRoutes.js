@@ -8,7 +8,7 @@ import path from 'path';
 import User from '../models/User.js';
 import Quiz from '../models/Quiz.js';
 import Class from '../models/Class.js';
-// import { createAssignmentNotification } from '../services/notificationService.js';
+import { createAssignmentNotification } from '../services/notificationService.js';
 
 const router = express.Router();
 
@@ -227,7 +227,12 @@ router.post('/', /*authenticateToken,*/ upload.single('attachmentFile'), async (
         assignments.push(assignment);
         
         // Create notifications for students in this class
-        // await createAssignmentNotification(cid, assignment);
+        try {
+          await createAssignmentNotification(cid, assignment);
+        } catch (notificationError) {
+          console.error('Error creating assignment notifications:', notificationError);
+          // Don't fail the assignment creation if notification creation fails
+        }
       }
       return res.status(201).json(assignments);
     } else if (classID) {
@@ -252,7 +257,12 @@ router.post('/', /*authenticateToken,*/ upload.single('attachmentFile'), async (
       await assignment.save();
       
       // Create notifications for students in this class
-      // await createAssignmentNotification(classID, assignment);
+      try {
+        await createAssignmentNotification(classID, assignment);
+      } catch (notificationError) {
+        console.error('Error creating assignment notifications:', notificationError);
+        // Don't fail the assignment creation if notification creation fails
+      }
       
       return res.status(201).json([assignment]);
     } else {

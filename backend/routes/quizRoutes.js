@@ -11,7 +11,7 @@ import cloudinary from '../utils/cloudinary.js';
 import QuizResponse from '../models/QuizResponse.js';
 // import { authenticateToken } from '../middleware/authMiddleware.js';
 import seedrandom from 'seedrandom';
-// import { createQuizNotification } from '../services/notificationService.js';
+import { createQuizNotification } from '../services/notificationService.js';
 
 const router = express.Router();
 
@@ -59,15 +59,20 @@ router.post('/', /*authenticateToken,*/ async (req, res) => {
     await quiz.save();
     
     // Create notifications for students in the class(es)
-    // if (quiz.classID) {
-    //   await createQuizNotification(quiz.classID, quiz);
-    // } else if (quiz.assignedTo && Array.isArray(quiz.assignedTo)) {
-    //   for (const assignment of quiz.assignedTo) {
-    //     if (assignment.classID) {
-    //       await createQuizNotification(assignment.classID, quiz);
-    //     }
-    //   }
-    // }
+    try {
+      if (quiz.classID) {
+        await createQuizNotification(quiz.classID, quiz);
+      } else if (quiz.assignedTo && Array.isArray(quiz.assignedTo)) {
+        for (const assignment of quiz.assignedTo) {
+          if (assignment.classID) {
+            await createQuizNotification(assignment.classID, quiz);
+          }
+        }
+      }
+    } catch (notificationError) {
+      console.error('Error creating quiz notifications:', notificationError);
+      // Don't fail the quiz creation if notification creation fails
+    }
     
     res.status(201).json(quiz);
   } catch (err) {

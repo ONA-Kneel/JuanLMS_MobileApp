@@ -1,7 +1,7 @@
 import express from 'express';
 import Announcement from '../models/Announcement.js';
 // import { authenticateToken } from '../middleware/authMiddleware.js';
-// import { createAnnouncementNotification } from '../services/notificationService.js';
+import { createAnnouncementNotification } from '../services/notificationService.js';
 import mongoose from 'mongoose'; // Added for database connection check
 
 const router = express.Router();
@@ -142,7 +142,12 @@ router.post('/', /*authenticateToken,*/ async (req, res) => {
     // Create notifications for students in the class if classID is provided
     if (classID) {
       console.log(`Creating notifications for class: ${classID}`);
-      // await createAnnouncementNotification(classID, announcement);
+      try {
+        await createAnnouncementNotification(classID, announcement);
+      } catch (notificationError) {
+        console.error('Error creating announcement notifications:', notificationError);
+        // Don't fail the announcement creation if notification creation fails
+      }
     }
     
     res.status(201).json(announcement);

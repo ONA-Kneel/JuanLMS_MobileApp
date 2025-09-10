@@ -5,6 +5,7 @@
 import express from 'express';
 import multer from 'multer';
 import cloudinary from '../utils/cloudinary.js';
+import { createClassNotifications } from '../services/notificationService.js';
 import Lesson from '../models/Lesson.js';
 import path from 'path';
 import database from '../connect.cjs';
@@ -56,6 +57,14 @@ router.post('/', /*authenticateToken,*/ upload.array('files', 5), async (req, re
     // Create and save the lesson document
     const lesson = new Lesson({ classID, title, files, link });
     await lesson.save();
+
+    // Create notifications for students in the class
+    try {
+      await createClassNotifications(classID, lesson, 'activity', 'Faculty');
+    } catch (notificationError) {
+      console.error('Error creating lesson notifications:', notificationError);
+      // Don't fail the lesson creation if notification creation fails
+    }
 
     // Create audit log for material upload
     // const db = database.getDb();
