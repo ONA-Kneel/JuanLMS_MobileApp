@@ -79,10 +79,18 @@ const profileService = {
   async uploadProfilePicture(userId, imageAsset, isWeb = false) {
     try {
       const token = await AsyncStorage.getItem('jwtToken');
+      // Enforce same constraints as WebApp: image types only, max 5MB
+      const MAX_BYTES = 5 * 1024 * 1024;
       const formData = new FormData();
       if (isWeb) {
         // imageAsset is a File from an <input type="file"/>
         // Web endpoint expects field name 'image'
+        if (!imageAsset?.type || !String(imageAsset.type).startsWith('image/')) {
+          throw new Error('Only image files are allowed (JPG, JPEG, PNG).');
+        }
+        if (typeof imageAsset.size === 'number' && imageAsset.size > MAX_BYTES) {
+          throw new Error('Image is too large. Maximum size is 5MB.');
+        }
         formData.append('image', imageAsset);
       } else {
         let uploadUri = imageAsset?.uri;
@@ -116,6 +124,15 @@ const profileService = {
         };
         const name = imageAsset?.fileName || pickNameFromUri(uploadUri, 'profile.jpg');
         const type = imageAsset?.type || getMimeType(uploadUri, undefined);
+        // Check file size on native (best-effort)
+        try {
+          const info = await FileSystem.getInfoAsync(uploadUri);
+          if (info?.size && info.size > MAX_BYTES) {
+            throw new Error('Image is too large. Maximum size is 5MB.');
+          }
+        } catch (_) {
+          // Ignore if size check fails; server will still enforce limits
+        }
         // Web endpoint expects field name 'image'
         formData.append('image', {
           uri: uploadUri,

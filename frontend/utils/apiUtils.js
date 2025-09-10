@@ -31,37 +31,55 @@ export const getAuthHeaders = async () => {
 
 // API request wrapper with automatic JWT headers
 export const apiRequest = async (method, endpoint, data = null, customHeaders = {}) => {
-  try {
-    const headers = {
-      'Content-Type': 'application/json',
-      ...customHeaders,
-      ...(await getAuthHeaders()),
-    };
+  const headers = {
+    'Content-Type': 'application/json',
+    ...customHeaders,
+    ...(await getAuthHeaders()),
+  };
 
-    const config = {
+  const makeFetch = async (fullUrl) => {
+    const response = await fetch(fullUrl, {
       method,
-      url: `${getApiBaseUrl()}${endpoint}`,
       headers,
-      ...(data && { data }),
-    };
-
-    const response = await fetch(config.url, {
-      method: config.method,
-      headers: config.headers,
       ...(data && { body: JSON.stringify(data) }),
     });
+    return response;
+  };
+
+  const url = `${getApiBaseUrl()}${endpoint}`;
+
+  try {
+    let response = await makeFetch(url);
+
+    // If 404 and caller used /api prefix, retry without it for compatibility
+    if (response.status === 404 && endpoint.startsWith('/api/')) {
+      const fallbackEndpoint = endpoint.replace('/api/', '/');
+      const fallbackUrl = `${getApiBaseUrl()}${fallbackEndpoint}`;
+      console.warn(`API ${method} ${url} returned 404. Retrying as ${fallbackUrl}`);
+      response = await makeFetch(fallbackUrl);
+    }
 
     if (!response.ok) {
+      let errorBody;
+      try {
+        errorBody = await response.json();
+      } catch {
+        errorBody = null;
+      }
       const error = new Error(`HTTP error! status: ${response.status}`);
-      // Attach status for callers who want to branch on it
-      // @ts-ignore
+      // @ts-ignore attach context
       error.status = response.status;
+      // @ts-ignore
+      error.urlTried = url;
+      // @ts-ignore
+      error.responseBody = errorBody;
+      console.error(`API ${method} ${url} failed with ${response.status}`, errorBody || '');
       throw error;
     }
 
     return await response.json();
   } catch (error) {
-    console.error(`API ${method} request failed:`, error);
+    console.error(`API ${method} ${url} request failed:`, error);
     throw error;
   }
 };

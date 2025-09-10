@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, Modal, TouchableOpacity, ScrollView, StyleSheet, Dimensions, RefreshControl } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAnnouncements } from '../AnnouncementContext';
 import { useNotifications } from '../NotificationContext';
 import { useNavigation } from '@react-navigation/native';
@@ -8,7 +9,7 @@ import { useNavigation } from '@react-navigation/native';
 export default function NotificationCenter({ visible, onClose }) {
   const navigation = useNavigation();
   const { announcements, acknowledgedAnnouncements, loading: loadingAnnouncements, acknowledgeAnnouncement, refreshAnnouncements } = useAnnouncements();
-  const { notifications, loading: loadingNotifications, markAsRead, refreshNotifications } = useNotifications();
+  const { notifications, loading: loadingNotifications, markAsRead, markAllAsRead, refreshNotifications } = useNotifications();
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState('updates'); // 'updates' or 'announcements'
 
@@ -68,13 +69,24 @@ export default function NotificationCenter({ visible, onClose }) {
     onClose();
   };
 
-  // Choose items for the active tab
+  // Choose items for the active tab - matches web app filtering logic
   const getFilteredNotifications = () => {
-    if (activeTab === 'updates') {
-      return notifications;
+    if (activeTab === 'announcements') {
+      // Show acknowledged announcements from Principal/VPE (like web app)
+      return acknowledgedAnnouncements.filter(announcement => 
+        announcement.createdBy?.role?.toLowerCase() === 'principal' || 
+        announcement.createdBy?.role?.toLowerCase() === 'vice president of education' ||
+        announcement.createdBy?.role?.toLowerCase() === 'vpe'
+      );
+    } else {
+      // Show all other notifications (messages, activities, class announcements, etc.)
+      return notifications.filter(n => 
+        n.type !== 'announcement' || 
+        (!n.faculty?.toLowerCase().includes('principal') && 
+         !n.faculty?.toLowerCase().includes('vpe') &&
+         !n.faculty?.toLowerCase().includes('vice president'))
+      );
     }
-    // Show current, unacknowledged announcements (matches web app expectation)
-    return announcements;
   };
 
   const filteredItems = getFilteredNotifications();
@@ -87,6 +99,22 @@ export default function NotificationCenter({ visible, onClose }) {
           <View style={styles.header}>
             <Text style={styles.headerTitle}>Notifications</Text>
             <View style={styles.headerActions}>
+              {activeTab === 'updates' && filteredItems.length > 0 && (
+                <TouchableOpacity 
+                  onPress={async () => {
+                    const user = await AsyncStorage.getItem('user');
+                    if (user) {
+                      const userData = JSON.parse(user);
+                      if (userData._id) {
+                        await markAllAsRead(userData._id);
+                      }
+                    }
+                  }} 
+                  style={styles.markAllButton}
+                >
+                  <Text style={styles.markAllText}>Mark All Read</Text>
+                </TouchableOpacity>
+              )}
               <TouchableOpacity onPress={onClose} style={styles.closeButton}>
                 <Icon name="close" size={24} color="#666" />
               </TouchableOpacity>
@@ -239,6 +267,18 @@ const styles = StyleSheet.create({
   },
   closeButton: {
     padding: 5,
+  },
+  markAllButton: {
+    backgroundColor: '#00418b',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    marginRight: 10,
+  },
+  markAllText: {
+    color: 'white',
+    fontSize: 12,
+    fontFamily: 'Poppins-Medium',
   },
   tabsContainer: {
     flexDirection: 'row',
