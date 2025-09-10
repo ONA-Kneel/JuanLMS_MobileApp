@@ -8,9 +8,17 @@ import { useNavigation } from '@react-navigation/native';
 export default function NotificationCenter({ visible, onClose }) {
   const navigation = useNavigation();
   const { announcements, acknowledgedAnnouncements, loading: loadingAnnouncements, acknowledgeAnnouncement, refreshAnnouncements } = useAnnouncements();
-  const { notifications, loading: loadingNotifications, markAsRead } = useNotifications();
+  const { notifications, loading: loadingNotifications, markAsRead, refreshNotifications } = useNotifications();
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState('updates'); // 'updates' or 'announcements'
+
+  React.useEffect(() => {
+    if (visible) {
+      // Ensure latest data when opening
+      refreshAnnouncements();
+      refreshNotifications();
+    }
+  }, [visible]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -60,13 +68,13 @@ export default function NotificationCenter({ visible, onClose }) {
     onClose();
   };
 
-  // Filter notifications based on active tab
+  // Choose items for the active tab
   const getFilteredNotifications = () => {
     if (activeTab === 'updates') {
       return notifications;
-    } else {
-      return acknowledgedAnnouncements;
     }
+    // Show current, unacknowledged announcements (matches web app expectation)
+    return announcements;
   };
 
   const filteredItems = getFilteredNotifications();
