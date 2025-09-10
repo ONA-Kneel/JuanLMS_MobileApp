@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "JuanLMS_MobileApp",
+    "name": "JuanLMS",
     "slug": "juanlms-mobile-app",
     "owner": "kneelpngnbn", 
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/JuanLMS-LogoV1.png",
+    "icon": "./assets/San Juan.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
@@ -19,7 +19,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/JuanLMS-LogoV1.png",
+        "foregroundImage": "./assets/San Juan.png",
         "backgroundColor": "#ffffff"
       },
       "package": "com.kneelpngnbn.juanlms.mobileapp",
@@ -37,7 +37,7 @@
       }
     },
     "web": {
-      "icon": "./assets/JuanLMS-LogoV1.png"
+      "icon": "./assets/San Juan.png"
     },
     "extra": {
       "API_URL": "https://juanlms-webapp-server.onrender.com"
