@@ -4,6 +4,20 @@ import { ObjectId } from "mongodb";
 import moment from 'moment';
 
 const adminRoutes = e.Router();
+// Web-compatible user counts route
+adminRoutes.get('/user-counts', async (req, res) => {
+    try {
+        const db = database.getDb();
+        // Include role variants to match legacy data
+        const admin = await db.collection('users').countDocuments({ role: { $in: ['admin', 'Admin', 'ADMIN'] } });
+        const faculty = await db.collection('users').countDocuments({ role: { $in: ['faculty', 'Faculty', 'FACULTY', 'teacher'] } });
+        const student = await db.collection('users').countDocuments({ role: { $in: ['students', 'student', 'Students', 'Student'] } });
+        res.json({ admin, faculty, student });
+    } catch (error) {
+        console.error('Error fetching web-compatible user counts:', error);
+        res.status(500).json({ error: 'Failed to fetch user counts' });
+    }
+});
 
 // Get user statistics (counts by role)
 adminRoutes.get("/api/admin/user-stats", async (req, res) => {

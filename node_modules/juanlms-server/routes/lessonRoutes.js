@@ -4,6 +4,7 @@
 
 import express from 'express';
 import multer from 'multer';
+import cloudinary from '../utils/cloudinary.js';
 import Lesson from '../models/Lesson.js';
 import path from 'path';
 import database from '../connect.cjs';
@@ -13,26 +14,11 @@ import { ObjectId } from 'mongodb';
 
 const router = express.Router();
 
-// --- Multer setup for file uploads ---
-// Multer is used to handle multipart/form-data (file uploads) in Express
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    // All lesson files are stored in uploads/lessons/
-    cb(null, 'uploads/lessons/');
-  },
-  filename: function (req, file, cb) {
-    // Use a unique filename to avoid collisions
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, uniqueSuffix + '-' + file.originalname);
-  }
-});
+// --- Multer setup for file uploads (memory) ---
 const upload = multer({
-  storage: storage,
-  limits: { fileSize: 100 * 1024 * 1024 }, // 100MB per file
-  // Accept all file types for lesson materials
-  fileFilter: (req, file, cb) => {
-    cb(null, true);
-  }
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 100 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => { cb(null, true); }
 });
 
 // --- POST /lessons - upload lesson with multiple files ---
@@ -44,11 +30,29 @@ router.post('/', /*authenticateToken,*/ upload.array('files', 5), async (req, re
     if (!classID || !title || (!req.files || req.files.length === 0) && !link) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
-    // Map uploaded files to file info objects for storage in MongoDB
-    const files = req.files.map(file => ({
-      fileUrl: `/uploads/lessons/${file.filename}`,
-      fileName: file.originalname
-    }));
+    // Upload each file buffer to Cloudinary (raw resource type for arbitrary docs)
+    const uploadOne = (file) => new Promise((resolve, reject) => {
+      if (!process.env.CLOUDINARY_CLOUD_NAME) {
+        const uploadDir = 'uploads/lessons';
+        const fs = require('fs');
+        const path = require('path');
+        fs.mkdirSync(uploadDir, { recursive: true });
+        const unique = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        const filename = unique + '-' + (file.originalname || 'file');
+        const filepath = path.join(uploadDir, filename);
+        fs.writeFileSync(filepath, file.buffer);
+        return resolve({ fileUrl: `/uploads/lessons/${filename}`, fileName: file.originalname });
+      }
+      const stream = cloudinary.uploader.upload_stream(
+        { folder: 'juanlms/lessons', resource_type: 'auto' },
+        (err, result) => {
+          if (err) return reject(err);
+          resolve({ fileUrl: result.secure_url, fileName: file.originalname });
+        }
+      );
+      stream.end(file.buffer);
+    });
+    const files = req.files && req.files.length > 0 ? await Promise.all(req.files.map(uploadOne)) : [];
     // Create and save the lesson document
     const lesson = new Lesson({ classID, title, files, link });
     await lesson.save();
@@ -67,7 +71,10 @@ router.post('/', /*authenticateToken,*/ upload.array('files', 5), async (req, re
 
     res.status(201).json({ success: true, lesson });
   } catch (err) {
-    console.error(err);
+    console.error('Lesson upload error:', err);
+    if (!process.env.CLOUDINARY_CLOUD_NAME) {
+      return res.status(500).json({ error: 'Cloudinary not configured on server' });
+    }
     res.status(500).json({ error: 'Failed to upload lesson' });
   }
 });
@@ -187,16 +194,36 @@ router.patch('/:lessonId/files', /*authenticateToken,*/ upload.array('files', 5)
     const lesson = await Lesson.findById(lessonId);
     if (!lesson) return res.status(404).json({ error: 'Lesson not found' });
     if (!req.files || req.files.length === 0) return res.status(400).json({ error: 'No files uploaded' });
-    // Map uploaded files to file info objects
-    const newFiles = req.files.map(file => ({
-      fileUrl: `/uploads/lessons/${file.filename}`,
-      fileName: file.originalname
-    }));
+    const uploadOne = (file) => new Promise((resolve, reject) => {
+      if (!process.env.CLOUDINARY_CLOUD_NAME) {
+        const uploadDir = 'uploads/lessons';
+        const fs = require('fs');
+        const path = require('path');
+        fs.mkdirSync(uploadDir, { recursive: true });
+        const unique = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        const filename = unique + '-' + (file.originalname || 'file');
+        const filepath = path.join(uploadDir, filename);
+        fs.writeFileSync(filepath, file.buffer);
+        return resolve({ fileUrl: `/uploads/lessons/${filename}`, fileName: file.originalname });
+      }
+      const stream = cloudinary.uploader.upload_stream(
+        { folder: 'juanlms/lessons', resource_type: 'auto' },
+        (err, result) => {
+          if (err) return reject(err);
+          resolve({ fileUrl: result.secure_url, fileName: file.originalname });
+        }
+      );
+      stream.end(file.buffer);
+    });
+    const newFiles = await Promise.all(req.files.map(uploadOne));
     lesson.files.push(...newFiles);
     await lesson.save();
     res.json({ success: true, lesson });
   } catch (err) {
-    console.error(err);
+    console.error('Add lesson files error:', err);
+    if (!process.env.CLOUDINARY_CLOUD_NAME) {
+      return res.status(500).json({ error: 'Cloudinary not configured on server' });
+    }
     res.status(500).json({ error: 'Failed to add files to lesson' });
   }
 });

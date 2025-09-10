@@ -7,6 +7,7 @@ import Class from '../models/Class.js';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
+import cloudinary from '../utils/cloudinary.js';
 import QuizResponse from '../models/QuizResponse.js';
 // import { authenticateToken } from '../middleware/authMiddleware.js';
 import seedrandom from 'seedrandom';
@@ -14,28 +15,40 @@ import seedrandom from 'seedrandom';
 
 const router = express.Router();
 
-// Multer setup for quiz images
-const quizImageDir = path.resolve('backend/server/uploads/quiz-images');
-if (!fs.existsSync(quizImageDir)) fs.mkdirSync(quizImageDir, { recursive: true });
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, quizImageDir);
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    const ext = path.extname(file.originalname);
-    cb(null, uniqueSuffix + ext);
-  }
-});
-const upload = multer({ storage });
+// Multer setup for quiz images (memory storage)
+const upload = multer({ storage: multer.memoryStorage() });
 
 // Upload quiz image
-router.post('/upload-image', upload.single('image'), (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ error: 'No file uploaded' });
+router.post('/upload-image', upload.single('image'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+    if (!process.env.CLOUDINARY_CLOUD_NAME) {
+      const uploadDir = 'uploads/quiz-images';
+      const fs = require('fs');
+      const path = require('path');
+      fs.mkdirSync(uploadDir, { recursive: true });
+      const unique = Date.now() + '-' + Math.round(Math.random() * 1E9);
+      const ext = path.extname(req.file.originalname) || '.png';
+      const filename = unique + ext;
+      const filepath = path.join(uploadDir, filename);
+      fs.writeFileSync(filepath, req.file.buffer);
+      return res.json({ url: `/uploads/quiz-images/${filename}` });
+    }
+    const result = await new Promise((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream({ folder: 'juanlms/quiz-images', resource_type: 'image' }, (err, r) => {
+        if (err) return reject(err);
+        resolve(r);
+      });
+      stream.end(req.file.buffer);
+    });
+    res.json({ url: result.secure_url });
+  } catch (err) {
+    console.error('Quiz image upload error:', err);
+    if (!process.env.CLOUDINARY_CLOUD_NAME) {
+      return res.status(500).json({ error: 'Cloudinary not configured on server' });
+    }
+    res.status(500).json({ error: 'Failed to upload image' });
   }
-  const imageUrl = `/uploads/quiz-images/${req.file.filename}`;
-  res.json({ url: imageUrl });
 });
 
 // Create a new quiz
