@@ -9,7 +9,7 @@ const profileService = {
   async updateProfile(userId, profileData) {
     try {
       const token = await AsyncStorage.getItem('token');
-      const response = await axios.post(`${API_URL}/users/${userId}/profile`, profileData, {
+      const response = await axios.post(`${API_URL}/api/users/${userId}/profile`, profileData, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -23,7 +23,7 @@ const profileService = {
   async requestPasswordChangeOtp(userId) {
     try {
       const token = await AsyncStorage.getItem('jwtToken');
-      const response = await axios.post(`${API_URL}/users/${userId}/request-password-change-otp`, {}, {
+      const response = await axios.post(`${API_URL}/api/users/${userId}/request-password-change-otp`, {}, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       return response.data;
@@ -36,7 +36,7 @@ const profileService = {
   async validatePasswordChangeOtp(userId, otp) {
     try {
       const token = await AsyncStorage.getItem('jwtToken');
-      const response = await axios.post(`${API_URL}/users/${userId}/validate-otp`, { otp }, {
+      const response = await axios.post(`${API_URL}/api/users/${userId}/validate-otp`, { otp }, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       return response.data;
@@ -49,7 +49,7 @@ const profileService = {
   async changePassword(userId, currentPassword, newPassword) {
     try {
       const token = await AsyncStorage.getItem('jwtToken');
-      const response = await axios.patch(`${API_URL}/users/${userId}/change-password`, {
+      const response = await axios.patch(`${API_URL}/api/users/${userId}/change-password`, {
         currentPassword,
         newPassword,
       }, {
@@ -65,7 +65,7 @@ const profileService = {
   async updateNotifications(userId, notificationSettings) {
     try {
       const token = await AsyncStorage.getItem('token');
-      const response = await axios.post(`${API_URL}/users/${userId}/notifications`, notificationSettings, {
+      const response = await axios.post(`${API_URL}/api/users/${userId}/notifications`, notificationSettings, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -124,8 +124,8 @@ const profileService = {
         });
       }
       try {
-        // Use WebApp-compatible endpoint: POST /users/:id/upload-profile
-        const response = await axios.post(`${API_URL}/users/${userId}/upload-profile`, formData, {
+        // Use WebApp-compatible endpoint: POST /api/users/:id/upload-profile
+        const response = await axios.post(`${API_URL}/api/users/${userId}/upload-profile`, formData, {
           headers: {
             Authorization: token ? `Bearer ${token}` : undefined,
             // Do NOT set Content-Type manually for multipart; let axios/RN set boundary
@@ -147,7 +147,7 @@ const profileService = {
             ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
             // Do NOT set Content-Type; RN fetch will add correct multipart boundary
           };
-          const fetchResp = await fetch(`${API_URL}/users/${userId}/upload-profile`, {
+          const fetchResp = await fetch(`${API_URL}/api/users/${userId}/upload-profile`, {
             method: 'POST',
             headers: fetchHeaders,
             body: formData,
@@ -177,7 +177,7 @@ const profileService = {
   async updateTrack(userId, track) {
     try {
       const token = await AsyncStorage.getItem('token');
-      const response = await axios.post(`${API_URL}/users/${userId}/track`, { track }, {
+      const response = await axios.post(`${API_URL}/api/users/${userId}/track`, { track }, {
         headers: { Authorization: `Bearer ${token}` },
       });
       return response.data;
