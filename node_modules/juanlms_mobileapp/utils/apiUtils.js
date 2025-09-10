@@ -1,6 +1,22 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const API_BASE_URL = 'https://juanlms-webapp-server.onrender.com';
+let ExpoConstants = null;
+try {
+  // Avoid hard dependency if expo-constants isn't installed
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  ExpoConstants = require('expo-constants')?.default || null;
+} catch {}
+
+export const API_BASE_URL = 'https://juanlms-webapp-server.onrender.com';
+
+export const getApiBaseUrl = () => {
+  try {
+    const fromConfig = ExpoConstants?.expoConfig?.extra?.API_URL;
+    return fromConfig || API_BASE_URL;
+  } catch (e) {
+    return API_BASE_URL;
+  }
+};
 
 // Get JWT token from AsyncStorage
 export const getAuthHeaders = async () => {
@@ -24,7 +40,7 @@ export const apiRequest = async (method, endpoint, data = null, customHeaders = 
 
     const config = {
       method,
-      url: `${API_BASE_URL}${endpoint}`,
+      url: `${getApiBaseUrl()}${endpoint}`,
       headers,
       ...(data && { data }),
     };
@@ -36,7 +52,11 @@ export const apiRequest = async (method, endpoint, data = null, customHeaders = 
     });
 
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      const error = new Error(`HTTP error! status: ${response.status}`);
+      // Attach status for callers who want to branch on it
+      // @ts-ignore
+      error.status = response.status;
+      throw error;
     }
 
     return await response.json();
@@ -58,6 +78,9 @@ export const apiPut = (endpoint, data, customHeaders = {}) =>
 
 export const apiDelete = (endpoint, customHeaders = {}) => 
   apiRequest('DELETE', endpoint, null, customHeaders);
+
+export const apiPatch = (endpoint, data = null, customHeaders = {}) =>
+  apiRequest('PATCH', endpoint, data, customHeaders);
 
 // Axios wrapper with automatic JWT headers
 export const axiosWithAuth = async (axiosInstance, method, url, data = null, customHeaders = {}) => {

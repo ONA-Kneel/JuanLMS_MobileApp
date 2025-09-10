@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { apiGet, apiPatch } from './utils/apiUtils';
 
 const NotificationContext = createContext();
 
@@ -52,8 +53,7 @@ export const NotificationProvider = ({ children }) => {
     return () => clearInterval(interval);
   }, []);
 
-  // API base URL - Use the same render server as the web application
-  const API_BASE = 'https://juanlms-webapp-server.onrender.com';
+  // API base URL handled by apiUtils
 
   // Fetch notifications for a user
   const fetchNotifications = async (userId) => {
@@ -63,22 +63,9 @@ export const NotificationProvider = ({ children }) => {
       
       if (!token || !userId) return;
       
-      const response = await fetch(`${API_BASE}/api/notifications/${userId}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setNotifications(data);
-        updateUnreadCount(data);
-      } else {
-        console.error('Failed to fetch notifications:', response.status);
-        setNotifications([]);
-        setUnreadCount(0);
-      }
+      const data = await apiGet(`/api/notifications/${userId}`);
+      setNotifications(data);
+      updateUnreadCount(data);
     } catch (error) {
       console.error('Error fetching notifications:', error);
       setNotifications([]);
@@ -95,15 +82,8 @@ export const NotificationProvider = ({ children }) => {
       
       if (!token) return false;
       
-      const response = await fetch(`${API_BASE}/api/notifications/${notificationId}/read`, {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (response.ok) {
+      const updated = await apiPatch(`/api/notifications/${notificationId}/read`);
+      if (updated) {
         // Update local state
         setNotifications(prev => 
           prev.map(n => 
@@ -129,15 +109,8 @@ export const NotificationProvider = ({ children }) => {
       
       if (!token || !userId) return false;
       
-      const response = await fetch(`${API_BASE}/api/notifications/${userId}/read-all`, {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (response.ok) {
+      const result = await apiPatch(`/api/notifications/${userId}/read-all`);
+      if (result?.success || result?.updatedCount >= 0) {
         // Update local state
         setNotifications(prev => prev.map(n => ({ ...n, read: true })));
         setUnreadCount(0);

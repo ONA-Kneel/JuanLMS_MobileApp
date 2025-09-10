@@ -2,7 +2,7 @@
   "expo": {
     "name": "JuanLMS",
     "slug": "juanlms-mobile-app",
-    "owner": "kneelpngnbn",
+    "owner": "bosskneel",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/San Juan.png",
@@ -43,7 +43,7 @@
     "extra": {
       "API_URL": "https://juanlms-webapp-server.onrender.com",
       "eas": {
-        "projectId": "de233650-2f54-4f6e-a5f1-bff010acfd42"
+        "projectId": "b75d85af-dad1-4946-9882-ec4ea7222c13"
       }
     },
     "plugins": [
