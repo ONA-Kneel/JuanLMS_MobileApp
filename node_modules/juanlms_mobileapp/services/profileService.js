@@ -82,8 +82,8 @@ const profileService = {
       const formData = new FormData();
       if (isWeb) {
         // imageAsset is a File from an <input type="file"/>
-        // Backend expects field name 'profilePicture'
-        formData.append('profilePicture', imageAsset);
+        // Backend expects field name 'image'
+        formData.append('image', imageAsset);
       } else {
         let uploadUri = imageAsset?.uri;
         // Android content:// URIs cause issues for multipart uploads; copy to cache as file://
@@ -116,8 +116,8 @@ const profileService = {
         };
         const name = imageAsset?.fileName || pickNameFromUri(uploadUri, 'profile.jpg');
         const type = imageAsset?.type || getMimeType(uploadUri, undefined);
-        // Backend expects field name 'profilePicture'
-        formData.append('profilePicture', {
+        // Backend expects field name 'image'
+        formData.append('image', {
           uri: uploadUri,
           name,
           type,
@@ -133,8 +133,8 @@ const profileService = {
           },
         });
         // Normalize response to expected shape used by callers
-        if (response?.data?.profile_picture) {
-          return { user: { profilePic: response.data.profile_picture } };
+        if (response?.data?.user?.profilePic) {
+          return { user: { profilePic: response.data.user.profilePic } };
         }
         return response.data;
       } catch (axiosErr) {
@@ -156,8 +156,8 @@ const profileService = {
             throw new Error(text || `Upload failed with status ${fetchResp.status}`);
           }
           const json = await fetchResp.json();
-          if (json?.profile_picture) {
-            return { user: { profilePic: json.profile_picture } };
+          if (json?.user?.profilePic) {
+            return { user: { profilePic: json.user.profilePic } };
           }
           return json;
         }

@@ -1,6 +1,8 @@
 import e from "express";
 import database from "../connect.cjs";
 import { ObjectId } from "mongodb";
+import mongoose from "mongoose";
+import User from "../models/User.js";
 import jwt from "jsonwebtoken";
 import crypto from 'crypto';
 import bcrypt from 'bcrypt';
@@ -101,78 +103,91 @@ userRoutes.delete("/users/:id", async (req, res) => {
     res.json(result);
 });
 
-// Upload profile picture route
-userRoutes.post("/users/:id/profile-picture", upload.single('profilePicture'), async (req, res) => {
+// Upload profile picture route - Updated to match web app approach
+userRoutes.post("/users/:id/profile-picture", upload.single('image'), async (req, res) => {
     try {
         if (!req.file) {
-            return res.status(400).json({ success: false, message: "No file uploaded" });
+            return res.status(400).json({ error: "No file uploaded" });
         }
+
+        const userId = req.params.id;
         
-        const db = database.getDb();
-        const profilePicUrl = `/uploads/profile-pictures/${req.file.filename}`;
-        // Encrypt the profilePic path before saving
-        const encryptedProfilePic = encrypt(profilePicUrl, process.env.ENCRYPTION_KEY);
+        // Handle both Cloudinary and local storage (like web app)
+        const profilePicUrl = req.file.secure_url || req.file.path || req.file.filename;
         
-        const result = await db.collection("users").updateOne(
-            { _id: new ObjectId(req.params.id) },
-            { $set: { profilePic: encryptedProfilePic } }
+        if (!mongoose.Types.ObjectId.isValid(userId)) {
+            return res.status(400).json({ error: "Invalid user ID" });
+        }
+
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ error: "User not found" });
+        }
+
+        // Update only the profilePic field using findByIdAndUpdate to avoid validation issues
+        const updatedUser = await User.findByIdAndUpdate(
+            userId, 
+            { profilePic: profilePicUrl },
+            { new: true, runValidators: false } // Skip validation to avoid contactNo requirement
         );
-        
-        if (result.matchedCount === 0) {
-            // Delete the uploaded file if user not found
-            fs.unlinkSync(req.file.path);
-            return res.status(404).json({ success: false, message: "User not found" });
-        }
-        
-        res.json({ 
-            success: true, 
-            message: "Profile picture updated successfully",
-            profile_picture: profilePicUrl // send decrypted path for immediate frontend use
+
+        res.json({
+            message: "Profile image uploaded and linked successfully",
+            imageFilename: profilePicUrl,
+            user: {
+                _id: updatedUser._id,
+                firstname: updatedUser.firstname,
+                lastname: updatedUser.lastname,
+                profilePic: updatedUser.profilePic,
+            },
         });
     } catch (error) {
-        console.error('Profile picture upload error:', error);
-        // Delete the uploaded file if there's an error
-        if (req.file) {
-            fs.unlinkSync(req.file.path);
-        }
-        res.status(500).json({ success: false, message: "Failed to upload profile picture" });
+        console.error("Error uploading profile picture:", error);
+        res.status(500).json({ error: "Failed to upload profile image" });
     }
 });
 
-// PUT profile picture route for RESTful update
-userRoutes.put("/users/:id/profile-picture", upload.single('profilePicture'), async (req, res) => {
+// PUT profile picture route for RESTful update - Updated to match web app approach
+userRoutes.put("/users/:id/profile-picture", upload.single('image'), async (req, res) => {
     try {
-        console.log('req.headers:', req.headers); // Debug log
-        console.log('req.body:', req.body); // Debug log
-        console.log('req.file:', req.file); // Debug log
         if (!req.file) {
-            return res.status(400).json({ success: false, message: "No file uploaded" });
+            return res.status(400).json({ error: "No file uploaded" });
         }
-        const db = database.getDb();
-        const profilePicUrl = `/uploads/profile-pictures/${req.file.filename}`;
-        // Encrypt the profilePic path before saving
-        const encryptedProfilePic = encrypt(profilePicUrl, process.env.ENCRYPTION_KEY);
-        const result = await db.collection("users").updateOne(
-            { _id: new ObjectId(req.params.id) },
-            { $set: { profilePic: encryptedProfilePic } }
+
+        const userId = req.params.id;
+        
+        // Handle both Cloudinary and local storage (like web app)
+        const profilePicUrl = req.file.secure_url || req.file.path || req.file.filename;
+        
+        if (!mongoose.Types.ObjectId.isValid(userId)) {
+            return res.status(400).json({ error: "Invalid user ID" });
+        }
+
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ error: "User not found" });
+        }
+
+        // Update only the profilePic field using findByIdAndUpdate to avoid validation issues
+        const updatedUser = await User.findByIdAndUpdate(
+            userId, 
+            { profilePic: profilePicUrl },
+            { new: true, runValidators: false } // Skip validation to avoid contactNo requirement
         );
-        if (result.matchedCount === 0) {
-            // Delete the uploaded file if user not found
-            fs.unlinkSync(req.file.path);
-            return res.status(404).json({ success: false, message: "User not found" });
-        }
-        res.json({ 
-            success: true, 
-            message: "Profile picture updated successfully",
-            profile_picture: profilePicUrl // send decrypted path for immediate frontend use
+
+        res.json({
+            message: "Profile image uploaded and linked successfully",
+            imageFilename: profilePicUrl,
+            user: {
+                _id: updatedUser._id,
+                firstname: updatedUser.firstname,
+                lastname: updatedUser.lastname,
+                profilePic: updatedUser.profilePic,
+            },
         });
     } catch (error) {
-        console.error('Profile picture upload error:', error);
-        // Delete the uploaded file if there's an error
-        if (req.file) {
-            fs.unlinkSync(req.file.path);
-        }
-        res.status(500).json({ success: false, message: "Failed to upload profile picture" });
+        console.error("Error uploading profile picture:", error);
+        res.status(500).json({ error: "Failed to upload profile image" });
     }
 });
 
