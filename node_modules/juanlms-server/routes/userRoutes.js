@@ -12,6 +12,10 @@ import SibApiV3Sdk from 'sib-api-v3-sdk';
 
 // Configure multer for file uploads (memory storage for Cloudinary)
 const upload = multer({ storage: multer.memoryStorage() });
+
+// Initialize router BEFORE using it for route declarations
+const userRoutes = e.Router();
+
 // Web-compatible upload route: accepts field 'image'
 userRoutes.post("/users/:id/upload-profile", upload.single('image'), async (req, res) => {
     try {
@@ -65,8 +69,6 @@ userRoutes.post("/users/:id/upload-profile", upload.single('image'), async (req,
         res.status(500).json({ success: false, message: "Failed to upload profile picture" });
     }
 });
-
-const userRoutes = e.Router();
 const JWT_SECRET = process.env.JWT_SECRET || "your_secret_key_here"; // 👈 use env variable in production
 
 // ------------------ CRUD ROUTES ------------------
