@@ -6,22 +6,65 @@ import crypto from 'crypto';
 import bcrypt from 'bcrypt';
 import fs from 'fs';
 import multer from 'multer';
+import cloudinary from '../utils/cloudinary.js';
 import path from 'path';
 import SibApiV3Sdk from 'sib-api-v3-sdk';
 
-// Configure multer for file uploads
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    const uploadDir = 'uploads/profile-pictures';
-    fs.mkdirSync(uploadDir, { recursive: true });
-    cb(null, uploadDir);
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
-  }
+// Configure multer for file uploads (memory storage for Cloudinary)
+const upload = multer({ storage: multer.memoryStorage() });
+// Web-compatible upload route: accepts field 'image'
+userRoutes.post("/users/:id/upload-profile", upload.single('image'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ success: false, message: "No file uploaded" });
+        }
+
+        const db = database.getDb();
+        let profilePicUrl;
+        if (!process.env.CLOUDINARY_CLOUD_NAME) {
+            const uploadDir = 'uploads/profile-pictures';
+            fs.mkdirSync(uploadDir, { recursive: true });
+            const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+            const filename = 'profilePicture-' + uniqueSuffix + (path.extname(req.file.originalname) || '.jpg');
+            const filePath = path.join(uploadDir, filename);
+            fs.writeFileSync(filePath, req.file.buffer);
+            profilePicUrl = `/uploads/profile-pictures/${filename}`;
+        } else {
+            const uploadResult = await new Promise((resolve, reject) => {
+                const stream = cloudinary.uploader.upload_stream(
+                    {
+                        folder: 'juanlms/profile-pictures',
+                        resource_type: 'image',
+                        overwrite: true,
+                    },
+                    (error, result) => {
+                        if (error) return reject(error);
+                        resolve(result);
+                    }
+                );
+                stream.end(req.file.buffer);
+            });
+            profilePicUrl = uploadResult.secure_url;
+        }
+
+        const encryptedProfilePic = encrypt(profilePicUrl, process.env.ENCRYPTION_KEY);
+        const result = await db.collection("users").updateOne(
+            { _id: new ObjectId(req.params.id) },
+            { $set: { profilePic: encryptedProfilePic } }
+        );
+        if (result.matchedCount === 0) {
+            return res.status(404).json({ success: false, message: "User not found" });
+        }
+        // Web expects either {url} or updated user after fetch; return both forms
+        res.json({ success: true, url: profilePicUrl, profile_picture: profilePicUrl });
+    } catch (error) {
+        console.error('Upload profile (web) error:', error);
+        if (!process.env.CLOUDINARY_CLOUD_NAME) {
+            return res.status(500).json({ success: false, message: "Cloudinary not configured on server" });
+        }
+        res.status(500).json({ success: false, message: "Failed to upload profile picture" });
+    }
 });
-const upload = multer({ storage: storage });
 
 const userRoutes = e.Router();
 const JWT_SECRET = process.env.JWT_SECRET || "your_secret_key_here"; // 👈 use env variable in production
@@ -107,33 +150,56 @@ userRoutes.post("/users/:id/profile-picture", upload.single('profilePicture'), a
         if (!req.file) {
             return res.status(400).json({ success: false, message: "No file uploaded" });
         }
-        
         const db = database.getDb();
-        const profilePicUrl = `/uploads/profile-pictures/${req.file.filename}`;
-        // Encrypt the profilePic path before saving
+
+        // If Cloudinary not configured, fallback to local disk to avoid failure
+        let profilePicUrl;
+        if (!process.env.CLOUDINARY_CLOUD_NAME) {
+            const uploadDir = 'uploads/profile-pictures';
+            fs.mkdirSync(uploadDir, { recursive: true });
+            const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+            const filename = 'profilePicture-' + uniqueSuffix + (path.extname(req.file.originalname) || '.jpg');
+            const filePath = path.join(uploadDir, filename);
+            fs.writeFileSync(filePath, req.file.buffer);
+            profilePicUrl = `/uploads/profile-pictures/${filename}`;
+        } else {
+            // Upload buffer to Cloudinary
+            const uploadResult = await new Promise((resolve, reject) => {
+                const stream = cloudinary.uploader.upload_stream(
+                    {
+                        folder: 'juanlms/profile-pictures',
+                        resource_type: 'image',
+                        overwrite: true,
+                    },
+                    (error, result) => {
+                        if (error) return reject(error);
+                        resolve(result);
+                    }
+                );
+                stream.end(req.file.buffer);
+            });
+            profilePicUrl = uploadResult.secure_url;
+        }
         const encryptedProfilePic = encrypt(profilePicUrl, process.env.ENCRYPTION_KEY);
-        
+
         const result = await db.collection("users").updateOne(
             { _id: new ObjectId(req.params.id) },
             { $set: { profilePic: encryptedProfilePic } }
         );
-        
+
         if (result.matchedCount === 0) {
-            // Delete the uploaded file if user not found
-            fs.unlinkSync(req.file.path);
             return res.status(404).json({ success: false, message: "User not found" });
         }
-        
+
         res.json({ 
             success: true, 
             message: "Profile picture updated successfully",
-            profile_picture: profilePicUrl // send decrypted path for immediate frontend use
+            profile_picture: profilePicUrl
         });
     } catch (error) {
         console.error('Profile picture upload error:', error);
-        // Delete the uploaded file if there's an error
-        if (req.file) {
-            fs.unlinkSync(req.file.path);
+        if (!process.env.CLOUDINARY_CLOUD_NAME) {
+            return res.status(500).json({ success: false, message: "Cloudinary not configured on server" });
         }
         res.status(500).json({ success: false, message: "Failed to upload profile picture" });
     }
@@ -149,28 +215,50 @@ userRoutes.put("/users/:id/profile-picture", upload.single('profilePicture'), as
             return res.status(400).json({ success: false, message: "No file uploaded" });
         }
         const db = database.getDb();
-        const profilePicUrl = `/uploads/profile-pictures/${req.file.filename}`;
-        // Encrypt the profilePic path before saving
+
+        let profilePicUrl;
+        if (!process.env.CLOUDINARY_CLOUD_NAME) {
+            const uploadDir = 'uploads/profile-pictures';
+            fs.mkdirSync(uploadDir, { recursive: true });
+            const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+            const filename = 'profilePicture-' + uniqueSuffix + (path.extname(req.file.originalname) || '.jpg');
+            const filePath = path.join(uploadDir, filename);
+            fs.writeFileSync(filePath, req.file.buffer);
+            profilePicUrl = `/uploads/profile-pictures/${filename}`;
+        } else {
+            const uploadResult = await new Promise((resolve, reject) => {
+                const stream = cloudinary.uploader.upload_stream(
+                    {
+                        folder: 'juanlms/profile-pictures',
+                        resource_type: 'image',
+                        overwrite: true,
+                    },
+                    (error, result) => {
+                        if (error) return reject(error);
+                        resolve(result);
+                    }
+                );
+                stream.end(req.file.buffer);
+            });
+            profilePicUrl = uploadResult.secure_url;
+        }
         const encryptedProfilePic = encrypt(profilePicUrl, process.env.ENCRYPTION_KEY);
         const result = await db.collection("users").updateOne(
             { _id: new ObjectId(req.params.id) },
             { $set: { profilePic: encryptedProfilePic } }
         );
         if (result.matchedCount === 0) {
-            // Delete the uploaded file if user not found
-            fs.unlinkSync(req.file.path);
             return res.status(404).json({ success: false, message: "User not found" });
         }
         res.json({ 
             success: true, 
             message: "Profile picture updated successfully",
-            profile_picture: profilePicUrl // send decrypted path for immediate frontend use
+            profile_picture: profilePicUrl
         });
     } catch (error) {
         console.error('Profile picture upload error:', error);
-        // Delete the uploaded file if there's an error
-        if (req.file) {
-            fs.unlinkSync(req.file.path);
+        if (!process.env.CLOUDINARY_CLOUD_NAME) {
+            return res.status(500).json({ success: false, message: "Cloudinary not configured on server" });
         }
         res.status(500).json({ success: false, message: "Failed to upload profile picture" });
     }

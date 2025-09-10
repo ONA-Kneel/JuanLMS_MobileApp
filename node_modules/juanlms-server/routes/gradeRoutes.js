@@ -494,12 +494,12 @@ router.get('/semestral-grades/student/:studentId', async (req, res) => {
     }
     
     console.log('Sending response with grades:', allGrades.length);
-    res.json({ grades: allGrades });
+    res.json({ success: true, grades: allGrades });
     
   } catch (err) {
     console.error('Error fetching semestral grades:', err);
     console.error('Error stack:', err.stack);
-    res.status(500).json({ error: 'Failed to fetch semestral grades.' });
+    res.status(500).json({ success: false, error: 'Failed to fetch semestral grades.' });
   }
 });
 
