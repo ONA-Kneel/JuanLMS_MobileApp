@@ -129,22 +129,26 @@ const profileService = {
         console.log("Mobile upload - Type:", type);
         
         // Backend expects field name 'image'
+        // For React Native, we need to use the object format with uri, name, type
         formData.append('image', {
           uri: uploadUri,
-          name,
-          type,
+          name: name,
+          type: type,
         });
+      }
+      
+      console.log("FormData entries:");
+      for (let [key, value] of formData._parts || []) {
+        console.log(`  ${key}:`, typeof value === 'object' ? `{uri: ${value.uri}, name: ${value.name}, type: ${value.type}}` : value);
       }
       
       console.log("Making request to:", `${API_URL}/users/${userId}/upload-profile`);
       try {
         // Backend route: POST /users/:id/upload-profile (web app's endpoint)
         const response = await axios.post(`${API_URL}/users/${userId}/upload-profile`, formData, {
-          headers: {
-            // Note: upload-profile endpoint doesn't require authentication
-            // Let Axios set the proper multipart boundary automatically
-            Accept: 'application/json',
-          },
+          // Note: upload-profile endpoint doesn't require authentication
+          // Let Axios set the proper multipart boundary automatically
+          // No headers needed - match web app's approach
         });
         console.log("Response received:", response.data);
         // Normalize response to expected shape used by callers
@@ -158,7 +162,7 @@ const profileService = {
         const isNative = Platform.OS === 'ios' || Platform.OS === 'android';
         if (isNetworkError && isNative) {
           const fetchHeaders = {
-            'Accept': 'application/json',
+            // No headers needed - match web app's approach
           };
           const fetchResp = await fetch(`${API_URL}/users/${userId}/upload-profile`, {
             method: 'POST',
@@ -178,9 +182,15 @@ const profileService = {
         throw axiosErr;
       }
     } catch (error) {
-      console.error('Error uploading profile picture:', error);
+      console.error('=== UPLOAD ERROR DEBUG ===');
+      console.error('Error type:', typeof error);
+      console.error('Error message:', error.message);
       console.error('Error response:', error.response?.data);
       console.error('Error status:', error.response?.status);
+      console.error('Error headers:', error.response?.headers);
+      console.error('Full error object:', error);
+      console.error('=== END UPLOAD ERROR DEBUG ===');
+      
       if (error.response) {
         const errorMessage = error.response.data?.error || error.response.data?.message || 'Failed to upload profile picture';
         console.error('Throwing error:', errorMessage);
