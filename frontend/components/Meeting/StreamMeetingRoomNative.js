@@ -4,6 +4,7 @@ import {
 	StreamVideo,
 	StreamVideoClient,
 	Call,
+	StreamCall,
 	CallContent,
 } from '@stream-io/video-react-native-sdk';
 import InCallManager from 'react-native-incall-manager';
@@ -154,9 +155,9 @@ export default function StreamMeetingRoomNative({
 							</View>
 						) : (
 							<StreamVideo client={client}>
-								<Call call={call}>
+								<StreamCall call={call}>
 									<CallContent />
-								</Call>
+								</StreamCall>
 							</StreamVideo>
 						)}
 					</View>
