@@ -4,6 +4,21 @@ import { authenticateToken } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
+// Debug endpoint placed BEFORE parameterized routes to avoid shadowing
+router.get('/debug/all', authenticateToken, async (req, res) => {
+  try {
+    const notifications = await Notification.find({}).sort({ timestamp: -1 });
+    console.log(`Total notifications in database: ${notifications.length}`);
+    res.json({ 
+      count: notifications.length, 
+      notifications: notifications.slice(0, 5) // Return first 5 for debugging
+    });
+  } catch (error) {
+    console.error('Error fetching all notifications:', error);
+    res.status(500).json({ error: 'Failed to fetch notifications' });
+  }
+});
+
 // Get notifications for a user
 router.get('/:userId', authenticateToken, async (req, res) => {
   try {
@@ -112,19 +127,6 @@ router.delete('/:notificationId', authenticateToken, async (req, res) => {
   }
 });
 
-// Test endpoint to check all notifications (for debugging)
-router.get('/debug/all', authenticateToken, async (req, res) => {
-  try {
-    const notifications = await Notification.find({}).sort({ timestamp: -1 });
-    console.log(`Total notifications in database: ${notifications.length}`);
-    res.json({ 
-      count: notifications.length, 
-      notifications: notifications.slice(0, 5) // Return first 5 for debugging
-    });
-  } catch (error) {
-    console.error('Error fetching all notifications:', error);
-    res.status(500).json({ error: 'Failed to fetch notifications' });
-  }
-});
+// (debug route moved above)
 
 export default router;

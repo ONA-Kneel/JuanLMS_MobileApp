@@ -1021,7 +1021,7 @@ const styles = {
     },
     imageViewer: {
         width: '100%',
-        height: 300,
+        height: '100%',
         borderRadius: 8,
     },
     loadingContainer: {

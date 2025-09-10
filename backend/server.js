@@ -86,6 +86,7 @@ app.use('/uploads', express.static('uploads'));
 app.use('/quizzes', quizRoutes);
 app.use('/assignments', assignmentRoutes);
 app.use('/group-chats', groupChatsRouter);
+app.use('/notifications', notificationRoutes);
 
 // Group messages compatibility route (redirects to group-chats)
 app.use('/group-messages', groupChatsRouter);
