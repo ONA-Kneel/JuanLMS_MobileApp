@@ -451,7 +451,7 @@ export default function StudentsProfile() {
       >
         <View style={StudentsProfileStyle.modalContainer}>
           <View style={StudentsProfileStyle.modalContent}>
-            <Text style={[StudentsProfileStyle.modalTitle, { fontFamily: 'Poppins-Bold', marginBottom: 20 }]}>
+            <Text style={[StudentsProfileStyle.modalTitle, { fontFamily: 'Poppins-Bold', marginBottom: 20, textAlign: 'center' }]}>
               Confirm Profile Photo
             </Text>
             <Text style={[StudentsProfileStyle.modalSubtitle, { fontFamily: 'Poppins-Regular', marginBottom: 20, textAlign: 'center' }]}>

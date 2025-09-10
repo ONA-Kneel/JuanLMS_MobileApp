@@ -142,7 +142,10 @@ const profileService = {
         const isNetworkError = !axiosErr.response;
         const isNative = Platform.OS === 'ios' || Platform.OS === 'android';
         if (isNetworkError && isNative) {
-          const fetchHeaders = token ? { 'Authorization': `Bearer ${token}` } : {};
+          const fetchHeaders = {
+            'Accept': 'application/json',
+            'Authorization': token ? `Bearer ${token}` : undefined,
+          };
           const fetchResp = await fetch(`${API_URL}/users/${userId}/profile-picture`, {
             method: 'POST',
             headers: fetchHeaders,
@@ -162,8 +165,12 @@ const profileService = {
       }
     } catch (error) {
       console.error('Error uploading profile picture:', error);
+      console.error('Error response:', error.response?.data);
+      console.error('Error status:', error.response?.status);
       if (error.response) {
-        throw new Error(error.response.data.message || 'Failed to upload profile picture');
+        const errorMessage = error.response.data?.error || error.response.data?.message || 'Failed to upload profile picture';
+        console.error('Throwing error:', errorMessage);
+        throw new Error(errorMessage);
       }
       throw new Error('Network error while uploading profile picture');
     }

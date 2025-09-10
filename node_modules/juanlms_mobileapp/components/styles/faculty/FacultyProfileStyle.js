@@ -153,11 +153,13 @@ const FacultyProfileStyle = StyleSheet.create({
         fontSize: 22,
         fontWeight: 'bold',
         marginBottom: 18,
+        textAlign: 'center',
     },
     modalSubtitle: {
         color: 'white',
         fontSize: 16,
         marginBottom: 18,
+        textAlign: 'center',
     },
     imagePicker: {
         alignItems: 'center',

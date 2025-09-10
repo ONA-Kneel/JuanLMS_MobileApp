@@ -399,7 +399,7 @@ export default function VPEProfile() {
       >
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
-            <Text style={[styles.modalTitle, { fontFamily: 'Poppins-Bold', marginBottom: 20 }]}>
+            <Text style={[styles.modalTitle, { fontFamily: 'Poppins-Bold', marginBottom: 20, textAlign: 'center' }]}>
               Confirm Profile Photo
             </Text>
             <Text style={[styles.modalSubtitle, { fontFamily: 'Poppins-Regular', marginBottom: 20, textAlign: 'center' }]}>
@@ -591,11 +591,13 @@ const styles = {
     fontSize: 22,
     fontWeight: 'bold',
     marginBottom: 18,
+    textAlign: 'center',
   },
   modalSubtitle: {
     color: 'white',
     fontSize: 16,
     marginBottom: 18,
+    textAlign: 'center',
   },
   imagePicker: {
     alignItems: 'center',

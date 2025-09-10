@@ -333,7 +333,7 @@ export default function AdminProfile() {
       >
         <View style={AdminProfileStyle.modalContainer}>
           <View style={AdminProfileStyle.modalContent}>
-            <Text style={[AdminProfileStyle.modalTitle, { fontFamily: 'Poppins-Bold', marginBottom: 20 }]}>
+            <Text style={[AdminProfileStyle.modalTitle, { fontFamily: 'Poppins-Bold', marginBottom: 20, textAlign: 'center' }]}>
               Confirm Profile Photo
             </Text>
             <Text style={[AdminProfileStyle.modalSubtitle, { fontFamily: 'Poppins-Regular', marginBottom: 20, textAlign: 'center' }]}>
