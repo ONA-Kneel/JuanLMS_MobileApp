@@ -25,11 +25,27 @@ router.get('/:userId', authenticateToken, async (req, res) => {
     const { userId } = req.params;
     console.log(`Fetching notifications for user: ${userId}`);
     
-    const notifications = await Notification.find({ recipientId: userId })
+    // Try to find the user first to get the correct ObjectId
+    const User = (await import('../models/User.js')).default;
+    let userObjectId = userId;
+    
+    // If userId looks like a userID (e.g., "S441"), find the corresponding ObjectId
+    if (userId && !userId.match(/^[0-9a-fA-F]{24}$/)) {
+      const user = await User.findOne({ userID: userId });
+      if (user) {
+        userObjectId = user._id;
+        console.log(`Converted userID ${userId} to ObjectId ${userObjectId}`);
+      } else {
+        console.log(`User with userID ${userId} not found`);
+        return res.json([]);
+      }
+    }
+    
+    const notifications = await Notification.find({ recipientId: userObjectId })
       .sort({ timestamp: -1 })
       .limit(50);
     
-    console.log(`Found ${notifications.length} notifications for user ${userId}`);
+    console.log(`Found ${notifications.length} notifications for user ${userId} (ObjectId: ${userObjectId})`);
     res.json(notifications);
   } catch (error) {
     console.error('Error fetching notifications:', error);

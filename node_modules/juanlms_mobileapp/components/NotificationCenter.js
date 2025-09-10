@@ -69,7 +69,7 @@ export default function NotificationCenter({ visible, onClose }) {
     onClose();
   };
 
-  // Choose items for the active tab - matches web app filtering logic
+  // Choose items for the active tab - simplified filtering logic
   const getFilteredNotifications = () => {
     if (activeTab === 'announcements') {
       // Show acknowledged announcements from Principal/VPE (like web app)
@@ -79,17 +79,22 @@ export default function NotificationCenter({ visible, onClose }) {
         announcement.createdBy?.role?.toLowerCase() === 'vpe'
       );
     } else {
-      // Show all other notifications (messages, activities, class announcements, etc.)
-      return notifications.filter(n => 
-        n.type !== 'announcement' || 
-        (!n.faculty?.toLowerCase().includes('principal') && 
-         !n.faculty?.toLowerCase().includes('vpe') &&
-         !n.faculty?.toLowerCase().includes('vice president'))
-      );
+      // Show all notifications in the Updates tab - simplified to show everything
+      console.log('Total notifications available:', notifications.length);
+      console.log('Notification types:', notifications.map(n => n.type));
+      return notifications;
     }
   };
 
   const filteredItems = getFilteredNotifications();
+
+  // Debug logging
+  console.log('NotificationCenter Debug:');
+  console.log('- Active tab:', activeTab);
+  console.log('- Total notifications:', notifications.length);
+  console.log('- Filtered items:', filteredItems.length);
+  console.log('- Loading notifications:', loadingNotifications);
+  console.log('- Loading announcements:', loadingAnnouncements);
 
   return (
     <Modal visible={visible} animationType="slide" transparent={true} onRequestClose={onClose}>
@@ -162,6 +167,9 @@ export default function NotificationCenter({ visible, onClose }) {
                   <Text style={styles.emptyStateText}>No updates yet</Text>
                   <Text style={styles.emptyStateSubtext}>
                     Check your connection or try refreshing
+                  </Text>
+                  <Text style={styles.emptyStateSubtext}>
+                    Debug: {notifications.length} total notifications, {filteredItems.length} filtered
                   </Text>
                 </View>
               ) : (

@@ -24,8 +24,12 @@ export const NotificationProvider = ({ children }) => {
         const user = await AsyncStorage.getItem('user');
         if (user) {
           const userData = JSON.parse(user);
-          if (userData._id) {
-            await fetchNotifications(userData._id);
+          console.log('User data from AsyncStorage:', userData);
+          // Try _id first, then userID as fallback
+          const userId = userData._id || userData.userID;
+          if (userId) {
+            console.log('Using user ID for notifications:', userId);
+            await fetchNotifications(userId);
           }
         }
       } catch (error) {
@@ -41,8 +45,9 @@ export const NotificationProvider = ({ children }) => {
         const user = await AsyncStorage.getItem('user');
         if (user) {
           const userData = JSON.parse(user);
-          if (userData._id) {
-            await fetchNotifications(userData._id);
+          const userId = userData._id || userData.userID;
+          if (userId) {
+            await fetchNotifications(userId);
           }
         }
       } catch (error) {
@@ -67,6 +72,7 @@ export const NotificationProvider = ({ children }) => {
       let data;
       try {
         console.log(`Fetching notifications for user: ${userId}`);
+        console.log(`User ID type:`, typeof userId);
         data = await apiGet(`/api/notifications/${userId}`);
         console.log(`API response data:`, data);
       } catch (err) {
@@ -174,8 +180,9 @@ export const NotificationProvider = ({ children }) => {
       const user = await AsyncStorage.getItem('user');
       if (user) {
         const userData = JSON.parse(user);
-        if (userData._id) {
-          await fetchNotifications(userData._id);
+        const userId = userData._id || userData.userID;
+        if (userId) {
+          await fetchNotifications(userId);
         }
       }
     } catch (error) {
@@ -189,7 +196,7 @@ export const NotificationProvider = ({ children }) => {
       const user = await AsyncStorage.getItem('user');
       if (user) {
         const userData = JSON.parse(user);
-        return userData._id;
+        return userData._id || userData.userID;
       }
       return null;
     } catch (error) {

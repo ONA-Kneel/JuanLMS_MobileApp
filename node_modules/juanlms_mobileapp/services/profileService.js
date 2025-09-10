@@ -9,7 +9,7 @@ const profileService = {
   async updateProfile(userId, profileData) {
     try {
       const token = await AsyncStorage.getItem('jwtToken');
-      const response = await axios.post(`${API_URL}/api/users/${userId}/profile`, profileData, {
+      const response = await axios.post(`${API_URL}/users/${user._id}/upload-profile`, profileData, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
