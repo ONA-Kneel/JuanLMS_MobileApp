@@ -108,38 +108,57 @@ const profileService = {
             }
           }
         }
-        const getMimeType = (uri, fallbackType) => {
-          const lower = (uri || '').toLowerCase();
-          if (lower.endsWith('.png')) return 'image/png';
-          if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg';
-          return fallbackType || 'image/jpeg';
-        };
-        const pickNameFromUri = (uri, fallbackName) => {
-          if (typeof uri === 'string') {
-            const parts = uri.split('/');
-            const last = parts[parts.length - 1];
-            if (last && last.indexOf('.') > -1) return last;
-          }
-          return fallbackName || 'profile.jpg';
-        };
-        const name = imageAsset?.fileName || pickNameFromUri(uploadUri, 'profile.jpg');
-        const type = imageAsset?.type || getMimeType(uploadUri, undefined);
-        console.log("Mobile upload - URI:", uploadUri);
-        console.log("Mobile upload - Name:", name);
-        console.log("Mobile upload - Type:", type);
         
-        // Backend expects field name 'image'
-        // For React Native, we need to use the object format with uri, name, type
-        formData.append('image', {
-          uri: uploadUri,
-          name: name,
-          type: type,
-        });
+        // Convert to blob format to match web app exactly
+        try {
+          const response = await fetch(uploadUri);
+          const blob = await response.blob();
+          console.log("Mobile upload - URI:", uploadUri);
+          console.log("Mobile upload - Blob size:", blob.size);
+          console.log("Mobile upload - Blob type:", blob.type);
+          
+          // Backend expects field name 'image' with blob format (matching web app)
+          formData.append('image', blob, 'profile.jpg');
+        } catch (blobError) {
+          console.error('Failed to convert to blob, falling back to object format:', blobError);
+          // Fallback to object format if blob conversion fails
+          const getMimeType = (uri, fallbackType) => {
+            const lower = (uri || '').toLowerCase();
+            if (lower.endsWith('.png')) return 'image/png';
+            if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg';
+            return fallbackType || 'image/jpeg';
+          };
+          const pickNameFromUri = (uri, fallbackName) => {
+            if (typeof uri === 'string') {
+              const parts = uri.split('/');
+              const last = parts[parts.length - 1];
+              if (last && last.indexOf('.') > -1) return last;
+            }
+            return fallbackName || 'profile.jpg';
+          };
+          const name = imageAsset?.fileName || pickNameFromUri(uploadUri, 'profile.jpg');
+          const type = imageAsset?.type || getMimeType(uploadUri, undefined);
+          console.log("Mobile upload - Fallback URI:", uploadUri);
+          console.log("Mobile upload - Fallback Name:", name);
+          console.log("Mobile upload - Fallback Type:", type);
+          
+          formData.append('image', {
+            uri: uploadUri,
+            name: name,
+            type: type,
+          });
+        }
       }
       
       console.log("FormData entries:");
       for (let [key, value] of formData._parts || []) {
-        console.log(`  ${key}:`, typeof value === 'object' ? `{uri: ${value.uri}, name: ${value.name}, type: ${value.type}}` : value);
+        if (value instanceof Blob) {
+          console.log(`  ${key}: Blob(size: ${value.size}, type: ${value.type})`);
+        } else if (typeof value === 'object' && value.uri) {
+          console.log(`  ${key}: {uri: ${value.uri}, name: ${value.name}, type: ${value.type}}`);
+        } else {
+          console.log(`  ${key}:`, value);
+        }
       }
       
       console.log("Making request to:", `${API_URL}/users/${userId}/upload-profile`);
