@@ -80,6 +80,8 @@ const profileService = {
     try {
       console.log("=== FRONTEND UPLOAD DEBUG ===");
       console.log("User ID:", userId);
+      console.log("User ID type:", typeof userId);
+      console.log("User ID length:", userId?.length);
       console.log("Image Asset:", imageAsset);
       console.log("Is Web:", isWeb);
       
@@ -109,45 +111,34 @@ const profileService = {
           }
         }
         
-        // Convert to blob format to match web app exactly
-        try {
-          const response = await fetch(uploadUri);
-          const blob = await response.blob();
-          console.log("Mobile upload - URI:", uploadUri);
-          console.log("Mobile upload - Blob size:", blob.size);
-          console.log("Mobile upload - Blob type:", blob.type);
-          
-          // Backend expects field name 'image' with blob format (matching web app)
-          formData.append('image', blob, 'profile.jpg');
-        } catch (blobError) {
-          console.error('Failed to convert to blob, falling back to object format:', blobError);
-          // Fallback to object format if blob conversion fails
-          const getMimeType = (uri, fallbackType) => {
-            const lower = (uri || '').toLowerCase();
-            if (lower.endsWith('.png')) return 'image/png';
-            if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg';
-            return fallbackType || 'image/jpeg';
-          };
-          const pickNameFromUri = (uri, fallbackName) => {
-            if (typeof uri === 'string') {
-              const parts = uri.split('/');
-              const last = parts[parts.length - 1];
-              if (last && last.indexOf('.') > -1) return last;
-            }
-            return fallbackName || 'profile.jpg';
-          };
-          const name = imageAsset?.fileName || pickNameFromUri(uploadUri, 'profile.jpg');
-          const type = imageAsset?.type || getMimeType(uploadUri, undefined);
-          console.log("Mobile upload - Fallback URI:", uploadUri);
-          console.log("Mobile upload - Fallback Name:", name);
-          console.log("Mobile upload - Fallback Type:", type);
-          
-          formData.append('image', {
-            uri: uploadUri,
-            name: name,
-            type: type,
-          });
-        }
+        // React Native doesn't support blob() method, so we'll use the object format
+        // but ensure it matches the web app's expectations
+        const getMimeType = (uri, fallbackType) => {
+          const lower = (uri || '').toLowerCase();
+          if (lower.endsWith('.png')) return 'image/png';
+          if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg';
+          return fallbackType || 'image/jpeg';
+        };
+        const pickNameFromUri = (uri, fallbackName) => {
+          if (typeof uri === 'string') {
+            const parts = uri.split('/');
+            const last = parts[parts.length - 1];
+            if (last && last.indexOf('.') > -1) return last;
+          }
+          return fallbackName || 'profile.jpg';
+        };
+        const name = imageAsset?.fileName || pickNameFromUri(uploadUri, 'profile.jpg');
+        const type = imageAsset?.type || getMimeType(uploadUri, undefined);
+        console.log("Mobile upload - URI:", uploadUri);
+        console.log("Mobile upload - Name:", name);
+        console.log("Mobile upload - Type:", type);
+        
+        // Backend expects field name 'image' with object format for React Native
+        formData.append('image', {
+          uri: uploadUri,
+          name: name,
+          type: type,
+        });
       }
       
       console.log("FormData entries:");
@@ -162,12 +153,15 @@ const profileService = {
       }
       
       console.log("Making request to:", `${API_URL}/users/${userId}/upload-profile`);
+      console.log("Request will be sent with FormData containing:", formData._parts?.length || 0, "parts");
+      
       try {
         // Backend route: POST /users/:id/upload-profile (web app's endpoint)
         const response = await axios.post(`${API_URL}/users/${userId}/upload-profile`, formData, {
           // Note: upload-profile endpoint doesn't require authentication
           // Let Axios set the proper multipart boundary automatically
           // No headers needed - match web app's approach
+          timeout: 30000, // 30 second timeout
         });
         console.log("Response received:", response.data);
         // Normalize response to expected shape used by callers
@@ -204,10 +198,14 @@ const profileService = {
       console.error('=== UPLOAD ERROR DEBUG ===');
       console.error('Error type:', typeof error);
       console.error('Error message:', error.message);
+      console.error('Error code:', error.code);
       console.error('Error response:', error.response?.data);
       console.error('Error status:', error.response?.status);
+      console.error('Error status text:', error.response?.statusText);
       console.error('Error headers:', error.response?.headers);
-      console.error('Full error object:', error);
+      console.error('Request URL:', error.config?.url);
+      console.error('Request method:', error.config?.method);
+      console.error('Full error object:', JSON.stringify(error, null, 2));
       console.error('=== END UPLOAD ERROR DEBUG ===');
       
       if (error.response) {
