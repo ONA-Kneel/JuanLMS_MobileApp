@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, Image, ScrollView, Modal, ActivityIndicator, Alert } from 'react-native';
+import React, { useState, useRef } from 'react';
+import { View, Text, TouchableOpacity, Image, ScrollView, Modal, ActivityIndicator, Alert, Platform } from 'react-native';
 import { MaterialIcons, Feather } from '@expo/vector-icons';
 import FacultyProfileStyle from '../styles/faculty/FacultyProfileStyle';
 import { useNavigation } from '@react-navigation/native';
@@ -36,6 +36,8 @@ export default function FacultyProfile() {
   const [editedUser, setEditedUser] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const fileInputRef = useRef(null);
+  const [webPreviewUrl, setWebPreviewUrl] = useState(null);
 
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const logout = () => setShowLogoutConfirm(true);
@@ -95,12 +97,34 @@ export default function FacultyProfile() {
     }
   };
 
+  // Web: handle file input change
+  const handleWebFileChange = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      setEditedUser(prev => ({
+        ...prev,
+        newProfilePicAsset: file,
+      }));
+      setWebPreviewUrl(URL.createObjectURL(file));
+    }
+  };
+
+  // Web: trigger file input
+  const pickImageWeb = () => {
+    fileInputRef.current?.click();
+  };
+
   const handleSaveProfile = async () => {
     setIsLoading(true);
     try {
       let profilePicPath = editedUser?.profilePic;
       if (editedUser?.newProfilePicAsset) {
-        const data = await profileService.uploadProfilePicture(user._id, editedUser.newProfilePicAsset, false);
+        const isWeb = Platform.OS === 'web';
+        const data = await profileService.uploadProfilePicture(
+          user._id,
+          editedUser.newProfilePicAsset,
+          isWeb
+        );
         const updated = data?.user;
         if (updated?.profilePic) {
           profilePicPath = updated.profilePic;
@@ -161,18 +185,38 @@ export default function FacultyProfile() {
         <View style={FacultyProfileStyle.modalContainer}>
           <View style={FacultyProfileStyle.modalContent}>
             <Text style={[FacultyProfileStyle.modalTitle, { fontFamily: 'Poppins-Bold' }]}>Edit Profile</Text>
-            <TouchableOpacity onPress={pickImage} style={FacultyProfileStyle.imagePicker}>
+            <TouchableOpacity
+              onPress={Platform.OS === 'web' ? pickImageWeb : pickImage}
+              style={FacultyProfileStyle.imagePicker}
+            >
               <Image
-                source={editedUser?.newProfilePicAsset
-                  ? { uri: editedUser.newProfilePicAsset.uri }
-                  : editedUser?.profilePic
-                    ? { uri: API_URL + editedUser.profilePic }
-                    : require('../../assets/profile-icon (2).png')}
+                source={
+                  Platform.OS === 'web'
+                    ? webPreviewUrl
+                      ? { uri: webPreviewUrl }
+                      : editedUser?.profilePic
+                        ? { uri: buildImageUri(editedUser.profilePic) }
+                        : require('../../assets/profile-icon (2).png')
+                    : editedUser?.newProfilePicAsset
+                      ? { uri: editedUser.newProfilePicAsset.uri }
+                      : editedUser?.profilePic
+                        ? { uri: buildImageUri(editedUser.profilePic) }
+                        : require('../../assets/profile-icon (2).png')
+                }
                 style={FacultyProfileStyle.avatar}
                 resizeMode="cover"
               />
               <Text style={[FacultyProfileStyle.imagePickerText, { fontFamily: 'Poppins-Regular' }]}>change photo</Text>
             </TouchableOpacity>
+            {Platform.OS === 'web' && (
+              <input
+                type="file"
+                accept="image/*"
+                ref={fileInputRef}
+                style={{ display: 'none' }}
+                onChange={handleWebFileChange}
+              />
+            )}
             <View style={FacultyProfileStyle.modalButtons}>
               <TouchableOpacity 
                 style={[FacultyProfileStyle.modalButton, FacultyProfileStyle.cancelButton]} 
@@ -198,7 +242,10 @@ export default function FacultyProfile() {
       </Modal>
       {/* Card */}
       <View style={FacultyProfileStyle.card}>
-        <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }} onPress={pickImage}>
+        <TouchableOpacity
+          style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}
+          onPress={() => setIsEditModalVisible(true)}
+        >
           <Feather name="edit" size={15} color="#00418b" style={{ marginRight: 6 }} />
           <Text style={[FacultyProfileStyle.actionText, { fontFamily: 'Poppins-Regular' }]}>Change Photo</Text>
         </TouchableOpacity>
