@@ -95,6 +95,8 @@ export default function NotificationCenter({ visible, onClose }) {
   console.log('- Filtered items:', filteredItems.length);
   console.log('- Loading notifications:', loadingNotifications);
   console.log('- Loading announcements:', loadingAnnouncements);
+  console.log('- Notifications data:', notifications);
+  console.log('- Filtered items data:', filteredItems);
 
   return (
     <Modal visible={visible} animationType="slide" transparent={true} onRequestClose={onClose}>
@@ -173,24 +175,24 @@ export default function NotificationCenter({ visible, onClose }) {
                   </Text>
                 </View>
               ) : (
-                filteredItems.map((notification) => (
+                filteredItems.map((notification, index) => (
                   <TouchableOpacity
-                    key={notification._id}
+                    key={notification._id || `notification-${index}`}
                     style={[styles.notificationItem, !notification.read && styles.unreadNotification]}
-                    onPress={() => markAsRead(notification._id)}
+                    onPress={() => notification._id && markAsRead(notification._id)}
                   >
                     <View style={styles.notificationContent}>
                       <Text style={styles.notificationTitle} numberOfLines={2}>
-                        {notification.title}
+                        {notification.title || 'Notification'}
                       </Text>
                       <Text style={styles.notificationMessage} numberOfLines={2}>
-                        {notification.message}
+                        {notification.message || 'No message available'}
                       </Text>
                       <Text style={styles.notificationDate}>
-                        {formatNotificationDate(notification.timestamp)}
+                        {notification.timestamp ? formatNotificationDate(notification.timestamp) : 'Unknown time'}
                       </Text>
                       <Text style={styles.notificationType}>
-                        📋 {notification.type} • {notification.faculty}
+                        📋 {notification.type || 'notification'} • {notification.faculty || 'System'}
                       </Text>
                     </View>
                   </TouchableOpacity>
@@ -247,9 +249,9 @@ const styles = StyleSheet.create({
   modalContent: {
     backgroundColor: 'white',
     borderRadius: 20,
-    width: '90%',
-    maxWidth: 400,
-    maxHeight: '80%',
+    width: '95%',
+    maxWidth: 500,
+    height: '85%',
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
