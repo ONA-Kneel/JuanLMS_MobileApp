@@ -66,19 +66,29 @@ export const NotificationProvider = ({ children }) => {
       // Primary attempt with /api prefix
       let data;
       try {
+        console.log(`Fetching notifications for user: ${userId}`);
         data = await apiGet(`/api/notifications/${userId}`);
+        console.log(`API response data:`, data);
       } catch (err) {
+        console.log(`API error:`, err.status, err.message);
         // If 404, retry without /api for deployments that mount routes at root
         if (err && err.status === 404) {
+          console.log('Retrying without /api prefix...');
           data = await apiGet(`/notifications/${userId}`);
+          console.log(`Fallback response data:`, data);
         } else {
           throw err;
         }
       }
-      setNotifications(data);
-      updateUnreadCount(data);
+      
+      // Ensure data is an array
+      const notificationsArray = Array.isArray(data) ? data : [];
+      console.log(`Setting notifications:`, notificationsArray.length, 'items');
+      setNotifications(notificationsArray);
+      updateUnreadCount(notificationsArray);
     } catch (error) {
       console.error('Error fetching notifications:', error);
+      console.log('Server may be unavailable. Setting empty notifications.');
       setNotifications([]);
       setUnreadCount(0);
     } finally {

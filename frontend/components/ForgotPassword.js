@@ -116,9 +116,7 @@ export default function ForgotPassword({ navigation }) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          // send both to be compatible with either backend key
           email: email,
-          personalemail: email,
           otp,
         }),
       });
@@ -126,7 +124,6 @@ export default function ForgotPassword({ navigation }) {
       // Debug logging
       console.log('Request body sent:', JSON.stringify({
         email: email,
-        personalemail: email,
         otp,
       }));
       
@@ -180,7 +177,7 @@ export default function ForgotPassword({ navigation }) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          personalemail: email,
+          email: email,
           otp,
           newPassword,
         }),
@@ -222,16 +219,17 @@ export default function ForgotPassword({ navigation }) {
           {/* Step 1: Request OTP */}
           {step === 1 && (
             <View style={styles.stepContainer}>
-              <Text style={styles.label}>Enter your registered email</Text>
+              <Text style={styles.label}>Enter your Zoho Mail address</Text>
               <TextInput
                 style={styles.input}
-                placeholder="username@gmail.com"
+                placeholder="role.firstname.lastname@sjdefilms.com"
                 value={email}
                 onChangeText={setEmail}
                 autoCapitalize="none"
                 keyboardType="email-address"
                 placeholderTextColor="#999"
               />
+              <Text style={styles.helpText}>Note: OTP will be sent to this Zoho Mail address</Text>
               <TouchableOpacity
                 style={[styles.button, loading && styles.buttonDisabled]}
                 onPress={handleRequestOTP}
@@ -476,5 +474,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: 'center',
     marginBottom: 24,
+  },
+  helpText: {
+    color: '#666',
+    fontSize: 12,
+    marginBottom: 16,
+    fontStyle: 'italic',
   },
 });

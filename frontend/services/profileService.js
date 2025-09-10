@@ -140,12 +140,34 @@ const profileService = {
           type,
         });
       }
-      try {
-        // Use WebApp-compatible endpoint: POST /api/users/:id/upload-profile
+      // Use fetch instead of axios for React Native multipart uploads
+      const isNative = Platform.OS === 'ios' || Platform.OS === 'android';
+      if (isNative) {
+        const fetchHeaders = {
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+          // Do NOT set Content-Type; RN fetch will add correct multipart boundary
+        };
+        const fetchResp = await fetch(`${API_URL}/api/users/${userId}/upload-profile`, {
+          method: 'POST',
+          headers: fetchHeaders,
+          body: formData,
+        });
+        if (!fetchResp.ok) {
+          const text = await fetchResp.text();
+          throw new Error(text || `Upload failed with status ${fetchResp.status}`);
+        }
+        const json = await fetchResp.json();
+        if (json?.profile_picture || json?.url) {
+          const pic = json.profile_picture || json.url;
+          return { user: { profilePic: pic } };
+        }
+        return json;
+      } else {
+        // Use axios for web
         const response = await axios.post(`${API_URL}/api/users/${userId}/upload-profile`, formData, {
           headers: {
             Authorization: token ? `Bearer ${token}` : undefined,
-            // Do NOT set Content-Type manually for multipart; let axios/RN set boundary
+            // Do NOT set Content-Type manually for multipart; let axios set boundary
             Accept: 'application/json',
           },
         });
@@ -155,32 +177,6 @@ const profileService = {
           return { user: { profilePic: pic } };
         }
         return response.data;
-      } catch (axiosErr) {
-        // Fallback: On React Native, retry with fetch if Axios returns a Network Error
-        const isNetworkError = !axiosErr.response;
-        const isNative = Platform.OS === 'ios' || Platform.OS === 'android';
-        if (isNetworkError && isNative) {
-          const fetchHeaders = {
-            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-            // Do NOT set Content-Type; RN fetch will add correct multipart boundary
-          };
-          const fetchResp = await fetch(`${API_URL}/api/users/${userId}/upload-profile`, {
-            method: 'POST',
-            headers: fetchHeaders,
-            body: formData,
-          });
-          if (!fetchResp.ok) {
-            const text = await fetchResp.text();
-            throw new Error(text || `Upload failed with status ${fetchResp.status}`);
-          }
-          const json = await fetchResp.json();
-          if (json?.profile_picture || json?.url) {
-            const pic = json.profile_picture || json.url;
-            return { user: { profilePic: pic } };
-          }
-          return json;
-        }
-        throw axiosErr;
       }
     } catch (error) {
       console.error('Error uploading profile picture:', error);

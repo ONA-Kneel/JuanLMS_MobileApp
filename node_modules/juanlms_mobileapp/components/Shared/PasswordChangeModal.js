@@ -84,7 +84,10 @@ export default function PasswordChangeModal({ visible, onClose, userId }) {
 
           {step === 1 && (
             <>
-              <Text style={{ marginBottom: 12 }}>Request an OTP to your personal email.</Text>
+              <Text style={{ marginBottom: 8 }}>Request an OTP to your Zoho Mail address.</Text>
+              <Text style={{ color: '#666', fontSize: 12, marginBottom: 12, fontStyle: 'italic' }}>
+                OTP will be sent to your Zoho Mail for verification.
+              </Text>
               <TouchableOpacity onPress={handleRequestOtp} disabled={loading} style={{ backgroundColor: '#00418b', padding: 12, borderRadius: 8, alignItems: 'center' }}>
                 {loading ? <ActivityIndicator color="#fff" /> : <Text style={{ color: '#fff', fontWeight: 'bold' }}>Send OTP</Text>}
               </TouchableOpacity>
@@ -93,9 +96,10 @@ export default function PasswordChangeModal({ visible, onClose, userId }) {
 
           {step === 2 && (
             <>
+              <Text style={{ marginBottom: 8 }}>Enter the OTP sent to your Zoho Mail address</Text>
               <TextInput value={otp} onChangeText={setOtp} placeholder="Enter OTP" keyboardType="number-pad" style={{ borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 10, marginBottom: 12 }} />
               <TouchableOpacity onPress={handleValidateOtp} disabled={loading} style={{ backgroundColor: '#00418b', padding: 12, borderRadius: 8, alignItems: 'center' }}>
-                {loading ? <ActivityIndicator color="#fff" /> : <Text style={{ color: '#fff', fontWeight: 'bold' }}>Next</Text>}
+                {loading ? <ActivityIndicator color="#fff" /> : <Text style={{ color: '#fff', fontWeight: 'bold' }}>Validate OTP</Text>}
               </TouchableOpacity>
               <TouchableOpacity onPress={handleRequestOtp} disabled={loading || cooldown > 0} style={{ marginTop: 10, backgroundColor: cooldown > 0 ? '#ccc' : '#2e7d32', padding: 12, borderRadius: 8, alignItems: 'center' }}>
                 <Text style={{ color: '#fff', fontWeight: 'bold' }}>{cooldown > 0 ? `Resend OTP in ${cooldown}s` : 'Resend OTP'}</Text>

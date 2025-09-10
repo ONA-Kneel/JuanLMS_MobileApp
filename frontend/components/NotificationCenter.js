@@ -160,6 +160,9 @@ export default function NotificationCenter({ visible, onClose }) {
                 <View style={styles.emptyState}>
                   <Icon name="bell-off" size={48} color="#ccc" />
                   <Text style={styles.emptyStateText}>No updates yet</Text>
+                  <Text style={styles.emptyStateSubtext}>
+                    Check your connection or try refreshing
+                  </Text>
                 </View>
               ) : (
                 filteredItems.map((notification) => (
@@ -332,6 +335,13 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins-Medium',
     color: '#666',
     marginTop: 16,
+  },
+  emptyStateSubtext: {
+    fontSize: 12,
+    fontFamily: 'Poppins-Regular',
+    color: '#999',
+    textAlign: 'center',
+    marginTop: 8,
   },
   announcementItem: {
     backgroundColor: '#f8f9fa',
