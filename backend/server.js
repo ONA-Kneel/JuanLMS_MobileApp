@@ -39,31 +39,13 @@ app.use(express.json());
 
 // Debug middleware to log all requests
 app.use((req, res, next) => {
-  console.log(`=== SERVER REQUEST DEBUG ===`);
-  console.log(`Method: ${req.method}`);
-  console.log(`URL: ${req.originalUrl}`);
-  console.log(`Path: ${req.path}`);
-  console.log(`Base URL: ${req.baseUrl}`);
-  console.log(`Timestamp: ${new Date().toISOString()}`);
-  console.log(`=== END SERVER REQUEST DEBUG ===`);
+  console.log(`${req.method} ${req.originalUrl} - ${new Date().toISOString()}`);
   next();
 });
 
 // Simple test route at root level
 app.get('/', (req, res) => {
   res.json({ message: 'JuanLMS Backend Server is running!', timestamp: new Date().toISOString() });
-});
-
-// Health check route for grades
-app.get('/api/grades/health', (req, res) => {
-  res.json({ 
-    message: 'Grades endpoint is accessible!', 
-    timestamp: new Date().toISOString(),
-    routes: [
-      '/api/grades/test',
-      '/api/grades/semestral-grades/student/:studentId'
-    ]
-  });
 });
 
 app.use('/api', users);
@@ -85,30 +67,6 @@ app.use('/uploads', express.static('uploads'));
 // Mobile app compatibility routes (direct routes without /api prefix)
 app.use('/quizzes', quizRoutes);
 app.use('/assignments', assignmentRoutes);
-app.use('/group-chats', groupChatsRouter);
-
-// Group messages compatibility route (redirects to group-chats)
-app.use('/group-messages', groupChatsRouter);
-
-// Test route to verify server is working
-app.get('/test', (req, res) => {
-  res.json({ message: 'Server is running!', timestamp: new Date().toISOString() });
-});
-
-// Test assignment routes specifically
-app.get('/test-assignments', (req, res) => {
-  res.json({ 
-    message: 'Assignment routes are accessible!', 
-    timestamp: new Date().toISOString(),
-    availableRoutes: [
-      '/assignments',
-      '/assignments/:id',
-      '/assignments/:id/replace-file',
-      '/assignments/:id/submit',
-      '/assignments/:id/submissions'
-    ]
-  });
-});
 
 // Academic year route alias for mobile app compatibility
 app.get('/api/academic-year/active', async (req, res) => {
