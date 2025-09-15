@@ -5,7 +5,7 @@
     "owner": "bosskneel",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/San Juan.png",
+    "icon": "./assets/SanJuan.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
@@ -19,7 +19,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/San Juan.png",
+        "foregroundImage": "./assets/SanJuan.png",
         "backgroundColor": "##03045E"
       },
       "package": "com.kneelpngnbn.juanlms.mobileapp",
@@ -38,7 +38,7 @@
       }
     },
     "web": {
-      "icon": "./assets/San Juan.png"
+      "icon": "./assets/SanJuan.png"
     },
     "extra": {
       "API_URL": "https://juanlms-webapp-server.onrender.com",

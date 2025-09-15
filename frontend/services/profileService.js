@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system';
 
-const API_URL = 'https://juanlms-webapp-server.onrender.com'; // Ensure this matches your backend base URL
+const API_URL = 'https://juanlms-webapp-server.onrender.com'; // Your actual backend URL
 
 const profileService = {
   async updateProfile(userId, profileData) {
@@ -78,7 +78,16 @@ const profileService = {
 
   async uploadProfilePicture(userId, imageAsset, isWeb = false) {
     try {
+      console.log('=== ProfileService Upload Debug Start ===');
+      console.log('API_URL:', API_URL);
+      console.log('userId:', userId);
+      console.log('isWeb:', isWeb);
+      console.log('imageAsset:', imageAsset);
+      
       const token = await AsyncStorage.getItem('jwtToken');
+      console.log('Token exists:', !!token);
+      console.log('Token length:', token ? token.length : 0);
+      
       // Enforce same constraints as WebApp: image types only, max 5MB
       const MAX_BYTES = 5 * 1024 * 1024;
       const formData = new FormData();
@@ -142,23 +151,37 @@ const profileService = {
       }
       // Use fetch instead of axios for React Native multipart uploads
       const isNative = Platform.OS === 'ios' || Platform.OS === 'android';
+      console.log('Platform is native:', isNative);
+      
       if (isNative) {
         const fetchHeaders = {
           ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
           // Do NOT set Content-Type; RN fetch will add correct multipart boundary
         };
+        console.log('Fetch headers:', fetchHeaders);
+        console.log('Upload URL:', `${API_URL}/users/${userId}/upload-profile`);
+        
         const fetchResp = await fetch(`${API_URL}/users/${userId}/upload-profile`, {
           method: 'POST',
           headers: fetchHeaders,
           body: formData,
         });
+        
+        console.log('Fetch response status:', fetchResp.status);
+        console.log('Fetch response ok:', fetchResp.ok);
+        console.log('Fetch response headers:', fetchResp.headers);
+        
         if (!fetchResp.ok) {
           const text = await fetchResp.text();
+          console.error('Upload failed response text:', text);
           throw new Error(text || `Upload failed with status ${fetchResp.status}`);
         }
         const json = await fetchResp.json();
+        console.log('Upload response JSON:', json);
+        
         if (json?.profile_picture || json?.url) {
           const pic = json.profile_picture || json.url;
+          console.log('Profile picture URL:', pic);
           return { user: { profilePic: pic } };
         }
         return json;
@@ -179,7 +202,14 @@ const profileService = {
         return response.data;
       }
     } catch (error) {
+      console.error('=== ProfileService Upload Debug End - Error ===');
       console.error('Error uploading profile picture:', error);
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+      console.error('Error response:', error.response);
+      console.error('Error response data:', error.response?.data);
+      console.error('Error response status:', error.response?.status);
+      
       if (error.response) {
         throw new Error(error.response.data.message || 'Failed to upload profile picture');
       }

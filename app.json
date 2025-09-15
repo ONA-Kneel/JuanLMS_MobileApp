@@ -5,7 +5,7 @@
     "owner": "kneelpngnbn", 
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/San Juan.png",
+    "icon": "./assets/SanJuan.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
@@ -19,15 +19,16 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/San Juan.png",
+        "foregroundImage": "./assets/SanJuan.png",
         "backgroundColor": "#ffffff"
       },
       "package": "com.kneelpngnbn.juanlms.mobileapp",
       "versionCode": 1,
       "permissions": [
-        "CAMERA",
-        "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE"
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.RECORD_AUDIO"
       ],
       "softwareKeyboardLayoutMode": "pan",
       "allowBackup": true,
@@ -37,7 +38,7 @@
       }
     },
     "web": {
-      "icon": "./assets/San Juan.png"
+      "icon": "./assets/SanJuan.png"
     },
     "extra": {
       "API_URL": "https://juanlms-webapp-server.onrender.com"

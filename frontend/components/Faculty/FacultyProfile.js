@@ -118,48 +118,83 @@ export default function FacultyProfile() {
   const handleSaveProfile = async () => {
     setIsLoading(true);
     try {
+      console.log('=== Profile Upload Debug Start ===');
+      console.log('Platform.OS:', Platform.OS);
+      console.log('User:', user);
+      console.log('Edited User:', editedUser);
+      
+      // Test network connectivity
+      try {
+        const testResponse = await fetch('https://juanlms-webapp-server.onrender.com/api/health');
+        console.log('Network test response status:', testResponse.status);
+        console.log('Network test response ok:', testResponse.ok);
+      } catch (networkError) {
+        console.error('Network connectivity test failed:', networkError);
+      }
+      
       let profilePicPath = editedUser?.profilePic;
       let data;
       if (editedUser?.newProfilePicAsset) {
         // Use the correct user ID format (prefer _id, fallback to userID)
         const userId = user._id || user.userID;
+        console.log('User ID:', userId);
         if (!userId) {
           throw new Error('User ID not found');
         }
         
         if (Platform.OS === 'web') {
+          console.log('Web platform detected, using web upload method');
+          console.log('File asset:', editedUser.newProfilePicAsset);
           // Pass File directly; service will append as 'image'
           data = await profileService.uploadProfilePicture(userId, editedUser.newProfilePicAsset, true);
         } else {
+          console.log('Mobile platform detected, using mobile upload method');
           let asset = editedUser.newProfilePicAsset;
+          console.log('Original asset:', asset);
           let localUri = asset.uri;
+          console.log('Original URI:', localUri);
+          
           if (!localUri.startsWith('file://') && asset.base64) {
+            console.log('Converting base64 to file URI');
             const fileUri = FileSystem.cacheDirectory + (asset.fileName || 'profile.jpg');
+            console.log('Target file URI:', fileUri);
             await FileSystem.writeAsStringAsync(fileUri, asset.base64, { encoding: FileSystem.EncodingType.Base64 });
             localUri = fileUri;
+            console.log('New local URI:', localUri);
           }
+          
           const patchedAsset = {
             uri: localUri,
             fileName: asset.fileName || 'profile.jpg',
             type: asset.type || 'image/jpeg',
           };
+          console.log('Patched asset for upload:', patchedAsset);
+          
+          console.log('Calling profileService.uploadProfilePicture...');
           data = await profileService.uploadProfilePicture(userId, patchedAsset, false);
+          console.log('Upload response:', data);
         }
         const updated = data?.user;
         if (updated?.profilePic) {
           profilePicPath = updated.profilePic;
+          console.log('Updated profile pic path:', profilePicPath);
         }
       }
       // Always update user context/state with the new profilePic
+      console.log('Updating user context with profile pic:', profilePicPath);
       await updateUser({
         ...user,
         profilePic: profilePicPath,
         profilePicture: profilePicPath,
       });
       setIsEditModalVisible(false);
+      console.log('=== Profile Upload Debug End - Success ===');
       Alert.alert('Profile Updated', 'Your profile picture has been changed successfully.');
     } catch (error) {
+      console.error('=== Profile Upload Debug End - Error ===');
       console.error('Profile upload error:', error);
+      console.error('Error stack:', error.stack);
+      console.error('Error response:', error.response);
       Alert.alert('Error', `Failed to update profile picture: ${error.message || 'Please try again.'}`);
     } finally {
       setIsLoading(false);
