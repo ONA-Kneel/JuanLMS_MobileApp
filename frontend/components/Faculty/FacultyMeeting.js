@@ -11,7 +11,8 @@ import {
   StyleSheet,
   Dimensions,
   Platform,
-  PermissionsAndroid
+  PermissionsAndroid,
+  Image
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
@@ -33,6 +34,7 @@ export default function FacultyMeeting() {
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [academicContext, setAcademicContext] = useState('2025-2026 | Term 1');
+  const [currentDateTime, setCurrentDateTime] = useState(new Date());
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -41,6 +43,14 @@ export default function FacultyMeeting() {
     duration: ''
   });
   const [activeMeeting, setActiveMeeting] = useState(null);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentDateTime(new Date());
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     fetchClasses();
@@ -287,6 +297,14 @@ export default function FacultyMeeting() {
     return `${dateLabel} at ${timeLabel}`;
   };
 
+  const resolveProfileUri = () => {
+    const API_BASE = 'https://juanlms-webapp-server.onrender.com';
+    const uri = user?.profilePic || user?.profilePicture;
+    if (!uri) return null;
+    if (typeof uri === 'string' && uri.startsWith('/uploads/')) return API_BASE + uri;
+    return uri;
+  };
+
   const getMeetingStatus = (meeting) => {
     if (meeting.status === 'ended') {
       return { label: 'Ended', color: '#9CA3AF' };
@@ -334,14 +352,37 @@ export default function FacultyMeeting() {
   }
 
   return (
-    <ScrollView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.title}>Meeting</Text>
-          <Text style={styles.subtitle}>{academicContext} | {new Date().toLocaleDateString()}</Text>
+    <View style={styles.container}>
+      <ScrollView showsVerticalScrollIndicator={false}>
+        {/* Blue background */}
+        <View style={styles.blueHeaderBackground} />
+        {/* White card header */}
+        <View style={styles.whiteHeaderCard}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <View>
+              <Text style={styles.headerTitle}>
+                Meeting
+              </Text>
+              <Text style={styles.headerSubtitle}>{academicContext}</Text>
+              <Text style={styles.headerSubtitle2}>{formatDateTime(currentDateTime)}</Text>
+            </View>
+            <TouchableOpacity onPress={() => navigation.navigate('FProfile')}>
+              {resolveProfileUri() ? (
+                <Image 
+                  source={{ uri: resolveProfileUri() }} 
+                  style={{ width: 36, height: 36, borderRadius: 18 }}
+                  resizeMode="cover"
+                />
+              ) : (
+                <Image 
+                  source={require('../../assets/profile-icon (2).png')} 
+                  style={{ width: 36, height: 36, borderRadius: 18 }}
+                  resizeMode="cover"
+                />
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
 
       {/* Class Selector */}
       <View style={styles.classSelector}>
@@ -613,6 +654,7 @@ export default function FacultyMeeting() {
         />
       )}
     </ScrollView>
+    </View>
   );
 }
 
@@ -620,6 +662,41 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F3F4F6',
+  },
+  blueHeaderBackground: {
+    backgroundColor: '#00418b',
+    height: 90,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+  },
+  whiteHeaderCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    marginHorizontal: 16,
+    marginTop: -40,
+    padding: 20,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    zIndex: 2,
+    marginBottom: 16,
+  },
+  headerTitle: {
+    fontSize: 22,
+    color: '#222',
+    fontFamily: 'Poppins-Bold',
+  },
+  headerSubtitle: {
+    color: '#888',
+    fontSize: 14,
+    fontFamily: 'Poppins-Regular',
+  },
+  headerSubtitle2: {
+    color: '#666',
+    fontSize: 12,
+    fontFamily: 'Poppins-Regular',
+    marginTop: 2,
   },
   loadingContainer: {
     flex: 1,

@@ -204,6 +204,8 @@ export default function FacultyDashboard() {
 
   return (
     <View style={FacultyDashStyle.container}>
+  
+      <ScrollView contentContainerStyle={{ paddingBottom: 80}}>
       {/* Blue background */}
       <View style={FacultyDashStyle.blueHeaderBackground} />
       {/* White card header */}
@@ -236,27 +238,8 @@ export default function FacultyDashboard() {
         </View>
       </View>
 
-      {/* Header */}
-      {/* <View style={FacultyDashStyle.header}>
-        <View style={FacultyDashStyle.headerContent}>
-          <View>
-            <Text style={FacultyDashStyle.welcomeText}>Welcome back,</Text>
-            <Text style={FacultyDashStyle.nameText}>{user?.firstname || 'Faculty'} {user?.lastname || 'Member'}</Text>
-            <Text style={FacultyDashStyle.dateText}>{formatDateTime(currentDateTime)}</Text>
-          </View>
-          <TouchableOpacity onPress={goToProfile}>
-            <Image 
-              source={require('../../assets/profile-icon (2).png')} 
-              style={{ width: 36, height: 36, borderRadius: 18 }}
-              resizeMode="cover"
-            />
-          </TouchableOpacity>
-        </View>
-      </View> */}
-      
-      <ScrollView contentContainerStyle={{ paddingBottom: 80, paddingHorizontal: 20, paddingTop: 10 }}>
         {/* Stats Row */}
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 }}>
+        {/* <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 }}>
           <View style={{ 
             flex: 1, 
             backgroundColor: '#00418b', 
@@ -294,7 +277,7 @@ export default function FacultyDashboard() {
             </Text>
             <Text style={{ color: '#fff', fontSize: 12, textAlign: 'center', fontFamily: 'Poppins-Regular' }}>Total Students</Text>
           </View>
-        </View>
+        </View> */}
         
         {/* Create Classes and Progression Buttons */}
         {/* <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 }}>
@@ -333,11 +316,11 @@ export default function FacultyDashboard() {
           </TouchableOpacity>
         </View> */}
         
-                 {/* Your Classes */}
-         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 24, marginBottom: 8 }}>
+          {/* Your Classes */}
+         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 24, marginBottom: 8, paddingHorizontal: 20, }}>
            <Text style={{ fontSize: 16, fontWeight: 'bold', fontFamily: 'Poppins-Bold' }}>Your Classes</Text>
            <View style={{ flexDirection: 'row', gap: 8 }}>
-             <TouchableOpacity 
+             {/* <TouchableOpacity 
                onPress={() => {
                  console.log('Manual refresh triggered');
                  fetchClasses();
@@ -349,7 +332,7 @@ export default function FacultyDashboard() {
                  borderRadius: 8 
                }}>
                <Text style={{ color: '#fff', fontSize: 12, fontFamily: 'Poppins-Bold' }}>Refresh</Text>
-             </TouchableOpacity>
+             </TouchableOpacity> */}
              <TouchableOpacity 
                onPress={() => navigation.navigate('FClasses')}
                style={{ 

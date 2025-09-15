@@ -242,11 +242,11 @@ export default function StudentsProfile() {
       </View>
       {/* Card */}
       <View style={StudentsProfileStyle.card}>
-        <Text style={StudentsProfileStyle.name}>
+        <Text style={[StudentsProfileStyle.name, { fontFamily: 'Poppins-Bold' }]}>
           {capitalizeWords(`${user.firstname} ${user.lastname}`)}
           <Text style={StudentsProfileStyle.emoji}></Text>
         </Text>
-        <Text style={StudentsProfileStyle.email}>{user.email}</Text>
+        <Text style={[StudentsProfileStyle.email, { fontFamily: 'Poppins-Regular' }]}>{user.email}</Text>
         <View style={StudentsProfileStyle.row}>
           <View style={StudentsProfileStyle.infoBox}>
             <Text style={[StudentsProfileStyle.infoLabel, { fontFamily: 'Poppins-Regular' }]}>Strand</Text>
@@ -263,18 +263,18 @@ export default function StudentsProfile() {
             onPress={() => setIsEditModalVisible(true)}
           >
             <Feather name="edit" size={20} color="#00418b" />
-            <Text style={StudentsProfileStyle.actionText}>Edit</Text>
+            <Text style={[StudentsProfileStyle.actionText, { fontFamily: 'Poppins-Regular' }]}>Edit</Text>
           </TouchableOpacity>
           <TouchableOpacity style={StudentsProfileStyle.actionBtn} onPress={() => setShowPasswordModal(true)}>
             <Feather name="lock" size={20} color="#00418b" />
-            <Text style={StudentsProfileStyle.actionText}>Password</Text>
+            <Text style={[StudentsProfileStyle.actionText, { fontFamily: 'Poppins-Regular' }]}>Password</Text>
           </TouchableOpacity>
           <TouchableOpacity 
             style={StudentsProfileStyle.actionBtn}
             onPress={() => setShowNotificationCenter(true)}
           >
             <Feather name="bell" size={20} color="#00418b" />
-            <Text style={StudentsProfileStyle.actionText}>Notifications</Text>
+            <Text style={[StudentsProfileStyle.actionText, { fontFamily: 'Poppins-Regular' }]}>Notifications</Text>
             {unreadCount > 0 && (
               <View style={{
                 position: 'absolute',
@@ -299,13 +299,13 @@ export default function StudentsProfile() {
           </TouchableOpacity>
           <TouchableOpacity style={StudentsProfileStyle.actionBtn} onPress={goToSupportCenter}>
             <Feather name="help-circle" size={20} color="#00418b" />
-            <Text style={StudentsProfileStyle.actionText}>Support Center</Text>
+            <Text style={[StudentsProfileStyle.actionText, { fontFamily: 'Poppins-Regular' }]}>Support Center</Text>
           </TouchableOpacity>
         </View>
       </View>
       {/* Logout Button */}
       <TouchableOpacity style={StudentsProfileStyle.logout} onPress={logout}>
-        <Text style={StudentsProfileStyle.logoutText}>Log Out</Text>
+        <Text style={[StudentsProfileStyle.logoutText, { fontFamily: 'Poppins-Regular' }]}>Log Out</Text>
       </TouchableOpacity>
       {/* Edit Profile Modal */}
       <Modal
@@ -315,7 +315,7 @@ export default function StudentsProfile() {
       >
         <View style={StudentsProfileStyle.modalContainer}>
           <View style={StudentsProfileStyle.modalContent}>
-            <Text style={StudentsProfileStyle.modalTitle}>Edit Profile</Text>
+            <Text style={[StudentsProfileStyle.modalTitle, { fontFamily: 'Poppins-Bold' }]}>Edit Profile</Text>
             <TouchableOpacity
               onPress={Platform.OS === 'web' ? pickImageWeb : pickImage}
               style={StudentsProfileStyle.imagePicker}
@@ -337,7 +337,7 @@ export default function StudentsProfile() {
                 style={StudentsProfileStyle.avatar}
                 resizeMode="cover"
               />
-              <Text style={StudentsProfileStyle.imagePickerText}>change photo</Text>
+              <Text style={[StudentsProfileStyle.imagePickerText, { fontFamily: 'Poppins-Regular' }]}>change photo</Text>
             </TouchableOpacity>
             {Platform.OS === 'web' && (
               <input
@@ -354,7 +354,7 @@ export default function StudentsProfile() {
                 onPress={() => setIsEditModalVisible(false)}
                 disabled={isLoading}
               >
-                <Text style={StudentsProfileStyle.buttonText}>cancel</Text>
+                <Text style={[StudentsProfileStyle.buttonText, { fontFamily: 'Poppins-Regular' }]}>cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity 
                 style={[StudentsProfileStyle.modalButton, StudentsProfileStyle.saveButton]} 
@@ -364,7 +364,7 @@ export default function StudentsProfile() {
                 {isLoading ? (
                   <ActivityIndicator size="small" color="#00418b" />
                 ) : (
-                  <Text style={StudentsProfileStyle.buttonText}>save changes</Text>
+                  <Text style={[StudentsProfileStyle.buttonText, { fontFamily: 'Poppins-Regular' }]}>save changes</Text>
                 )}
               </TouchableOpacity>
             </View>

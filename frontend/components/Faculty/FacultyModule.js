@@ -1,4 +1,4 @@
-import { Text, TouchableOpacity, View, ScrollView, ActivityIndicator, Modal, TextInput, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { Text, TouchableOpacity, View, ScrollView, ActivityIndicator, Modal, TextInput, KeyboardAvoidingView, Platform, Alert, Image } from 'react-native';
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -58,6 +58,8 @@ export default function FacultyModule() {
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [deleteAnnouncementId, setDeleteAnnouncementId] = useState(null);
     const [announcementMenuOpen, setAnnouncementMenuOpen] = useState(null);
+    const [currentDateTime, setCurrentDateTime] = useState(new Date());
+    const [academicContext, setAcademicContext] = useState('2025-2026 | Term 1');
 
     // Edit/Delete state for modules
     const [showEditModuleModal, setShowEditModuleModal] = useState(false);
@@ -71,6 +73,14 @@ export default function FacultyModule() {
     
     // Add activeTab state here
     const [activeTab, setActiveTab] = useState('Announcement');
+
+    useEffect(() => {
+        const timer = setInterval(() => {
+            setCurrentDateTime(new Date());
+        }, 1000);
+
+        return () => clearInterval(timer);
+    }, []);
 
     useEffect(() => {
         console.log('DEBUG FacultyModule: useEffect classId:', classId);
@@ -240,6 +250,27 @@ export default function FacultyModule() {
     const [currentLesson, setCurrentLesson] = useState(0);
     const changeScreen = useNavigation();
     const back = () => changeScreen.goBack();
+
+    const formatDateTime = (date) => {
+        return date.toLocaleString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: true
+        });
+    };
+
+    const resolveProfileUri = () => {
+        const API_BASE = 'https://juanlms-webapp-server.onrender.com';
+        const uri = user?.profilePic || user?.profilePicture;
+        if (!uri) return null;
+        if (typeof uri === 'string' && uri.startsWith('/uploads/')) return API_BASE + uri;
+        return uri;
+    };
     let [fontsLoaded] = useFonts({
         'Poppins-Regular': require('../../assets/fonts/Poppins-Regular.ttf'),
         'Poppins-Bold': require('../../assets/fonts/Poppins-Bold.ttf'),
@@ -881,15 +912,42 @@ export default function FacultyModule() {
     }
 
     return (
-        <View style={{ flex: 1, backgroundColor: '#f5f5f5', paddingHorizontal: 10 }}>
-            {/* Header */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 20, paddingHorizontal: 16 }}>
-                <TouchableOpacity onPress={back} style={{ position: 'absolute', top: 40, left: 20, zIndex: 10 }}><Icon name="arrow-left" size={24} color="black" /></TouchableOpacity>
-                <View style={{ flex: 1, alignItems: 'center', marginLeft: -24 }}>
-                    <Text style={{ fontFamily: 'Poppins-Bold', fontSize: 22, color: '#222' }}>{classInfo.className}</Text>
-                    <Text style={{ fontFamily: 'Poppins-Regular', fontSize: 13, color: '#888' }}>{classInfo.classCode}</Text>
+        <View style={{ flex: 1, backgroundColor: '#f5f5f5' }}>
+            <ScrollView showsVerticalScrollIndicator={false}>
+                {/* Blue background */}
+                <View style={styles.blueHeaderBackground} />
+                {/* White card header */}
+                <View style={styles.whiteHeaderCard}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <View>
+                            <Text style={styles.headerTitle}>
+                                {classInfo.className}
+                            </Text>
+                            <Text style={styles.headerSubtitle}>{academicContext}</Text>
+                            <Text style={styles.headerSubtitle2}>{formatDateTime(currentDateTime)}</Text>
+                        </View>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <TouchableOpacity onPress={back} style={styles.backButton}>
+                                <Icon name="arrow-left" size={20} color="#00418b" />
+                            </TouchableOpacity>
+                            <TouchableOpacity onPress={() => navigation.navigate('FProfile')}>
+                                {resolveProfileUri() ? (
+                                    <Image 
+                                        source={{ uri: resolveProfileUri() }} 
+                                        style={{ width: 36, height: 36, borderRadius: 18, marginLeft: 8 }}
+                                        resizeMode="cover"
+                                    />
+                                ) : (
+                                    <Image 
+                                        source={require('../../assets/profile-icon (2).png')} 
+                                        style={{ width: 36, height: 36, borderRadius: 18, marginLeft: 8 }}
+                                        resizeMode="cover"
+                                    />
+                                )}
+                            </TouchableOpacity>
+                        </View>
+                    </View>
                 </View>
-            </View>
             {/* Tabs */}
             <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: 18, gap: 8, marginLeft: 10, marginRight: 10 }}>
                 {['Announcement', 'Classwork', 'Class Materials'].map(tab => (
@@ -1101,6 +1159,52 @@ export default function FacultyModule() {
                     </View>
                 </KeyboardAvoidingView>
             </Modal>
+            </ScrollView>
         </View>
     )
 }
+
+const styles = {
+    blueHeaderBackground: {
+        backgroundColor: '#00418b',
+        height: 90,
+        borderBottomLeftRadius: 24,
+        borderBottomRightRadius: 24,
+    },
+    whiteHeaderCard: {
+        backgroundColor: '#fff',
+        borderRadius: 16,
+        marginHorizontal: 16,
+        marginTop: -40,
+        padding: 20,
+        elevation: 4,
+        shadowColor: '#000',
+        shadowOpacity: 0.08,
+        shadowRadius: 8,
+        zIndex: 2,
+        marginBottom: 16,
+    },
+    headerTitle: {
+        fontSize: 22,
+        color: '#222',
+        fontFamily: 'Poppins-Bold',
+    },
+    headerSubtitle: {
+        color: '#888',
+        fontSize: 14,
+        fontFamily: 'Poppins-Regular',
+    },
+    headerSubtitle2: {
+        color: '#666',
+        fontSize: 12,
+        fontFamily: 'Poppins-Regular',
+        marginTop: 2,
+    },
+    backButton: {
+        backgroundColor: '#f0f8ff',
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 20,
+        marginRight: 8,
+    },
+};

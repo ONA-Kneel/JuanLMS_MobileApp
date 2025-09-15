@@ -856,7 +856,7 @@ export default function UnifiedChat() {
                          <Text style={StudentDashboardStyle.headerSubtitle}>{academicContext}</Text>
              <Text style={StudentDashboardStyle.headerSubtitle2}>{formatDateTime(currentDateTime)}</Text>
           </View>
-          <TouchableOpacity onPress={() => navigation.navigate('SProfile')}>
+          <TouchableOpacity onPress={() => navigation.navigate(user?.role === 'faculty' ? 'FProfile' : 'SProfile')}>
             {resolveProfileUri() ? (
               <Image 
                 source={{ uri: resolveProfileUri() }} 

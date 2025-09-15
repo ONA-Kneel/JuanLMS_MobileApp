@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, TextInput, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, TextInput, Alert, ActivityIndicator, Image, StyleSheet } from 'react-native';
 import { MaterialIcons, Feather, Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useUser } from '../UserContext';
 
 export default function FacultySupportCenter() {
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
+  const [academicContext, setAcademicContext] = useState('2025-2026 | Term 1');
   const [view, setView] = useState('main'); // 'main', 'new', 'myTickets', 'ticketDetail'
   const [activeTab, setActiveTab] = useState('all');
   const [search, setSearch] = useState('');
@@ -22,6 +24,7 @@ export default function FacultySupportCenter() {
   const [replyError, setReplyError] = useState('');
   const [replySuccess, setReplySuccess] = useState('');
   const navigation = useNavigation();
+  const { user } = useUser();
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -195,6 +198,14 @@ export default function FacultySupportCenter() {
     });
   };
 
+  const resolveProfileUri = () => {
+    const API_BASE = 'https://juanlms-webapp-server.onrender.com';
+    const uri = user?.profilePic || user?.profilePicture;
+    if (!uri) return null;
+    if (typeof uri === 'string' && uri.startsWith('/uploads/')) return API_BASE + uri;
+    return uri;
+  };
+
   const getStatusColor = (status) => {
     switch (status) {
       case 'new': return '#1976d2';
@@ -217,34 +228,18 @@ export default function FacultySupportCenter() {
   if (view === 'main') {
     return (
       <View style={{ flex: 1, backgroundColor: '#f6f7fb' }}>
-        {/* Blue background */}
-        <View style={{ position: 'absolute', left: 0, right: 0, top: 0, height: 140, backgroundColor: '#00418b', borderBottomLeftRadius: 40, borderBottomRightRadius: 40, zIndex: 0 }} />
-        
         <ScrollView contentContainerStyle={{ paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
+          {/* Blue background */}
+          <View style={styles.blueHeaderBackground} />
           {/* White card header */}
-          <View style={{
-            backgroundColor: '#fff',
-            borderRadius: 32,
-            marginTop: 48,
-            marginBottom: 32,
-            marginHorizontal: 24,
-            paddingVertical: 28,
-            paddingHorizontal: 28,
-            shadowColor: '#000',
-            shadowOpacity: 0.08,
-            shadowRadius: 10,
-            shadowOffset: { width: 0, height: 4 },
-            elevation: 4,
-            zIndex: 1,
-          }}>
+          <View style={styles.whiteHeaderCard}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 28, fontWeight: 'bold', color: '#00418b', marginBottom: 8 }}>
+              <View>
+                <Text style={styles.headerTitle}>
                   Support Center
                 </Text>
-                <Text style={{ fontSize: 16, color: '#666', fontFamily: 'Poppins-Regular' }}>
-                  {formatDateTime(currentDateTime)}
-                </Text>
+                <Text style={styles.headerSubtitle}>{academicContext}</Text>
+                <Text style={styles.headerSubtitle2}>{formatDateTime(currentDateTime)}</Text>
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                 <TouchableOpacity onPress={() => navigation.goBack()}>
@@ -253,13 +248,21 @@ export default function FacultySupportCenter() {
                   </View>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => navigation.navigate('FProfile')}>
-                  <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#e3f2fd', justifyContent: 'center', alignItems: 'center' }}>
-                    <MaterialIcons name="person" size={24} color="#00418b" />
-                  </View>
+                  {resolveProfileUri() ? (
+                    <Image 
+                      source={{ uri: resolveProfileUri() }} 
+                      style={{ width: 48, height: 48, borderRadius: 24 }}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#e3f2fd', justifyContent: 'center', alignItems: 'center' }}>
+                      <MaterialIcons name="person" size={24} color="#00418b" />
+                    </View>
+                  )}
                 </TouchableOpacity>
               </View>
             </View>
-      </View>
+          </View>
 
           {/* Welcome Section */}
           <View style={{ marginHorizontal: 24, marginBottom: 24 }}>
@@ -351,27 +354,44 @@ export default function FacultySupportCenter() {
   if (view === 'new') {
     return (
       <View style={{ flex: 1, backgroundColor: '#f6f7fb' }}>
-        {/* Header with back button */}
-        <View style={{ 
-          backgroundColor: '#00418b', 
-          paddingTop: 48, 
-          paddingBottom: 20, 
-          paddingHorizontal: 24,
-          borderBottomLeftRadius: 20,
-          borderBottomRightRadius: 20,
-        }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
-            <TouchableOpacity onPress={() => setView('main')} style={{ marginRight: 16 }}>
-              <MaterialIcons name="arrow-back" size={24} color="#fff" />
-            </TouchableOpacity>
-            <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#fff', fontFamily: 'Poppins-Bold' }}>
-              Submit New Ticket
-            </Text>
+        <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+          {/* Blue background */}
+          <View style={styles.blueHeaderBackground} />
+          {/* White card header */}
+          <View style={styles.whiteHeaderCard}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <View>
+                <Text style={styles.headerTitle}>
+                  Submit New Ticket
+                </Text>
+                <Text style={styles.headerSubtitle}>{academicContext}</Text>
+                <Text style={styles.headerSubtitle2}>{formatDateTime(currentDateTime)}</Text>
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <TouchableOpacity onPress={() => setView('main')}>
+                  <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#e3f2fd', justifyContent: 'center', alignItems: 'center' }}>
+                    <MaterialIcons name="arrow-back" size={24} color="#00418b" />
+                  </View>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => navigation.navigate('FProfile')}>
+                  {resolveProfileUri() ? (
+                    <Image 
+                      source={{ uri: resolveProfileUri() }} 
+                      style={{ width: 48, height: 48, borderRadius: 24 }}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#e3f2fd', justifyContent: 'center', alignItems: 'center' }}>
+                      <MaterialIcons name="person" size={24} color="#00418b" />
+                    </View>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
           </View>
-        </View>
 
-        <ScrollView style={{ flex: 1, padding: 24 }} showsVerticalScrollIndicator={false}>
-          <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 24, marginBottom: 24, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 }}>
+          <View style={{ padding: 24 }}>
+            <View style={{ backgroundColor: '#fff', borderRadius: 20, padding: 24, marginBottom: 24, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 }}>
             <Text style={{ fontSize: 16, fontWeight: 'bold', color: '#333', marginBottom: 12, fontFamily: 'Poppins-Bold' }}>
               Subject
             </Text>
@@ -444,6 +464,7 @@ export default function FacultySupportCenter() {
           </Text>
             )}
         </TouchableOpacity>
+          </View>
         </ScrollView>
       </View>
     );
@@ -670,19 +691,44 @@ export default function FacultySupportCenter() {
   if (view === 'ticketDetail' && selectedTicket) {
     return (
       <View style={{ flex: 1, backgroundColor: '#f6f7fb' }}>
-        <View style={{ backgroundColor: '#00418b', paddingTop: 48, paddingBottom: 20, paddingHorizontal: 24, borderBottomLeftRadius: 20, borderBottomRightRadius: 20 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
-            <TouchableOpacity onPress={() => setView('myTickets')} style={{ marginRight: 16 }}>
-              <MaterialIcons name="arrow-back" size={24} color="#fff" />
-            </TouchableOpacity>
-            <Text style={{ fontSize: 20, fontWeight: 'bold', color: '#fff', fontFamily: 'Poppins-Bold' }}>
-              Ticket Details
-            </Text>
+        <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+          {/* Blue background */}
+          <View style={styles.blueHeaderBackground} />
+          {/* White card header */}
+          <View style={styles.whiteHeaderCard}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <View>
+                <Text style={styles.headerTitle}>
+                  Ticket Details
+                </Text>
+                <Text style={styles.headerSubtitle}>{academicContext}</Text>
+                <Text style={styles.headerSubtitle2}>{formatDateTime(currentDateTime)}</Text>
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <TouchableOpacity onPress={() => setView('myTickets')}>
+                  <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#e3f2fd', justifyContent: 'center', alignItems: 'center' }}>
+                    <MaterialIcons name="arrow-back" size={24} color="#00418b" />
+                  </View>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => navigation.navigate('FProfile')}>
+                  {resolveProfileUri() ? (
+                    <Image 
+                      source={{ uri: resolveProfileUri() }} 
+                      style={{ width: 48, height: 48, borderRadius: 24 }}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#e3f2fd', justifyContent: 'center', alignItems: 'center' }}>
+                      <MaterialIcons name="person" size={24} color="#00418b" />
+                    </View>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
           </View>
-        </View>
 
-        <ScrollView style={{ flex: 1, padding: 24 }} showsVerticalScrollIndicator={false}>
-          <View style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20, marginBottom: 20, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 }}>
+          <View style={{ padding: 24 }}>
+            <View style={{ backgroundColor: '#fff', borderRadius: 16, padding: 20, marginBottom: 20, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 }}>
             <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#333', marginBottom: 12, fontFamily: 'Poppins-Bold' }}>
               {selectedTicket.subject}
             </Text>
@@ -787,6 +833,7 @@ export default function FacultySupportCenter() {
               </TouchableOpacity>
             </View>
           </View>
+          </View>
         </ScrollView>
       </View>
     );
@@ -794,3 +841,42 @@ export default function FacultySupportCenter() {
 
   return null;
 }
+
+const styles = StyleSheet.create({
+  // Unified header styles
+  blueHeaderBackground: {
+    backgroundColor: '#00418b',
+    height: 90,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+  },
+  whiteHeaderCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    marginHorizontal: 16,
+    marginTop: -40,
+    padding: 20,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    zIndex: 2,
+    marginBottom: 16,
+  },
+  headerTitle: {
+    fontSize: 22,
+    color: '#222',
+    fontFamily: 'Poppins-Bold',
+  },
+  headerSubtitle: {
+    color: '#888',
+    fontSize: 14,
+    fontFamily: 'Poppins-Regular',
+  },
+  headerSubtitle2: {
+    color: '#666',
+    fontSize: 12,
+    fontFamily: 'Poppins-Regular',
+    marginTop: 2,
+  },
+});

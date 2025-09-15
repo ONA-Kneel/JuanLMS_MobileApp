@@ -13,7 +13,6 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
-import StudentGradesStyle from '../styles/Stud/StudentGradesStyle';
 
 const { width } = Dimensions.get('window');
 
@@ -32,6 +31,7 @@ const FacultyGrades = () => {
   const [user, setUser] = useState(null);
   const [profilePicError, setProfilePicError] = useState(false);
   const [showClassDropdown, setShowClassDropdown] = useState(false);
+  const [academicContext, setAcademicContext] = useState('2025-2026 | Term 1');
 
   const API_BASE = 'https://juanlms-webapp-server.onrender.com';
 
@@ -56,7 +56,8 @@ const FacultyGrades = () => {
 
       if (yearResponse.ok) {
         const yearData = await yearResponse.json();
-        setAcademicYear(`${yearData.schoolYearStart}-${yearData.schoolYearEnd}`);
+        const academicYearStr = `${yearData.schoolYearStart}-${yearData.schoolYearEnd}`;
+        setAcademicYear(academicYearStr);
         
         // Fetch active term
         const termResponse = await fetch(`${API_BASE}/api/terms/schoolyear/${yearData.schoolYearStart}-${yearData.schoolYearEnd}`, {
@@ -68,6 +69,7 @@ const FacultyGrades = () => {
           const active = terms.find(term => term.status === 'active');
           if (active) {
             setCurrentTerm(active.termName);
+            setAcademicContext(`${academicYearStr} | ${active.termName}`);
           }
         }
       }
@@ -304,6 +306,14 @@ const FacultyGrades = () => {
     });
   };
 
+  const resolveProfileUri = () => {
+    const API_BASE = 'https://juanlms-webapp-server.onrender.com';
+    const uri = user?.profilePic || user?.profilePicture;
+    if (!uri) return null;
+    if (typeof uri === 'string' && uri.startsWith('/uploads/')) return API_BASE + uri;
+    return uri;
+  };
+
   const getGradeColor = (grade) => {
     const value = typeof grade === 'string' ? parseFloat(grade) : grade;
     if (!value || isNaN(value)) return '#999';
@@ -404,54 +414,37 @@ const FacultyGrades = () => {
   }
 
   return (
-    <View style={StudentGradesStyle.container}>
+    <View style={styles.container}>
       {/* Blue background */}
-      <View style={StudentGradesStyle.blueHeaderBackground} />
+      <View style={styles.blueHeaderBackground} />
 
       {/* White card header */}
-      <View style={StudentGradesStyle.whiteHeaderCard}>
-        <View style={styles.headerContent}>
+      <View style={styles.whiteHeaderCard}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <View>
-            <Text style={StudentGradesStyle.headerTitle}>Class Grades</Text>
-            <Text style={StudentGradesStyle.headerSubtitle}>
-              {formatDateTime(currentDateTime)}
+                      <Text style={styles.headerTitle}>
+              Hello, <Text style={{ fontWeight: 'bold', fontFamily: 'Poppins-Bold' }}>{user?.firstname || 'Faculty'}!</Text>
             </Text>
-            {academicYear && currentTerm && (
-              <Text style={styles.academicInfo}>
-                {academicYear} - {currentTerm} Term
-              </Text>
-            )}
+            <Text style={styles.headerSubtitle}>{academicContext}</Text>
+            <Text style={styles.headerSubtitle2}>{formatDateTime(currentDateTime)}</Text>
           </View>
-          
-          <TouchableOpacity onPress={() => navigation.navigate('FProfile')}>
-            {loading ? (
-              <View style={styles.profileInitialsContainer}>
-                <ActivityIndicator size="small" color="white" />
-              </View>
-            ) : (() => {
-              const API_BASE = 'https://juanlms-webapp-server.onrender.com';
-              const raw = user?.profilePic || user?.profilePicture;
-              const uri = raw && typeof raw === 'string' && raw.startsWith('/uploads/') ? (API_BASE + raw) : raw;
-              return uri && !profilePicError ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <TouchableOpacity onPress={() => navigation.navigate('FProfile')}>
+              {resolveProfileUri() ? (
                 <Image 
-                  source={{ uri }} 
-                  style={styles.profileImage}
+                  source={{ uri: resolveProfileUri() }} 
+                  style={{ width: 36, height: 36, borderRadius: 18 }}
                   resizeMode="cover"
-                  onError={() => setProfilePicError(true)}
                 />
-              ) : user ? (
-                <View style={styles.profileInitialsContainer}>
-                  <Text style={styles.profileInitialsText}>
-                    {`${user.firstname?.charAt(0) || ''}${user.lastname?.charAt(0) || ''}`}
-                  </Text>
-                </View>
               ) : (
-                <View style={styles.profileInitialsContainer}>
-                  <Text style={styles.profileInitialsText}>U</Text>
-                </View>
-              );
-            })()}
-          </TouchableOpacity>
+                <Image 
+                  source={require('../../assets/profile-icon (2).png')} 
+                  style={{ width: 36, height: 36, borderRadius: 18 }}
+                  resizeMode="cover"
+                />
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
@@ -572,7 +565,7 @@ const FacultyGrades = () => {
       </Modal>
 
       {/* Grades Content */}
-      <View style={StudentGradesStyle.contentWrapper}>
+      <View style={styles.contentWrapper}>
         {error ? (
           <View style={styles.errorContainer}>
             <MaterialIcons name="error" size={64} color="#f44336" />
@@ -641,10 +634,53 @@ const FacultyGrades = () => {
 };
 
 const styles = {
+  container: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+  },
+  blueHeaderBackground: {
+    backgroundColor: '#00418b',
+    height: 90,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+  },
+  whiteHeaderCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    marginHorizontal: 16,
+    marginTop: -40,
+    padding: 20,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    zIndex: 2,
+    marginBottom: 16,
+  },
+  headerTitle: {
+    fontSize: 22,
+    color: '#222',
+    fontFamily: 'Poppins-Bold',
+  },
+  headerSubtitle: {
+    color: '#888',
+    fontSize: 14,
+    fontFamily: 'Poppins-Regular',
+  },
+  headerSubtitle2: {
+    color: '#666',
+    fontSize: 12,
+    fontFamily: 'Poppins-Regular',
+    marginTop: 2,
+  },
   headerContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  contentWrapper: {
+    flex: 1,
+    paddingHorizontal: 16,
   },
   academicInfo: {
     fontSize: 12,
@@ -675,7 +711,7 @@ const styles = {
   classSelector: {
     backgroundColor: 'white',
     marginHorizontal: 16,
-    marginTop: -20,
+    marginTop: '10%',
     borderRadius: 12,
     padding: 16,
     elevation: 4,
