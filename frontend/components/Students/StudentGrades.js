@@ -15,12 +15,14 @@ import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import StudentGradesStyle from '../styles/Stud/StudentGradesStyle';
+import StudentDashboardStyle from '../styles/Stud/StudentDashStyle';
 
 const { width } = Dimensions.get('window');
 
 const StudentGrades = () => {
   const navigation = useNavigation();
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
+  const [academicContext, setAcademicContext] = useState('2025-2026 | Term 1');
   const [grades, setGrades] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -31,6 +33,7 @@ const StudentGrades = () => {
   const [user, setUser] = useState(null);
   const [profilePicError, setProfilePicError] = useState(false);
   const [gradesUnavailable, setGradesUnavailable] = useState(false);
+  const [studentClasses, setStudentClasses] = useState([]);
 
   const API_BASE = 'https://juanlms-webapp-server.onrender.com';
 
@@ -42,6 +45,37 @@ const StudentGrades = () => {
     fetchGrades();
     return () => clearInterval(timer);
   }, [selectedTerm]);
+
+  const fetchStudentClasses = async () => {
+    try {
+      const token = await AsyncStorage.getItem('jwtToken');
+      const userStr = await AsyncStorage.getItem('user');
+      const user = userStr ? JSON.parse(userStr) : null;
+
+      if (!user || !user._id) return;
+
+      const response = await fetch(`${API_BASE}/classes/my-classes`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ Student classes loaded:', data);
+        setStudentClasses(Array.isArray(data) ? data : []);
+      } else {
+        console.log('Failed to fetch student classes:', response.status);
+        setStudentClasses([]);
+      }
+    } catch (error) {
+      console.log('Error fetching student classes:', error.message);
+      setStudentClasses([]);
+    }
+  };
 
   const fetchGrades = async () => {
     try {
@@ -144,9 +178,11 @@ const StudentGrades = () => {
             
             setGradesUnavailable(false);
           }
+        } else if (response.status === 404) {
+          console.log('Semestral grades endpoint not found (404), trying traditional grades...');
         }
       } catch (error) {
-        console.log('Semestral grades endpoint not available, trying traditional grades...');
+        console.log('Semestral grades endpoint error:', error.message);
       }
       
       // Fallback: Try to fetch from traditional grades endpoint
@@ -178,9 +214,11 @@ const StudentGrades = () => {
               
               setGradesUnavailable(false);
             }
+          } else if (traditionalResponse.status === 404) {
+            console.log('Traditional grades endpoint not found (404)');
           }
         } catch (error) {
-          console.log('Traditional grades endpoint not available, using fallback');
+          console.log('Traditional grades endpoint error:', error.message);
         }
       }
       
@@ -223,27 +261,19 @@ const StudentGrades = () => {
       
       if (transformed.length === 0) {
         console.log('❌ No grades found from any source for School ID:', schoolID);
+        console.log('This could be because:');
+        console.log('1. Grades API endpoints are not implemented yet');
+        console.log('2. Student has no grades recorded');
+        console.log('3. Student ID format is incorrect');
         setGradesUnavailable(true);
+        // Fetch student classes to show what subjects they're enrolled in
+        await fetchStudentClasses();
       }
 
-      // If no grades found, show fallback subjects (like web app)
+      // If no grades found, don't show fallback subjects
       if (transformed.length === 0) {
-        console.log('No grades found, showing fallback subjects');
-        const fallbackSubjects = [
-          {
-            subjectCode: 'INT-CK-25',
-            subjectDescription: 'Introduction to Cooking',
-            academicYear: activeYearName,
-            termName: activeTermName,
-            quarter1: '-',
-            quarter2: '-',
-            quarter3: '-',
-            quarter4: '-',
-            semestralGrade: '-',
-            remarks: 'No grades yet',
-          }
-        ];
-        transformed = fallbackSubjects;
+        console.log('No grades found for student');
+        // Don't add fallback subjects - let the empty state handle this
       }
 
       // Filter grades for current or previous
@@ -295,6 +325,14 @@ const StudentGrades = () => {
             second: '2-digit',
             hour12: true
         });
+  };
+
+  const resolveProfileUri = () => {
+    const API_BASE = 'https://juanlms-webapp-server.onrender.com';
+    const uri = user?.profilePic || user?.profilePicture;
+    if (!uri) return null;
+    if (typeof uri === 'string' && uri.startsWith('/uploads/')) return API_BASE + uri;
+    return uri;
   };
 
   const getGradeColor = (grade) => {
@@ -414,9 +452,84 @@ const StudentGrades = () => {
     </View>
   );
 
+  const renderClassesList = () => (
+    <View>
+      {/* Horizontal Scrollable Table */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={true} style={styles.horizontalTableContainer}>
+        <View style={styles.tableContent}>
+          {/* Table Header */}
+          <View style={styles.tableHeader}>
+            <View style={styles.headerRow}>
+              <Text style={styles.headerSubject}>Subject</Text>
+              <Text style={styles.headerGrade}>{getQuarterLabels().q1}</Text>
+              <Text style={styles.headerGrade}>{getQuarterLabels().q2}</Text>
+              <Text style={styles.headerGrade}>Semestral</Text>
+              <Text style={styles.headerRemarks}>Remarks</Text>
+            </View>
+          </View>
+
+          {/* Classes as Grade Rows */}
+          {studentClasses.map((classItem, index) => (
+            <View key={index} style={styles.gradeRow}>
+              <View style={styles.subjectCell}>
+                <Text style={styles.subjectCode}>{classItem.className || classItem.name}</Text>
+                <Text style={styles.subjectDescription} numberOfLines={2}>
+                  {classItem.section || classItem.classCode || classItem.code}
+                </Text>
+              </View>
+              
+              <View style={styles.gradeCell}>
+                <Text style={[styles.gradeText, { color: '#999' }]}>-</Text>
+              </View>
+              
+              <View style={styles.gradeCell}>
+                <Text style={[styles.gradeText, { color: '#999' }]}>-</Text>
+              </View>
+              
+              <View style={styles.gradeCell}>
+                <Text style={[styles.gradeText, { color: '#999' }]}>-</Text>
+              </View>
+              
+              <View style={styles.remarksCell}>
+                <View style={[styles.remarksBadge, { backgroundColor: '#999' }]}>
+                  <Text style={styles.remarksText}>No grades yet</Text>
+                </View>
+              </View>
+            </View>
+          ))}
+        </View>
+      </ScrollView>
+
+      {/* Summary */}
+      <View style={styles.summaryContainer}>
+        <Text style={styles.summaryTitle}>Summary</Text>
+        <View style={styles.summaryRow}>
+          <Text style={styles.summaryLabel}>Total Subjects:</Text>
+          <Text style={styles.summaryValue}>{studentClasses.length}</Text>
+        </View>
+        <View style={styles.summaryRow}>
+          <Text style={styles.summaryLabel}>No Grades Yet:</Text>
+          <Text style={styles.summaryValue}>{studentClasses.length}</Text>
+        </View>
+        <View style={styles.summaryRow}>
+          <Text style={styles.summaryLabel}>Passed:</Text>
+          <Text style={styles.summaryValue}>0</Text>
+        </View>
+        <View style={styles.summaryRow}>
+          <Text style={styles.summaryLabel}>Conditional:</Text>
+          <Text style={styles.summaryValue}>0</Text>
+        </View>
+        <View style={styles.summaryRow}>
+          <Text style={styles.summaryLabel}>Failed:</Text>
+          <Text style={styles.summaryValue}>0</Text>
+        </View>
+      </View>
+    </View>
+  );
+
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
-      <MaterialCommunityIcons name="grade-outline" size={64} color="#ccc" />
+      <MaterialCommunityIcons name="school-outline" size={64} color="#ccc" />
       <Text style={styles.emptyTitle}>
         {gradesUnavailable ? 'Grades Service Unavailable' : 'Grades Not Available'}
       </Text>
@@ -437,52 +550,46 @@ const StudentGrades = () => {
     );
   }
 
-        return (
-            <View style={StudentGradesStyle.container}>
-                {/* Blue background */}
-                <View style={StudentGradesStyle.blueHeaderBackground} />
+  return (
+  <View style={StudentGradesStyle.container}>
+    <ScrollView>
+      <View style={
+      {
+        paddingBottom: 80,
+        // paddingHorizontal: 20,
+        // paddingTop: 120, // Space for fixed header
+      }
+      }/>
+      {/* Blue background */}
+      <View style={StudentDashboardStyle.blueHeaderBackground} />
       
-                {/* White card header */}
-                <View style={StudentGradesStyle.whiteHeaderCard}>
-        <View style={styles.headerContent}>
-                        <View>
-                            <Text style={StudentGradesStyle.headerTitle}>Grades</Text>
-            <Text style={StudentGradesStyle.headerSubtitle}>
-              {formatDateTime(currentDateTime)}
+      {/* White card header */}
+      <View style={StudentDashboardStyle.whiteHeaderCard}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <View>
+            <Text style={StudentDashboardStyle.headerTitle}>
+              Grades
             </Text>
-            {academicYear && currentTerm && (
-              <Text style={styles.academicInfo}>
-                {academicYear} - {getSemesterName(currentTerm)}
-              </Text>
-            )}
-                        </View>
-          
+                         <Text style={StudentDashboardStyle.headerSubtitle}>{academicContext}</Text>
+             <Text style={StudentDashboardStyle.headerSubtitle2}>{formatDateTime(currentDateTime)}</Text>
+          </View>
           <TouchableOpacity onPress={() => navigation.navigate('SProfile')}>
-            {loading ? (
-              <View style={styles.profileInitialsContainer}>
-                <ActivityIndicator size="small" color="white" />
-              </View>
-            ) : user?.profilePic && !profilePicError ? (
+            {resolveProfileUri() ? (
               <Image 
-                source={{ uri: user.profilePic }} 
-                style={styles.profileImage}
+                source={{ uri: resolveProfileUri() }} 
+                style={{ width: 36, height: 36, borderRadius: 18 }}
                 resizeMode="cover"
-                onError={() => setProfilePicError(true)}
               />
-            ) : user ? (
-              <View style={styles.profileInitialsContainer}>
-                <Text style={styles.profileInitialsText}>
-                  {`${user.firstname?.charAt(0) || ''}${user.lastname?.charAt(0) || ''}`}
-                </Text>
-              </View>
             ) : (
-              <View style={styles.profileInitialsContainer}>
-                <Text style={styles.profileInitialsText}>U</Text>
-              </View>
+              <Image 
+                source={require('../../assets/profile-icon (2).png')} 
+                style={{ width: 36, height: 36, borderRadius: 18 }}
+                resizeMode="cover"
+              />
             )}
           </TouchableOpacity>
-                    </View>
-                </View>
+        </View>
+      </View>
 
       {/* Term Selector */}
       <View style={styles.termSelector}>
@@ -527,19 +634,24 @@ const StudentGrades = () => {
               />
             }
           >
-            {/* Table Header */}
-            <View style={styles.tableHeader}>
-              <View style={styles.headerRow}>
-                <Text style={styles.headerSubject}>Subject</Text>
-                <Text style={styles.headerGrade}>{getQuarterLabels().q1}</Text>
-                <Text style={styles.headerGrade}>{getQuarterLabels().q2}</Text>
-                <Text style={styles.headerGrade}>Semestral</Text>
-                <Text style={styles.headerRemarks}>Remarks</Text>
-              </View>
-            </View>
+            {/* Horizontal Scrollable Table */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={true} style={styles.horizontalTableContainer}>
+              <View style={styles.tableContent}>
+                {/* Table Header */}
+                <View style={styles.tableHeader}>
+                  <View style={styles.headerRow}>
+                    <Text style={styles.headerSubject}>Subject</Text>
+                    <Text style={styles.headerGrade}>{getQuarterLabels().q1}</Text>
+                    <Text style={styles.headerGrade}>{getQuarterLabels().q2}</Text>
+                    <Text style={styles.headerGrade}>Semestral</Text>
+                    <Text style={styles.headerRemarks}>Remarks</Text>
+                  </View>
+                </View>
 
-            {/* Grades Rows */}
-            {grades.map((grade, index) => renderGradeRow(grade, index))}
+                {/* Grades Rows */}
+                {grades.map((grade, index) => renderGradeRow(grade, index))}
+              </View>
+            </ScrollView>
 
                          {/* Summary */}
              <View style={styles.summaryContainer}>
@@ -574,10 +686,25 @@ const StudentGrades = () => {
                </View>
              </View>
                     </ScrollView>
+        ) : studentClasses.length > 0 ? (
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                colors={['#00418b']}
+                tintColor="#00418b"
+              />
+            }
+          >
+            {renderClassesList()}
+          </ScrollView>
         ) : (
           renderEmptyState()
         )}
                 </View>
+                </ScrollView>
             </View>
   );
 };
@@ -617,8 +744,8 @@ const styles = {
   termSelector: {
     flexDirection: 'row',
     backgroundColor: 'white',
-    marginHorizontal: 16,
-    marginTop: -20,
+    margin: 20,
+    marginTop: 20,
     borderRadius: 12,
     padding: 4,
     elevation: 4,
@@ -657,20 +784,20 @@ const styles = {
     paddingHorizontal: 16,
   },
   headerSubject: {
-    flex: 2,
+    width: 200,
     fontSize: 14,
     fontWeight: 'bold',
     color: '#00418b',
   },
   headerGrade: {
-    flex: 1,
+    width: 100,
     fontSize: 14,
     fontWeight: 'bold',
     color: '#00418b',
     textAlign: 'center',
   },
   headerRemarks: {
-    flex: 1.5,
+    width: 120,
     fontSize: 14,
     fontWeight: 'bold',
     color: '#00418b',
@@ -690,7 +817,7 @@ const styles = {
     shadowRadius: 2,
   },
   subjectCell: {
-    flex: 2,
+    width: 200,
     marginRight: 8,
   },
   subjectCode: {
@@ -705,7 +832,7 @@ const styles = {
     lineHeight: 16,
   },
   gradeCell: {
-    flex: 1,
+    width: 100,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -714,7 +841,7 @@ const styles = {
     fontWeight: 'bold',
   },
   remarksCell: {
-    flex: 1.5,
+    width: 120,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -815,6 +942,12 @@ const styles = {
     color: '#999',
     textAlign: 'center',
     lineHeight: 24,
+  },
+  horizontalTableContainer: {
+    marginBottom: 16,
+  },
+  tableContent: {
+    minWidth: 600, // Ensure table has minimum width for proper display
   },
 };
 

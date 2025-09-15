@@ -82,9 +82,19 @@ export default function StudentModule(){
                 })
             ]);
 
-            // Combine assignments and quizzes with type indicators
-            const assignments = assignmentsRes.data.map(item => ({ ...item, type: 'assignment' }));
-            const quizzes = quizzesRes.data.map(item => ({ ...item, type: 'quiz' }));
+            // Combine assignments and quizzes with type indicators and class info
+            const assignments = assignmentsRes.data.map(item => ({ 
+                ...item, 
+                type: 'assignment',
+                className: classInfo.className,
+                section: classInfo.section || classInfo.classCode
+            }));
+            const quizzes = quizzesRes.data.map(item => ({ 
+                ...item, 
+                type: 'quiz',
+                className: classInfo.className,
+                section: classInfo.section || classInfo.classCode
+            }));
             
             // Check submission statuses for quizzes to enrich items
             let enrichedQuizzes = quizzes;
@@ -375,17 +385,47 @@ export default function StudentModule(){
             case 'Announcement':
                 return (
                     <>
-                        {/* Announcement Title Row */}
-                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
-                            <Text style={{ fontFamily: 'Poppins-Bold', fontSize: 18, color: '#222', flex: 1 }}>Announcement</Text>
-                            
-                        </View>
+                        {/* Home Page Title */}
+                        <Text style={{ 
+                            fontFamily: 'Poppins-Bold', 
+                            fontSize: 18, 
+                            color: '#222', 
+                            marginBottom: 16 
+                        }}>
+                            Home Page
+                        </Text>
+                        
                         {/* Announcements */}
                         {loading ? (
                             <ActivityIndicator />
                         ) : (
                             announcements.length === 0 ? (
-                                <Text style={{ fontFamily: 'Poppins-Regular', color: '#222', fontSize: 13, marginTop: 10 }}>No announcements yet.</Text>
+                                <View style={{
+                                    backgroundColor: '#e3eefd',
+                                    borderRadius: 12,
+                                    borderWidth: 1,
+                                    borderColor: '#00418b',
+                                    paddingVertical: 20,
+                                    paddingHorizontal: 18,
+                                    alignItems: 'center'
+                                }}>
+                                    <Text style={{ 
+                                        fontFamily: 'Poppins-Bold', 
+                                        color: '#00418b', 
+                                        fontSize: 16, 
+                                        marginBottom: 8 
+                                    }}>
+                                        Announcement!
+                                    </Text>
+                                    <Text style={{ 
+                                        fontFamily: 'Poppins-Regular', 
+                                        color: '#666', 
+                                        fontSize: 14, 
+                                        textAlign: 'center' 
+                                    }}>
+                                        No announcements yet.
+                                    </Text>
+                                </View>
                             ) : (
                                 announcements.map((item) => (
                                     <View
@@ -394,7 +434,7 @@ export default function StudentModule(){
                                             backgroundColor: '#e3eefd',
                                             borderRadius: 12,
                                             borderWidth: 1,
-                                            borderColor: '#1976d2',
+                                            borderColor: '#00418b',
                                             paddingVertical: 16,
                                             paddingHorizontal: 18,
                                             marginBottom: 16,
@@ -402,11 +442,32 @@ export default function StudentModule(){
                                             shadowOpacity: 0.04,
                                             shadowRadius: 4,
                                             elevation: 1,
-                                            position: 'relative',
                                         }}
                                     >
-                                        <Text style={{ fontFamily: 'Poppins-Bold', color: '#00418b', fontSize: 17, marginBottom: 4, letterSpacing: 0.1 }}>{item.title}</Text>
-                                        <Text style={{ fontFamily: 'Poppins-Regular', color: '#222', fontSize: 15, lineHeight: 21 }}>{item.content}</Text>
+                                        <Text style={{ 
+                                            fontFamily: 'Poppins-Bold', 
+                                            color: '#00418b', 
+                                            fontSize: 16, 
+                                            marginBottom: 8 
+                                        }}>
+                                            Announcement!
+                                        </Text>
+                                        <Text style={{ 
+                                            fontFamily: 'Poppins-Bold', 
+                                            color: '#00418b', 
+                                            fontSize: 17, 
+                                            marginBottom: 8 
+                                        }}>
+                                            {item.title}
+                                        </Text>
+                                        <Text style={{ 
+                                            fontFamily: 'Poppins-Regular', 
+                                            color: '#666', 
+                                            fontSize: 15, 
+                                            lineHeight: 21 
+                                        }}>
+                                            {item.content}
+                                        </Text>
                                     </View>
                                 ))
                             )
@@ -421,9 +482,7 @@ export default function StudentModule(){
                             <Text style={{ fontFamily: 'Poppins-Bold', fontSize: 18, color: '#222', flex: 1 }}>
                                 {filterType === 'all' ? 'Classwork' : filterType === 'quiz' ? 'Quizzes' : 'Assignments'}
                             </Text>
-                        </View>
-                        
-                        {/* Filter Dropdown */}
+                            {/* Filter Dropdown */}
                         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
                             <Text style={{ fontFamily: 'Poppins-Regular', fontSize: 14, color: '#666', marginRight: 8 }}>Filter:</Text>
                             <TouchableOpacity
@@ -440,6 +499,9 @@ export default function StudentModule(){
                                 </Text>
                             </TouchableOpacity>
                         </View>
+                        </View>
+                        
+                        
                         
                         {/* Classwork Content */}
                         {loading ? (
@@ -531,18 +593,18 @@ export default function StudentModule(){
                                                 {groupedByDate[dateKey].map(item => (
                                                     <TouchableOpacity
                                                         key={item._id}
-                                                        style={{
-                                                            backgroundColor: 'white',
-                                                            borderRadius: 12,
-                                                            borderWidth: 1,
-                                                            borderColor: '#dbeafe',
-                                                            padding: 16,
-                                                            marginBottom: 12,
-                                                            shadowColor: '#000',
-                                                            shadowOpacity: 0.04,
-                                                            shadowRadius: 4,
-                                                            elevation: 1
-                                                        }}
+                                                        // style={{
+                                                        //     backgroundColor: 'white',
+                                                        //     borderRadius: 12,
+                                                        //     borderWidth: 1,
+                                                        //     borderColor: '#dbeafe',
+                                                        //     padding: 16,
+                                                        //     marginBottom: 12,
+                                                        //     shadowColor: '#000',
+                                                        //     shadowOpacity: 0.04,
+                                                        //     shadowRadius: 4,
+                                                        //     elevation: 1
+                                                        // }}
                                                         onPress={() => {
                                                             if (item.type === 'quiz') {
                                                                 if (item.isSubmitted) {
@@ -660,17 +722,21 @@ export default function StudentModule(){
                                                                 fontSize: 14, 
                                                                 marginBottom: 6 
                                                             }}>
-                                                                {item.className || 'N/A'}
+                                                                {item.section || item.className || 'N/A'}
                                                             </Text>
                                                             
                                                             {item.description && (
-                                                                <Text style={{ 
-                                                                    fontFamily: 'Poppins-Regular', 
-                                                                    color: '#666', 
-                                                                    fontSize: 13, 
-                                                                    marginBottom: 6,
-                                                                    lineHeight: 18
-                                                                }}>
+                                                                <Text 
+                                                                    style={{ 
+                                                                        fontFamily: 'Poppins-Regular', 
+                                                                        color: '#666', 
+                                                                        fontSize: 13, 
+                                                                        marginBottom: 6,
+                                                                        lineHeight: 18
+                                                                    }}
+                                                                    numberOfLines={2}
+                                                                    ellipsizeMode="tail"
+                                                                >
                                                                     {item.description}
                                                                 </Text>
                                                             )}
@@ -846,40 +912,112 @@ export default function StudentModule(){
     };
 
     return (
-        <View style={{ flex: 1, backgroundColor: '#f5f5f5', paddingHorizontal: 10 }}>
-            {/* Header */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 20, paddingHorizontal: 16 }}>
-                <TouchableOpacity onPress={back} style={{position: 'absolute', top: 40, left: 20, zIndex: 10 }}><Icon name="arrow-left" size={24} color="black" /></TouchableOpacity>
-                <View style={{ flex: 1, alignItems: 'center', marginLeft: -24 }}>
-                    <Text style={{ fontFamily: 'Poppins-Bold', fontSize: 22, color: '#222' }}>{classInfo.className}</Text>
-                    <Text style={{ fontFamily: 'Poppins-Regular', fontSize: 13, color: '#888' }}>{classInfo.classCode}</Text>
+        <View style={{ flex: 1, backgroundColor: '#f5f5f5' }}>
+            
+
+            {/* Main Content */}
+            <View style={{ flex: 1 }}>
+                {/* Blue Header Background */}
+            <View style={{ 
+                backgroundColor: '#00418b', 
+                height: '15%', 
+                // borderTopLeftRadius: 20,
+                // borderTopRightRadius: 20,
+                borderBottomLeftRadius: 50, 
+                borderBottomRightRadius: 50,
+                position: 'relative'
+            }}>
+                {/* Back Button */}
+                <TouchableOpacity 
+                    onPress={back} 
+                    style={{
+                        position: 'absolute',
+                        top: 50,
+                        left: 20,
+                        zIndex: 10,
+                        backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                        borderRadius: 20,
+                        padding: 8
+                    }}
+                >
+                    <Icon name="arrow-left" size={24} color="white" />
+                </TouchableOpacity>
+                
+                {/* Class Title and Section */}
+                <View style={{ 
+                    flex: 1, 
+                    alignItems: 'center', 
+                    justifyContent: 'center',
+                    paddingTop: 20,
+                    paddingHorizontal: 60
+                }}>
+                    <Text 
+                        style={{ 
+                            fontFamily: 'Poppins-Bold', 
+                            fontSize: 20, 
+                            color: 'white',
+                            textAlign: 'center',
+                            marginBottom: 4
+                        }}
+                        numberOfLines={1}
+                        ellipsizeMode="tail"
+                    >
+                        {classInfo.className}
+                    </Text>
+                    <Text style={{ 
+                        fontFamily: 'Poppins-Regular', 
+                        fontSize: 14, 
+                        color: 'rgba(255, 255, 255, 0.8)',
+                        textAlign: 'center'
+                    }}>
+                        {classInfo.section || classInfo.classCode}
+                    </Text>
                 </View>
             </View>
-            {/* Tabs */}
-            <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: 18, gap: 8, marginLeft:10, marginRight:10 }}>
-                {['Announcement', 'Classwork', 'Class Materials'].map(tab => (
+
+            {/* Navigation Tabs */}
+            <View style={{ 
+                flexDirection: 'row', 
+                justifyContent: 'center', 
+                marginTop: -20,
+                paddingHorizontal: 20,
+                gap: 8
+            }}>
+                {['Home Page', 'Classwork', 'Class Materials'].map(tab => (
                     <TouchableOpacity
                         key={tab}
-                        onPress={() => setActiveTab(tab)}
+                        onPress={() => setActiveTab(tab === 'Home Page' ? 'Announcement' : tab)}
                         style={{
-                            backgroundColor: activeTab === tab ? '#00418b' : '#e3eefd',
-                            paddingVertical: 7,
-                            paddingHorizontal: 10,
+                            backgroundColor: (activeTab === 'Announcement' && tab === 'Home Page') || activeTab === tab ? '#003067' : 'white',
+                            paddingVertical: 10,
+                            paddingHorizontal: 16,
                             borderRadius: 10,
+                            shadowColor: '#000',
+                            shadowOffset: { width: 0, height: 2 },
+                            shadowOpacity: 0.1,
+                            shadowRadius: 4,
+                            elevation: 3,
                         }}
                     >
-                        <Text style={{ color: activeTab === tab ? '#fff' : '#00418b', fontFamily: 'Poppins-Bold', fontSize: 14 }}>{tab}</Text>
+                        <Text style={{ 
+                            color: (activeTab === 'Announcement' && tab === 'Home Page') || activeTab === tab ? 'white' : '#333', 
+                            fontFamily: 'Poppins-Bold', 
+                            fontSize: 14 
+                        }}>
+                            {tab}
+                        </Text>
                     </TouchableOpacity>
                 ))}
             </View>
-            {/* Main Card */}
-            <View style={{ flex: 1, alignItems: 'center', marginTop: 12, marginBottom: 0 }}>
-                <ScrollView style={{ backgroundColor: '#fff', borderRadius: 18, borderWidth: 1, borderColor: '#00418b', width: '92%', flex: 1, padding: 18, marginBottom: 20, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 8, elevation: 2 }}>
+                <ScrollView 
+                    style={{ 
+                        paddingHorizontal: 20, paddingTop: 20
+                    }}
+                    showsVerticalScrollIndicator={false}
+                >
                     {renderTabContent()}
                 </ScrollView>
             </View>
-            {/* Blue curved background at bottom */}
-            <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 90, backgroundColor: '#00418b', borderTopLeftRadius: 60, borderTopRightRadius: 60, zIndex: -1 }} />
             
             {/* File Viewer Modal */}
             <Modal

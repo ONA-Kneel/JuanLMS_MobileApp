@@ -244,7 +244,7 @@ export default function StudentsProfile() {
       <View style={StudentsProfileStyle.card}>
         <Text style={StudentsProfileStyle.name}>
           {capitalizeWords(`${user.firstname} ${user.lastname}`)}
-          <Text style={StudentsProfileStyle.emoji}>👨‍🎓</Text>
+          <Text style={StudentsProfileStyle.emoji}></Text>
         </Text>
         <Text style={StudentsProfileStyle.email}>{user.email}</Text>
         <View style={StudentsProfileStyle.row}>

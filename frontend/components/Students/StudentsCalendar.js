@@ -3,6 +3,7 @@ import * as React from 'react';
 import { useState, useEffect } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import StudentCalendarStyle from '../styles/Stud/StudentCalendarStyle';
+import StudentDashboardStyle from '../styles/Stud/StudentDashStyle';
 import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../UserContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -38,6 +39,7 @@ export default function StudentCalendar() {
   const [selectedDate, setSelectedDate] = useState(() => timeToString(new Date()));
   const [currentMonth, setCurrentMonth] = useState(() => getMonthYearString(timeToString(new Date())));
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
+  const [academicContext, setAcademicContext] = useState('2025-2026 | Term 1');
   
   // New state variables for web integration
   const [academicYear, setAcademicYear] = useState(null);
@@ -73,6 +75,14 @@ export default function StudentCalendar() {
       second: '2-digit',
       hour12: true
     });
+  };
+
+  const resolveProfileUri = () => {
+    const API_BASE = 'https://juanlms-webapp-server.onrender.com';
+    const uri = user?.profilePic || user?.profilePicture;
+    if (!uri) return null;
+    if (typeof uri === 'string' && uri.startsWith('/uploads/')) return API_BASE + uri;
+    return uri;
   };
 
   // Fetch academic year information
@@ -188,7 +198,7 @@ export default function StudentCalendar() {
               newItems[holiday.date].push({
                 name: holiday.localName || 'Holiday',
                 type: 'holiday',
-                color: '#FFEB3B',
+                color: '#FFFFFF',
                 height: 50
               });
             }
@@ -247,7 +257,7 @@ export default function StudentCalendar() {
             newItems[holiday.date].push({
               name: holiday.localName,
               type: 'holiday',
-              color: '#FFEB3B',
+              color: '#FFFFFF',
               height: 50
             });
           });
@@ -315,7 +325,7 @@ export default function StudentCalendar() {
         {item.time && <Text style={StudentCalendarStyle.eventTime}>{item.time}</Text>}
         {item.type && (
           <View style={{
-            backgroundColor: 'rgba(255,255,255,0.2)',
+            backgroundColor: item.type === 'holiday' ? '#FFF9C4' : 'rgba(255,255,255,0.2)',
             paddingHorizontal: 8,
             paddingVertical: 2,
             borderRadius: 4,
@@ -323,7 +333,7 @@ export default function StudentCalendar() {
             marginTop: 4
           }}>
             <Text style={{
-              color: 'white',
+              color: item.type === 'holiday' ? '#000000' : 'white',
               fontSize: 10,
               fontWeight: 'bold',
               textTransform: 'uppercase'
@@ -372,53 +382,58 @@ export default function StudentCalendar() {
 
   return (
     <View style={StudentCalendarStyle.container}>
-      {/* Profile Header */}
-      <View style={StudentCalendarStyle.profileHeader}>
-        <View style={StudentCalendarStyle.profileHeaderContent}>
-          <View style={StudentCalendarStyle.profileInfo}>
-            <Text style={StudentCalendarStyle.greetingText}>
-              Hello, <Text style={StudentCalendarStyle.userName}>{user?.firstname || 'Student'}!</Text>
+      
+
+      <ScrollView style={StudentCalendarStyle.scrollContent} showsVerticalScrollIndicator={false}>
+      
+      <View style={
+      {
+        paddingBottom: 80,
+        // paddingHorizontal: 20,
+        // paddingTop: 120, // Space for fixed header
+      }
+      }/>
+      {/* Blue background */}
+      <View style={StudentDashboardStyle.blueHeaderBackground} />
+      
+      {/* White card header */}
+      <View style={StudentDashboardStyle.whiteHeaderCard}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <View>
+            <Text style={StudentDashboardStyle.headerTitle}>
+              Calendar
             </Text>
-            <Text style={StudentCalendarStyle.roleText}>Student</Text>
-            <Text style={StudentCalendarStyle.dateText}>
-              {moment(new Date()).format('dddd, MMMM D, YYYY')}
-            </Text>
+                         <Text style={StudentDashboardStyle.headerSubtitle}>{academicContext}</Text>
+             <Text style={StudentDashboardStyle.headerSubtitle2}>{formatDateTime(currentDateTime)}</Text>
           </View>
-          <TouchableOpacity onPress={() => navigation.navigate('SProfile')}>
-            {(() => {
-              const API_BASE = 'https://juanlms-webapp-server.onrender.com';
-              const raw = user?.profilePic || user?.profilePicture;
-              const uri = raw && typeof raw === 'string' && raw.startsWith('/uploads/') ? (API_BASE + raw) : raw;
-              return uri ? (
-                <Image 
-                  source={{ uri }} 
-                  style={StudentCalendarStyle.profileImage}
-                  resizeMode="cover"
-                />
-              ) : (
-                <Image 
-                  source={require('../../assets/profile-icon (2).png')} 
-                  style={StudentCalendarStyle.profileImage}
-                />
-              );
-            })()}
+          <TouchableOpacity onPress={() => changeScreen.navigate('SProfile')}>
+            {resolveProfileUri() ? (
+              <Image 
+                source={{ uri: resolveProfileUri() }} 
+                style={{ width: 36, height: 36, borderRadius: 18 }}
+                resizeMode="cover"
+              />
+            ) : (
+              <Image 
+                source={require('../../assets/profile-icon (2).png')} 
+                style={{ width: 36, height: 36, borderRadius: 18 }}
+                resizeMode="cover"
+              />
+            )}
           </TouchableOpacity>
         </View>
       </View>
 
-      <ScrollView style={StudentCalendarStyle.scrollContent} showsVerticalScrollIndicator={false}>
+        
+
+        <View style={{
+          marginTop: 10,
+          padding: 15,
+        }}>
         {/* Calendar Title */}
         <View style={StudentCalendarStyle.calendarTitleContainer}>
           <Text style={StudentCalendarStyle.calendarTitle}>Student Calendar</Text>
           <Ionicons name="calendar" size={28} color="#00418b" />
-        </View>
-
-        {/* Academic Year and Term Info */}
-        <View style={StudentCalendarStyle.academicInfo}>
-          <Text style={StudentCalendarStyle.academicText}>
-            {academicYear ? `${academicYear.schoolYearStart}-${academicYear.schoolYearEnd}` : "Loading..."} | 
-            {currentTerm ? ` ${currentTerm.termName}` : " Loading..."}
-          </Text>
         </View>
 
         {/* Month Navigation */}
@@ -519,6 +534,7 @@ export default function StudentCalendar() {
               {getEventsForSelectedDate().map((item, index) => renderEventCard(item, index))}
             </View>
           )}
+        </View>
         </View>
       </ScrollView>
     </View>
