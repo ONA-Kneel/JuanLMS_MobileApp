@@ -183,22 +183,6 @@ export default function StudentDashboard() {
 
   return (
     <View style={StudentDashboardStyle.container}>
-      
-      <ScrollView
-        contentContainerStyle={{
-          paddingBottom: 80,
-          paddingHorizontal: 20,
-          paddingTop: 120, // Space for fixed header
-        }}
-      >
-      
-      <View style={
-      {
-        paddingBottom: 80,
-        // paddingHorizontal: 20,
-        // paddingTop: 120, // Space for fixed header
-      }
-      }/>
       {/* Blue background */}
       <View style={StudentDashboardStyle.blueHeaderBackground} />
       
@@ -209,7 +193,7 @@ export default function StudentDashboard() {
             <Text style={StudentDashboardStyle.headerTitle}>
               Hello, <Text style={{ fontWeight: 'bold', fontFamily: 'Poppins-Bold' }}>{user?.firstname || 'Student'}!</Text>
             </Text>
-              <Text style={StudentDashboardStyle.headerSubtitle}>{academicContext}</Text>
+                         <Text style={StudentDashboardStyle.headerSubtitle}>{academicContext}</Text>
              <Text style={StudentDashboardStyle.headerSubtitle2}>{formatDateTime(currentDateTime)}</Text>
           </View>
           <TouchableOpacity onPress={() => changeScreen.navigate('SProfile')}>
@@ -229,8 +213,16 @@ export default function StudentDashboard() {
           </TouchableOpacity>
         </View>
       </View>
+
+      <ScrollView
+        contentContainerStyle={{
+          paddingBottom: 80,
+          paddingHorizontal: 20,
+          paddingTop: 10,
+        }}
+      >
         {/* Stats Row */}
-        {/* <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 }}>
           <View style={{ flex: 1, backgroundColor: '#00418b', borderRadius: 16, alignItems: 'center', padding: 16, marginRight: 8, elevation: 2 }}>
             <Icon name="book" size={32} color="#fff" style={{ marginBottom: 8 }} />
             <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 20, fontFamily: 'Poppins-Bold' }}>{classes.length}</Text>
@@ -241,7 +233,7 @@ export default function StudentDashboard() {
             <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 20, fontFamily: 'Poppins-Bold' }}>{assignmentsToday.length}</Text>
             <Text style={{ color: '#fff', fontSize: 12, textAlign: 'center', fontFamily: 'Poppins-Regular' }}>Upcoming Activities</Text>
           </View>
-        </View> */}
+        </View>
 
         {/* Assignment Due Card */}
         {assignmentsToday.length > 0 && (
@@ -252,7 +244,7 @@ export default function StudentDashboard() {
         )}
 
         {/* Your Classes Section */}
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 5, marginBottom: 8 }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 24, marginBottom: 8 }}>
           <Text style={{ fontSize: 16, fontWeight: 'bold', fontFamily: 'Poppins-Bold' }}>Your Classes</Text>
           {classes.length > 3 && (
             <TouchableOpacity
@@ -321,7 +313,7 @@ export default function StudentDashboard() {
                   fontFamily: 'Poppins-Regular',
                   marginBottom: 8
                 }}>
-                  {course.section || course.classCode || course.code}
+                  {course.classCode || course.code}
                 </Text>
                 <Text style={{
                   fontSize: 12,

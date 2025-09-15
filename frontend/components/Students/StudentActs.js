@@ -9,7 +9,6 @@ import {
   Alert,
   Modal,
   TextInput,
-  Image,
 } from 'react-native';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -17,7 +16,6 @@ import { useUser } from '../UserContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTimer } from '../../TimerContext';
 import * as DocumentPicker from 'expo-document-picker';
-import StudentActsStyle from '../styles/Stud/StudentActsStyle';
 
 // Check if DocumentPicker is available
 const isDocumentPickerAvailable = () => {
@@ -183,28 +181,39 @@ function ActivityCard({ activity, onActivityPress }) {
      return null;
    };
 
-
-
   return (
     <View style={styles.activityCard}>
       <View style={styles.activityHeader}>
+        <View style={styles.activityIconContainer}>
+          <MaterialIcons 
+            name={icon.name} 
+            size={24} 
+            color={icon.color} 
+          />
+        </View>
         <View style={styles.activityContent}>
           <Text style={styles.activityTitle}>{activity.title}</Text>
-          <Text style={styles.activityDueTime}>
-            Due at {activity.dueDate ? new Date(activity.dueDate).toLocaleTimeString('en-US', { 
-              hour: 'numeric', 
-              minute: '2-digit',
-              hour12: true 
-            }) : '11:59 pm'}
+          {activity.className && (
+            <Text style={styles.activityClass}>{activity.className}</Text>
+          )}
+          {activity.description && (
+            <Text style={styles.activityDescription} numberOfLines={2}>
+              {activity.description}
+            </Text>
+          )}
+          <Text style={styles.activityDueDate}>
+            Due: {formatDateTime(activity.dueDate)}
           </Text>
-          <Text style={styles.activityClass}>{activity.className || 'Introduction to Computing'}</Text>
+          <Text style={styles.activityType}>
+            Type: {activity.type ? activity.type.charAt(0).toUpperCase() + activity.type.slice(1) : 'Activity'}
+          </Text>
         </View>
         <View style={styles.activityPoints}>
           <Text style={styles.pointsText}>
             {activity.type === 'quiz' 
               ? (activity.totalPoints || activity.points || 0) 
               : (activity.points !== undefined && activity.points !== null ? activity.points : 0)
-            } Points
+            } pts
           </Text>
         </View>
       </View>
@@ -420,23 +429,13 @@ export default function StudentActs() {
   const [error, setError] = useState('');
   const [selectedActivity, setSelectedActivity] = useState(null);
   const [showActivityModal, setShowActivityModal] = useState(false);
-  const [activeTab, setActiveTab] = useState('upcoming');
+  const [activeTab, setActiveTab] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [completedActivities, setCompletedActivities] = useState([]);
   const [showReplacementModal, setShowReplacementModal] = useState(false);
   const [selectedAssignmentForReplacement, setSelectedAssignmentForReplacement] = useState(null);
   const [replacementFile, setReplacementFile] = useState(null);
   const [uploadingReplacement, setUploadingReplacement] = useState(false);
-  const [currentDateTime, setCurrentDateTime] = useState(new Date());
-  const [academicContext, setAcademicContext] = useState('2025-2026 | Term 1');
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentDateTime(new Date());
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, []);
 
   useEffect(() => {
     if (user && user._id) {
@@ -774,7 +773,7 @@ export default function StudentActs() {
          ...a, 
          type: 'assignment',
          className: a.classInfo?.className || a.className,
-         classCode: a.classInfo?.section || a.section || a.classInfo?.classCode || a.classCode || 'N/A',
+         classCode: a.classInfo?.classCode || a.classCode || 'N/A',
          classID: a.classID || a.classInfo?.classID || (a.assignedTo && a.assignedTo[0]?.classID)
        }));
        
@@ -797,7 +796,7 @@ export default function StudentActs() {
          ...q, 
          type: 'quiz',
          className: q.classInfo?.className || q.className,
-         classCode: q.classInfo?.section || q.section || q.classInfo?.classCode || q.classCode || 'N/A',
+         classCode: q.classInfo?.classCode || q.classCode || 'N/A',
          classID: q.classID || q.classInfo?.classID || (q.assignedTo && q.assignedTo[0]?.classID)
        }));
        
@@ -866,7 +865,7 @@ export default function StudentActs() {
       const postedActivitiesWithClassInfo = postedActivities.map(item => ({
         ...item,
         className: item.className,
-        classCode: item.section || item.classCode || 'N/A',
+        classCode: item.classCode || 'N/A',
         classID: item.classID || (item.assignedTo && item.assignedTo[0]?.classID)
       }));
       
@@ -1200,27 +1199,6 @@ export default function StudentActs() {
     }
   };
 
-  const formatDateTime = (date) => {
-    return date.toLocaleString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: true
-    });
-  };
-
-  const resolveProfileUri = () => {
-    const API_BASE = 'https://juanlms-webapp-server.onrender.com';
-    const uri = user?.profilePic || user?.profilePicture;
-    if (!uri) return null;
-    if (typeof uri === 'string' && uri.startsWith('/uploads/')) return API_BASE + uri;
-    return uri;
-  };
-
   const filteredActivities = activities.filter(activity => {
     const matchesSearch = activity.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          (activity.description && activity.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
@@ -1275,67 +1253,18 @@ export default function StudentActs() {
 
   return (
     <View style={styles.container}>
-      <ScrollView 
-        
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Blue background */}
-      <View style={styles.blueHeaderBackground} />
-      {/* White card header */}
-      <View style={styles.whiteHeaderCard}>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-          <View>
-            <Text style={styles.headerTitle}>
-              Activites
-            </Text>
-            <Text style={styles.headerSubtitle}>{academicContext}</Text>
-            <Text style={styles.headerSubtitle2}>{formatDateTime(currentDateTime)}</Text>
-          </View>
-          <TouchableOpacity onPress={() => navigation.navigate('SProfile')}>
-            {resolveProfileUri() ? (
-              <Image 
-                source={{ uri: resolveProfileUri() }} 
-                style={{ width: 36, height: 36, borderRadius: 18 }}
-                resizeMode="cover"
-              />
-            ) : (
-              <Image 
-                source={require('../../assets/profile-icon (2).png')} 
-                style={{ width: 36, height: 36, borderRadius: 18 }}
-                resizeMode="cover"
-              />
-            )}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>My Activities</Text>
+        <View style={styles.headerButtons}>
+          <TouchableOpacity 
+            style={styles.refreshButton}
+            onPress={onRefresh}
+          >
+            <MaterialIcons name="refresh" size={20} color="#fff" />
+            <Text style={styles.refreshButtonText}>Refresh</Text>
           </TouchableOpacity>
         </View>
       </View>
-
-      {/* <View style={styles.activityTabsContainer}> */}
-        <View style={styles.activityTabsBar}>
-          {[
-            { key: 'upcoming', label: 'Upcoming' },
-            { key: 'pastDue', label: 'Past Due' },
-            { key: 'completed', label: 'Completed' }
-          ].map((tab) => (
-            <TouchableOpacity
-              key={tab.key}
-              style={[
-                styles.activityTabSegment,
-                activeTab === tab.key && styles.activityTabSegmentActive
-              ]}
-              onPress={() => setActiveTab(tab.key)}
-            >
-              <Text style={[
-                styles.activityTabText,
-                activeTab === tab.key && styles.activityTabTextActive
-              ]}>{tab.label}</Text>
-            </TouchableOpacity>
-          ))}
-          
-        </View>
-      {/* </View> */}
 
       <View style={styles.searchContainer}>
         <View style={styles.searchBox}>
@@ -1348,7 +1277,45 @@ export default function StudentActs() {
           />
         </View>
       </View>
-        
+
+      <View style={styles.gradingTabsContainer}>
+        <View style={styles.gradingTabsBar}>
+          {[
+            { key: 'all', label: 'All', count: activities.length },
+            { key: 'upcoming', label: 'Upcoming', count: activities.filter(a => {
+              if (!a.isSubmitted) {
+                if (!a.dueDate) return true;
+                return new Date(a.dueDate) > new Date();
+              }
+              return false;
+            }).length },
+            { key: 'pastDue', label: 'Past Due', count: activities.filter(a => !a.isSubmitted && a.dueDate && new Date(a.dueDate) < new Date()).length },
+            { key: 'completed', label: 'Completed', count: completedActivities.length }
+          ].map((tab) => (
+            <TouchableOpacity
+              key={tab.key}
+              style={[
+                styles.gradingTabSegment,
+                activeTab === tab.key && styles.gradingTabSegmentActive
+              ]}
+              onPress={() => setActiveTab(tab.key)}
+            >
+              <Text style={[
+                styles.gradingTabText,
+                activeTab === tab.key && styles.gradingTabTextActive
+              ]}>{`${tab.label} (${tab.count})`}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
+
+      <ScrollView 
+        style={styles.activitiesContainer}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+        showsVerticalScrollIndicator={false}
+      >
         {filteredActivities.length === 0 ? (
           <View style={styles.emptyContainer}>
             <MaterialCommunityIcons name="file-document-outline" size={64} color="#ccc" />
@@ -1361,33 +1328,13 @@ export default function StudentActs() {
             </Text>
           </View>
         ) : (
-          <View style={styles.activitiesList}>
-            {/* Group activities by date */}
-            {Object.entries(
-              [...filteredActivities]
-                .sort((a, b) => new Date(a.dueDate || a.createdAt || 0) - new Date(b.dueDate || b.createdAt || 0))
-                .reduce((groups, activity) => {
-                  const date = activity.dueDate ? new Date(activity.dueDate).toLocaleDateString('en-US', { 
-                    month: 'long', 
-                    day: 'numeric' 
-                  }) : 'No Date';
-                  if (!groups[date]) groups[date] = [];
-                  groups[date].push(activity);
-                  return groups;
-                }, {})
-            ).map(([date, activities]) => (
-              <View key={date} style={styles.dateGroup}>
-                <Text style={styles.dateHeader}>{date}</Text>
-                {activities.map((activity, index) => (
-                  <ActivityCard
-                    key={`${activity._id}_${index}`}
-                    activity={activity}
-                    onActivityPress={handleActivityPress}
-                  />
-                ))}
-              </View>
-            ))}
-          </View>
+          [...filteredActivities].sort((a, b) => new Date(b.dueDate || b.createdAt || 0) - new Date(a.dueDate || a.createdAt || 0)).map((activity, index) => (
+            <ActivityCard
+              key={`${activity._id}_${index}`}
+              activity={activity}
+              onActivityPress={handleActivityPress}
+            />
+          ))
         )}
       </ScrollView>
 
@@ -1816,169 +1763,164 @@ const styles = {
     flex: 1,
     backgroundColor: '#f5f5f5',
   },
-  blueHeaderBackground: {
-    backgroundColor: '#00418b',
-    height: 90,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-},
-whiteHeaderCard: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    marginHorizontal: 16,
-    marginTop: -40,
-    padding: 20,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    zIndex: 2,
-    marginBottom: 16,
-},
-headerTitle: {
-  fontSize: 22,
-  color: '#222',
-  fontFamily: 'Poppins-Bold',
-},
-headerSubtitle: {
-  color: '#888',
-  fontSize: 14,
-  fontFamily: 'Poppins-Regular',
-},
-headerSubtitle2: {
-  color: '#666',
-  fontSize: 12,
-  fontFamily: 'Poppins-Regular',
-  marginTop: 2,
-},
-sectionTitle: {
-  fontSize: 18,
-  fontWeight: 'bold',
-  marginTop: 24,
-  marginBottom: 12,
-  color: '#222',
-  fontFamily: 'Poppins-Bold',
-},
-  searchContainer: {
-    paddingHorizontal: 5,
-    paddingTop: 5,
-    paddingBottom: 5,
-    backgroundColor: '#f5f5f5',
-    marginTop: 10,
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
+    padding: 12,
+    paddingTop: 18,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+    zIndex: 20,
   },
-  searchBox: {
-    width: '90%',
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+    fontFamily: 'Poppins-Bold',
+  },
+  headerButtons: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 12,
+  },
+  refreshButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#00418b',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    marginRight: 8,
+  },
+  refreshButtonText: {
+    color: '#fff',
+    marginLeft: 4,
+    fontWeight: '600',
+    fontFamily: 'Poppins-Medium',
+  },
+  searchContainer: {
     paddingHorizontal: 10,
-    paddingVertical: 12,
-    
+    paddingTop: 4,
+    paddingBottom: 4,
+    backgroundColor: '#fff',
+  },
+  searchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
   },
   searchInput: {
     flex: 1,
-    marginLeft: 12,
-    fontSize: 16,
+    marginLeft: 8,
+    fontSize: 14,
     fontFamily: 'Poppins-Regular',
   },
-  activityTabsContainer: {
-    paddingVertical: 16,
+  gradingTabsContainer: {
+    paddingVertical: 4,
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#e0e0e0',
   },
-  activityTabsBar: {
-    marginHorizontal: 20,
+  gradingTabsBar: {
+    marginHorizontal: 10,
+    backgroundColor: '#f1f3f8',
+    borderRadius: 10,
     flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    padding: 2,
   },
-  activityTabSegment: {
+  gradingTabSegment: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
+    paddingVertical: 6,
+    borderRadius: 8,
   },
-  activityTabSegmentActive: {
-    borderBottomColor: '#00418b',
+  gradingTabSegmentActive: {
+    backgroundColor: '#00418b',
   },
-  activityTabText: {
-    color: '#999',
-    fontSize: 16,
+  gradingTabText: {
+    color: '#3a3a3a',
+    fontSize: 12,
     fontFamily: 'Poppins-Medium',
   },
-  activityTabTextActive: {
-    color: '#333',
-    fontWeight: 'bold',
+  gradingTabTextActive: {
+    color: '#fff',
   },
   activitiesContainer: {
     flex: 1,
     paddingHorizontal: 10,
-    paddingTop: 10,
-  },
-  activitiesList: {
-    flex: 1,
-    padding:15,
-  },
-  dateGroup: {
-    marginBottom: 24,
-  },
-  dateHeader: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 12,
-    fontFamily: 'Poppins-Bold',
+    paddingTop: 0,
   },
   activityCard: {
     backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
+    borderRadius: 12,
+    padding: 10,
+    marginBottom: 10,
+    elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowRadius: 4,
   },
   activityHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    marginBottom: 6,
+  },
+  activityIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#f0f0f0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
   },
   activityContent: {
     flex: 1,
   },
   activityTitle: {
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: 'bold',
-    color: '#2196F3',
-    marginBottom: 4,
+    color: '#333',
+    marginBottom: 1,
     fontFamily: 'Poppins-Bold',
   },
-  activityDueTime: {
-    fontSize: 14,
-    color: '#333',
-    marginBottom: 4,
+  activityClass: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 1,
+    fontFamily: 'Poppins-Medium',
+  },
+  activityDescription: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 1,
     fontFamily: 'Poppins-Regular',
   },
-  activityClass: {
-    fontSize: 14,
-    color: '#666',
+  activityDueDate: {
+    fontSize: 10,
+    color: '#999',
     fontFamily: 'Poppins-Regular',
+  },
+  activityType: {
+    fontSize: 10,
+    color: '#666',
+    fontFamily: 'Poppins-Medium',
+    marginTop: 2,
   },
   activityPoints: {
-    alignItems: 'flex-end',
+    alignItems: 'center',
     justifyContent: 'center',
+    minWidth: 48,
   },
   pointsText: {
-    fontSize: 16,
+    fontSize: 13,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#00418b',
     fontFamily: 'Poppins-Bold',
   },
   activityFooter: {

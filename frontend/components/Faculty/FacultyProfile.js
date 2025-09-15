@@ -12,7 +12,6 @@ import { addAuditLog } from '../Admin/auditTrailUtils';
 import profileService from '../../services/profileService';
 import { updateUser } from '../UserContext';
 import * as ImagePicker from 'expo-image-picker';
-import * as FileSystem from 'expo-file-system';
 import NotificationCenter from '../NotificationCenter';
 import PasswordChangeModal from '../Shared/PasswordChangeModal';
 
@@ -119,38 +118,18 @@ export default function FacultyProfile() {
     setIsLoading(true);
     try {
       let profilePicPath = editedUser?.profilePic;
-      let data;
       if (editedUser?.newProfilePicAsset) {
-        // Use the correct user ID format (prefer _id, fallback to userID)
-        const userId = user._id || user.userID;
-        if (!userId) {
-          throw new Error('User ID not found');
-        }
-        
-        if (Platform.OS === 'web') {
-          // Pass File directly; service will append as 'image'
-          data = await profileService.uploadProfilePicture(userId, editedUser.newProfilePicAsset, true);
-        } else {
-          let asset = editedUser.newProfilePicAsset;
-          let localUri = asset.uri;
-          if (!localUri.startsWith('file://') && asset.base64) {
-            const fileUri = FileSystem.cacheDirectory + (asset.fileName || 'profile.jpg');
-            await FileSystem.writeAsStringAsync(fileUri, asset.base64, { encoding: FileSystem.EncodingType.Base64 });
-            localUri = fileUri;
-          }
-          const patchedAsset = {
-            uri: localUri,
-            fileName: asset.fileName || 'profile.jpg',
-            type: asset.type || 'image/jpeg',
-          };
-          data = await profileService.uploadProfilePicture(userId, patchedAsset, false);
-        }
+        const isWeb = Platform.OS === 'web';
+        const data = await profileService.uploadProfilePicture(
+          user._id,
+          editedUser.newProfilePicAsset,
+          isWeb
+        );
         const updated = data?.user;
         if (updated?.profilePic) {
           profilePicPath = updated.profilePic;
         }
       }
-      // Always update user context/state with the new profilePic
       await updateUser({
         ...user,
         profilePic: profilePicPath,
@@ -159,8 +138,7 @@ export default function FacultyProfile() {
       setIsEditModalVisible(false);
       Alert.alert('Profile Updated', 'Your profile picture has been changed successfully.');
     } catch (error) {
-      console.error('Profile upload error:', error);
-      Alert.alert('Error', `Failed to update profile picture: ${error.message || 'Please try again.'}`);
+      Alert.alert('Error', 'Failed to update profile picture. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -201,10 +179,10 @@ export default function FacultyProfile() {
       </View>
       <Modal
         visible={isEditModalVisible}
-        animationType="fade"
+        animationType="slide"
         transparent={true}
       >
-        <View style={[FacultyProfileStyle.modalContainer, { flex: 1, justifyContent: 'center', alignItems: 'center' }]}>
+        <View style={FacultyProfileStyle.modalContainer}>
           <View style={FacultyProfileStyle.modalContent}>
             <Text style={[FacultyProfileStyle.modalTitle, { fontFamily: 'Poppins-Bold' }]}>Edit Profile</Text>
             <TouchableOpacity
@@ -282,6 +260,10 @@ export default function FacultyProfile() {
           </View>
         </View>
         <View style={FacultyProfileStyle.actionRow}>
+          {/* <TouchableOpacity style={FacultyProfileStyle.actionBtn}>
+            <Feather name="edit" size={20} color="#00418b" />
+            <Text style={FacultyProfileStyle.actionText}>Edit</Text>
+          </TouchableOpacity> */}
           <TouchableOpacity style={FacultyProfileStyle.actionBtn} onPress={() => setShowPasswordModal(true)}>
             <Feather name="lock" size={20} color="#00418b" />
             <Text style={[FacultyProfileStyle.actionText, { fontFamily: 'Poppins-Regular' }]}>Password</Text>

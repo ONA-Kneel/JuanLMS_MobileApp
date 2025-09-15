@@ -16,13 +16,19 @@ import io from 'socket.io-client';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import AdminChatStyle from './styles/administrator/AdminChatStyle';
-import StudentDashboardStyle from './styles/Stud/StudentDashStyle';
 import * as DocumentPicker from 'expo-document-picker';
 import { getAuthHeaders, handleApiError } from '../utils/apiUtils';
 
 
-const API_URL = 'https://juanlms-webapp-server.onrender.com';
-const SOCKET_URL = 'https://juanlms-webapp-server.onrender.com';
+// Allow env override; fallback to deployed server
+const API_URL = (
+  (typeof process !== 'undefined' && process.env && (process.env.EXPO_PUBLIC_API_URL || process.env.REACT_NATIVE_API_URL))
+  || 'https://juanlms-webapp-server.onrender.com'
+);
+const SOCKET_URL = (
+  (typeof process !== 'undefined' && process.env && (process.env.EXPO_PUBLIC_SOCKET_URL || process.env.REACT_NATIVE_SOCKET_URL))
+  || 'https://juanlms-webapp-server.onrender.com'
+);
 const ALLOWED_ROLES = ['students', 'director', 'admin', 'faculty'];
 
 export default function UnifiedChat() {
@@ -51,43 +57,16 @@ export default function UnifiedChat() {
   const [activeTab, setActiveTab] = useState('groups'); // 'groups', 'create', 'join'
   const [isLoading, setIsLoading] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
-  const [academicContext, setAcademicContext] = useState('2025-2026 | Term 1');
-  const [currentDateTime, setCurrentDateTime] = useState(new Date());
   const socketRef = useRef(null);
   const scrollViewRef = useRef();
+  const typingTimeoutRef = useRef(null);
+  const [isTyping, setIsTyping] = useState(false);
+  const onlineUsersRef = useRef([]);
+  const [messageStatusMap, setMessageStatusMap] = useState({});
 
   const isGroupChat = !!selectedGroup;
   const chatTarget = isGroupChat ? selectedGroup : selectedUser;
   const RECENTS_KEY = 'recentChats_mobile';
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentDateTime(new Date());
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, []);
-
-  const formatDateTime = (date) => {
-    return date.toLocaleString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: true
-    });
-  };
-
-  const resolveProfileUri = () => {
-    const API_BASE = 'https://juanlms-webapp-server.onrender.com';
-    const uri = user?.profilePic || user?.profilePicture;
-    if (!uri) return null;
-    if (typeof uri === 'string' && uri.startsWith('/uploads/')) return API_BASE + uri;
-    return uri;
-  };
 
   useEffect(() => {
     if (!user || !user._id) {
@@ -149,6 +128,8 @@ export default function UnifiedChat() {
             headers
           });
           setMessages(res.data);
+          // Emit markAsRead for group chat (web parity)
+          try { socketRef.current?.emit('markAsRead', { chatId: selectedGroup._id, userId: user._id }); } catch {}
         } catch (err) {
           console.log('Error fetching group messages:', err);
           // Try alternative endpoint
@@ -157,6 +138,7 @@ export default function UnifiedChat() {
               headers
             });
             setMessages(res2.data);
+            try { socketRef.current?.emit('markAsRead', { chatId: selectedGroup._id, userId: user._id }); } catch {}
           } catch (err2) {
             console.log('Error fetching group messages from alternative endpoint:', err2);
             setMessages([]);
@@ -186,15 +168,54 @@ export default function UnifiedChat() {
     // Setup socket connection
     if (!socketRef.current) {
       socketRef.current = io(SOCKET_URL, {
-        transports: ['websocket'],
+        transports: ['websocket', 'polling'],
         reconnectionAttempts: 5,
-        timeout: 10000,
+        timeout: 15000,
+        auth: { userId: user._id, userRole: user.role }
       });
+      // Legacy presence registration
       socketRef.current.emit('addUser', user._id);
+      // Presence listeners (no UI changes)
+      socketRef.current.on('userOnline', (userId) => {
+        const set = new Set(onlineUsersRef.current);
+        set.add(userId);
+        onlineUsersRef.current = Array.from(set);
+      });
+      socketRef.current.on('userOffline', (userId) => {
+        onlineUsersRef.current = onlineUsersRef.current.filter(id => id !== userId);
+      });
+      socketRef.current.on('onlineUsers', (users) => {
+        onlineUsersRef.current = Array.isArray(users) ? users : [];
+      });
     }
 
     if (isGroupChat) {
+      // Join both legacy and unified rooms
       socketRef.current.emit('joinGroup', { userId: user._id, groupId: selectedGroup._id });
+      socketRef.current.emit('joinChat', selectedGroup._id);
+
+      // Unified web-style message event
+      socketRef.current.on('message', (incomingMessage) => {
+        if (!incomingMessage) return;
+        const chatId = incomingMessage.chatId || incomingMessage.groupId;
+        if (String(chatId) !== String(selectedGroup._id)) return;
+        const incoming = { ...incomingMessage };
+        if (!incoming.createdAt) incoming.createdAt = new Date().toISOString();
+        setMessages(prev => [...prev, incoming]);
+        setGroupMsgsById(prev => ({ ...prev, [chatId]: [ ...(prev[chatId] || []), incoming ] }));
+        const text = incoming.message || incoming.content || (incoming.fileUrl ? 'File sent' : '');
+        setLastMessages(prev => ({ ...prev, [chatId]: { prefix: incoming.senderId === user._id ? 'You: ' : `${incoming.senderFirstname || incoming.senderName || 'Unknown'} ${incoming.senderLastname || ''}: `, text } }));
+      });
+
+      // Read receipt listener (web parity)
+      socketRef.current.on('messageRead', (data) => {
+        // Track read status in state map (no UI change yet)
+        if (data && data.messageId) {
+          setMessageStatusMap(prev => ({ ...prev, [data.messageId]: 'read' }));
+        }
+      });
+
+      // Legacy group message event
       socketRef.current.on('getGroupMessage', (data) => {
         // Stamp device time for immediate UI
         const incoming = { ...data, createdAt: new Date().toISOString() };
@@ -213,7 +234,42 @@ export default function UnifiedChat() {
         setLastMessages(prev => ({ ...prev, [data.groupId]: { prefix: incoming.senderId === user._id ? 'You: ' : `${incoming.senderFirstname || 'Unknown'} ${incoming.senderLastname || 'User'}: `, text } }));
       });
     } else {
-      // WebApp delivers direct messages to receiver; no joinChat room needed
+      // Unified web-style message event for DMs
+      socketRef.current.on('message', (incomingMessage) => {
+        if (!incomingMessage) return;
+        const sId = incomingMessage.senderId;
+        const rId = incomingMessage.receiverId;
+        if (!sId || !rId) return;
+        const involves = (
+          (String(sId) === String(selectedUser?._id) && String(rId) === String(user._id)) ||
+          (String(rId) === String(selectedUser?._id) && String(sId) === String(user._id))
+        );
+        if (!involves) return;
+        const incoming = {
+          senderId: incomingMessage.senderId,
+          receiverId: incomingMessage.receiverId,
+          message: incomingMessage.message || incomingMessage.content,
+          fileUrl: incomingMessage.fileUrl || null,
+          createdAt: incomingMessage.createdAt || new Date().toISOString(),
+        };
+        setMessages(prev => [...prev, incoming]);
+        setDmMessages(prev => {
+          const list = prev[incoming.senderId] || [];
+          return { ...prev, [incoming.senderId]: [...list, incoming] };
+        });
+        const u = allUsers.find(x => x._id === incoming.senderId);
+        const entry = { _id: incoming.senderId, firstname: u?.firstname || '', lastname: u?.lastname || '', profilePic: u?.profilePic || u?.profilePicture || null, lastMessageTime: incoming.createdAt };
+        setRecentChatsList(prev => {
+          const filtered = prev.filter(c => c._id !== entry._id);
+          const updated = [entry, ...filtered];
+          AsyncStorage.setItem(RECENTS_KEY, JSON.stringify(updated)).catch(() => {});
+          return updated;
+        });
+        const text = incoming.message ? incoming.message : (incoming.fileUrl ? 'File sent' : '');
+        setLastMessages(prev => ({ ...prev, [entry._id]: { prefix: 'You: ' , text } }));
+      });
+
+      // Legacy DM event
       socketRef.current.on('getMessage', (data) => {
         const incoming = {
           senderId: data.senderId,
@@ -242,11 +298,12 @@ export default function UnifiedChat() {
 
     return () => {
       if (socketRef.current) {
-        if (isGroupChat) {
-          socketRef.current.off('receiveGroupMessage');
-        } else {
-          socketRef.current.off('receiveMessage');
-        }
+        socketRef.current.off('message');
+        socketRef.current.off('getGroupMessage');
+        socketRef.current.off('getMessage');
+        socketRef.current.off('userOnline');
+        socketRef.current.off('userOffline');
+        socketRef.current.off('onlineUsers');
       }
     };
   }, [selectedUser, selectedGroup, user]);
@@ -466,14 +523,17 @@ export default function UnifiedChat() {
         // Try primary endpoint first
         let res;
         try {
-          res = await axios.post(`${API_URL}/group-messages`, form, {
+          // Prefer /api prefix when available
+          res = await axios.post(`${API_URL}/api/groupMessages`, form, {
             headers, 'Content-Type': 'multipart/form-data'
           });
         } catch (err) {
           // Try alternative endpoint
-          res = await axios.post(`${API_URL}/group-chats/${selectedGroup._id}/messages`, form, {
-            headers, 'Content-Type': 'multipart/form-data'
-          });
+          try {
+            res = await axios.post(`${API_URL}/group-messages`, form, { headers, 'Content-Type': 'multipart/form-data' });
+          } catch (err2) {
+            res = await axios.post(`${API_URL}/group-chats/${selectedGroup._id}/messages`, form, { headers, 'Content-Type': 'multipart/form-data' });
+          }
         }
         
         const sentMessage = res.data;
@@ -484,6 +544,13 @@ export default function UnifiedChat() {
           text: sentMessage.message,
           fileUrl: sentMessage.fileUrl || null,
           senderName: `${user.firstname} ${user.lastname}`,
+        });
+        // Also emit unified 'message' for compatibility with web
+        socketRef.current.emit('message', {
+          ...sentMessage,
+          chatId: selectedGroup._id,
+          senderId: user._id,
+          senderName: `${user.firstname} ${user.lastname}`
         });
         // Local append
         setMessages(prev => [...prev, sentMessage]);
@@ -517,7 +584,7 @@ export default function UnifiedChat() {
         }
         const token = await AsyncStorage.getItem('jwtToken');
         const headers = { 'Authorization': `Bearer ${token}` };
-        const res = await axios.post(`${API_URL}/messages`, form, {
+        const res = await axios.post(`${API_URL}/api/messages`, form, {
           headers, 'Content-Type': 'multipart/form-data'
         });
         const sentMessage = res.data;
@@ -527,6 +594,12 @@ export default function UnifiedChat() {
           receiverId: selectedUser._id,
           text: sentMessage.message,
           fileUrl: sentMessage.fileUrl || null,
+        });
+        // Also emit unified 'message'
+        socketRef.current.emit('message', {
+          ...sentMessage,
+          senderId: user._id,
+          receiverId: selectedUser._id
         });
         // Local append
         setMessages(prev => [...prev, sentMessage]);
@@ -834,48 +907,18 @@ export default function UnifiedChat() {
     console.log('Rendering chat list view');
     return (
       <View style={{ flex: 1, backgroundColor: '#f3f3f3' }}>
-        
-        <ScrollView>
-        <View style={
-      {
-        paddingBottom: 80,
-        // paddingHorizontal: 20,
-        // paddingTop: 120, // Space for fixed header
-      }
-      }/>
-      {/* Blue background */}
-      <View style={StudentDashboardStyle.blueHeaderBackground} />
-      
-      {/* White card header */}
-      <View style={StudentDashboardStyle.whiteHeaderCard}>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-          <View>
-            <Text style={StudentDashboardStyle.headerTitle}>
-              Chats
-            </Text>
-                         <Text style={StudentDashboardStyle.headerSubtitle}>{academicContext}</Text>
-             <Text style={StudentDashboardStyle.headerSubtitle2}>{formatDateTime(currentDateTime)}</Text>
+        {/* Blue Header */}
+        <View style={AdminChatStyle.blueHeaderBackground}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 40, paddingHorizontal: 16 }}>
+            <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginRight: 12 }}>
+              <Text style={{ fontSize: 22, color: '#fff' }}>{'<'}</Text>
+            </TouchableOpacity>
+            <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 18 }}>Chats</Text>
           </View>
-          <TouchableOpacity onPress={() => navigation.navigate(user?.role === 'faculty' ? 'FProfile' : 'SProfile')}>
-            {resolveProfileUri() ? (
-              <Image 
-                source={{ uri: resolveProfileUri() }} 
-                style={{ width: 36, height: 36, borderRadius: 18 }}
-                resizeMode="cover"
-              />
-            ) : (
-              <Image 
-                source={require('../assets/profile-icon (2).png')} 
-                style={{ width: 36, height: 36, borderRadius: 18 }}
-                resizeMode="cover"
-              />
-            )}
-          </TouchableOpacity>
         </View>
-      </View>
 
         {/* Search + Tabs */}
-        {/* <View style={{ backgroundColor: '#fff', paddingHorizontal: 16, paddingTop: 12 }}>
+        <View style={{ backgroundColor: '#fff', paddingHorizontal: 16, paddingTop: 12 }}>
           <TextInput
             placeholder="Search users or groups..."
             value={searchQuery}
@@ -890,8 +933,8 @@ export default function UnifiedChat() {
               marginBottom: 10
             }}
           />
-        </View> */}
-        <View style={{ flexDirection: 'row', paddingHorizontal: 16, marginTop: '22%'   }}>
+        </View>
+        <View style={{ flexDirection: 'row', backgroundColor: '#fff', paddingHorizontal: 16 }}>
           <TouchableOpacity 
             onPress={() => setActiveTab('groups')}
             style={{ 
@@ -938,17 +981,17 @@ export default function UnifiedChat() {
           </TouchableOpacity>
         </View>
 
+        <ScrollView style={{ flex: 1, padding: 16 }}>
           {isLoading && (
             <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 50 }}>
               <Text>Loading...</Text>
             </View>
           )}
           {!isLoading && activeTab === 'groups' && (
-            <View style={{ padding:20, }}>
-             
-             <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 10 }}>My Groups</Text>
+            <View>
+              <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 10 }}>Chats</Text>
+              
               {/* Groups Tab Search */}
-              <View>
               <TextInput
                 placeholder="Search groups and chats..."
                 value={searchQuery}
@@ -960,11 +1003,10 @@ export default function UnifiedChat() {
                   paddingHorizontal: 14,
                   paddingVertical: 10,
                   backgroundColor: 'white',
-                  marginBottom: 15,
-                  width: '90%',
+                  marginBottom: 15
                 }}
               />
-              </View>
+              
               {(searchQuery || '').trim() === '' ? (
                 unifiedChats.length > 0 ? (
                   unifiedChats.map(chat => (
@@ -1104,7 +1146,7 @@ export default function UnifiedChat() {
           )}
 
           {!isLoading && activeTab === 'individual' && (
-            <View style={{padding: 20}}>
+            <View>
               <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 10 }}>Direct Messages</Text>
               
               {/* Individual Tab Search */}
@@ -1233,7 +1275,7 @@ export default function UnifiedChat() {
           )}
 
           {!isLoading && activeTab === 'create' && (
-            <View style={{padding: 20}}>
+            <View>
               <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 10 }}>Create New Group</Text>
               <TextInput
                 placeholder="Group Name"
@@ -1380,7 +1422,7 @@ export default function UnifiedChat() {
           )}
 
           {!isLoading && activeTab === 'join' && (
-            <View style={{padding: 20}}>
+            <View>
               <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 10 }}>Join Group</Text>
               
               {/* Join Tab Search for Users */}
@@ -1672,7 +1714,28 @@ export default function UnifiedChat() {
         </TouchableOpacity>
         <TextInput
           value={input}
-          onChangeText={setInput}
+          onChangeText={(text) => {
+            setInput(text);
+            // Emit typing for group chats (compat with web typing events); no UI change
+            if (isGroupChat && socketRef.current && selectedGroup?._id) {
+              if (!isTyping) {
+                socketRef.current.emit('typing', {
+                  chatId: selectedGroup._id,
+                  userId: user._id,
+                  userName: `${user.firstname} ${user.lastname}`
+                });
+                setIsTyping(true);
+              }
+              if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+              typingTimeoutRef.current = setTimeout(() => {
+                socketRef.current?.emit('stopTyping', {
+                  chatId: selectedGroup._id,
+                  userId: user._id
+                });
+                setIsTyping(false);
+              }, 1200);
+            }
+          }}
           placeholder="Type your message..."
           style={{
             flex: 1,

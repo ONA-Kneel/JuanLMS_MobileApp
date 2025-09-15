@@ -9,14 +9,12 @@ import {
   StyleSheet,
   Dimensions,
   Platform,
-  PermissionsAndroid,
-  Image
+  PermissionsAndroid
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../UserContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import StudentDashboardStyle from '../styles/Stud/StudentDashStyle';
 let StreamMeetingRoomNative = null;
 if (Platform.OS !== 'web') {
   try { StreamMeetingRoomNative = require('../Meeting/StreamMeetingRoomNative').default; } catch (e) { /* noop on web */ }
@@ -32,16 +30,7 @@ export default function StudentMeeting() {
   const [meetings, setMeetings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [academicContext, setAcademicContext] = useState('2025-2026 | Term 1');
-  const [currentDateTime, setCurrentDateTime] = useState(new Date());
   const [activeMeeting, setActiveMeeting] = useState(null);
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentDateTime(new Date());
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, []);
 
   useEffect(() => {
     fetchClasses();
@@ -200,14 +189,6 @@ export default function StudentMeeting() {
     return `${dateLabel} at ${timeLabel}`;
   };
 
-  const resolveProfileUri = () => {
-    const API_BASE = 'https://juanlms-webapp-server.onrender.com';
-    const uri = user?.profilePic || user?.profilePicture;
-    if (!uri) return null;
-    if (typeof uri === 'string' && uri.startsWith('/uploads/')) return API_BASE + uri;
-    return uri;
-  };
-
   const getMeetingStatus = (meeting) => {
     if (meeting.status === 'ended') {
       return { label: 'Ended', color: '#9CA3AF' };
@@ -257,50 +238,11 @@ export default function StudentMeeting() {
   return (
     <>
     <ScrollView style={styles.container}>
-    <View style={
-      {
-        paddingBottom: 80,
-        // paddingHorizontal: 20,
-        // paddingTop: 120, // Space for fixed header
-      }
-      }/>
-      {/* Blue background */}
-      <View style={StudentDashboardStyle.blueHeaderBackground} />
-      
-      {/* White card header */}
-      <View style={StudentDashboardStyle.whiteHeaderCard}>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-          <View>
-            <Text style={StudentDashboardStyle.headerTitle}>
-              Meetings
-            </Text>
-                         <Text style={StudentDashboardStyle.headerSubtitle}>{academicContext}</Text>
-             <Text style={StudentDashboardStyle.headerSubtitle2}>{currentDateTime.toLocaleString('en-US', {
-               weekday: 'long',
-               year: 'numeric',
-               month: 'long',
-               day: 'numeric',
-               hour: '2-digit',
-               minute: '2-digit',
-               second: '2-digit',
-               hour12: true
-             })}</Text>
-          </View>
-          <TouchableOpacity onPress={() => navigation.navigate('SProfile')}>
-            {resolveProfileUri() ? (
-              <Image 
-                source={{ uri: resolveProfileUri() }} 
-                style={{ width: 36, height: 36, borderRadius: 18 }}
-                resizeMode="cover"
-              />
-            ) : (
-              <Image 
-                source={require('../../assets/profile-icon (2).png')} 
-                style={{ width: 36, height: 36, borderRadius: 18 }}
-                resizeMode="cover"
-              />
-            )}
-          </TouchableOpacity>
+      {/* Header */}
+      <View style={styles.header}>
+        <View>
+          <Text style={styles.title}>Meeting</Text>
+          <Text style={styles.subtitle}>{academicContext} | {new Date().toLocaleDateString()}</Text>
         </View>
       </View>
 
@@ -334,7 +276,7 @@ export default function StudentMeeting() {
                   ]}>
                     {classItem.className || classItem.name}
                   </Text>
-                  <Text style={styles.classCode}>{classItem.section || classItem.classCode || classItem._id}</Text>
+                  <Text style={styles.classCode}>{classItem.classCode || classItem._id}</Text>
                   <Text style={styles.studentCount}>
                     {classItem.members?.length || 0} students
                   </Text>
@@ -490,8 +432,7 @@ const styles = StyleSheet.create({
   },
   classSelector: {
     backgroundColor: 'white',
-    marginTop: '25%',
-    marginHorizontal: 16,
+    margin: 16,
     padding: 20,
     borderRadius: 12,
     shadowColor: '#000',
@@ -568,7 +509,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   meetingTitle: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: 'bold',
     color: '#111827',
     marginBottom: 4,

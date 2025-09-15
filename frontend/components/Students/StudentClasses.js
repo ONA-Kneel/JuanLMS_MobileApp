@@ -225,7 +225,7 @@ export default function StudentClasses() {
         <View style={styles.classHeader}>
           <View style={styles.classInfo}>
             <Text style={styles.className}>{classItem.className}</Text>
-            <Text style={styles.classCode}>{classItem.section || classItem.classCode || classItem.subjectCode}</Text>
+            <Text style={styles.classCode}>{classItem.classCode || classItem.subjectCode}</Text>
             <Text style={styles.facultyName}>
               {classItem.facultyName || 'Faculty TBD'}
           </Text>
@@ -402,7 +402,7 @@ export default function StudentClasses() {
             {selectedClass && (
               <ScrollView style={styles.modalContent}>
                 <Text style={styles.modalClassName}>{selectedClass.className}</Text>
-                <Text style={styles.modalClassCode}>{selectedClass.section || selectedClass.classCode || selectedClass.subjectCode}</Text>
+                <Text style={styles.modalClassCode}>{selectedClass.classCode || selectedClass.subjectCode}</Text>
                 
                 <View style={styles.modalSection}>
                   <Text style={styles.modalSectionTitle}>Class Information</Text>

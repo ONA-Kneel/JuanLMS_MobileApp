@@ -18,16 +18,6 @@ export default function FacultyClasses() {
   const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [currentDateTime, setCurrentDateTime] = useState(new Date());
-  const [academicContext, setAcademicContext] = useState('2025-2026 | Term 1');
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentDateTime(new Date());
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, []);
 
   useEffect(() => {
     const fetchClasses = async () => {
@@ -98,70 +88,51 @@ export default function FacultyClasses() {
     navigation.goBack();
   };
 
-  const formatDateTime = (date) => {
-    return date.toLocaleString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: true
-    });
-  };
-
-  const resolveProfileUri = () => {
-    const API_BASE = 'https://juanlms-webapp-server.onrender.com';
-    const uri = user?.profilePic || user?.profilePicture;
-    if (!uri) return null;
-    if (typeof uri === 'string' && uri.startsWith('/uploads/')) return API_BASE + uri;
-    return uri;
-  };
-
   return (
     <View style={{ flex: 1, backgroundColor: '#f5f5f5' }}>
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Blue background */}
-        <View style={styles.blueHeaderBackground} />
-        {/* White card header */}
-        <View style={styles.whiteHeaderCard}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-          <TouchableOpacity onPress={goBack} style={styles.backButton}>
-                <Icon name="arrow-left" size={20} color="#00418b" />
-              </TouchableOpacity>
-            <View>
-              <Text style={styles.headerTitle}>
-                My Classes
-              </Text>
-              <Text style={styles.headerSubtitle}>{academicContext}</Text>
-              <Text style={styles.headerSubtitle2}>{formatDateTime(currentDateTime)}</Text>
-            </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              
-              {/* <TouchableOpacity onPress={createClass} style={styles.createButton}>
-                <Icon name="plus" size={20} color="#00418b" />
-              </TouchableOpacity> */}
-              {/* <TouchableOpacity onPress={() => navigation.navigate('FProfile')}>
-                {resolveProfileUri() ? (
-                  <Image 
-                    source={{ uri: resolveProfileUri() }} 
-                    style={{ width: 36, height: 36, borderRadius: 18, marginLeft: 8 }}
-                    resizeMode="cover"
-                  />
-                ) : (
-                  <Image 
-                    source={require('../../assets/profile-icon (2).png')} 
-                    style={{ width: 36, height: 36, borderRadius: 18, marginLeft: 8 }}
-                    resizeMode="cover"
-                  />
-                )}
-              </TouchableOpacity> */}
-            </View>
-          </View>
+      {/* Header */}
+      <View style={{ 
+        backgroundColor: '#00418b', 
+        paddingTop: 30, 
+        paddingBottom: 20, 
+        paddingHorizontal: 20,
+        borderBottomLeftRadius: 20,
+        borderBottomRightRadius: 20
+      }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', textAlign: 'center' }}>
+          <TouchableOpacity onPress={goBack} style={{ padding: 8 }}>
+            <Icon name="arrow-left" size={24} color="#fff" />
+          </TouchableOpacity>
+          <Text style={{ 
+            fontSize: 20, 
+            fontWeight: 'bold', 
+            color: '#fff', 
+            fontFamily: 'Poppins-Bold', 
+            marginLeft:'5%'
+          }}>
+            My Classes
+          </Text>
+          {/* <TouchableOpacity onPress={createClass} style={{ padding: 8 }}>
+              <Icon name="plus" size={24} color="#fff" />
+            </TouchableOpacity> */}
         </View>
+        {/* <Text style={{ 
+          color: '#fff', 
+          fontSize: 14, 
+          marginTop: 5, 
+          fontFamily: 'Poppins-Regular' 
+        }}>
+          {new Date().toLocaleDateString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+          })}
+        </Text> */}
+      </View>
+      
 
-        <View style={{ padding: 15 }}>
+      <ScrollView style={{ flex: 1, padding: 15 }}>
         {/* Stats Section */}
         {/* {classes.length > 0 && (
           <View style={{ marginTop: 5, backgroundColor: '#fff', borderRadius: 16, padding: 20, marginBottom: 10 }}>
@@ -379,60 +350,8 @@ export default function FacultyClasses() {
           </View>
         )}
 
-        </View>
+        
       </ScrollView>
     </View>
   );
-}
-
-const styles = {
-  blueHeaderBackground: {
-    backgroundColor: '#00418b',
-    height: 90,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-  },
-  whiteHeaderCard: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    marginHorizontal: 16,
-    marginTop: -40,
-    padding: 20,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    zIndex: 2,
-    marginBottom: 16,
-  },
-  headerTitle: {
-    fontSize: 22,
-    color: '#222',
-    fontFamily: 'Poppins-Bold',
-  },
-  headerSubtitle: {
-    color: '#888',
-    fontSize: 14,
-    fontFamily: 'Poppins-Regular',
-  },
-  headerSubtitle2: {
-    color: '#666',
-    fontSize: 12,
-    fontFamily: 'Poppins-Regular',
-    marginTop: 2,
-  },
-  backButton: {
-    backgroundColor: '#f0f8ff',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    marginRight: 8,
-  },
-  createButton: {
-    backgroundColor: '#f0f8ff',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    marginRight: 8,
-  },
-}; 
+} 

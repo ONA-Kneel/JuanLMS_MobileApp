@@ -9,50 +9,6 @@ export default function StudentSCMain() {
 
   return (
     <View style={StudentSCMainStyle.container}>
-      <View style={
-      {
-        paddingBottom: 80,
-        // paddingHorizontal: 20,
-        // paddingTop: 120, // Space for fixed header
-      }
-      }/>
-      {/* Blue background */}
-      <View style={StudentDashboardStyle.blueHeaderBackground} />
-      
-      {/* White card header */}
-      <View style={StudentDashboardStyle.whiteHeaderCard}>
-        <TouchableOpacity
-          style={StudentSCMainStyle.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Text style={StudentSCMainStyle.backArrow}>{'<'}</Text>
-        </TouchableOpacity>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-          <View>
-            <Text style={StudentDashboardStyle.headerTitle}>
-              Hello, <Text style={{ fontWeight: 'bold', fontFamily: 'Poppins-Bold' }}>{user?.firstname || 'Student'}!</Text>
-            </Text>
-              <Text style={StudentDashboardStyle.headerSubtitle}>{academicContext}</Text>
-             <Text style={StudentDashboardStyle.headerSubtitle2}>{formatDateTime(currentDateTime)}</Text>
-          </View>
-          <TouchableOpacity onPress={() => changeScreen.navigate('SProfile')}>
-            {resolveProfileUri() ? (
-              <Image 
-                source={{ uri: resolveProfileUri() }} 
-                style={{ width: 36, height: 36, borderRadius: 18 }}
-                resizeMode="cover"
-              />
-            ) : (
-              <Image 
-                source={require('../../assets/profile-icon (2).png')} 
-                style={{ width: 36, height: 36, borderRadius: 18 }}
-                resizeMode="cover"
-              />
-            )}
-          </TouchableOpacity>
-        </View>
-      </View>
-
       {/* Header with Logo and Return Button */}
       <View style={StudentSCMainStyle.header}>
         <TouchableOpacity
