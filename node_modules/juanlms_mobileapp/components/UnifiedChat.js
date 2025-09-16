@@ -213,29 +213,24 @@ export default function UnifiedChat() {
         setLastMessages(prev => ({ ...prev, [data.groupId]: { prefix: incoming.senderId === user._id ? 'You: ' : `${incoming.senderFirstname || 'Unknown'} ${incoming.senderLastname || 'User'}: `, text } }));
       });
     } else {
-      // Listen for incoming messages (no room joining needed for direct messages)
-      socketRef.current.on('getMessage', (data) => {
-        const incomingMessage = {
-          senderId: data.senderId,
-          receiverId: user._id,
-          message: data.text,
-          fileUrl: data.fileUrl || null,
-          createdAt: new Date().toISOString(),
-        };
-        setMessages(prev => [...prev, incomingMessage]);
+      // Join chat room and listen for messages
+      const directChatId = [user._id, selectedUser._id].sort().join('-');
+      socketRef.current.emit('joinChat', directChatId);
+      socketRef.current.on('receiveMessage', (msg) => {
+        setMessages(prev => [...prev, msg]);
         setDmMessages(prev => {
-          const list = prev[data.senderId] || [];
-          return { ...prev, [data.senderId]: [...list, incomingMessage] };
+          const list = prev[msg.senderId] || [];
+          return { ...prev, [msg.senderId]: [...list, msg] };
         });
-        const u = allUsers.find(x => x._id === data.senderId);
-        const entry = { _id: data.senderId, firstname: u?.firstname || '', lastname: u?.lastname || '', profilePic: u?.profilePic || u?.profilePicture || null, lastMessageTime: new Date().toISOString() };
+        const u = allUsers.find(x => x._id === msg.senderId);
+        const entry = { _id: msg.senderId, firstname: u?.firstname || '', lastname: u?.lastname || '', profilePic: u?.profilePic || u?.profilePicture || null, lastMessageTime: new Date().toISOString() };
         setRecentChatsList(prev => {
           const filtered = prev.filter(c => c._id !== entry._id);
           const updated = [entry, ...filtered];
           AsyncStorage.setItem(RECENTS_KEY, JSON.stringify(updated)).catch(() => {});
           return updated;
         });
-        const text = incomingMessage.message ? incomingMessage.message : (incomingMessage.fileUrl ? 'File sent' : '');
+        const text = msg.message ? msg.message : (msg.fileUrl ? 'File sent' : '');
         setLastMessages(prev => ({ ...prev, [entry._id]: { prefix: 'You: ' , text } }));
       });
     }
@@ -245,7 +240,7 @@ export default function UnifiedChat() {
         if (isGroupChat) {
           socketRef.current.off('getGroupMessage');
         } else {
-          socketRef.current.off('getMessage');
+          socketRef.current.off('receiveMessage');
         }
       }
     };
@@ -504,29 +499,32 @@ export default function UnifiedChat() {
       }
 
       try {
-        const form = new FormData();
-        form.append('senderId', user._id);
-        form.append('receiverId', selectedUser._id);
-        form.append('message', input);
-        if (selectedFile) {
-          form.append('file', {
-            uri: selectedFile.uri,
-            name: selectedFile.name || 'attachment',
-            type: selectedFile.mimeType || 'application/octet-stream',
-          });
-        }
         const token = await AsyncStorage.getItem('jwtToken');
         const headers = { 'Authorization': `Bearer ${token}` };
-        const res = await axios.post(`${API_URL}/messages`, form, {
-          headers, 'Content-Type': 'multipart/form-data'
-        });
-        const sentMessage = res.data;
-        // Emit to socket for real-time delivery (matches web app pattern)
-        socketRef.current.emit('sendMessage', {
+        console.log('Sending direct message with token:', token ? 'Token exists' : 'No token');
+        console.log('Token preview:', token ? token.substring(0, 20) + '...' : 'No token');
+        console.log('API URL:', `${API_URL}/messages`);
+        console.log('Payload:', { senderId: user._id, receiverId: selectedUser._id, message: input });
+        
+        const res = await axios.post(`${API_URL}/messages`, {
           senderId: user._id,
           receiverId: selectedUser._id,
-          text: sentMessage.message,
-          fileUrl: sentMessage.fileUrl || null,
+          message: input
+        }, {
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        console.log('Direct message sent successfully:', res.data);
+        const sentMessage = res.data;
+        // Emit to socket for real-time delivery (matches mobile backend pattern)
+        socketRef.current.emit('sendMessage', {
+          chatId: [user._id, selectedUser._id].sort().join('-'),
+          senderId: user._id,
+          receiverId: selectedUser._id,
+          message: sentMessage.message,
+          timestamp: sentMessage.timestamp || new Date(),
         });
         // Local append
         setMessages(prev => [...prev, sentMessage]);
@@ -541,8 +539,10 @@ export default function UnifiedChat() {
         const text2 = sentMessage.message ? sentMessage.message : (sentMessage.fileUrl ? 'File sent' : '');
         setLastMessages(prev => ({ ...prev, [entry._id]: { prefix: 'You: ', text: text2 } }));
       } catch (err) {
-        console.log('Error saving message:', err);
-        Alert.alert('Error', 'Failed to send message. Please try again.');
+        console.log('Error saving direct message:', err);
+        console.log('Error response:', err.response?.data);
+        console.log('Error status:', err.response?.status);
+        Alert.alert('Error', `Failed to send message: ${err.response?.data?.error || err.message}`);
         return;
       }
 

@@ -8,6 +8,7 @@ import AdminChatStyle from './styles/administrator/AdminChatStyle';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getAuthHeaders, handleApiError } from '../utils/apiUtils';
 
+const API_URL = 'https://juanlms-webapp-server.onrender.com';
 const SOCKET_URL = 'https://juanlms-webapp-server.onrender.com';
 
 const ALLOWED_ROLES = ['students', 'director', 'admin', 'faculty'];
@@ -44,7 +45,7 @@ export default function Chat() {
 
     (async () => {
       const token = await AsyncStorage.getItem('jwtToken');
-      axios.get(`${SOCKET_URL}/api/messages/${user._id}/${selectedUser._id}`, {
+      axios.get(`${API_URL}/messages/${user._id}/${selectedUser._id}`, {
         headers: { Authorization: `Bearer ${token}` }
       })
         .then(res => setMessages(res.data))
@@ -52,7 +53,7 @@ export default function Chat() {
           console.log('Error fetching messages:', err);
           setMessages([]);
         });
-      axios.put(`${SOCKET_URL}/api/messages/read/${user._id}/${selectedUser._id}`, {}, {
+      axios.put(`${API_URL}/messages/read/${user._id}/${selectedUser._id}`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       })
         .then(() => {
@@ -76,20 +77,14 @@ export default function Chat() {
       socketRef.current = io(SOCKET_URL);
     }
     socketRef.current.emit('addUser', user._id);
-    socketRef.current.on('getMessage', (data) => {
-      const incomingMessage = {
-        senderId: data.senderId,
-        receiverId: user._id,
-        message: data.text,
-        fileUrl: data.fileUrl || null,
-        createdAt: new Date().toISOString(),
-      };
-      setMessages(prev => [...prev, incomingMessage]);
+    socketRef.current.emit('joinChat', [user._id, selectedUser._id].sort().join('-'));
+    socketRef.current.on('receiveMessage', (msg) => {
+      setMessages(prev => [...prev, msg]);
     });
 
     return () => {
       if (socketRef.current) {
-        socketRef.current.off('getMessage');
+        socketRef.current.off('receiveMessage');
       }
     };
   }, [selectedUser, user]);
@@ -105,27 +100,33 @@ export default function Chat() {
 
     // 1. Save to database first
     try {
-      const form = new FormData();
-      form.append('senderId', user._id);
-      form.append('receiverId', selectedUser._id);
-      form.append('message', input);
-      
       const token = await AsyncStorage.getItem('jwtToken');
-      const res = await axios.post(`${SOCKET_URL}/messages`, form, {
+      console.log('Sending message with token:', token ? 'Token exists' : 'No token');
+      console.log('Token preview:', token ? token.substring(0, 20) + '...' : 'No token');
+      console.log('API URL:', `${API_URL}/messages`);
+      console.log('Payload:', { senderId: user._id, receiverId: selectedUser._id, message: input });
+      
+      const res = await axios.post(`${API_URL}/messages`, {
+        senderId: user._id,
+        receiverId: selectedUser._id,
+        message: input
+      }, {
         headers: { 
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'multipart/form-data'
+          'Content-Type': 'application/json'
         }
       });
       
+      console.log('Message sent successfully:', res.data);
       const sentMessage = res.data;
 
-      // 2. Emit to socket for real-time delivery (matches web app pattern)
+      // 2. Emit to socket for real-time delivery (matches mobile backend pattern)
       socketRef.current.emit('sendMessage', {
+        chatId: [user._id, selectedUser._id].sort().join('-'),
         senderId: user._id,
         receiverId: selectedUser._id,
-        text: sentMessage.message,
-        fileUrl: sentMessage.fileUrl || null,
+        message: sentMessage.message,
+        timestamp: sentMessage.timestamp || new Date(),
       });
 
       // 3. Add to local state for instant UI feedback
@@ -133,7 +134,9 @@ export default function Chat() {
       setInput('');
     } catch (err) {
       console.log('Error saving message:', err);
-      Alert.alert("Error", "Failed to send message. Please try again.");
+      console.log('Error response:', err.response?.data);
+      console.log('Error status:', err.response?.status);
+      Alert.alert("Error", `Failed to send message: ${err.response?.data?.error || err.message}`);
       return;
     }
 

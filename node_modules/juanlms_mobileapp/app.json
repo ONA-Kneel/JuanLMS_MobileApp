@@ -43,7 +43,7 @@
     "extra": {
       "API_URL": "https://juanlms-webapp-server.onrender.com",
       "eas": {
-        "projectId": "6108babd-0af0-4f3c-b321-549b039b0188"
+        "projectId": "6bd6f7bd-b0da-4e0e-abfa-96aa55fed036"
       }
     },
     "plugins": [
