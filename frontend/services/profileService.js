@@ -190,11 +190,17 @@ const profileService = {
           ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
           // Do NOT set Content-Type; RN fetch will add correct multipart boundary
         };
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+        
         const fetchResp = await fetch(`${API_URL}/users/${userId}/upload-profile`, {
           method: 'POST',
           headers: fetchHeaders,
           body: formData,
+          signal: controller.signal,
         });
+        
+        clearTimeout(timeoutId);
         if (!fetchResp.ok) {
           const text = await fetchResp.text();
           throw new Error(text || `Upload failed with status ${fetchResp.status}`);

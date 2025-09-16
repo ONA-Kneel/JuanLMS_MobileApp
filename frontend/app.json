@@ -25,6 +25,7 @@
       "package": "com.kneelpngnbn.juanlms.mobileapp",
       "versionCode": 1,
       "permissions": [
+        "android.permission.INTERNET",
         "android.permission.CAMERA",
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE",
@@ -32,6 +33,7 @@
       ],
       "softwareKeyboardLayoutMode": "pan",
       "allowBackup": true,
+      "usesCleartextTraffic": true,
       "buildConfigFields": {
         "androidx.core:core": "1.13.1",
         "androidx.media:media": "1.0.0"

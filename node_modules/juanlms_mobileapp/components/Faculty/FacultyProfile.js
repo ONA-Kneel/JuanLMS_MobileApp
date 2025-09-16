@@ -141,6 +141,40 @@ export default function FacultyProfile() {
       console.log('API_URL:', API_URL);
       console.log('Edited User:', editedUser);
       
+      // Test network connectivity first
+      try {
+        console.log('Testing network connectivity to backend...');
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+        
+        const testResponse = await fetch('https://juanlms-webapp-server.onrender.com/api/health', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          signal: controller.signal,
+        });
+        
+        clearTimeout(timeoutId);
+        console.log('Network test response status:', testResponse.status);
+        console.log('Network test response ok:', testResponse.ok);
+        const testData = await testResponse.text();
+        console.log('Network test response data:', testData);
+      } catch (networkError) {
+        console.error('Network connectivity test failed:', networkError);
+        console.error('Network error message:', networkError.message);
+        console.error('Network error code:', networkError.code);
+        console.error('Network error type:', networkError.type);
+        console.error('Network error name:', networkError.name);
+        
+        if (networkError.name === 'AbortError') {
+          Alert.alert('Network Timeout', 'Connection to server timed out. Please check your internet connection.');
+        } else {
+          Alert.alert('Network Error', `Cannot connect to server: ${networkError.message}`);
+        }
+        return;
+      }
+      
       let profilePicPath = editedUser?.profilePic;
       let data;
       
