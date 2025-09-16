@@ -140,27 +140,17 @@ export default function UnifiedChat() {
     console.log('Chat target:', chatTarget);
 
     if (isGroupChat) {
-      // Fetch group messages (WebApp route)
+      // Fetch group messages (mobile backend route)
       (async () => {
         try {
-          const token = await AsyncStorage.getItem('jwtToken');
-          const headers = { 'Authorization': `Bearer ${token || ''}` };
-          const res = await axios.get(`${API_URL}/group-messages/${selectedGroup._id}?userId=${user._id}`, {
-            headers
-          });
+          console.log('Fetching group messages for groupId:', selectedGroup._id);
+          const res = await axios.get(`${API_URL}/group-chats/${selectedGroup._id}/messages?userId=${user._id}`);
+          console.log('Group messages fetched successfully:', res.data);
           setMessages(res.data);
         } catch (err) {
           console.log('Error fetching group messages:', err);
-          // Try alternative endpoint
-          try {
-            const res2 = await axios.get(`${API_URL}/group-chats/${selectedGroup._id}/messages?userId=${user._id}`, {
-              headers
-            });
-            setMessages(res2.data);
-          } catch (err2) {
-            console.log('Error fetching group messages from alternative endpoint:', err2);
-            setMessages([]);
-          }
+          console.log('Error response:', err.response?.data);
+          setMessages([]);
         }
       })();
 
@@ -195,7 +185,8 @@ export default function UnifiedChat() {
 
     if (isGroupChat) {
       socketRef.current.emit('joinGroup', { userId: user._id, groupId: selectedGroup._id });
-      socketRef.current.on('getGroupMessage', (data) => {
+      socketRef.current.on('receiveGroupMessage', (data) => {
+        console.log('Received group message:', data);
         // Stamp device time for immediate UI
         const incoming = { ...data, createdAt: new Date().toISOString() };
         setMessages(prev => [...prev, incoming]);
@@ -209,14 +200,15 @@ export default function UnifiedChat() {
           if (idx > -1) { const g = arr.splice(idx,1)[0]; return [g, ...arr]; }
           return prev;
         });
-        const text = incoming.message ? incoming.message : (incoming.fileUrl ? 'File sent' : '');
-        setLastMessages(prev => ({ ...prev, [data.groupId]: { prefix: incoming.senderId === user._id ? 'You: ' : `${incoming.senderFirstname || 'Unknown'} ${incoming.senderLastname || 'User'}: `, text } }));
+        const text = incoming.text ? incoming.text : (incoming.fileUrl ? 'File sent' : '');
+        setLastMessages(prev => ({ ...prev, [data.groupId]: { prefix: incoming.senderId === user._id ? 'You: ' : `${incoming.senderName || 'Unknown User'}: `, text } }));
       });
     } else {
       // Join chat room and listen for messages
       const directChatId = [user._id, selectedUser._id].sort().join('-');
       socketRef.current.emit('joinChat', directChatId);
       socketRef.current.on('receiveMessage', (msg) => {
+        console.log('Received direct message:', msg);
         setMessages(prev => [...prev, msg]);
         setDmMessages(prev => {
           const list = prev[msg.senderId] || [];
@@ -238,7 +230,7 @@ export default function UnifiedChat() {
     return () => {
       if (socketRef.current) {
         if (isGroupChat) {
-          socketRef.current.off('getGroupMessage');
+          socketRef.current.off('receiveGroupMessage');
         } else {
           socketRef.current.off('receiveMessage');
         }
@@ -442,37 +434,23 @@ export default function UnifiedChat() {
     if (!input.trim() || !chatTarget) return;
     
     if (isGroupChat) {
-      // Send group message via WebApp endpoint
-      const form = new FormData();
-      form.append('groupId', selectedGroup._id);
-      form.append('senderId', user._id);
-      form.append('message', input);
-      if (selectedFile) {
-        form.append('file', {
-          uri: selectedFile.uri,
-          name: selectedFile.name || 'attachment',
-          type: selectedFile.mimeType || 'application/octet-stream',
-        });
-      }
+      // Send group message via mobile backend endpoint
       try {
-        const token = await AsyncStorage.getItem('jwtToken');
-        const headers = { 'Authorization': `Bearer ${token}` };
+        console.log('Sending group message with groupId:', selectedGroup._id);
+        console.log('Payload:', { senderId: user._id, message: input });
         
-        // Try primary endpoint first
-        let res;
-        try {
-          res = await axios.post(`${API_URL}/group-messages`, form, {
-            headers, 'Content-Type': 'multipart/form-data'
-          });
-        } catch (err) {
-          // Try alternative endpoint
-          res = await axios.post(`${API_URL}/group-chats/${selectedGroup._id}/messages`, form, {
-            headers, 'Content-Type': 'multipart/form-data'
-          });
-        }
+        const res = await axios.post(`${API_URL}/group-chats/${selectedGroup._id}/messages`, {
+          senderId: user._id,
+          message: input,
+          fileUrl: null // TODO: Add file support later
+        }, {
+          headers: { 'Content-Type': 'application/json' }
+        });
         
+        console.log('Group message sent successfully:', res.data);
         const sentMessage = res.data;
-        // Emit to socket for real-time
+        
+        // Emit to socket for real-time delivery
         socketRef.current.emit('sendGroupMessage', {
           senderId: user._id,
           groupId: selectedGroup._id,
@@ -480,15 +458,19 @@ export default function UnifiedChat() {
           fileUrl: sentMessage.fileUrl || null,
           senderName: `${user.firstname} ${user.lastname}`,
         });
+        
         // Local append
         setMessages(prev => [...prev, sentMessage]);
         setGroupMsgsById(prev => ({ ...prev, [selectedGroup._id]: [ ...(prev[selectedGroup._id] || []), sentMessage ] }));
         const text = sentMessage.message ? sentMessage.message : (sentMessage.fileUrl ? 'File sent' : '');
         setLastMessages(prev => ({ ...prev, [selectedGroup._id]: { prefix: 'You: ', text } }));
+        setInput(''); // Clear input after sending
         setSelectedFile(null);
       } catch (err) {
         console.log('Error saving group message:', err);
-        Alert.alert('Error', 'Failed to send message. Please try again.');
+        console.log('Error response:', err.response?.data);
+        console.log('Error status:', err.response?.status);
+        Alert.alert('Error', `Failed to send message: ${err.response?.data?.error || err.message}`);
         return;
       }
     } else {
@@ -528,6 +510,7 @@ export default function UnifiedChat() {
         });
         // Local append
         setMessages(prev => [...prev, sentMessage]);
+        setInput(''); // Clear input after sending
         setSelectedFile(null);
         const entry = { _id: selectedUser._id, firstname: selectedUser.firstname, lastname: selectedUser.lastname, profilePic: selectedUser.profilePicture || null, lastMessageTime: sentMessage.createdAt || sentMessage.updatedAt || new Date().toISOString() };
         setRecentChatsList(prev => {

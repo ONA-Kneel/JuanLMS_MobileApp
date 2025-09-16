@@ -79,6 +79,7 @@ export default function Chat() {
     socketRef.current.emit('addUser', user._id);
     socketRef.current.emit('joinChat', [user._id, selectedUser._id].sort().join('-'));
     socketRef.current.on('receiveMessage', (msg) => {
+      console.log('Received direct message in Chat.js:', msg);
       setMessages(prev => [...prev, msg]);
     });
 
