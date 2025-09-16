@@ -213,29 +213,24 @@ export default function UnifiedChat() {
         setLastMessages(prev => ({ ...prev, [data.groupId]: { prefix: incoming.senderId === user._id ? 'You: ' : `${incoming.senderFirstname || 'Unknown'} ${incoming.senderLastname || 'User'}: `, text } }));
       });
     } else {
-      // WebApp delivers direct messages to receiver; no joinChat room needed
-      socketRef.current.on('getMessage', (data) => {
-        const incoming = {
-          senderId: data.senderId,
-          receiverId: user._id,
-          message: data.text,
-          fileUrl: data.fileUrl || null,
-          createdAt: new Date().toISOString(),
-        };
-        setMessages(prev => [...prev, incoming]);
+      // Join direct chat room and listen for messages
+      const directChatId = [user._id, selectedUser._id].sort().join('-');
+      socketRef.current.emit('joinChat', directChatId);
+      socketRef.current.on('receiveMessage', (msg) => {
+        setMessages(prev => [...prev, msg]);
         setDmMessages(prev => {
-          const list = prev[data.senderId] || [];
-          return { ...prev, [data.senderId]: [...list, incoming] };
+          const list = prev[msg.senderId] || [];
+          return { ...prev, [msg.senderId]: [...list, msg] };
         });
-        const u = allUsers.find(x => x._id === data.senderId);
-        const entry = { _id: data.senderId, firstname: u?.firstname || '', lastname: u?.lastname || '', profilePic: u?.profilePic || u?.profilePicture || null, lastMessageTime: new Date().toISOString() };
+        const u = allUsers.find(x => x._id === msg.senderId);
+        const entry = { _id: msg.senderId, firstname: u?.firstname || '', lastname: u?.lastname || '', profilePic: u?.profilePic || u?.profilePicture || null, lastMessageTime: new Date().toISOString() };
         setRecentChatsList(prev => {
           const filtered = prev.filter(c => c._id !== entry._id);
           const updated = [entry, ...filtered];
           AsyncStorage.setItem(RECENTS_KEY, JSON.stringify(updated)).catch(() => {});
           return updated;
         });
-        const text = incoming.message ? incoming.message : (incoming.fileUrl ? 'File sent' : '');
+        const text = msg.message ? msg.message : (msg.fileUrl ? 'File sent' : '');
         setLastMessages(prev => ({ ...prev, [entry._id]: { prefix: 'You: ' , text } }));
       });
     }
@@ -504,29 +499,22 @@ export default function UnifiedChat() {
       }
 
       try {
-        const form = new FormData();
-        form.append('senderId', user._id);
-        form.append('receiverId', selectedUser._id);
-        form.append('message', input);
-        if (selectedFile) {
-          form.append('file', {
-            uri: selectedFile.uri,
-            name: selectedFile.name || 'attachment',
-            type: selectedFile.mimeType || 'application/octet-stream',
-          });
-        }
         const token = await AsyncStorage.getItem('jwtToken');
         const headers = { 'Authorization': `Bearer ${token}` };
-        const res = await axios.post(`${API_URL}/messages`, form, {
-          headers, 'Content-Type': 'multipart/form-data'
-        });
-        const sentMessage = res.data;
-        // Emit to socket for real-time
-        socketRef.current.emit('sendMessage', {
+        // Save to backend using JSON payload per backend/routes/messages.js
+        const saveRes = await axios.post(`${API_URL}/api/messages`, {
           senderId: user._id,
           receiverId: selectedUser._id,
-          text: sentMessage.message,
-          fileUrl: sentMessage.fileUrl || null,
+          message: input,
+        }, { headers });
+        const sentMessage = saveRes.data;
+        // Emit to socket with chatId for room routing
+        socketRef.current.emit('sendMessage', {
+          chatId: [user._id, selectedUser._id].sort().join('-'),
+          senderId: user._id,
+          receiverId: selectedUser._id,
+          message: sentMessage.message,
+          timestamp: sentMessage.timestamp || new Date().toISOString(),
         });
         // Local append
         setMessages(prev => [...prev, sentMessage]);

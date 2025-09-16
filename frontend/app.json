@@ -11,7 +11,7 @@
     "splash": {
       "image": "./assets/JuanLMS-LogoV1.png",
       "resizeMode": "contain",
-      "backgroundColor": "##03045E"
+      "backgroundColor": "#03045E"
     },
     "ios": {
       "supportsTablet": true,
@@ -20,7 +20,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/SanJuan.png",
-        "backgroundColor": "##03045E"
+        "backgroundColor": "#03045E"
       },
       "package": "com.kneelpngnbn.juanlms.mobileapp",
       "versionCode": 1,
@@ -43,7 +43,7 @@
     "extra": {
       "API_URL": "https://juanlms-webapp-server.onrender.com",
       "eas": {
-        "projectId": "2e087179-ec54-42dc-8d5e-7eb178bfcc7f"
+        "projectId": "6108babd-0af0-4f3c-b321-549b039b0188"
       }
     },
     "plugins": [
