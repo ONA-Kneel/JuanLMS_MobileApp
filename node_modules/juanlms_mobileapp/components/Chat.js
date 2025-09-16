@@ -75,14 +75,21 @@ export default function Chat() {
     if (!socketRef.current) {
       socketRef.current = io(SOCKET_URL);
     }
-    socketRef.current.emit('joinChat', [user._id, selectedUser._id].sort().join('-'));
-    socketRef.current.on('receiveMessage', (msg) => {
-      setMessages(prev => [...prev, msg]);
+    socketRef.current.emit('addUser', user._id);
+    socketRef.current.on('getMessage', (data) => {
+      const incomingMessage = {
+        senderId: data.senderId,
+        receiverId: user._id,
+        message: data.text,
+        fileUrl: data.fileUrl || null,
+        createdAt: new Date().toISOString(),
+      };
+      setMessages(prev => [...prev, incomingMessage]);
     });
 
     return () => {
       if (socketRef.current) {
-        socketRef.current.off('receiveMessage');
+        socketRef.current.off('getMessage');
       }
     };
   }, [selectedUser, user]);
@@ -96,37 +103,39 @@ export default function Chat() {
       return;
     }
 
-    const msg = {
-      chatId: [user._id, selectedUser._id].sort().join('-'),
-      senderId: user._id,
-      receiverId: selectedUser._id,
-      message: input,
-      timestamp: new Date(),
-    };
-
-    // 1. Emit to socket for real-time
-    socketRef.current.emit('sendMessage', msg);
-
-    // 2. Save to database
+    // 1. Save to database first
     try {
+      const form = new FormData();
+      form.append('senderId', user._id);
+      form.append('receiverId', selectedUser._id);
+      form.append('message', input);
+      
       const token = await AsyncStorage.getItem('jwtToken');
-      await axios.post(`${SOCKET_URL}/api/messages`, {
+      const res = await axios.post(`${SOCKET_URL}/messages`, form, {
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+      
+      const sentMessage = res.data;
+
+      // 2. Emit to socket for real-time delivery (matches web app pattern)
+      socketRef.current.emit('sendMessage', {
         senderId: user._id,
         receiverId: selectedUser._id,
-        message: input,
-        timestamp: msg.timestamp,
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
+        text: sentMessage.message,
+        fileUrl: sentMessage.fileUrl || null,
       });
+
+      // 3. Add to local state for instant UI feedback
+      setMessages(prev => [...prev, sentMessage]);
+      setInput('');
     } catch (err) {
       console.log('Error saving message:', err);
       Alert.alert("Error", "Failed to send message. Please try again.");
       return;
     }
-
-    // 3. Add to local state for instant UI feedback
-    setMessages(prev => [...prev, msg]);
-    setInput('');
 
     // Update unread count in recentChats and move to top
     if (setRecentChats) {

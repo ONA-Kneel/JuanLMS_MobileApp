@@ -213,24 +213,29 @@ export default function UnifiedChat() {
         setLastMessages(prev => ({ ...prev, [data.groupId]: { prefix: incoming.senderId === user._id ? 'You: ' : `${incoming.senderFirstname || 'Unknown'} ${incoming.senderLastname || 'User'}: `, text } }));
       });
     } else {
-      // Join direct chat room and listen for messages
-      const directChatId = [user._id, selectedUser._id].sort().join('-');
-      socketRef.current.emit('joinChat', directChatId);
-      socketRef.current.on('receiveMessage', (msg) => {
-        setMessages(prev => [...prev, msg]);
+      // Listen for incoming messages (no room joining needed for direct messages)
+      socketRef.current.on('getMessage', (data) => {
+        const incomingMessage = {
+          senderId: data.senderId,
+          receiverId: user._id,
+          message: data.text,
+          fileUrl: data.fileUrl || null,
+          createdAt: new Date().toISOString(),
+        };
+        setMessages(prev => [...prev, incomingMessage]);
         setDmMessages(prev => {
-          const list = prev[msg.senderId] || [];
-          return { ...prev, [msg.senderId]: [...list, msg] };
+          const list = prev[data.senderId] || [];
+          return { ...prev, [data.senderId]: [...list, incomingMessage] };
         });
-        const u = allUsers.find(x => x._id === msg.senderId);
-        const entry = { _id: msg.senderId, firstname: u?.firstname || '', lastname: u?.lastname || '', profilePic: u?.profilePic || u?.profilePicture || null, lastMessageTime: new Date().toISOString() };
+        const u = allUsers.find(x => x._id === data.senderId);
+        const entry = { _id: data.senderId, firstname: u?.firstname || '', lastname: u?.lastname || '', profilePic: u?.profilePic || u?.profilePicture || null, lastMessageTime: new Date().toISOString() };
         setRecentChatsList(prev => {
           const filtered = prev.filter(c => c._id !== entry._id);
           const updated = [entry, ...filtered];
           AsyncStorage.setItem(RECENTS_KEY, JSON.stringify(updated)).catch(() => {});
           return updated;
         });
-        const text = msg.message ? msg.message : (msg.fileUrl ? 'File sent' : '');
+        const text = incomingMessage.message ? incomingMessage.message : (incomingMessage.fileUrl ? 'File sent' : '');
         setLastMessages(prev => ({ ...prev, [entry._id]: { prefix: 'You: ' , text } }));
       });
     }
@@ -238,9 +243,9 @@ export default function UnifiedChat() {
     return () => {
       if (socketRef.current) {
         if (isGroupChat) {
-          socketRef.current.off('receiveGroupMessage');
+          socketRef.current.off('getGroupMessage');
         } else {
-          socketRef.current.off('receiveMessage');
+          socketRef.current.off('getMessage');
         }
       }
     };
@@ -499,22 +504,29 @@ export default function UnifiedChat() {
       }
 
       try {
+        const form = new FormData();
+        form.append('senderId', user._id);
+        form.append('receiverId', selectedUser._id);
+        form.append('message', input);
+        if (selectedFile) {
+          form.append('file', {
+            uri: selectedFile.uri,
+            name: selectedFile.name || 'attachment',
+            type: selectedFile.mimeType || 'application/octet-stream',
+          });
+        }
         const token = await AsyncStorage.getItem('jwtToken');
         const headers = { 'Authorization': `Bearer ${token}` };
-        // Save to backend using JSON payload per backend/routes/messages.js
-        const saveRes = await axios.post(`${API_URL}/api/messages`, {
-          senderId: user._id,
-          receiverId: selectedUser._id,
-          message: input,
-        }, { headers });
-        const sentMessage = saveRes.data;
-        // Emit to socket with chatId for room routing
+        const res = await axios.post(`${API_URL}/messages`, form, {
+          headers, 'Content-Type': 'multipart/form-data'
+        });
+        const sentMessage = res.data;
+        // Emit to socket for real-time delivery (matches web app pattern)
         socketRef.current.emit('sendMessage', {
-          chatId: [user._id, selectedUser._id].sort().join('-'),
           senderId: user._id,
           receiverId: selectedUser._id,
-          message: sentMessage.message,
-          timestamp: sentMessage.timestamp || new Date().toISOString(),
+          text: sentMessage.message,
+          fileUrl: sentMessage.fileUrl || null,
         });
         // Local append
         setMessages(prev => [...prev, sentMessage]);
