@@ -15,8 +15,25 @@ import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
 import NotificationCenter from '../NotificationCenter';
 import PasswordChangeModal from '../Shared/PasswordChangeModal';
+import Constants from 'expo-constants';
 
-const API_URL = 'https://juanlms-webapp-server.onrender.com';
+// Get API URL from environment variables or fallback to default
+const getApiUrl = () => {
+  try {
+    const fromConstants = Constants?.expoConfig?.extra?.API_URL;
+    if (fromConstants) return fromConstants;
+    
+    const fromEnv = process.env.EXPO_PUBLIC_API_URL;
+    if (fromEnv) return fromEnv;
+    
+    return 'https://juanlms-webapp-server.onrender.com';
+  } catch (error) {
+    console.warn('Error getting API URL:', error);
+    return 'https://juanlms-webapp-server.onrender.com';
+  }
+};
+
+const API_URL = getApiUrl();
 
 const buildImageUri = (pathOrUrl) => {
   if (!pathOrUrl) return null;
@@ -118,26 +135,18 @@ export default function FacultyProfile() {
   const handleSaveProfile = async () => {
     setIsLoading(true);
     try {
-      console.log('=== Profile Upload Debug Start ===');
+      console.log('=== FacultyProfile Upload Debug Start ===');
       console.log('Platform.OS:', Platform.OS);
-      console.log('User:', user);
+      console.log('User ID:', user._id || user.userID);
+      console.log('API_URL:', API_URL);
       console.log('Edited User:', editedUser);
-      
-      // Test network connectivity
-      try {
-        const testResponse = await fetch('https://juanlms-webapp-server.onrender.com/api/health');
-        console.log('Network test response status:', testResponse.status);
-        console.log('Network test response ok:', testResponse.ok);
-      } catch (networkError) {
-        console.error('Network connectivity test failed:', networkError);
-      }
       
       let profilePicPath = editedUser?.profilePic;
       let data;
+      
       if (editedUser?.newProfilePicAsset) {
         // Use the correct user ID format (prefer _id, fallback to userID)
         const userId = user._id || user.userID;
-        console.log('User ID:', userId);
         if (!userId) {
           throw new Error('User ID not found');
         }
@@ -154,6 +163,7 @@ export default function FacultyProfile() {
           let localUri = asset.uri;
           console.log('Original URI:', localUri);
           
+          // Handle Android content:// URIs and base64 data
           if (!localUri.startsWith('file://') && asset.base64) {
             console.log('Converting base64 to file URI');
             const fileUri = FileSystem.cacheDirectory + (asset.fileName || 'profile.jpg');
@@ -174,12 +184,14 @@ export default function FacultyProfile() {
           data = await profileService.uploadProfilePicture(userId, patchedAsset, false);
           console.log('Upload response:', data);
         }
+        
         const updated = data?.user;
         if (updated?.profilePic) {
           profilePicPath = updated.profilePic;
           console.log('Updated profile pic path:', profilePicPath);
         }
       }
+      
       // Always update user context/state with the new profilePic
       console.log('Updating user context with profile pic:', profilePicPath);
       await updateUser({
@@ -187,15 +199,37 @@ export default function FacultyProfile() {
         profilePic: profilePicPath,
         profilePicture: profilePicPath,
       });
+      
       setIsEditModalVisible(false);
-      console.log('=== Profile Upload Debug End - Success ===');
+      console.log('=== FacultyProfile Upload Debug End - Success ===');
       Alert.alert('Profile Updated', 'Your profile picture has been changed successfully.');
     } catch (error) {
-      console.error('=== Profile Upload Debug End - Error ===');
+      console.error('=== FacultyProfile Upload Debug End - Error ===');
       console.error('Profile upload error:', error);
+      console.error('Error message:', error.message);
       console.error('Error stack:', error.stack);
       console.error('Error response:', error.response);
-      Alert.alert('Error', `Failed to update profile picture: ${error.message || 'Please try again.'}`);
+      
+      // Show user-friendly error message
+      let errorMessage = 'Failed to update profile picture. Please try again.';
+      
+      if (error.message) {
+        if (error.message.includes('Network request failed')) {
+          errorMessage = 'Network connection failed. Please check your internet connection and try again.';
+        } else if (error.message.includes('Cannot connect to server')) {
+          errorMessage = 'Cannot connect to server. Please check your internet connection and try again.';
+        } else if (error.message.includes('Authentication failed')) {
+          errorMessage = 'Authentication failed. Please log in again.';
+        } else if (error.message.includes('File too large')) {
+          errorMessage = 'Image file is too large. Please choose a smaller image.';
+        } else if (error.message.includes('Invalid file type')) {
+          errorMessage = 'Invalid file type. Please upload a valid image file (JPG, JPEG, PNG).';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      Alert.alert('Error', errorMessage);
     } finally {
       setIsLoading(false);
     }

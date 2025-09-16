@@ -16,13 +16,30 @@ import * as FileSystem from 'expo-file-system';
 import { Platform } from 'react-native';
 import NotificationCenter from '../NotificationCenter';
 import PasswordChangeModal from '../Shared/PasswordChangeModal';
+import Constants from 'expo-constants';
 
 // Helper to capitalize first letter of each word
 function capitalizeWords(str) {
   return str.replace(/\b\w/g, char => char.toUpperCase());
 }
 
-const API_URL = 'https://juanlms-webapp-server.onrender.com'; // or your production URL
+// Get API URL from environment variables or fallback to default
+const getApiUrl = () => {
+  try {
+    const fromConstants = Constants?.expoConfig?.extra?.API_URL;
+    if (fromConstants) return fromConstants;
+    
+    const fromEnv = process.env.EXPO_PUBLIC_API_URL;
+    if (fromEnv) return fromEnv;
+    
+    return 'https://juanlms-webapp-server.onrender.com';
+  } catch (error) {
+    console.warn('Error getting API URL:', error);
+    return 'https://juanlms-webapp-server.onrender.com';
+  }
+};
+
+const API_URL = getApiUrl();
 
 const buildImageUri = (pathOrUrl) => {
   if (!pathOrUrl) return null;

@@ -58,7 +58,7 @@ const StudentCalendarStyle = StyleSheet.create({
     // Scroll Content
     scrollContent: {
         flex: 1,
-        padding: 20,
+        
     },
 
     // Calendar Title
@@ -66,7 +66,8 @@ const StudentCalendarStyle = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        marginBottom: 24,
+        marginBottom: 10,
+        marginTop: 10,
     },
     calendarTitle: {
         fontSize: 24,
@@ -98,6 +99,8 @@ const StudentCalendarStyle = StyleSheet.create({
         justifyContent: 'space-between',
         marginBottom: 20,
         paddingHorizontal: 20,
+        marginTop: 20,
+        
     },
     navButton: {
         padding: 12,
@@ -337,7 +340,7 @@ const StudentCalendarStyle = StyleSheet.create({
         shadowRadius: 6,
     },
     eventTitle: {
-        color: '#00418b',
+        color: '#000000',
         fontFamily: 'Poppins-Bold',
         fontSize: 16,
         marginBottom: 2,

@@ -2,8 +2,28 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system';
+import Constants from 'expo-constants';
 
-const API_URL = 'https://juanlms-webapp-server.onrender.com'; // Your actual backend URL
+// Get API URL from environment variables or fallback to default
+const getApiUrl = () => {
+  try {
+    // Try to get from Expo constants first
+    const fromConstants = Constants?.expoConfig?.extra?.API_URL;
+    if (fromConstants) return fromConstants;
+    
+    // Try to get from environment variables
+    const fromEnv = process.env.EXPO_PUBLIC_API_URL;
+    if (fromEnv) return fromEnv;
+    
+    // Fallback to default
+    return 'https://juanlms-webapp-server.onrender.com';
+  } catch (error) {
+    console.warn('Error getting API URL:', error);
+    return 'https://juanlms-webapp-server.onrender.com';
+  }
+};
+
+const API_URL = getApiUrl();
 
 const profileService = {
   async updateProfile(userId, profileData) {
@@ -84,10 +104,24 @@ const profileService = {
       console.log('isWeb:', isWeb);
       console.log('imageAsset:', imageAsset);
       
+      // Test network connectivity first
+      try {
+        const testResponse = await fetch(`${API_URL}/api/health`, {
+          method: 'GET',
+          timeout: 10000, // 10 second timeout
+        });
+        console.log('Network connectivity test:', testResponse.status);
+        if (!testResponse.ok) {
+          throw new Error(`Server health check failed: ${testResponse.status}`);
+        }
+      } catch (networkError) {
+        console.error('Network connectivity test failed:', networkError);
+        throw new Error('Cannot connect to server. Please check your internet connection and try again.');
+      }
+      
       const token = await AsyncStorage.getItem('jwtToken');
       console.log('Token exists:', !!token);
       console.log('Token length:', token ? token.length : 0);
-      
       // Enforce same constraints as WebApp: image types only, max 5MB
       const MAX_BYTES = 5 * 1024 * 1024;
       const formData = new FormData();
@@ -151,37 +185,23 @@ const profileService = {
       }
       // Use fetch instead of axios for React Native multipart uploads
       const isNative = Platform.OS === 'ios' || Platform.OS === 'android';
-      console.log('Platform is native:', isNative);
-      
       if (isNative) {
         const fetchHeaders = {
           ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
           // Do NOT set Content-Type; RN fetch will add correct multipart boundary
         };
-        console.log('Fetch headers:', fetchHeaders);
-        console.log('Upload URL:', `${API_URL}/users/${userId}/upload-profile`);
-        
         const fetchResp = await fetch(`${API_URL}/users/${userId}/upload-profile`, {
           method: 'POST',
           headers: fetchHeaders,
           body: formData,
         });
-        
-        console.log('Fetch response status:', fetchResp.status);
-        console.log('Fetch response ok:', fetchResp.ok);
-        console.log('Fetch response headers:', fetchResp.headers);
-        
         if (!fetchResp.ok) {
           const text = await fetchResp.text();
-          console.error('Upload failed response text:', text);
           throw new Error(text || `Upload failed with status ${fetchResp.status}`);
         }
         const json = await fetchResp.json();
-        console.log('Upload response JSON:', json);
-        
         if (json?.profile_picture || json?.url) {
           const pic = json.profile_picture || json.url;
-          console.log('Profile picture URL:', pic);
           return { user: { profilePic: pic } };
         }
         return json;
@@ -210,9 +230,40 @@ const profileService = {
       console.error('Error response data:', error.response?.data);
       console.error('Error response status:', error.response?.status);
       
-      if (error.response) {
-        throw new Error(error.response.data.message || 'Failed to upload profile picture');
+      // Handle different types of errors
+      if (error.message && error.message.includes('Cannot connect to server')) {
+        throw new Error('Cannot connect to server. Please check your internet connection and try again.');
       }
+      
+      if (error.response) {
+        const status = error.response.status;
+        const message = error.response.data?.message || error.response.data?.error || 'Failed to upload profile picture';
+        
+        switch (status) {
+          case 401:
+            throw new Error('Authentication failed. Please log in again.');
+          case 403:
+            throw new Error('Access denied. You do not have permission to upload profile pictures.');
+          case 413:
+            throw new Error('Image file is too large. Please choose a smaller image.');
+          case 415:
+            throw new Error('Invalid file type. Please upload a valid image file (JPG, JPEG, PNG).');
+          case 500:
+            throw new Error('Server error. Please try again later.');
+          default:
+            throw new Error(message);
+        }
+      }
+      
+      // Handle network errors
+      if (error.message && error.message.includes('Network request failed')) {
+        throw new Error('Network connection failed. Please check your internet connection and try again.');
+      }
+      
+      if (error.message && error.message.includes('timeout')) {
+        throw new Error('Upload timeout. Please try again with a smaller image or better connection.');
+      }
+      
       throw new Error('Network error while uploading profile picture');
     }
   },

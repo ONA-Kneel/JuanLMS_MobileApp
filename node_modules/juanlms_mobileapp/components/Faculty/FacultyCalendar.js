@@ -2,7 +2,6 @@ import { Text, TouchableOpacity, View, Image, Alert, ScrollView, Dimensions, Act
 import * as React from 'react';
 import { useState, useEffect } from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import FacultyCalendarStyle from '../styles/faculty/FacultyCalendarStyle';
 import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../UserContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -37,6 +36,7 @@ export default function FacultyCalendar() {
   const [selectedDate, setSelectedDate] = useState(() => timeToString(new Date()));
   const [currentMonth, setCurrentMonth] = useState(() => getMonthYearString(timeToString(new Date())));
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
+  const [academicContext, setAcademicContext] = useState('2025-2026 | Term 1');
   
   // New state variables for enhanced functionality
   const [academicYear, setAcademicYear] = useState(null);
@@ -106,19 +106,44 @@ export default function FacultyCalendar() {
         // Process events from API
         if (Array.isArray(eventsData)) {
           eventsData.forEach(event => {
-            if (event && event.date) {
+            if (event && event.start) {
               try {
-                const eventDate = timeToString(new Date(event.date));
+                const eventDate = timeToString(new Date(event.start));
                 if (!newItems[eventDate]) newItems[eventDate] = [];
+                
+                // Format time from start datetime
+                const startTime = new Date(event.start);
+                const endTime = event.end ? new Date(event.end) : null;
+                
+                let timeString = '';
+                if (startTime) {
+                  timeString = startTime.toLocaleTimeString('en-US', { 
+                    hour: 'numeric', 
+                    minute: '2-digit',
+                    hour12: true 
+                  });
+                  
+                  if (endTime) {
+                    const endTimeString = endTime.toLocaleTimeString('en-US', { 
+                      hour: 'numeric', 
+                      minute: '2-digit',
+                      hour12: true 
+                    });
+                    timeString += ` - ${endTimeString}`;
+                  }
+                }
+                
                 newItems[eventDate].push({
                   name: event.title || event.name || 'Event',
                   type: event.type || 'event',
                   color: event.color || '#2196f3',
                   height: 50,
-                  time: event.time || '',
-                  status: event.status || ''
+                  time: timeString,
+                  status: event.status || '',
+                  start: event.start,
+                  end: event.end
                 });
-                console.log(`Faculty Calendar - Added event: ${event.title || event.name} on ${eventDate}`);
+                console.log(`Faculty Calendar - Added event: ${event.title || event.name} on ${eventDate} at ${timeString}`);
               } catch (eventErr) {
                 console.error('Error processing event:', event, eventErr);
               }
@@ -313,34 +338,37 @@ export default function FacultyCalendar() {
     });
   };
 
-  const renderEventCard = (item, index) => (
-    <View key={index} style={[FacultyCalendarStyle.eventCard, { backgroundColor: item.color || '#2196f3' }]}> 
-      <View style={{ flex: 1 }}>
-        <Text style={FacultyCalendarStyle.eventTitle}>{item.name}</Text>
-        {item.time && <Text style={FacultyCalendarStyle.eventTime}>{item.time}</Text>}
+  const resolveProfileUri = () => {
+    const API_BASE = 'https://juanlms-webapp-server.onrender.com';
+    const uri = user?.profilePic || user?.profilePicture;
+    if (!uri) return null;
+    if (typeof uri === 'string' && uri.startsWith('/uploads/')) return API_BASE + uri;
+    return uri;
+  };
+
+  const renderEventCard = (item, index) => {
+    const isHoliday = item.type && item.type.toLowerCase() === 'holiday';
+    const tagBackgroundColor = isHoliday ? '#fffacd' : (item.color || '#2196f3');
+    const tagTextColor = isHoliday ? '#333' : '#fff';
+    
+    return (
+      <View key={index} style={styles.eventCard}> 
+        <View style={{ flex: 1 }}>
+          <Text style={styles.eventTitle}>{item.name}</Text>
+          {item.time && (
+            <Text style={styles.eventTime}>{item.time}</Text>
+          )}
+        </View>
         {item.type && (
-          <View style={{
-            backgroundColor: 'rgba(255,255,255,0.2)',
-            paddingHorizontal: 8,
-            paddingVertical: 2,
-            borderRadius: 4,
-            alignSelf: 'flex-start',
-            marginTop: 4
-          }}>
-            <Text style={{
-              color: 'white',
-              fontSize: 10,
-              fontWeight: 'bold',
-              textTransform: 'uppercase'
-            }}>
-              {item.type}
+          <View style={[styles.eventTag, { backgroundColor: tagBackgroundColor }]}>
+            <Text style={[styles.eventTagText, { color: tagTextColor }]}>
+              {item.type.toUpperCase()}
             </Text>
           </View>
         )}
       </View>
-      <Text style={FacultyCalendarStyle.eventStatus}>{item.status || ''}</Text>
-    </View>
-  );
+    );
+  };
 
   // Get events for the selected date only
   const getEventsForSelectedDate = () => {
@@ -372,7 +400,7 @@ export default function FacultyCalendar() {
 
   if (loadingEvents) {
     return (
-      <View style={[FacultyCalendarStyle.container, { justifyContent: 'center', alignItems: 'center' }]}>
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
         <ActivityIndicator size="large" color="#00418b" />
         <Text style={{ marginTop: 16, fontFamily: 'Poppins-Regular', color: '#666' }}>
           Loading calendar...
@@ -382,75 +410,59 @@ export default function FacultyCalendar() {
   }
 
   return (
-    <View style={FacultyCalendarStyle.container}>
-      {/* Profile Header */}
-      <View style={FacultyCalendarStyle.profileHeader}>
-        <View style={FacultyCalendarStyle.profileHeaderContent}>
-          <View style={FacultyCalendarStyle.profileInfo}>
-            <Text style={FacultyCalendarStyle.greetingText}>
-              Hello, <Text style={FacultyCalendarStyle.userName}>{user?.firstname || 'Faculty'}!</Text>
+    <View style={styles.container}>
+      <ScrollView showsVerticalScrollIndicator={false}>
+        {/* Blue background */}
+        <View style={styles.blueHeaderBackground} />
+        {/* White card header */}
+        <View style={styles.whiteHeaderCard}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <View>
+              <Text style={styles.headerTitle}>
+                Calendar
             </Text>
-            <Text style={FacultyCalendarStyle.roleText}>Faculty Member</Text>
-            <Text style={FacultyCalendarStyle.dateText}>
-              {moment(new Date()).format('dddd, MMMM D, YYYY')}
-            </Text>
+              <Text style={styles.headerSubtitle}>{academicContext}</Text>
+              <Text style={styles.headerSubtitle2}>{formatDateTime(currentDateTime)}</Text>
           </View>
           <TouchableOpacity onPress={() => navigation.navigate('FProfile')}>
-            {(() => {
-              const API_BASE = 'https://juanlms-webapp-server.onrender.com';
-              const raw = user?.profilePic || user?.profilePicture;
-              const uri = raw && typeof raw === 'string' && raw.startsWith('/uploads/') ? (API_BASE + raw) : raw;
-              return uri ? (
+              {resolveProfileUri() ? (
                 <Image 
-                  source={{ uri }} 
-                  style={FacultyCalendarStyle.profileImage}
+                  source={{ uri: resolveProfileUri() }} 
+                  style={{ width: 36, height: 36, borderRadius: 18 }}
                   resizeMode="cover"
                 />
               ) : (
                 <Image 
                   source={require('../../assets/profile-icon (2).png')} 
-                  style={FacultyCalendarStyle.profileImage}
+                  style={{ width: 36, height: 36, borderRadius: 18 }}
+                  resizeMode="cover"
                 />
-              );
-            })()}
+              )}
           </TouchableOpacity>
         </View>
       </View>
 
-      <ScrollView style={FacultyCalendarStyle.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Calendar Title */}
-        <View style={FacultyCalendarStyle.calendarTitleContainer}>
-          <Text style={FacultyCalendarStyle.calendarTitle}>Faculty Calendar</Text>
-          <Ionicons name="calendar" size={28} color="#00418b" />
-        </View>
-
-        {/* Academic Year and Term Info */}
-        <View style={FacultyCalendarStyle.academicInfo}>
-          <Text style={FacultyCalendarStyle.academicText}>
-            {academicYear ? `${academicYear.schoolYearStart}-${academicYear.schoolYearEnd}` : "Loading..."} | 
-            {currentTerm ? ` ${currentTerm.termName}` : " Loading..."}
-          </Text>
-        </View>
+        
 
         {/* Month Navigation */}
-        <View style={FacultyCalendarStyle.monthNavigation}>
-          <TouchableOpacity onPress={() => changeMonth('prev')} style={FacultyCalendarStyle.navButton}>
+<View style={styles.monthNavigation}>
+          <TouchableOpacity onPress={() => changeMonth('prev')} style={styles.navButton}>
             <Ionicons name="chevron-back" size={24} color="#00418b" />
           </TouchableOpacity>
-          <Text style={FacultyCalendarStyle.monthText}>{getMonthYearString(selectedDate)}</Text>
-          <TouchableOpacity onPress={() => changeMonth('next')} style={FacultyCalendarStyle.navButton}>
+          <Text style={styles.monthText}>{getMonthYearString(selectedDate)}</Text>
+          <TouchableOpacity onPress={() => changeMonth('next')} style={styles.navButton}>
             <Ionicons name="chevron-forward" size={24} color="#00418b" />
           </TouchableOpacity>
         </View>
 
-        {/* Month Calendar - Always Visible */}
-        <View style={FacultyCalendarStyle.calendarContainer}>
-          <View style={FacultyCalendarStyle.dayHeaders}>
+        {/* Month Calendar - Match VPE style */}
+        <View style={styles.calendarContainer}>
+          <View style={styles.dayHeaders}>
             {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-              <Text key={day} style={FacultyCalendarStyle.dayHeader}>{day}</Text>
+              <Text key={day} style={styles.dayHeader}>{day}</Text>
             ))}
           </View>
-          <View style={FacultyCalendarStyle.calendarGrid}>
+          <View style={styles.calendarGrid}>
             {/* Generate calendar days for current month */}
             {(() => {
               const year = new Date(selectedDate).getFullYear();
@@ -473,38 +485,33 @@ export default function FacultyCalendar() {
               }
               
               return days.map((day, index) => {
-                if (!day) return <View key={index} style={FacultyCalendarStyle.dayCell} />;
+                if (!day) return <View key={index} style={styles.dayCell} />;
                 
                 const dayString = timeToString(day);
                 const dayEvents = items[dayString] || [];
                 const isSelected = dayString === selectedDate;
                 const isToday = dayString === timeToString(new Date());
                 
-                // Debug logging for event detection
-                if (dayEvents.length > 0) {
-                  console.log(`Faculty Calendar - Day ${dayString} has ${dayEvents.length} events:`, dayEvents);
-                }
-                
                 return (
                   <TouchableOpacity
                     key={index}
                     style={[
-                      FacultyCalendarStyle.dayCell,
-                      isSelected && FacultyCalendarStyle.selectedDay,
-                      isToday && FacultyCalendarStyle.today
+                      styles.dayCell,
+                      isSelected && styles.selectedDay,
+                      isToday && styles.today
                     ]}
                     onPress={() => setSelectedDate(dayString)}
                   >
                     <Text style={[
-                      FacultyCalendarStyle.dayNumber,
-                      isSelected && FacultyCalendarStyle.selectedDayText,
-                      isToday && FacultyCalendarStyle.todayText
+                      styles.dayNumber,
+                      isSelected && styles.selectedDayText,
+                      isToday && styles.todayText
                     ]}>
                       {day.getDate()}
                     </Text>
                     {dayEvents.length > 0 && (
-                      <View style={FacultyCalendarStyle.eventIndicator}>
-                        <Text style={FacultyCalendarStyle.eventCount}>{dayEvents.length}</Text>
+                      <View style={styles.eventIndicator}>
+                        <Text style={styles.eventCount}>{dayEvents.length}</Text>
                       </View>
                     )}
                   </TouchableOpacity>
@@ -514,18 +521,10 @@ export default function FacultyCalendar() {
           </View>
         </View>
 
-        {/* Debug Info - Remove this in production */}
-        <View style={{ backgroundColor: '#f0f0f0', padding: 10, margin: 10, borderRadius: 8 }}>
-          <Text style={{ fontSize: 12, color: '#666' }}>
-            Debug: Total dates with events: {Object.keys(items).length} | 
-            Selected date: {selectedDate} | 
-            Events today: {items[selectedDate] ? items[selectedDate].length : 0}
-          </Text>
-        </View>
 
         {/* Selected Date Events */}
-        <View style={FacultyCalendarStyle.eventsContainer}>
-          <Text style={FacultyCalendarStyle.eventsTitle}>
+        <View style={styles.eventsContainer}>
+          <Text style={styles.eventsTitle}>
             Events for {new Date(selectedDate).toLocaleDateString('en-US', { 
               weekday: 'long', 
               year: 'numeric', 
@@ -535,12 +534,12 @@ export default function FacultyCalendar() {
           </Text>
           
           {getEventsForSelectedDate().length === 0 ? (
-            <View style={FacultyCalendarStyle.noEventsContainer}>
+            <View style={styles.noEventsContainer}>
               <Ionicons name="calendar-outline" size={48} color="#ccc" />
-              <Text style={FacultyCalendarStyle.noEventsText}>No events scheduled for this date</Text>
+              <Text style={styles.noEventsText}>No events scheduled for this date</Text>
             </View>
           ) : (
-            <View style={FacultyCalendarStyle.eventsList}>
+            <View style={styles.eventsList}>
               {getEventsForSelectedDate().map((item, index) => renderEventCard(item, index))}
             </View>
           )}
@@ -549,4 +548,207 @@ export default function FacultyCalendar() {
     </View>
   );
 }
+
+const styles = {
+  blueHeaderBackground: {
+    backgroundColor: '#00418b',
+    height: 90,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+  },
+  whiteHeaderCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    marginHorizontal: 16,
+    marginTop: -40,
+    padding: 20,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    zIndex: 2,
+    marginBottom: 16,
+  },
+  headerTitle: {
+    fontSize: 22,
+    color: '#222',
+    fontFamily: 'Poppins-Bold',
+  },
+  headerSubtitle: {
+    color: '#888',
+    fontSize: 14,
+    fontFamily: 'Poppins-Regular',
+  },
+  headerSubtitle2: {
+    color: '#666',
+    fontSize: 12,
+    fontFamily: 'Poppins-Regular',
+    marginTop: 2,
+  },
+  monthNavigation: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    marginHorizontal: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  navButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#f0f8ff',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  monthText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    fontFamily: 'Poppins-Bold',
+  },
+  calendarContainer: {
+    backgroundColor: '#fff',
+    marginHorizontal: 16,
+    borderRadius: 12,
+    padding: 16,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  dayHeaders: {
+    flexDirection: 'row',
+    marginBottom: 8,
+  },
+  dayHeader: {
+    flex: 1,
+    textAlign: 'center',
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#666',
+    paddingVertical: 8,
+    fontFamily: 'Poppins-SemiBold',
+  },
+  calendarGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  dayCell: {
+    width: '14.28%',
+    aspectRatio: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  selectedDay: {
+    backgroundColor: '#00418b',
+  },
+  today: {
+    backgroundColor: '#e3f2fd',
+  },
+  dayNumber: {
+    fontSize: 16,
+    color: '#333',
+    fontFamily: 'Poppins-Regular',
+  },
+  selectedDayText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  todayText: {
+    color: '#00418b',
+    fontWeight: 'bold',
+  },
+  eventIndicator: {
+    position: 'absolute',
+    bottom: 4,
+    right: 4,
+    backgroundColor: '#ff4444',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  eventCount: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
+    fontFamily: 'Poppins-Bold',
+  },
+  eventsContainer: {
+    marginHorizontal: 16,
+    marginTop: 16,
+  },
+  eventsTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 12,
+    fontFamily: 'Poppins-Bold',
+  },
+  eventsList: {
+    gap: 12,
+  },
+  noEventsContainer: {
+    alignItems: 'center',
+    paddingVertical: 32,
+  },
+  noEventsText: {
+    color: '#666',
+    fontSize: 16,
+    marginTop: 8,
+    fontFamily: 'Poppins-Regular',
+  },
+  container: {
+    flex: 1,
+    backgroundColor: '#f5f5f5',
+  },
+  eventCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 8,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+  },
+  eventTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 2,
+    fontFamily: 'Poppins-Bold',
+  },
+  eventTime: {
+    fontSize: 14,
+    color: '#666',
+    fontFamily: 'Poppins-Regular',
+  },
+  eventStatus: {
+    fontSize: 12,
+    color: '#888',
+    fontFamily: 'Poppins-Regular',
+  },
+  eventTag: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    marginTop: 2,
+  },
+  eventTagText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    fontFamily: 'Poppins-Bold',
+  },
+};
 

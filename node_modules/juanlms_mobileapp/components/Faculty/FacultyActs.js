@@ -10,6 +10,7 @@ import {
   Modal,
   TextInput,
   FlatList,
+  Image,
 } from 'react-native';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -29,6 +30,15 @@ const formatDateTime = (dateString) => {
     hour: '2-digit',
     minute: '2-digit'
   });
+};
+
+// Helper function to resolve profile image URI
+const resolveProfileUri = (user) => {
+  const API_BASE = 'https://juanlms-webapp-server.onrender.com';
+  const uri = user?.profilePic || user?.profilePicture;
+  if (!uri) return null;
+  if (typeof uri === 'string' && uri.startsWith('/uploads/')) return API_BASE + uri;
+  return uri;
 };
 
 // Activity Card Component
@@ -51,35 +61,30 @@ function ActivityCard({ activity, onEdit, onDelete, onViewSubmissions }) {
   return (
     <View style={styles.activityCard}>
       <View style={styles.activityHeader}>
-        <View style={styles.activityIconContainer}>
-          <MaterialIcons 
-            name={icon.name} 
-            size={24} 
-            color={icon.color} 
-          />
-        </View>
         <View style={styles.activityContent}>
           <Text style={styles.activityTitle}>{activity.title}</Text>
+          <Text style={styles.activityDueTime}>
+            Due at {activity.dueDate ? new Date(activity.dueDate).toLocaleTimeString('en-US', { 
+              hour: 'numeric', 
+              minute: '2-digit',
+              hour12: true 
+            }) : '11:59 pm'}
+          </Text>
           <Text style={styles.activityClass}>{activity.className || 'Unknown Class'}</Text>
-          {activity.description && (
-            <Text style={styles.activityDescription} numberOfLines={2}>
-              {activity.description}
-            </Text>
-          )}
-          <Text style={styles.activityDueDate}>
-            Due: {formatDateTime(activity.dueDate)}
-          </Text>
-          <Text style={styles.activityType}>
-            Type: {activity.type ? activity.type.charAt(0).toUpperCase() + activity.type.slice(1) : 'Activity'}
-          </Text>
         </View>
         <View style={styles.activityPoints}>
-          <Text style={styles.pointsText}>{activity.points || 0} pts</Text>
+          <Text style={styles.pointsText}>{activity.points || 0} Points</Text>
         </View>
       </View>
       
       <View style={styles.activityFooter}>
         <View style={styles.activityStats}>
+          <View style={styles.statItem}>
+            <MaterialIcons name="schedule" size={16} color="#666" />
+            <Text style={styles.statText}>
+              {activity.isFullyGraded ? 'Complete' : 'Pending'}
+            </Text>
+          </View>
           <View style={styles.statItem}>
             <MaterialIcons name="people" size={16} color="#666" />
             <Text style={styles.statText}>{activity.totalStudents || 0} students</Text>
@@ -94,15 +99,9 @@ function ActivityCard({ activity, onEdit, onDelete, onViewSubmissions }) {
               {activity.gradedCount || 0}/{activity.submittedCount || 0} graded
             </Text>
           </View>
-          {activity.isFullyGraded && (
-            <View style={styles.statItem}>
-              <MaterialIcons name="done-all" size={16} color="#4CAF50" />
-              <Text style={styles.statText}>Complete</Text>
-            </View>
-          )}
         </View>
         
-        <View style={styles.actionButtons}>
+        <View style={styles.actionButtonsRow}>
           <TouchableOpacity 
             style={[styles.actionButton, styles.viewButton]}
             onPress={() => onViewSubmissions(activity)}
@@ -152,6 +151,8 @@ const FacultyActs = () => {
     points: '',
     type: ''
   });
+  const [currentDateTime, setCurrentDateTime] = useState(new Date());
+  const [academicContext, setAcademicContext] = useState('2025-2026 | Term 1');
   
   // Add grading tab state
   const [activeTab, setActiveTab] = useState('all');
@@ -174,6 +175,15 @@ const FacultyActs = () => {
     });
     return unsubscribe;
   }, [navigation, activities]);
+
+  // Update current date/time
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentDateTime(new Date());
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
 
   const fetchActivities = async () => {
     try {
@@ -602,96 +612,102 @@ const FacultyActs = () => {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>My Activities</Text>
-        <View style={styles.headerButtons}>
-          <TouchableOpacity 
-            style={styles.refreshButton}
-            onPress={refreshGradingStatus}
-          >
-            <MaterialIcons name="refresh" size={20} color="#fff" />
-            <Text style={styles.refreshButtonText}>Refresh</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={styles.createButton}
-            onPress={() => setCreateMenuVisible(v => !v)}
-          >
-            <MaterialIcons name="add" size={24} color="#fff" />
-            <Text style={styles.createButtonText}>Create</Text>
-          </TouchableOpacity>
-        </View>
-        {createMenuVisible && (
-          <View style={styles.createMenu}>
-            <TouchableOpacity style={styles.createMenuItem} onPress={() => { setCreateMenuVisible(false); navigation.navigate('CreateAssignment'); }}>
-              <Text style={styles.createMenuItemText}>Assignment</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.createMenuItem} onPress={() => { setCreateMenuVisible(false); navigation.navigate('CreateQuiz'); }}>
-              <Text style={styles.createMenuItemText}>Quiz</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-      </View>
-
-      {/* Search and Filters */}
-      <View style={styles.searchContainer}>
-        <View style={styles.searchBox}>
-          <MaterialIcons name="search" size={20} color="#666" />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search activities..."
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-        </View>
-      </View>
-
-      {/* Grading Tabs - compact segmented control */}
-      <View style={styles.gradingTabsContainer}>
-        <View style={styles.gradingTabsBar}>
-        {[
-            { key: 'all', label: 'All', count: activities.length },
-            { key: 'ready', label: 'Ready', count: readyToGradeActivities.length },
-          { key: 'graded', label: 'Graded', count: gradedActivities.length }
-        ].map((tab) => (
-          <TouchableOpacity
-            key={tab.key}
-            style={[
-                styles.gradingTabSegment,
-                activeTab === tab.key && styles.gradingTabSegmentActive
-            ]}
-            onPress={() => setActiveTab(tab.key)}
-          >
-            <Text style={[
-              styles.gradingTabText,
-              activeTab === tab.key && styles.gradingTabTextActive
-              ]}>{`${tab.label} (${tab.count})`}</Text>
-          </TouchableOpacity>
-        ))}
-        </View>
-      </View>
-
-      {/* Compact Filter Dropdown */}
-      <View style={styles.filterContainer}>
-          <TouchableOpacity
-          style={styles.filterDropdownButton}
-          onPress={() => setFilterModalVisible(true)}
-        >
-          <Text style={styles.filterDropdownText}>
-            {selectedFilter.charAt(0).toUpperCase() + selectedFilter.slice(1)}
-            </Text>
-          <MaterialIcons name="arrow-drop-down" size={20} color="#333" />
-          </TouchableOpacity>
-      </View>
-
-      {/* Activities List */}
       <ScrollView 
-        style={styles.activitiesContainer}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
         showsVerticalScrollIndicator={false}
       >
+        {/* Blue background */}
+        <View style={styles.blueHeaderBackground} />
+        {/* White card header */}
+      <View style={styles.whiteHeaderCard}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <View>
+            <Text style={styles.headerTitle}>
+              My Activities
+            </Text>
+            <Text style={styles.headerSubtitle}>{academicContext}</Text>
+            <Text style={styles.headerSubtitle2}>{formatDateTime(currentDateTime)}</Text>
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <TouchableOpacity onPress={() => navigation.navigate('FProfile')}>
+              {resolveProfileUri(user) ? (
+                <Image 
+                  source={{ uri: resolveProfileUri(user) }} 
+                  style={{ width: 36, height: 36, borderRadius: 18 }}
+                  resizeMode="cover"
+                />
+              ) : (
+                <Image 
+                  source={require('../../assets/profile-icon (2).png')} 
+                  style={{ width: 36, height: 36, borderRadius: 18 }}
+                  resizeMode="cover"
+                />
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+
+        {/* Activity Tabs */}
+        <View style={styles.activityTabsContainer}>
+          <View style={styles.activityTabsBar}>
+            {[
+              { key: 'all', label: 'All' },
+              { key: 'ready', label: 'Ready to Grade' },
+              { key: 'graded', label: 'Graded' }
+            ].map((tab) => (
+              <TouchableOpacity
+                key={tab.key}
+                style={[
+                  styles.activityTabSegment,
+                  activeTab === tab.key && styles.activityTabSegmentActive
+                ]}
+                onPress={() => setActiveTab(tab.key)}
+              >
+                <Text style={[
+                  styles.activityTabText,
+                  activeTab === tab.key && styles.activityTabTextActive
+                ]}>{tab.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        {/* Search Bar */}
+        <View style={styles.searchContainer}>
+          <View style={styles.searchBox}>
+            <MaterialIcons name="search" size={20} color="#666" />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search activities..."
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              
+              <TouchableOpacity 
+                style={styles.createButton}
+                onPress={() => setCreateMenuVisible(v => !v)}
+              >
+                <MaterialIcons name="add" size={20} color="#fff" />
+              </TouchableOpacity>
+              {createMenuVisible && (
+            <View style={styles.createMenu}>
+              <TouchableOpacity style={styles.createMenuItem} onPress={() => { setCreateMenuVisible(false); navigation.navigate('CreateAssignment'); }}>
+                <Text style={styles.createMenuItemText}>Assignment</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.createMenuItem} onPress={() => { setCreateMenuVisible(false); navigation.navigate('CreateQuiz'); }}>
+                <Text style={styles.createMenuItemText}>Quiz</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+            </View>
+        </View>
+
+        {/* Activities List */}
         {filteredActivities.length === 0 ? (
           <View style={styles.emptyContainer}>
             <MaterialCommunityIcons name="file-document-outline" size={64} color="#ccc" />
@@ -712,15 +728,35 @@ const FacultyActs = () => {
             )}
           </View>
         ) : (
-          filteredActivities.map((activity, index) => (
-            <ActivityCard
-              key={`${activity._id}_${index}`}
-              activity={activity}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-              onViewSubmissions={handleViewSubmissions}
-            />
-          ))
+          <View style={styles.activitiesList}>
+            {/* Group activities by date */}
+            {Object.entries(
+              [...filteredActivities]
+                .sort((a, b) => new Date(a.dueDate || a.createdAt || 0) - new Date(b.dueDate || b.createdAt || 0))
+                .reduce((groups, activity) => {
+                  const date = activity.dueDate ? new Date(activity.dueDate).toLocaleDateString('en-US', { 
+                    month: 'long', 
+                    day: 'numeric' 
+                  }) : 'No Date';
+                  if (!groups[date]) groups[date] = [];
+                  groups[date].push(activity);
+                  return groups;
+                }, {})
+            ).map(([date, activities]) => (
+              <View key={date} style={styles.dateGroup}>
+                <Text style={styles.dateHeader}>{date}</Text>
+                {activities.map((activity, index) => (
+                  <ActivityCard
+                    key={`${activity._id}_${index}`}
+                    activity={activity}
+                    onEdit={handleEdit}
+                    onDelete={handleDelete}
+                    onViewSubmissions={handleViewSubmissions}
+                  />
+                ))}
+              </View>
+            ))}
+          </View>
         )}
       </ScrollView>
 
@@ -827,216 +863,171 @@ const styles = {
     flex: 1,
     backgroundColor: '#f5f5f5',
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 12,
-    paddingTop: 18,
+  blueHeaderBackground: {
+    backgroundColor: '#00418b',
+    height: 90,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+  },
+  whiteHeaderCard: {
     backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-    zIndex: 20,
+    borderRadius: 16,
+    marginHorizontal: 16,
+    marginTop: -40,
+    padding: 20,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    zIndex: 2,
+    marginBottom: 16,
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
+    fontSize: 22,
+    color: '#222',
     fontFamily: 'Poppins-Bold',
   },
-  headerButtons: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  headerSubtitle: {
+    color: '#888',
+    fontSize: 14,
+    fontFamily: 'Poppins-Regular',
+  },
+  headerSubtitle2: {
+    color: '#666',
+    fontSize: 12,
+    fontFamily: 'Poppins-Regular',
+    marginTop: 2,
   },
   refreshButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#00418b',
+    backgroundColor: '#f0f8ff',
     paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
+    paddingVertical: 8,
+    borderRadius: 20,
     marginRight: 8,
   },
-  refreshButtonText: {
-    color: '#fff',
-    marginLeft: 4,
-    fontWeight: '600',
-    fontFamily: 'Poppins-Medium',
-  },
   createButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#00418b',
+    backgroundColor: '#00418B',
     paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
+    paddingVertical: 8,
+    borderRadius: 20,
   },
-  createButtonText: {
-    color: '#fff',
-    marginLeft: 4,
-    fontWeight: '600',
+  activityTabsContainer: {
+    paddingVertical: 16,
+    // borderBottomWidth: 1,
+    // borderBottomColor: '#e0e0e0',
+  },
+  activityTabsBar: {
+    marginHorizontal: 20,
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+    textAlign: 'center',
+  },
+  activityTabSegment: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    textAlign: 'center',
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  activityTabSegmentActive: {
+    borderBottomColor: '#00418b',
+  },
+  activityTabText: {
+    color: '#999',
+    fontSize: 16,
     fontFamily: 'Poppins-Medium',
+    textAlign: 'center',
+  },
+  activityTabTextActive: {
+    color: '#333',
+    fontWeight: 'bold',
   },
   searchContainer: {
-    paddingHorizontal: 10,
-    paddingTop: 4,
-    paddingBottom: 4,
-    backgroundColor: '#fff',
+    paddingHorizontal: 15,
+    paddingBottom: 5,
+    backgroundColor: '#f5f5f5',
+    marginTop: 10,
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap:5
   },
   searchBox: {
+    width: '85%',
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
-    borderRadius: 8,
+    backgroundColor: '#fff',
+    borderRadius: 12,
     paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingVertical: 12,
   },
   searchInput: {
     flex: 1,
-    marginLeft: 8,
-    fontSize: 14,
+    marginLeft: 12,
+    fontSize: 16,
     fontFamily: 'Poppins-Regular',
+
   },
-  filterContainer: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    backgroundColor: '#fff',
-  },
-  filterDropdownButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#f5f7fb',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  filterDropdownText: {
-    color: '#333',
-    fontSize: 13,
-    fontFamily: 'Poppins-Medium',
-  },
-  gradingTabsContainer: {
-    paddingVertical: 4,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  gradingTabsBar: {
-    marginHorizontal: 10,
-    backgroundColor: '#f1f3f8',
-    borderRadius: 10,
-    flexDirection: 'row',
-    padding: 2,
-  },
-  gradingTabSegment: {
+  activitiesList: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 6,
-    borderRadius: 8,
+    padding: 15,
   },
-  gradingTabSegmentActive: {
-    backgroundColor: '#00418b',
+  dateGroup: {
+    marginBottom: 24,
   },
-  gradingTabText: {
-    color: '#3a3a3a',
-    fontSize: 12,
-    fontFamily: 'Poppins-Medium',
-  },
-  gradingTabTextActive: {
-    color: '#fff',
-  },
-  filterOption: {
-    paddingVertical: 10,
-  },
-  filterOptionText: {
-    fontSize: 14,
+  dateHeader: {
+    fontSize: 18,
+    fontWeight: 'bold',
     color: '#333',
-    fontFamily: 'Poppins-Regular',
-  },
-  filterCancelBtn: {
-    marginTop: 8,
-    alignSelf: 'flex-end',
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-  },
-  filterCancelText: {
-    color: '#00418b',
-    fontSize: 14,
-    fontFamily: 'Poppins-Medium',
-  },
-  activitiesContainer: {
-    flex: 1,
-    paddingHorizontal: 10,
-    paddingTop: 0,
+    marginBottom: 12,
+    fontFamily: 'Poppins-Bold',
   },
   activityCard: {
     backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 10,
-    marginBottom: 10,
-    elevation: 2,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowRadius: 8,
+    elevation: 4,
   },
   activityHeader: {
     flexDirection: 'row',
-    marginBottom: 6,
-  },
-  activityIconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#f0f0f0',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 8,
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
   },
   activityContent: {
     flex: 1,
   },
   activityTitle: {
-    fontSize: 15,
+    fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 1,
+    color: '#2196F3',
+    marginBottom: 4,
     fontFamily: 'Poppins-Bold',
   },
+  activityDueTime: {
+    fontSize: 14,
+    color: '#333',
+    marginBottom: 4,
+    fontFamily: 'Poppins-Regular',
+  },
   activityClass: {
-    fontSize: 12,
+    fontSize: 14,
     color: '#666',
-    marginBottom: 1,
-    fontFamily: 'Poppins-Medium',
-  },
-  activityDescription: {
-    fontSize: 12,
-    color: '#666',
-    marginBottom: 1,
     fontFamily: 'Poppins-Regular',
-  },
-  activityDueDate: {
-    fontSize: 10,
-    color: '#999',
-    fontFamily: 'Poppins-Regular',
-  },
-  activityType: {
-    fontSize: 10,
-    color: '#666',
-    fontFamily: 'Poppins-Medium',
-    marginTop: 2,
   },
   activityPoints: {
-    alignItems: 'center',
+    alignItems: 'flex-end',
     justifyContent: 'center',
-    minWidth: 48,
   },
   pointsText: {
-    fontSize: 13,
+    fontSize: 16,
     fontWeight: 'bold',
-    color: '#00418b',
+    color: '#333',
     fontFamily: 'Poppins-Bold',
   },
   activityFooter: {
@@ -1059,19 +1050,20 @@ const styles = {
     marginLeft: 2,
     fontFamily: 'Poppins-Regular',
   },
-  actionButtons: {
+  actionButtonsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
+    gap: 8,
   },
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    flex: 1,
-    marginHorizontal: 2,
     justifyContent: 'center',
+    backgroundColor: '#e3f2fd',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    alignSelf: 'flex-end',
   },
   viewButton: {
     backgroundColor: '#e3f2fd',

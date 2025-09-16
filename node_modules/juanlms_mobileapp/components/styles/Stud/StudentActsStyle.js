@@ -3,11 +3,6 @@ import { StyleSheet, Dimensions } from 'react-native';
 const { width } = Dimensions.get('window');
 
 const StudentActsStyle = StyleSheet.create({
-    container: {
-        flex: 1,
-        padding: 20,
-        backgroundColor: '#f3f3f3',
-    },
     blueHeaderBackground: {
         backgroundColor: '#00418b',
         height: 90,
@@ -25,7 +20,7 @@ const StudentActsStyle = StyleSheet.create({
         shadowOpacity: 0.08,
         shadowRadius: 8,
         zIndex: 2,
-        marginBottom: 3,
+        marginBottom: 16,
     },
     headerTitle: {
         fontSize: 22,
@@ -37,16 +32,19 @@ const StudentActsStyle = StyleSheet.create({
         fontSize: 14,
         fontFamily: 'Poppins-Regular',
     },
-    dashboardTitle: {
-        fontSize: 26,
-        fontWeight: 'bold',
-        fontFamily: 'Poppins-Bold',
-        marginBottom: 2,
-    },
-    dashboardSubtitle: {
-        fontSize: 15,
-        color: '#e0e0e0',
+    headerSubtitle2: {
+        color: '#666',
+        fontSize: 12,
         fontFamily: 'Poppins-Regular',
+        marginTop: 2,
+    },
+    sectionTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        marginTop: 24,
+        marginBottom: 12,
+        color: '#222',
+        fontFamily: 'Poppins-Bold',
     },
     title: {
         flex: 1,
