@@ -175,21 +175,60 @@ export default function UnifiedChat() {
 
     // Setup socket connection
     if (!socketRef.current) {
+      console.log('Creating new socket connection to:', SOCKET_URL);
       socketRef.current = io(SOCKET_URL, {
         transports: ['websocket'],
         reconnectionAttempts: 5,
         timeout: 10000,
       });
+      
+      // Add connection event listeners
+      socketRef.current.on('connect', () => {
+        console.log('Socket connected successfully');
+      });
+      
+      socketRef.current.on('disconnect', () => {
+        console.log('Socket disconnected');
+      });
+      
+      socketRef.current.on('connect_error', (error) => {
+        console.log('Socket connection error:', error);
+      });
+      
       socketRef.current.emit('addUser', user._id);
+      console.log('Emitted addUser with userId:', user._id);
+      
+      // Test socket connection
+      socketRef.current.emit('test', 'Hello from mobile app');
+      socketRef.current.on('testResponse', (data) => {
+        console.log('Socket test response received:', data);
+      });
     }
 
     if (isGroupChat) {
+      console.log('Setting up group chat socket events for groupId:', selectedGroup._id);
       socketRef.current.emit('joinGroup', { userId: user._id, groupId: selectedGroup._id });
+      console.log('Emitted joinGroup with userId:', user._id, 'groupId:', selectedGroup._id);
+      
+      // Remove existing listener to avoid duplicates
+      socketRef.current.off('receiveGroupMessage');
+      
       socketRef.current.on('receiveGroupMessage', (data) => {
         console.log('Received group message:', data);
         // Stamp device time for immediate UI
         const incoming = { ...data, createdAt: new Date().toISOString() };
-        setMessages(prev => [...prev, incoming]);
+        console.log('Adding group message to state:', incoming);
+        setMessages(prev => {
+          const newMessages = [...prev, incoming];
+          console.log('Updated messages array length:', newMessages.length);
+          console.log('Previous messages count:', prev.length);
+          console.log('New messages count:', newMessages.length);
+          // Force UI update
+          setTimeout(() => {
+            console.log('Forcing UI update for group message');
+          }, 100);
+          return newMessages;
+        });
         setGroupMsgsById(prev => ({
           ...prev,
           [data.groupId]: [ ...(prev[data.groupId] || []), incoming ]
@@ -206,10 +245,27 @@ export default function UnifiedChat() {
     } else {
       // Join chat room and listen for messages
       const directChatId = [user._id, selectedUser._id].sort().join('-');
+      console.log('Setting up direct chat socket events for chatId:', directChatId);
       socketRef.current.emit('joinChat', directChatId);
+      console.log('Emitted joinChat with chatId:', directChatId);
+      
+      // Remove existing listener to avoid duplicates
+      socketRef.current.off('receiveMessage');
+      
       socketRef.current.on('receiveMessage', (msg) => {
         console.log('Received direct message:', msg);
-        setMessages(prev => [...prev, msg]);
+        console.log('Adding direct message to state:', msg);
+        setMessages(prev => {
+          const newMessages = [...prev, msg];
+          console.log('Updated messages array length:', newMessages.length);
+          console.log('Previous messages count:', prev.length);
+          console.log('New messages count:', newMessages.length);
+          // Force UI update
+          setTimeout(() => {
+            console.log('Forcing UI update for direct message');
+          }, 100);
+          return newMessages;
+        });
         setDmMessages(prev => {
           const list = prev[msg.senderId] || [];
           return { ...prev, [msg.senderId]: [...list, msg] };

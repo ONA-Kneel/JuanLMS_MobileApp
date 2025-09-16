@@ -74,13 +74,46 @@ export default function Chat() {
     })();
 
     if (!socketRef.current) {
+      console.log('Creating new socket connection in Chat.js to:', SOCKET_URL);
       socketRef.current = io(SOCKET_URL);
+      
+      // Add connection event listeners
+      socketRef.current.on('connect', () => {
+        console.log('Socket connected successfully in Chat.js');
+      });
+      
+      socketRef.current.on('disconnect', () => {
+        console.log('Socket disconnected in Chat.js');
+      });
+      
+      socketRef.current.on('connect_error', (error) => {
+        console.log('Socket connection error in Chat.js:', error);
+      });
     }
+    
+    const chatId = [user._id, selectedUser._id].sort().join('-');
+    console.log('Setting up direct chat in Chat.js for chatId:', chatId);
     socketRef.current.emit('addUser', user._id);
-    socketRef.current.emit('joinChat', [user._id, selectedUser._id].sort().join('-'));
+    socketRef.current.emit('joinChat', chatId);
+    console.log('Emitted addUser and joinChat in Chat.js');
+    
+    // Remove existing listener to avoid duplicates
+    socketRef.current.off('receiveMessage');
+    
     socketRef.current.on('receiveMessage', (msg) => {
       console.log('Received direct message in Chat.js:', msg);
-      setMessages(prev => [...prev, msg]);
+      console.log('Adding message to state in Chat.js');
+      setMessages(prev => {
+        const newMessages = [...prev, msg];
+        console.log('Updated messages array length in Chat.js:', newMessages.length);
+        console.log('Previous messages count in Chat.js:', prev.length);
+        console.log('New messages count in Chat.js:', newMessages.length);
+        // Force UI update
+        setTimeout(() => {
+          console.log('Forcing UI update in Chat.js');
+        }, 100);
+        return newMessages;
+      });
     });
 
     return () => {

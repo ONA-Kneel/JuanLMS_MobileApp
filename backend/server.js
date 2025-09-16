@@ -271,9 +271,28 @@ const io = new Server(server, {
 io.on('connection', (socket) => {
   console.log('A user connected');
   
+  // Handle user registration
+  socket.on('addUser', (userId) => {
+    console.log('User registered:', userId);
+    socket.userId = userId;
+  });
+  
+  // Test socket connection
+  socket.on('test', (data) => {
+    console.log('Test message received:', data);
+    socket.emit('testResponse', 'Hello from backend!');
+  });
+  
   // Individual chat events
-  socket.on('joinChat', (chatId) => socket.join(chatId));
-  socket.on('sendMessage', (msg) => io.to(msg.chatId).emit('receiveMessage', msg));
+  socket.on('joinChat', (chatId) => {
+    console.log('User joined chat:', chatId);
+    socket.join(chatId);
+  });
+  
+  socket.on('sendMessage', (msg) => {
+    console.log('Sending message to chat:', msg.chatId, 'Message:', msg);
+    io.to(msg.chatId).emit('receiveMessage', msg);
+  });
   
   // Group chat events
   socket.on('joinGroup', (data) => {
@@ -287,6 +306,7 @@ io.on('connection', (socket) => {
   });
   
   socket.on('sendGroupMessage', (msg) => {
+    console.log('Sending group message to group:', msg.groupId, 'Message:', msg);
     io.to(`group-${msg.groupId}`).emit('receiveGroupMessage', msg);
   });
   
