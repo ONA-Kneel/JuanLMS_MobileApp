@@ -268,6 +268,12 @@ const io = new Server(server, {
   }
 });
 
+// Expose io to routes via app
+app.set('io', io);
+
+// Track active users for web app compatibility
+let activeUsers = [];
+
 io.on('connection', (socket) => {
   console.log('A user connected');
   
@@ -275,6 +281,16 @@ io.on('connection', (socket) => {
   socket.on('addUser', (userId) => {
     console.log('User registered:', userId);
     socket.userId = userId;
+    
+    // Add to active users for web app compatibility
+    if (!activeUsers.some(user => user.userId === userId)) {
+      activeUsers.push({ 
+        userId, 
+        socketId: socket.id 
+      });
+    }
+    console.log('Active Users: ', activeUsers);
+    io.emit('getUsers', activeUsers);
   });
   
   // Test socket connection
@@ -291,7 +307,22 @@ io.on('connection', (socket) => {
   
   socket.on('sendMessage', (msg) => {
     console.log('Sending message to chat:', msg.chatId, 'Message:', msg);
-    io.to(msg.chatId).emit('receiveMessage', msg);
+    // Emit both event names for compatibility with web and mobile apps
+    if (msg.chatId) {
+      // Mobile app format - emit to specific chat room
+      io.to(msg.chatId).emit('receiveMessage', msg);
+      io.to(msg.chatId).emit('getMessage', msg);
+    } else {
+      // Web app format - find receiver and emit directly
+      const receiver = activeUsers.find(user => user.userId === msg.receiverId);
+      if (receiver) {
+        io.to(receiver.socketId).emit('getMessage', {
+          senderId: msg.senderId,
+          text: msg.text,
+          fileUrl: msg.fileUrl
+        });
+      }
+    }
   });
   
   // Group chat events
@@ -307,10 +338,19 @@ io.on('connection', (socket) => {
   
   socket.on('sendGroupMessage', (msg) => {
     console.log('Sending group message to group:', msg.groupId, 'Message:', msg);
+    // Emit both event names for compatibility with web and mobile apps
     io.to(`group-${msg.groupId}`).emit('receiveGroupMessage', msg);
+    io.to(`group-${msg.groupId}`).emit('getGroupMessage', msg);
   });
   
-  socket.on('disconnect', () => console.log('A user disconnected'));
+  socket.on('disconnect', () => {
+    const user = activeUsers.find(user => user.socketId === socket.id);
+    if (user) {
+      activeUsers = activeUsers.filter(user => user.socketId !== socket.id);
+      io.emit('getUsers', activeUsers);
+    }
+    console.log('A user disconnected');
+  });
 });
 
 mongoose.connect(process.env.ATLAS_URI, {

@@ -66,13 +66,13 @@ export default function GroupChat() {
     }
     
     socketRef.current.emit('joinGroup', { userId: user._id, groupId: selectedGroup._id });
-    socketRef.current.on('receiveGroupMessage', (msg) => {
+    socketRef.current.on('getGroupMessage', (msg) => {
       setMessages(prev => [...prev, msg]);
     });
 
     return () => {
       if (socketRef.current) {
-        socketRef.current.off('receiveGroupMessage');
+        socketRef.current.off('getGroupMessage');
       }
     };
   }, [selectedGroup, user]);

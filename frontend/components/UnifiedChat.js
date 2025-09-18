@@ -150,7 +150,7 @@ export default function UnifiedChat() {
         } catch (err) {
           console.log('Error fetching group messages:', err);
           console.log('Error response:', err.response?.data);
-          setMessages([]);
+            setMessages([]);
         }
       })();
 
@@ -211,9 +211,9 @@ export default function UnifiedChat() {
       console.log('Emitted joinGroup with userId:', user._id, 'groupId:', selectedGroup._id);
       
       // Remove existing listener to avoid duplicates
-      socketRef.current.off('receiveGroupMessage');
+      socketRef.current.off('getGroupMessage');
       
-      socketRef.current.on('receiveGroupMessage', (data) => {
+      socketRef.current.on('getGroupMessage', (data) => {
         console.log('Received group message:', data);
         // Stamp device time for immediate UI
         const incoming = { ...data, createdAt: new Date().toISOString() };
@@ -250,9 +250,9 @@ export default function UnifiedChat() {
       console.log('Emitted joinChat with chatId:', directChatId);
       
       // Remove existing listener to avoid duplicates
-      socketRef.current.off('receiveMessage');
+      socketRef.current.off('getMessage');
       
-      socketRef.current.on('receiveMessage', (msg) => {
+      socketRef.current.on('getMessage', (msg) => {
         console.log('Received direct message:', msg);
         console.log('Adding direct message to state:', msg);
         setMessages(prev => {
@@ -278,7 +278,7 @@ export default function UnifiedChat() {
           AsyncStorage.setItem(RECENTS_KEY, JSON.stringify(updated)).catch(() => {});
           return updated;
         });
-        const text = msg.message ? msg.message : (msg.fileUrl ? 'File sent' : '');
+        const text = msg.text ? msg.text : (msg.fileUrl ? 'File sent' : '');
         setLastMessages(prev => ({ ...prev, [entry._id]: { prefix: 'You: ' , text } }));
       });
     }
@@ -286,9 +286,9 @@ export default function UnifiedChat() {
     return () => {
       if (socketRef.current) {
         if (isGroupChat) {
-          socketRef.current.off('receiveGroupMessage');
+          socketRef.current.off('getGroupMessage');
         } else {
-          socketRef.current.off('receiveMessage');
+          socketRef.current.off('getMessage');
         }
       }
     };
@@ -556,13 +556,12 @@ export default function UnifiedChat() {
         });
         console.log('Direct message sent successfully:', res.data);
         const sentMessage = res.data;
-        // Emit to socket for real-time delivery (matches mobile backend pattern)
+        // Emit to socket for real-time delivery (matches web app pattern)
         socketRef.current.emit('sendMessage', {
-          chatId: [user._id, selectedUser._id].sort().join('-'),
           senderId: user._id,
           receiverId: selectedUser._id,
-          message: sentMessage.message,
-          timestamp: sentMessage.timestamp || new Date(),
+          text: sentMessage.message,
+          fileUrl: sentMessage.fileUrl || null
         });
         // Local append
         setMessages(prev => [...prev, sentMessage]);

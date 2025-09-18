@@ -12,6 +12,8 @@ import { formatDate } from '../../utils/dateUtils';
 import { getAuthHeaders, handleApiError } from '../../utils/apiUtils';
 import { MaterialIcons } from '@expo/vector-icons';
 
+const API_URL = 'https://juanlms-webapp-server.onrender.com';
+
 function groupByDate(items, getDate) {
   const groups = {};
   items.forEach(item => {
@@ -25,6 +27,8 @@ function groupByDate(items, getDate) {
 
 export default function FacultyModule() {
     const route = useRoute();
+    const SOCKET_URL = 'https://juanlms-webapp-server.onrender.com';
+    const socketRef = useRef(null);
     const navigation = useNavigation();
 
     // Get the classId from navigation params
@@ -91,7 +95,48 @@ export default function FacultyModule() {
         } else {
             // Fallback to fetching all classes if no specific classId
             fetchAvailableClasses();
+            // Also fetch all activities for classwork tab
+            fetchAllActivities();
         }
+    }, [classId]);
+
+    // Realtime subscriptions for announcements/assignments/materials
+    useEffect(() => {
+        if (!socketRef.current) {
+            try {
+                const io = require('socket.io-client');
+                socketRef.current = io(SOCKET_URL);
+                socketRef.current.on('connect', () => console.log('FacultyModule socket connected'));
+            } catch (e) {
+                console.log('Socket init failed in FacultyModule:', e.message);
+            }
+        }
+        if (!socketRef.current) return;
+
+        const refreshAll = () => {
+            if (classId) {
+                fetchClasswork(classId);
+                fetchMaterials(classId);
+                fetchAnnouncements(classId);
+            } else {
+                fetchAllActivities();
+            }
+        };
+
+        socketRef.current.on('announcement:created', refreshAll);
+        socketRef.current.on('assignment:created', refreshAll);
+        socketRef.current.on('assignment:updated', refreshAll);
+        socketRef.current.on('assignment:deleted', refreshAll);
+        socketRef.current.on('material:created', refreshAll);
+
+        return () => {
+            if (!socketRef.current) return;
+            socketRef.current.off('announcement:created', refreshAll);
+            socketRef.current.off('assignment:created', refreshAll);
+            socketRef.current.off('assignment:updated', refreshAll);
+            socketRef.current.off('assignment:deleted', refreshAll);
+            socketRef.current.off('material:created', refreshAll);
+        };
     }, [classId]);
 
     // Debug useEffect for classwork state changes
@@ -108,12 +153,19 @@ export default function FacultyModule() {
             const token = await AsyncStorage.getItem('jwtToken');
             console.log('DEBUG: Fetching classwork for classId:', classId);
             
-            // Fetch both assignments and quizzes (similar to Student components)
+            // If no specific classId, fetch all activities like StudentActs does
+            if (!classId) {
+                console.log('No specific classId, fetching all activities like StudentActs');
+                await fetchAllActivities();
+                return;
+            }
+            
+            // Fetch both assignments and quizzes for specific class
             const [assignmentsRes, quizzesRes] = await Promise.all([
-                axios.get(`https://juanlms-webapp-server.onrender.com/assignments?classID=${classId}`, {
+                axios.get(`${API_URL}/assignments?classID=${classId}`, {
                     headers: { Authorization: `Bearer ${token}` }
                 }),
-                axios.get(`https://juanlms-webapp-server.onrender.com/api/quizzes?classID=${classId}`, {
+                axios.get(`${API_URL}/api/quizzes?classID=${classId}`, {
                     headers: { Authorization: `Bearer ${token}` }
                 })
             ]);
@@ -135,6 +187,85 @@ export default function FacultyModule() {
         } catch (err) {
             console.log('Error fetching classwork (Faculty):', err);
             console.log('Error details:', err.response?.data || err.message);
+            setClasswork([]);
+        }
+    };
+
+    // New function to fetch all activities like StudentActs does
+    const fetchAllActivities = async () => {
+        try {
+            const token = await AsyncStorage.getItem('jwtToken');
+            console.log('Fetching all activities like StudentActs for Faculty');
+            
+            if (!user || !user._id) {
+                throw new Error('User data not found');
+            }
+
+            // Get classes where this faculty teaches
+            const classesResponse = await fetch(`${API_URL}/classes/my-classes`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+
+            if (!classesResponse.ok) {
+                throw new Error('Failed to fetch faculty classes');
+            }
+
+            const classesData = await classesResponse.json();
+            const facultyClasses = Array.isArray(classesData) ? classesData : [];
+            
+            console.log('Faculty classes found:', facultyClasses.length);
+
+            if (facultyClasses.length === 0) {
+                setClasswork([]);
+                return;
+            }
+
+            // Fetch assignments per class
+            const allAssignments = [];
+            for (const facultyClass of facultyClasses) {
+                const assignmentRes = await fetch(`${API_URL}/assignments?classID=${encodeURIComponent(facultyClass.classID)}`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                if (assignmentRes.ok) {
+                    const assignmentData = await assignmentRes.json();
+                    allAssignments.push(...(Array.isArray(assignmentData) ? assignmentData : []));
+                }
+            }
+            
+            // Fetch quizzes per class
+            const allQuizzes = [];
+            for (const facultyClass of facultyClasses) {
+                const quizRes = await fetch(`${API_URL}/api/quizzes?classID=${encodeURIComponent(facultyClass.classID)}`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                if (quizRes.ok) {
+                    const quizData = await quizRes.json();
+                    allQuizzes.push(...(Array.isArray(quizData) ? quizData : []));
+                }
+            }
+            
+            // Merge and normalize
+            const assignmentsWithType = allAssignments.map(a => ({ 
+                ...a, 
+                type: 'assignment',
+                className: a.classInfo?.className || a.className,
+                classCode: a.classInfo?.section || a.section || a.classInfo?.classCode || a.classCode || 'N/A',
+                classID: a.classID || a.classInfo?.classID || (a.assignedTo && a.assignedTo[0]?.classID)
+            }));
+            
+            const quizzesWithType = allQuizzes.map(q => ({ 
+                ...q, 
+                type: 'quiz',
+                className: q.classInfo?.className || q.className,
+                classCode: q.classInfo?.section || q.section || q.classInfo?.classCode || q.classCode || 'N/A',
+                classID: q.classID || q.classInfo?.classID
+            }));
+            
+            const allActivities = [...assignmentsWithType, ...quizzesWithType];
+            setClasswork(allActivities);
+            console.log('Fetched all activities for faculty classwork:', allActivities.length);
+        } catch (err) {
+            console.log('Error fetching all activities for faculty:', err);
             setClasswork([]);
         }
     };
@@ -208,8 +339,10 @@ export default function FacultyModule() {
 
                 // Now fetch announcements for this class
                 fetchAnnouncements(firstClass.classID);
-                fetchClasswork(firstClass.classID); // Fetch classwork
+                fetchClasswork(firstClass.classID); // Fetch classwork for specific class
                 fetchMaterials(firstClass.classID); // Fetch materials
+                // Also fetch all activities for comprehensive classwork view
+                fetchAllActivities();
             } else {
                 setClassInfo({
                     className: "No Classes Found",

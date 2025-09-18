@@ -150,6 +150,25 @@ router.post('/', /*authenticateToken,*/ async (req, res) => {
       }
     }
     
+    // Emit socket event for realtime updates
+    try {
+      const io = req.app.get('io');
+      if (io) {
+        io.emit('announcement:created', {
+          _id: announcement._id,
+          classID: announcement.classID,
+          title: announcement.title,
+          content: announcement.content,
+          priority: announcement.priority,
+          category: announcement.category,
+          targetAudience: announcement.targetAudience,
+          createdAt: announcement.createdAt || new Date().toISOString()
+        });
+      }
+    } catch (e) {
+      console.log('Socket emit announcement:created failed:', e.message);
+    }
+
     res.status(201).json(announcement);
   } catch (error) {
     console.error('Error creating announcement:', error);

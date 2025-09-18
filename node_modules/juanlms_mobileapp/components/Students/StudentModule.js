@@ -32,7 +32,9 @@ function groupByDate(items, getDate) {
 }
 
 export default function StudentModule(){
-    const route = useRoute();
+  const route = useRoute();
+  const SOCKET_URL = 'https://juanlms-webapp-server.onrender.com';
+  const socketRef = useRef(null);
     const navigation = useNavigation();
     
     // Get the classId from navigation params
@@ -65,19 +67,69 @@ export default function StudentModule(){
         } else {
             // Fallback to fetching all classes if no specific classId
             fetchAvailableClasses();
+            // Also fetch all activities for classwork tab
+            fetchAllActivities();
         }
+    }, [classId]);
+
+    // Realtime subscriptions for announcements/assignments/materials
+    useEffect(() => {
+        if (!socketRef.current) {
+            try {
+                // Lazy import to avoid bundling mismatch
+                const io = require('socket.io-client');
+                socketRef.current = io(SOCKET_URL);
+                socketRef.current.on('connect', () => console.log('StudentModule socket connected'));
+            } catch (e) {
+                console.log('Socket init failed in StudentModule:', e.message);
+            }
+        }
+        if (!socketRef.current) return;
+
+        const refreshAll = () => {
+            if (classId) {
+                fetchClasswork(classId);
+                fetchMaterials(classId);
+                fetchAnnouncements(classId);
+            } else {
+                fetchAllActivities();
+            }
+        };
+
+        socketRef.current.on('announcement:created', refreshAll);
+        socketRef.current.on('assignment:created', refreshAll);
+        socketRef.current.on('assignment:updated', refreshAll);
+        socketRef.current.on('assignment:deleted', refreshAll);
+        socketRef.current.on('material:created', refreshAll);
+
+        return () => {
+            if (!socketRef.current) return;
+            socketRef.current.off('announcement:created', refreshAll);
+            socketRef.current.off('assignment:created', refreshAll);
+            socketRef.current.off('assignment:updated', refreshAll);
+            socketRef.current.off('assignment:deleted', refreshAll);
+            socketRef.current.off('material:created', refreshAll);
+        };
     }, [classId]);
 
     const fetchClasswork = async (classId) => {
         try {
             const token = await AsyncStorage.getItem('jwtToken');
+            console.log('Fetching classwork for classId:', classId);
             
-            // Fetch both assignments and quizzes (similar to web version)
+            // If no specific classId, fetch all activities like StudentActs does
+            if (!classId) {
+                console.log('No specific classId, fetching all activities like StudentActs');
+                await fetchAllActivities();
+                return;
+            }
+            
+            // Fetch both assignments and quizzes for specific class
             const [assignmentsRes, quizzesRes] = await Promise.all([
-                axios.get(`https://juanlms-webapp-server.onrender.com/assignments?classID=${classId}`, {
+                axios.get(`${API_URL}/assignments?classID=${classId}`, {
                     headers: { Authorization: `Bearer ${token}` }
                 }),
-                axios.get(`https://juanlms-webapp-server.onrender.com/api/quizzes?classID=${classId}`, {
+                axios.get(`${API_URL}/api/quizzes?classID=${classId}`, {
                     headers: { Authorization: `Bearer ${token}` }
                 })
             ]);
@@ -105,7 +157,7 @@ export default function StudentModule(){
                 if (userId) {
                     const entries = await Promise.all(quizzes.map(async (q) => {
                         try {
-                            const res = await fetch(`${API_BASE}/api/quizzes/${q._id}/myscore?studentId=${userId}` , {
+                            const res = await fetch(`${API_URL}/api/quizzes/${q._id}/myscore?studentId=${userId}` , {
                                 headers: { Authorization: `Bearer ${token}` }
                             });
                             if (res.ok) {
@@ -127,6 +179,129 @@ export default function StudentModule(){
         } catch (err) {
             setClasswork([]);
             console.log('Error fetching classwork (Student):', err);
+        }
+    };
+
+    // New function to fetch all activities like StudentActs does
+    const fetchAllActivities = async () => {
+        try {
+            const token = await AsyncStorage.getItem('jwtToken');
+            console.log('Fetching all activities like StudentActs');
+            
+            if (!user || !user._id) {
+                throw new Error('User data not found');
+            }
+
+            // Get classes where this student is enrolled (same as StudentActs)
+            const classesResponse = await fetch(`${API_URL}/classes/my-classes`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+
+            if (!classesResponse.ok) {
+                throw new Error('Failed to fetch student classes');
+            }
+
+            const classesData = await classesResponse.json();
+            const studentClasses = Array.isArray(classesData) ? classesData : [];
+            
+            console.log('Student classes found:', studentClasses.length);
+
+            if (studentClasses.length === 0) {
+                setClasswork([]);
+                return;
+            }
+
+            // Fetch assignments per class (same as StudentActs)
+            const allAssignments = [];
+            for (const studentClass of studentClasses) {
+                const assignmentRes = await fetch(`${API_URL}/assignments?classID=${encodeURIComponent(studentClass.classID)}`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                if (assignmentRes.ok) {
+                    const assignmentData = await assignmentRes.json();
+                    allAssignments.push(...(Array.isArray(assignmentData) ? assignmentData : []));
+                }
+            }
+            
+            // Fetch quizzes per class (same as StudentActs)
+            const allQuizzes = [];
+            for (const studentClass of studentClasses) {
+                const quizRes = await fetch(`${API_URL}/api/quizzes?classID=${encodeURIComponent(studentClass.classID)}`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                if (quizRes.ok) {
+                    const quizData = await quizRes.json();
+                    allQuizzes.push(...(Array.isArray(quizData) ? quizData : []));
+                }
+            }
+            
+            // Merge and normalize (same as StudentActs)
+            const assignmentsWithType = allAssignments.map(a => ({ 
+                ...a, 
+                type: 'assignment',
+                className: a.classInfo?.className || a.className,
+                classCode: a.classInfo?.section || a.section || a.classInfo?.classCode || a.classCode || 'N/A',
+                classID: a.classID || a.classInfo?.classID || (a.assignedTo && a.assignedTo[0]?.classID)
+            }));
+            
+            const quizzesWithType = allQuizzes.map(q => ({ 
+                ...q, 
+                type: 'quiz',
+                className: q.classInfo?.className || q.className,
+                classCode: q.classInfo?.section || q.section || q.classInfo?.classCode || q.classCode || 'N/A',
+                classID: q.classID || q.classInfo?.classID
+            }));
+            
+            // Check submission statuses (same as StudentActs)
+            const allActivities = [...assignmentsWithType, ...quizzesWithType];
+            const activitiesWithStatus = await checkSubmissionStatuses(allActivities);
+            
+            setClasswork(activitiesWithStatus);
+            console.log('Fetched all activities for classwork:', activitiesWithStatus.length);
+        } catch (err) {
+            console.log('Error fetching all activities:', err);
+            setClasswork([]);
+        }
+    };
+
+    // Add the same checkSubmissionStatuses function as StudentActs
+    const checkSubmissionStatuses = async (activitiesList) => {
+        try {
+            const token = await AsyncStorage.getItem('jwtToken');
+            const updatedActivities = await Promise.all(
+                activitiesList.map(async (activity) => {
+                    if (activity.type === 'assignment') {
+                        try {
+                            const response = await fetch(`${API_URL}/api/student-assignments/status/${activity._id}/${user._id}`, {
+                                headers: { Authorization: `Bearer ${token}` }
+                            });
+                            if (response.ok) {
+                                const data = await response.json();
+                                return { ...activity, isSubmitted: data.isSubmitted || false };
+                            }
+                        } catch (e) {
+                            console.log('Error checking assignment status:', e);
+                        }
+                    } else if (activity.type === 'quiz') {
+                        try {
+                            const response = await fetch(`${API_URL}/api/quizzes/${activity._id}/submission/${user._id}`, {
+                                headers: { Authorization: `Bearer ${token}` }
+                            });
+                            if (response.ok) {
+                                const data = await response.json();
+                                return { ...activity, isSubmitted: data !== null };
+                            }
+                        } catch (e) {
+                            console.log('Error checking quiz status:', e);
+                        }
+                    }
+                    return { ...activity, isSubmitted: false };
+                })
+            );
+            return updatedActivities;
+        } catch (error) {
+            console.error('Error checking submission statuses:', error);
+            return activitiesList;
         }
     };
 
@@ -199,8 +374,10 @@ export default function StudentModule(){
                 
                 // Now fetch announcements for this class
                 fetchAnnouncements(firstClass.classID);
-                fetchClasswork(firstClass.classID); // Fetch classwork
+                fetchClasswork(firstClass.classID); // Fetch classwork for specific class
                 fetchMaterials(firstClass.classID); // Fetch materials
+                // Also fetch all activities for comprehensive classwork view
+                fetchAllActivities();
             } else {
                 setClassInfo({
                     className: "No Classes Found",

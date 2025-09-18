@@ -78,6 +78,22 @@ router.post('/', /*authenticateToken,*/ upload.array('files', 5), async (req, re
     //   timestamp: new Date()
     // });
 
+    // Emit socket event for new material
+    try {
+      const io = req.app.get('io');
+      if (io) {
+        io.emit('material:created', {
+          _id: lesson._id,
+          classID: lesson.classID,
+          title: lesson.title,
+          files: lesson.files,
+          link: lesson.link,
+          createdAt: lesson.createdAt || new Date().toISOString()
+        });
+      }
+    } catch (e) {
+      console.log('Socket emit material:created failed:', e.message);
+    }
     res.status(201).json({ success: true, lesson });
   } catch (err) {
     console.error('Lesson upload error:', err);

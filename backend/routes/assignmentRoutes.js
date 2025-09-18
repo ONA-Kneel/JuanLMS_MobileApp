@@ -234,6 +234,24 @@ router.post('/', /*authenticateToken,*/ upload.single('attachmentFile'), async (
           // Don't fail the assignment creation if notification creation fails
         }
       }
+      // Emit socket event per assignment created
+      try {
+        const io = req.app.get('io');
+        if (io) {
+          assignments.forEach(a => {
+            io.emit('assignment:created', {
+              _id: a._id,
+              classID: a.classID,
+              title: a.title,
+              type: a.type || 'assignment',
+              dueDate: a.dueDate,
+              createdAt: a.createdAt || new Date().toISOString()
+            });
+          });
+        }
+      } catch (e) {
+        console.log('Socket emit assignment:created failed:', e.message);
+      }
       return res.status(201).json(assignments);
     } else if (classID) {
       const assignment = new Assignment({
@@ -264,6 +282,22 @@ router.post('/', /*authenticateToken,*/ upload.single('attachmentFile'), async (
         // Don't fail the assignment creation if notification creation fails
       }
       
+      // Emit socket event for single assignment
+      try {
+        const io = req.app.get('io');
+        if (io) {
+          io.emit('assignment:created', {
+            _id: assignment._id,
+            classID: assignment.classID,
+            title: assignment.title,
+            type: assignment.type || 'assignment',
+            dueDate: assignment.dueDate,
+            createdAt: assignment.createdAt || new Date().toISOString()
+          });
+        }
+      } catch (e) {
+        console.log('Socket emit assignment:created failed:', e.message);
+      }
       return res.status(201).json([assignment]);
     } else {
       return res.status(400).json({ error: 'No classID(s) provided.' });
@@ -315,6 +349,23 @@ router.put('/:id', /*authenticateToken,*/ async (req, res) => {
     }
     
     await assignment.save();
+    // Emit update event
+    try {
+      const io = req.app.get('io');
+      if (io) {
+        io.emit('assignment:updated', {
+          _id: assignment._id,
+          classID: assignment.classID,
+          title: assignment.title,
+          type: assignment.type || 'assignment',
+          dueDate: assignment.dueDate,
+          postAt: assignment.postAt,
+          updatedAt: new Date().toISOString()
+        });
+      }
+    } catch (e) {
+      console.log('Socket emit assignment:updated failed:', e.message);
+    }
     res.json(assignment);
   } catch (err) {
     console.error('Error updating assignment:', err);
@@ -343,6 +394,15 @@ router.delete('/:id', /*authenticateToken,*/ async (req, res) => {
     // }
     
     await Assignment.findByIdAndDelete(req.params.id);
+    // Emit delete event
+    try {
+      const io = req.app.get('io');
+      if (io) {
+        io.emit('assignment:deleted', { _id: req.params.id, classID: assignment.classID });
+      }
+    } catch (e) {
+      console.log('Socket emit assignment:deleted failed:', e.message);
+    }
     res.json({ success: true, message: 'Assignment deleted successfully.' });
   } catch (err) {
     console.error('Error deleting assignment:', err);

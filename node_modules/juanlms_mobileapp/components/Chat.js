@@ -98,9 +98,9 @@ export default function Chat() {
     console.log('Emitted addUser and joinChat in Chat.js');
     
     // Remove existing listener to avoid duplicates
-    socketRef.current.off('receiveMessage');
+    socketRef.current.off('getMessage');
     
-    socketRef.current.on('receiveMessage', (msg) => {
+    socketRef.current.on('getMessage', (msg) => {
       console.log('Received direct message in Chat.js:', msg);
       console.log('Adding message to state in Chat.js');
       setMessages(prev => {
@@ -118,7 +118,7 @@ export default function Chat() {
 
     return () => {
       if (socketRef.current) {
-        socketRef.current.off('receiveMessage');
+        socketRef.current.off('getMessage');
       }
     };
   }, [selectedUser, user]);
@@ -154,14 +154,13 @@ export default function Chat() {
       console.log('Message sent successfully:', res.data);
       const sentMessage = res.data;
 
-      // 2. Emit to socket for real-time delivery (matches mobile backend pattern)
-      socketRef.current.emit('sendMessage', {
-        chatId: [user._id, selectedUser._id].sort().join('-'),
-        senderId: user._id,
-        receiverId: selectedUser._id,
-        message: sentMessage.message,
-        timestamp: sentMessage.timestamp || new Date(),
-      });
+        // 2. Emit to socket for real-time delivery (matches web app pattern)
+        socketRef.current.emit('sendMessage', {
+          senderId: user._id,
+          receiverId: selectedUser._id,
+          text: sentMessage.message,
+          fileUrl: sentMessage.fileUrl || null
+        });
 
       // 3. Add to local state for instant UI feedback
       setMessages(prev => [...prev, sentMessage]);
