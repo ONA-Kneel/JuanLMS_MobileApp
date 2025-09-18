@@ -67,7 +67,24 @@ export default function GroupChat() {
     
     socketRef.current.emit('joinGroup', { userId: user._id, groupId: selectedGroup._id });
     socketRef.current.on('getGroupMessage', (msg) => {
-      setMessages(prev => [...prev, msg]);
+      console.log('Received group message in GroupChat.js:', msg);
+      // Ensure proper message format
+      const incoming = {
+        ...msg,
+        message: msg.message || msg.text || '',
+        timestamp: msg.timestamp || new Date().toISOString()
+      };
+      
+      setMessages(prev => {
+        // Check if message already exists to avoid duplicates
+        const exists = prev.some(existingMsg => existingMsg._id === incoming._id);
+        if (exists) {
+          console.log('Message already exists, skipping duplicate in GroupChat.js');
+          return prev;
+        }
+        
+        return [...prev, incoming];
+      });
     });
 
     return () => {

@@ -303,6 +303,25 @@ router.post('/:groupId/messages', async (req, res) => {
     });
 
     await newMessage.save();
+    
+    // Emit socket event for real-time delivery
+    try {
+      const io = req.app.get('io');
+      if (io) {
+        io.to(`group-${groupId}`).emit('getGroupMessage', {
+          senderId: newMessage.senderId,
+          groupId: newMessage.groupId,
+          message: newMessage.message,
+          fileUrl: newMessage.fileUrl,
+          senderName: newMessage.senderName,
+          timestamp: newMessage.timestamp,
+          _id: newMessage._id
+        });
+      }
+    } catch (e) {
+      console.log('Socket emit getGroupMessage failed:', e.message);
+    }
+    
     res.status(201).json(newMessage);
   } catch (error) {
     console.error('Error sending group message:', error);

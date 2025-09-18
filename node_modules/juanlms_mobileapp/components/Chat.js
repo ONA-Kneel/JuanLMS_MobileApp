@@ -102,16 +102,24 @@ export default function Chat() {
     
     socketRef.current.on('getMessage', (msg) => {
       console.log('Received direct message in Chat.js:', msg);
-      console.log('Adding message to state in Chat.js');
+      // Ensure proper message format
+      const incoming = {
+        ...msg,
+        message: msg.message || msg.text || '',
+        timestamp: msg.timestamp || new Date().toISOString()
+      };
+      console.log('Adding message to state in Chat.js:', incoming);
+      
       setMessages(prev => {
-        const newMessages = [...prev, msg];
+        // Check if message already exists to avoid duplicates
+        const exists = prev.some(existingMsg => existingMsg._id === incoming._id);
+        if (exists) {
+          console.log('Message already exists, skipping duplicate in Chat.js');
+          return prev;
+        }
+        
+        const newMessages = [...prev, incoming];
         console.log('Updated messages array length in Chat.js:', newMessages.length);
-        console.log('Previous messages count in Chat.js:', prev.length);
-        console.log('New messages count in Chat.js:', newMessages.length);
-        // Force UI update
-        setTimeout(() => {
-          console.log('Forcing UI update in Chat.js');
-        }, 100);
         return newMessages;
       });
     });

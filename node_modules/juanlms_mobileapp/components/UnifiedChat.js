@@ -19,6 +19,7 @@ import AdminChatStyle from './styles/administrator/AdminChatStyle';
 import StudentDashboardStyle from './styles/Stud/StudentDashStyle';
 import * as DocumentPicker from 'expo-document-picker';
 import { getAuthHeaders, handleApiError } from '../utils/apiUtils';
+import { useNotification } from '../hooks/useNotification';
 
 
 const API_URL = 'https://juanlms-webapp-server.onrender.com';
@@ -30,6 +31,7 @@ export default function UnifiedChat() {
   const route = useRoute();
   const { selectedUser, selectedGroup, setRecentChats } = route.params || {};
   const { user, setUser } = useUser();
+  const { showMessageNotification } = useNotification();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [groupMembers, setGroupMembers] = useState([]);
@@ -215,32 +217,56 @@ export default function UnifiedChat() {
       
       socketRef.current.on('getGroupMessage', (data) => {
         console.log('Received group message:', data);
-        // Stamp device time for immediate UI
-        const incoming = { ...data, createdAt: new Date().toISOString() };
+        // Use the data as-is from socket, ensuring proper timestamp
+        const incoming = { 
+          ...data, 
+          createdAt: data.timestamp || new Date().toISOString(),
+          message: data.message || data.text || ''
+        };
         console.log('Adding group message to state:', incoming);
+        
         setMessages(prev => {
+          // Check if message already exists to avoid duplicates
+          const exists = prev.some(msg => msg._id === incoming._id);
+          if (exists) {
+            console.log('Message already exists, skipping duplicate');
+            return prev;
+          }
+          
           const newMessages = [...prev, incoming];
           console.log('Updated messages array length:', newMessages.length);
-          console.log('Previous messages count:', prev.length);
-          console.log('New messages count:', newMessages.length);
-          // Force UI update
-          setTimeout(() => {
-            console.log('Forcing UI update for group message');
-          }, 100);
           return newMessages;
         });
+        
         setGroupMsgsById(prev => ({
           ...prev,
           [data.groupId]: [ ...(prev[data.groupId] || []), incoming ]
         }));
+        
         setUserGroups(prev => {
           const arr = [...prev];
           const idx = arr.findIndex(g => g._id === data.groupId);
           if (idx > -1) { const g = arr.splice(idx,1)[0]; return [g, ...arr]; }
           return prev;
         });
-        const text = incoming.text ? incoming.text : (incoming.fileUrl ? 'File sent' : '');
-        setLastMessages(prev => ({ ...prev, [data.groupId]: { prefix: incoming.senderId === user._id ? 'You: ' : `${incoming.senderName || 'Unknown User'}: `, text } }));
+        
+        const text = incoming.message || incoming.text || (incoming.fileUrl ? 'File sent' : '');
+        setLastMessages(prev => ({ 
+          ...prev, 
+          [data.groupId]: { 
+            prefix: incoming.senderId === user._id ? 'You: ' : `${incoming.senderName || 'Unknown User'}: `, 
+            text 
+          } 
+        }));
+        
+        // Show notification for new group message (only if not from current user)
+        if (incoming.senderId !== user._id) {
+          showMessageNotification(
+            incoming.senderName || 'Unknown User', 
+            text, 
+            true // isGroup
+          );
+        }
       });
     } else {
       // Join chat room and listen for messages
@@ -254,32 +280,65 @@ export default function UnifiedChat() {
       
       socketRef.current.on('getMessage', (msg) => {
         console.log('Received direct message:', msg);
-        console.log('Adding direct message to state:', msg);
+        // Ensure proper message format
+        const incoming = {
+          ...msg,
+          message: msg.message || msg.text || '',
+          createdAt: msg.timestamp || new Date().toISOString()
+        };
+        console.log('Adding direct message to state:', incoming);
+        
         setMessages(prev => {
-          const newMessages = [...prev, msg];
+          // Check if message already exists to avoid duplicates
+          const exists = prev.some(existingMsg => existingMsg._id === incoming._id);
+          if (exists) {
+            console.log('Message already exists, skipping duplicate');
+            return prev;
+          }
+          
+          const newMessages = [...prev, incoming];
           console.log('Updated messages array length:', newMessages.length);
-          console.log('Previous messages count:', prev.length);
-          console.log('New messages count:', newMessages.length);
-          // Force UI update
-          setTimeout(() => {
-            console.log('Forcing UI update for direct message');
-          }, 100);
           return newMessages;
         });
+        
         setDmMessages(prev => {
-          const list = prev[msg.senderId] || [];
-          return { ...prev, [msg.senderId]: [...list, msg] };
+          const list = prev[incoming.senderId] || [];
+          return { ...prev, [incoming.senderId]: [...list, incoming] };
         });
-        const u = allUsers.find(x => x._id === msg.senderId);
-        const entry = { _id: msg.senderId, firstname: u?.firstname || '', lastname: u?.lastname || '', profilePic: u?.profilePic || u?.profilePicture || null, lastMessageTime: new Date().toISOString() };
+        
+        const u = allUsers.find(x => x._id === incoming.senderId);
+        const entry = { 
+          _id: incoming.senderId, 
+          firstname: u?.firstname || '', 
+          lastname: u?.lastname || '', 
+          profilePic: u?.profilePic || u?.profilePicture || null, 
+          lastMessageTime: incoming.createdAt 
+        };
+        
         setRecentChatsList(prev => {
           const filtered = prev.filter(c => c._id !== entry._id);
           const updated = [entry, ...filtered];
           AsyncStorage.setItem(RECENTS_KEY, JSON.stringify(updated)).catch(() => {});
           return updated;
         });
-        const text = msg.text ? msg.text : (msg.fileUrl ? 'File sent' : '');
-        setLastMessages(prev => ({ ...prev, [entry._id]: { prefix: 'You: ' , text } }));
+        
+        const text = incoming.message || incoming.text || (incoming.fileUrl ? 'File sent' : '');
+        setLastMessages(prev => ({ 
+          ...prev, 
+          [entry._id]: { 
+            prefix: incoming.senderId === user._id ? 'You: ' : `${u?.firstname || 'Unknown'} ${u?.lastname || 'User'}: `, 
+            text 
+          } 
+        }));
+        
+        // Show notification for new direct message (only if not from current user)
+        if (incoming.senderId !== user._id) {
+          showMessageNotification(
+            `${u?.firstname || 'Unknown'} ${u?.lastname || 'User'}`, 
+            text, 
+            false // isGroup
+          );
+        }
       });
     }
 

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { apiGet, apiPatch } from './utils/apiUtils';
+import io from 'socket.io-client';
 
 const NotificationContext = createContext();
 
@@ -16,6 +17,8 @@ export const NotificationProvider = ({ children }) => {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [socket, setSocket] = useState(null);
+  const [messageNotifications, setMessageNotifications] = useState([]);
 
   // Auto-fetch notifications when context is initialized
   useEffect(() => {
@@ -57,6 +60,70 @@ export const NotificationProvider = ({ children }) => {
 
     return () => clearInterval(interval);
   }, []);
+
+  // Setup global socket connection for message notifications
+  useEffect(() => {
+    const setupSocket = async () => {
+      try {
+        const user = await AsyncStorage.getItem('user');
+        if (user) {
+          const userData = JSON.parse(user);
+          const userId = userData._id || userData.userID;
+          
+          if (userId && !socket) {
+            const newSocket = io('https://juanlms-webapp-server.onrender.com', {
+              transports: ['websocket'],
+              reconnectionAttempts: 5,
+              timeout: 10000,
+            });
+            
+            newSocket.on('connect', () => {
+              console.log('Global notification socket connected');
+              newSocket.emit('addUser', userId);
+            });
+            
+            newSocket.on('getMessage', (msg) => {
+              console.log('Global message notification received:', msg);
+              setMessageNotifications(prev => [...prev, {
+                id: msg._id || Date.now(),
+                type: 'message',
+                senderId: msg.senderId,
+                message: msg.message || msg.text,
+                timestamp: msg.timestamp || new Date().toISOString(),
+                isGroup: false
+              }]);
+            });
+            
+            newSocket.on('getGroupMessage', (msg) => {
+              console.log('Global group message notification received:', msg);
+              setMessageNotifications(prev => [...prev, {
+                id: msg._id || Date.now(),
+                type: 'group_message',
+                senderId: msg.senderId,
+                groupId: msg.groupId,
+                message: msg.message || msg.text,
+                senderName: msg.senderName,
+                timestamp: msg.timestamp || new Date().toISOString(),
+                isGroup: true
+              }]);
+            });
+            
+            setSocket(newSocket);
+          }
+        }
+      } catch (error) {
+        console.error('Error setting up global socket:', error);
+      }
+    };
+    
+    setupSocket();
+    
+    return () => {
+      if (socket) {
+        socket.disconnect();
+      }
+    };
+  }, [socket]);
 
   // API base URL handled by apiUtils
 
@@ -209,6 +276,7 @@ export const NotificationProvider = ({ children }) => {
     notifications,
     unreadCount,
     loading,
+    messageNotifications,
     fetchNotifications,
     markAsRead,
     markAllAsRead,

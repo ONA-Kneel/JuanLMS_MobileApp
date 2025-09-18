@@ -10,6 +10,7 @@ import messagesRouter from './routes/messages.js';
 import classRoutes from './routes/classRoutes.js';
 import announcementRoutes from './routes/announcementRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
+import pushNotificationRoutes from './routes/pushNotificationRoutes.js';
 import generalAnnouncementRoutes from './routes/generalAnnouncementRoutes.js';
 import quizRoutes from './routes/quizRoutes.js';
 import assignmentRoutes from './routes/assignmentRoutes.js';
@@ -70,6 +71,7 @@ app.use('/api', users);
 app.use('/api/messages', messagesRouter);
 app.use('/api/announcements', announcementRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/notifications', pushNotificationRoutes);
 app.use('/api/general-announcements', generalAnnouncementRoutes);
 app.use('/api/quizzes', quizRoutes);
 app.use('/api/assignments', assignmentRoutes);
@@ -306,22 +308,32 @@ io.on('connection', (socket) => {
   });
   
   socket.on('sendMessage', (msg) => {
-    console.log('Sending message to chat:', msg.chatId, 'Message:', msg);
-    // Emit both event names for compatibility with web and mobile apps
-    if (msg.chatId) {
-      // Mobile app format - emit to specific chat room
-      io.to(msg.chatId).emit('receiveMessage', msg);
-      io.to(msg.chatId).emit('getMessage', msg);
-    } else {
-      // Web app format - find receiver and emit directly
-      const receiver = activeUsers.find(user => user.userId === msg.receiverId);
-      if (receiver) {
-        io.to(receiver.socketId).emit('getMessage', {
-          senderId: msg.senderId,
-          text: msg.text,
-          fileUrl: msg.fileUrl
-        });
-      }
+    console.log('Sending message to chat:', msg, 'Message:', msg);
+    // Create chatId from sender and receiver IDs
+    const chatId = [msg.senderId, msg.receiverId].sort().join('-');
+    console.log('Generated chatId:', chatId);
+    
+    // Emit to the chat room
+    io.to(chatId).emit('getMessage', {
+      senderId: msg.senderId,
+      receiverId: msg.receiverId,
+      message: msg.text,
+      fileUrl: msg.fileUrl,
+      timestamp: new Date().toISOString(),
+      _id: msg._id || new Date().getTime().toString()
+    });
+    
+    // Also emit to individual users for web app compatibility
+    const receiver = activeUsers.find(user => user.userId === msg.receiverId);
+    if (receiver) {
+      io.to(receiver.socketId).emit('getMessage', {
+        senderId: msg.senderId,
+        receiverId: msg.receiverId,
+        message: msg.text,
+        fileUrl: msg.fileUrl,
+        timestamp: new Date().toISOString(),
+        _id: msg._id || new Date().getTime().toString()
+      });
     }
   });
   
@@ -338,9 +350,16 @@ io.on('connection', (socket) => {
   
   socket.on('sendGroupMessage', (msg) => {
     console.log('Sending group message to group:', msg.groupId, 'Message:', msg);
-    // Emit both event names for compatibility with web and mobile apps
-    io.to(`group-${msg.groupId}`).emit('receiveGroupMessage', msg);
-    io.to(`group-${msg.groupId}`).emit('getGroupMessage', msg);
+    // Emit to the group room
+    io.to(`group-${msg.groupId}`).emit('getGroupMessage', {
+      senderId: msg.senderId,
+      groupId: msg.groupId,
+      message: msg.text,
+      fileUrl: msg.fileUrl,
+      senderName: msg.senderName,
+      timestamp: new Date().toISOString(),
+      _id: msg._id || new Date().getTime().toString()
+    });
   });
   
   socket.on('disconnect', () => {

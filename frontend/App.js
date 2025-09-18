@@ -96,6 +96,7 @@ import PrincipalGrades from './components/Principal/PrincipalGrades';
 import { ChatProvider } from './ChatContext';
 import { UserProvider } from './components/UserContext';
 import { NotificationProvider } from './NotificationContext';
+import { usePushNotifications } from './hooks/usePushNotifications';
 import { AnnouncementProvider } from './AnnouncementContext';
 import { TimerProvider } from './TimerContext';
 
@@ -231,6 +232,9 @@ export default function App() {
     'Poppins-Light': require('./assets/fonts/Poppins-Light.ttf'),
     'Poppins-Thin': require('./assets/fonts/Poppins-Thin.ttf'),
   });
+
+  // Initialize push notifications
+  const { isInitialized: pushNotificationsInitialized } = usePushNotifications();
 
   if (!fontsLoaded) {
     return (

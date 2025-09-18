@@ -1,5 +1,6 @@
 import express from 'express';
 import Message from '../models/Message.js';
+import { sendChatMessageNotification } from '../services/firebaseAdminService.js';
 
 const router = express.Router();
 
@@ -7,6 +8,53 @@ router.post('/', async (req, res) => {
   const { senderId, receiverId, message } = req.body;
   const newMessage = new Message({ senderId, receiverId, message });
   await newMessage.save();
+  
+    // Emit socket event for real-time delivery
+    try {
+      const io = req.app.get('io');
+      if (io) {
+        const chatId = [senderId, receiverId].sort().join('-');
+        io.to(chatId).emit('getMessage', {
+          senderId: newMessage.senderId,
+          receiverId: newMessage.receiverId,
+          message: newMessage.message,
+          timestamp: newMessage.timestamp,
+          _id: newMessage._id
+        });
+      }
+    } catch (e) {
+      console.log('Socket emit getMessage failed:', e.message);
+    }
+
+    // Send push notification to receiver
+    try {
+      // Get sender information for notification
+      const User = (await import('../models/User.js')).default;
+      const sender = await User.findById(senderId);
+      const senderName = sender ? `${sender.firstname} ${sender.lastname}` : 'Unknown User';
+      
+      // Send push notification via API endpoint
+      const response = await fetch('https://juanlms-webapp-server.onrender.com/api/notifications/send-chat-message', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          recipientId: receiverId,
+          senderName: senderName,
+          message: message,
+          isGroup: false,
+          groupName: null
+        })
+      });
+      
+      if (!response.ok) {
+        console.log('Push notification API call failed');
+      }
+    } catch (e) {
+      console.log('Push notification failed:', e.message);
+    }
+  
   res.status(201).json(newMessage);
 });
 
