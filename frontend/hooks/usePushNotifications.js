@@ -131,20 +131,8 @@ export const usePushNotifications = () => {
 
   // Handle notification navigation
   const handleNotificationNavigation = (data) => {
-    // This should be implemented based on your navigation structure
-    console.log('Navigate based on notification data:', data);
-    
-    // Example navigation logic:
-    // if (data.type === NOTIFICATION_TYPES.MESSAGE) {
-    //   // Navigate to chat screen
-    //   // navigation.navigate('Chat', { userId: data.senderId });
-    // } else if (data.type === NOTIFICATION_TYPES.GROUP_MESSAGE) {
-    //   // Navigate to group chat screen
-    //   // navigation.navigate('GroupChat', { groupId: data.groupId });
-    // } else if (data.type === NOTIFICATION_TYPES.ANNOUNCEMENT) {
-    //   // Navigate to announcements screen
-    //   // navigation.navigate('Announcements');
-    // }
+    // Use the Firebase service navigation handler
+    firebaseService.handleNotificationNavigation(data);
   };
 
   // Subscribe to topic

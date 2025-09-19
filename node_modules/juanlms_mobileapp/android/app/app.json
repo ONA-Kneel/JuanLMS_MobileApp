@@ -9,15 +9,10 @@
       "client_info": {
         "mobilesdk_app_id": "1:960297616285:android:5b11f4c77c557e70056574",
         "android_client_info": {
-          "package_name": "com.kneelpngnbn.juanlms.mobileapp"
+          "package_name": "com.juanlms.mobileapp"
         }
       },
-      "oauth_client": [
-        {
-          "client_id": "your-client-id",
-          "client_type": 3
-        }
-      ],
+      "oauth_client": [],
       "api_key": [
         {
           "current_key": "AIzaSyB8Lmk6RlDMGlmpjCoPePDtOzLIitaoh_8"
@@ -25,12 +20,7 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": [
-            {
-              "client_id": "your-client-id",
-              "client_type": 3
-            }
-          ]
+          "other_platform_oauth_client": []
         }
       }
     }

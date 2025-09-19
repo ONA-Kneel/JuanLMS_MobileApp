@@ -16,6 +16,10 @@ class MainActivity : ReactActivity() {
     // coloring the background, status bar, and navigation bar.
     // This is required for expo-splash-screen.
     setTheme(R.style.AppTheme);
+    
+    // Initialize notification channel for push notifications
+    NotificationChannel.createNotificationChannel(this)
+    
     super.onCreate(null)
   }
 

@@ -2,16 +2,22 @@
 // Replace these values with your actual Firebase project configuration
 
 export const firebaseConfig = {
-  apiKey: "your-api-key-here",
-  authDomain: "your-project-id.firebaseapp.com",
-  projectId: "your-project-id",
-  storageBucket: "your-project-id.appspot.com",
-  messagingSenderId: "your-sender-id",
-  appId: "your-app-id",
+  apiKey: "AIzaSyB8Lmk6RlDMGlmpjCoPePDtOzLIitaoh_8",
+  authDomain: "juanlms-88086.firebaseapp.com",
+  projectId: "juanlms-88086",
+  storageBucket: "juanlms-88086.firebasestorage.app",
+  messagingSenderId: "960297616285",
+  appId: "1:960297616285:android:5b11f4c77c557e70056574",
   // For Android
   clientId: "your-client-id",
   // For iOS
   iosClientId: "your-ios-client-id"
+};
+
+// Firebase App configuration for React Native Firebase v23+
+export const firebaseAppConfig = {
+  // This will be automatically configured by google-services.json and GoogleService-Info.plist
+  // No manual configuration needed for React Native Firebase v23+
 };
 
 // Notification configuration

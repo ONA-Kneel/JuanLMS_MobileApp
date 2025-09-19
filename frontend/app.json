@@ -2,7 +2,7 @@
   "expo": {
     "name": "JuanLMS",
     "slug": "juanlms-mobile-app",
-    "owner": "bosskneel",
+    "owner": "nochu",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/SanJuan.png",
@@ -29,7 +29,10 @@
         "android.permission.CAMERA",
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.RECORD_AUDIO",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.WAKE_LOCK",
+        "android.permission.VIBRATE"
       ],
       "softwareKeyboardLayoutMode": "pan",
       "allowBackup": true,
@@ -45,7 +48,7 @@
     "extra": {
       "API_URL": "https://juanlms-webapp-server.onrender.com",
       "eas": {
-        "projectId": "30bdbbaf-19d2-4b31-985f-e269513bc5cd"
+        "projectId": "bc783935-5d5a-4549-9a23-7e840f89053d"
       }
     },
     "plugins": [

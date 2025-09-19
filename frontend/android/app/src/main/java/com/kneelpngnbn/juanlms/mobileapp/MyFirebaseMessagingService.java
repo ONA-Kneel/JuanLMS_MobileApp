@@ -43,17 +43,27 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
     }
 
     private void sendRegistrationToServer(String token) {
-        // TODO: Implement this method to send token to your app server
-        Log.d(TAG, "Sending token to server: " + token);
+        // This will be handled by the React Native side
+        // The token will be sent to the backend when the app initializes
+        Log.d(TAG, "FCM Token refreshed: " + token);
+        
+        // Store the token in SharedPreferences for React Native to pick up
+        android.content.SharedPreferences prefs = getSharedPreferences("fcm_token", Context.MODE_PRIVATE);
+        prefs.edit().putString("token", token).apply();
     }
 
     private void sendNotification(String title, String messageBody, java.util.Map<String, String> data) {
+        // Create notification channel for Android O and above
+        NotificationChannel.createNotificationChannel(this);
+        
         Intent intent = new Intent(this, MainActivity.class);
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
         
         // Add data to intent
-        for (java.util.Map.Entry<String, String> entry : data.entrySet()) {
-            intent.putExtra(entry.getKey(), entry.getValue());
+        if (data != null) {
+            for (java.util.Map.Entry<String, String> entry : data.entrySet()) {
+                intent.putExtra(entry.getKey(), entry.getValue());
+            }
         }
         
         PendingIntent pendingIntent = PendingIntent.getActivity(

@@ -97,6 +97,7 @@ import { ChatProvider } from './ChatContext';
 import { UserProvider } from './components/UserContext';
 import { NotificationProvider } from './NotificationContext';
 import { usePushNotifications } from './hooks/usePushNotifications';
+import firebaseService from './services/firebaseService';
 import { AnnouncementProvider } from './AnnouncementContext';
 import { TimerProvider } from './TimerContext';
 
@@ -250,7 +251,7 @@ export default function App() {
       <ChatProvider>
         <NotificationProvider>
           <AnnouncementProvider>
-            <NavigationContainer>
+            <NavigationContainer ref={(ref) => firebaseService.setNavigationRef(ref)}>
               <Screens.Navigator initialRouteName='Login'>
 
                 {/*Assisted lang daw dapat */}

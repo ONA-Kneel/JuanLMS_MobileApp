@@ -59,11 +59,28 @@ class FirebaseService {
       // Send token to backend
       await this.sendTokenToBackend(token);
       
+      // Set up token refresh listener
+      this.setupTokenRefreshListener();
+      
       return token;
     } catch (error) {
       console.error('Error getting FCM token:', error);
       return null;
     }
+  }
+
+  // Setup token refresh listener
+  setupTokenRefreshListener() {
+    messaging().onTokenRefresh(async (token) => {
+      console.log('FCM Token refreshed:', token);
+      this.fcmToken = token;
+      
+      // Store new token
+      await AsyncStorage.setItem('fcmToken', token);
+      
+      // Send new token to backend
+      await this.sendTokenToBackend(token);
+    });
   }
 
   // Send FCM token to backend
@@ -170,15 +187,111 @@ class FirebaseService {
 
   // Handle notification navigation
   handleNotificationNavigation(data) {
-    // This will be implemented based on your navigation structure
     console.log('Navigate based on notification data:', data);
     
-    // Example navigation logic:
-    // if (data.type === NOTIFICATION_TYPES.MESSAGE) {
-    //   // Navigate to chat screen
-    // } else if (data.type === NOTIFICATION_TYPES.ANNOUNCEMENT) {
-    //   // Navigate to announcements screen
-    // }
+    // Import navigation reference (this will be set by the app)
+    if (this.navigationRef) {
+      try {
+        switch (data.type) {
+          case NOTIFICATION_TYPES.MESSAGE:
+            // Navigate to individual chat
+            if (data.senderId) {
+              this.navigationRef.navigate('Chat', { 
+                userId: data.senderId,
+                senderName: data.senderName 
+              });
+            }
+            break;
+            
+          case NOTIFICATION_TYPES.GROUP_MESSAGE:
+            // Navigate to group chat
+            if (data.groupId) {
+              this.navigationRef.navigate('GroupChat', { 
+                groupId: data.groupId,
+                groupName: data.groupName 
+              });
+            }
+            break;
+            
+          case NOTIFICATION_TYPES.ANNOUNCEMENT:
+            // Navigate to announcements based on user role
+            const userRole = data.userRole || 'student';
+            if (userRole === 'student') {
+              this.navigationRef.navigate('SDash');
+            } else if (userRole === 'faculty') {
+              this.navigationRef.navigate('FDash');
+            } else if (userRole === 'admin') {
+              this.navigationRef.navigate('AdminDash');
+            } else if (userRole === 'vpe') {
+              this.navigationRef.navigate('VPEDash');
+            } else if (userRole === 'principal') {
+              this.navigationRef.navigate('PrincipalDash');
+            }
+            break;
+            
+          case NOTIFICATION_TYPES.ASSIGNMENT:
+            // Navigate to assignment detail
+            if (data.assignmentId) {
+              this.navigationRef.navigate('AssignmentDetail', { 
+                assignmentId: data.assignmentId 
+              });
+            } else {
+              // Navigate to assignments list
+              this.navigationRef.navigate('SActs');
+            }
+            break;
+            
+          case NOTIFICATION_TYPES.QUIZ:
+            // Navigate to quiz
+            if (data.quizId) {
+              this.navigationRef.navigate('QuizView', { 
+                quizId: data.quizId 
+              });
+            } else {
+              this.navigationRef.navigate('SActs');
+            }
+            break;
+            
+          case NOTIFICATION_TYPES.LESSON:
+            // Navigate to lesson
+            if (data.lessonId) {
+              this.navigationRef.navigate('SModule', { 
+                lessonId: data.lessonId 
+              });
+            } else {
+              this.navigationRef.navigate('SModule');
+            }
+            break;
+            
+          default:
+            // Navigate to dashboard based on user role
+            const role = data.userRole || 'student';
+            if (role === 'student') {
+              this.navigationRef.navigate('SDash');
+            } else if (role === 'faculty') {
+              this.navigationRef.navigate('FDash');
+            } else if (role === 'admin') {
+              this.navigationRef.navigate('AdminDash');
+            } else if (role === 'vpe') {
+              this.navigationRef.navigate('VPEDash');
+            } else if (role === 'principal') {
+              this.navigationRef.navigate('PrincipalDash');
+            }
+            break;
+        }
+      } catch (error) {
+        console.error('Error navigating from notification:', error);
+        // Fallback to dashboard
+        this.navigationRef.navigate('SDash');
+      }
+    } else {
+      console.warn('Navigation reference not set');
+    }
+  }
+
+  // Set navigation reference
+  setNavigationRef(ref) {
+    this.navigationRef = ref;
   }
 
   // Subscribe to topic
