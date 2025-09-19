@@ -32,7 +32,10 @@
         "android.permission.RECORD_AUDIO",
         "android.permission.POST_NOTIFICATIONS",
         "android.permission.WAKE_LOCK",
-        "android.permission.VIBRATE"
+        "android.permission.VIBRATE",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.SYSTEM_ALERT_WINDOW"
       ],
       "softwareKeyboardLayoutMode": "pan",
       "allowBackup": true,
@@ -48,7 +51,7 @@
     "extra": {
       "API_URL": "https://juanlms-webapp-server.onrender.com",
       "eas": {
-        "projectId": "bc783935-5d5a-4549-9a23-7e840f89053d"
+        "projectId": "ed2a927a-71dc-4556-a5db-190c2c29a2ff"
       }
     },
     "plugins": [
@@ -64,7 +67,8 @@
         {
           "androidMode": "default"
         }
-      ]
+      ],
+      "@react-native-firebase/app"
     ]
   }
 }
