@@ -6,7 +6,7 @@ buildscript {
         minSdkVersion = Integer.parseInt(findProperty('android.minSdkVersion') ?: '24')
         compileSdkVersion = Integer.parseInt(findProperty('android.compileSdkVersion') ?: '35')
         targetSdkVersion = Integer.parseInt(findProperty('android.targetSdkVersion') ?: '34')
-        kotlinVersion = findProperty('android.kotlinVersion') ?: '2.0.0'
+        kotlinVersion = findProperty('android.kotlinVersion') ?: '1.9.24'
 
         ndkVersion = "26.1.10909125"
     }
@@ -42,12 +42,12 @@ allprojects {
     
     configurations.all {
         resolutionStrategy {
-            force 'org.jetbrains.kotlin:kotlin-stdlib:2.0.0'
-            force 'org.jetbrains.kotlin:kotlin-stdlib-jdk8:2.0.0'
-            force 'org.jetbrains.kotlin:kotlin-stdlib-common:2.0.0'
-            force 'org.jetbrains.kotlin:kotlin-reflect:2.0.0'
-            force 'org.jetbrains.kotlin:kotlin-android-extensions-runtime:2.0.0'
-            force 'org.jetbrains.kotlin:kotlin-compose-compiler-plugin-embeddable:2.0.0'
+            force 'org.jetbrains.kotlin:kotlin-stdlib:1.9.24'
+            force 'org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.9.24'
+            force 'org.jetbrains.kotlin:kotlin-stdlib-common:1.9.24'
+            force 'org.jetbrains.kotlin:kotlin-reflect:1.9.24'
+            force 'org.jetbrains.kotlin:kotlin-android-extensions-runtime:1.9.24'
+            force 'org.jetbrains.kotlin:kotlin-compose-compiler-plugin-embeddable:1.9.24'
         }
     }
 }

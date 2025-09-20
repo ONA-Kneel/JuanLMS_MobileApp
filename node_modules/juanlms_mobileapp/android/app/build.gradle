@@ -136,10 +136,6 @@ android {
     androidResources {
         ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:!CVS:!thumbs.db:!picasa.ini:!*~'
     }
-    
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.16"
-    }
 }
 
 // Apply static values from `gradle.properties` to the `android.packagingOptions`
@@ -166,12 +162,12 @@ configurations.all {
     resolutionStrategy {
         force 'androidx.core:core:1.13.1'
         force 'androidx.media:media:1.0.0'
-        force 'org.jetbrains.kotlin:kotlin-stdlib:2.0.0'
-        force 'org.jetbrains.kotlin:kotlin-stdlib-jdk8:2.0.0'
-        force 'org.jetbrains.kotlin:kotlin-stdlib-common:2.0.0'
-        force 'org.jetbrains.kotlin:kotlin-reflect:2.0.0'
-        force 'org.jetbrains.kotlin:kotlin-android-extensions-runtime:2.0.0'
-        force 'org.jetbrains.kotlin:kotlin-compose-compiler-plugin-embeddable:2.0.0'
+        force 'org.jetbrains.kotlin:kotlin-stdlib:1.9.24'
+        force 'org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.9.24'
+        force 'org.jetbrains.kotlin:kotlin-stdlib-common:1.9.24'
+        force 'org.jetbrains.kotlin:kotlin-reflect:1.9.24'
+        force 'org.jetbrains.kotlin:kotlin-android-extensions-runtime:1.9.24'
+        force 'org.jetbrains.kotlin:kotlin-compose-compiler-plugin-embeddable:1.9.24'
     }
 }
 
