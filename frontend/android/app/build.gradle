@@ -138,7 +138,7 @@ android {
     }
     
     composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.15"
+        kotlinCompilerExtensionVersion = "1.5.16"
     }
 }
 
@@ -166,12 +166,12 @@ configurations.all {
     resolutionStrategy {
         force 'androidx.core:core:1.13.1'
         force 'androidx.media:media:1.0.0'
-        force 'org.jetbrains.kotlin:kotlin-stdlib:1.9.25'
-        force 'org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.9.25'
-        force 'org.jetbrains.kotlin:kotlin-stdlib-common:1.9.25'
-        force 'org.jetbrains.kotlin:kotlin-reflect:1.9.25'
-        force 'org.jetbrains.kotlin:kotlin-android-extensions-runtime:1.9.25'
-        force 'org.jetbrains.kotlin:kotlin-compose-compiler-plugin-embeddable:1.9.25'
+        force 'org.jetbrains.kotlin:kotlin-stdlib:2.0.0'
+        force 'org.jetbrains.kotlin:kotlin-stdlib-jdk8:2.0.0'
+        force 'org.jetbrains.kotlin:kotlin-stdlib-common:2.0.0'
+        force 'org.jetbrains.kotlin:kotlin-reflect:2.0.0'
+        force 'org.jetbrains.kotlin:kotlin-android-extensions-runtime:2.0.0'
+        force 'org.jetbrains.kotlin:kotlin-compose-compiler-plugin-embeddable:2.0.0'
     }
 }
 
@@ -180,7 +180,7 @@ dependencies {
     implementation("com.facebook.react:react-android")
     
     // Firebase dependencies
-    implementation platform('com.google.firebase:firebase-bom:32.7.0')
+    implementation platform('com.google.firebase:firebase-bom:31.2.3')
     implementation 'com.google.firebase:firebase-messaging'
     implementation 'com.google.firebase:firebase-analytics'
 
