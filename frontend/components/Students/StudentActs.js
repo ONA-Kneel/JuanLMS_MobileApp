@@ -810,17 +810,24 @@ export default function StudentActs() {
        });
        let allActivities = Array.from(dedup.values());
 
-       // Filter for ONLY POSTED activities
+       // Filter for activities visible to students (be more permissive for assignments)
        const now = new Date();
        
-       const postedActivities = allActivities.filter(item => {
+       const visibleActivities = allActivities.filter(item => {
          if (item.type === 'assignment') {
+           // Show assignments unless explicitly hidden
+           // Only hide if isPosted is explicitly false
+           if (item.isPosted === false) {
+             return false;
+           }
+           
            const scheduleEnabled = item?.schedulePost === true;
            const postAt = item?.postAt ? new Date(item.postAt) : null;
            if (scheduleEnabled && postAt) {
              const isPosted = postAt <= now;
              return isPosted;
            }
+           // Default to showing assignments
            return true;
          } else if (item.type === 'quiz') {
            return true;
@@ -887,7 +894,7 @@ export default function StudentActs() {
       }
       console.log('=== END FINAL ACTIVITIES DEBUG ===');
       
-      setActivities(activitiesWithStatus);
+      setActivities(visibleActivities);
     } catch (error) {
       console.error('Error fetching activities:', error);
       setError(error.message);
@@ -1899,7 +1906,7 @@ sectionTitle: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
+    paddingVertical: 8,
     borderBottomWidth: 2,
     borderBottomColor: 'transparent',
   },
@@ -1908,7 +1915,7 @@ sectionTitle: {
   },
   activityTabText: {
     color: '#999',
-    fontSize: 16,
+    fontSize: 14,
     fontFamily: 'Poppins-Medium',
   },
   activityTabTextActive: {
@@ -1936,14 +1943,14 @@ sectionTitle: {
   },
   activityCard: {
     backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 8,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   activityHeader: {
     flexDirection: 'row',
@@ -1954,20 +1961,20 @@ sectionTitle: {
     flex: 1,
   },
   activityTitle: {
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: 'bold',
     color: '#2196F3',
-    marginBottom: 4,
+    marginBottom: 2,
     fontFamily: 'Poppins-Bold',
   },
   activityDueTime: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#333',
-    marginBottom: 4,
+    marginBottom: 2,
     fontFamily: 'Poppins-Regular',
   },
   activityClass: {
-    fontSize: 14,
+    fontSize: 11,
     color: '#666',
     fontFamily: 'Poppins-Regular',
   },
@@ -1976,7 +1983,7 @@ sectionTitle: {
     justifyContent: 'center',
   },
   pointsText: {
-    fontSize: 16,
+    fontSize: 12,
     fontWeight: 'bold',
     color: '#333',
     fontFamily: 'Poppins-Bold',

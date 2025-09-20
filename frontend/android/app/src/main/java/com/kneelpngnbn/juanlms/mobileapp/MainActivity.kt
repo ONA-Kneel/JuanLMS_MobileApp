@@ -18,7 +18,7 @@ class MainActivity : ReactActivity() {
     setTheme(R.style.AppTheme);
     
     // Initialize notification channel for push notifications
-    NotificationChannel.createNotificationChannel(this)
+    NotificationChannelHelper.createNotificationChannel(this)
     
     super.onCreate(null)
   }

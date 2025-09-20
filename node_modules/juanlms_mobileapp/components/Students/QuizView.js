@@ -1354,27 +1354,33 @@ const QuizView = React.memo(function QuizView() {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.resultsModal}>
-            {renderScoreDisplay()}
-            
-            {Array.isArray(quizCheckedAnswers) && quizCheckedAnswers.length > 0 && (
-              <View style={styles.answersSummary}>
-                <Text style={styles.answersSummaryTitle}>Question Summary</Text>
-                <View style={styles.answersList}>
-                  {quizCheckedAnswers.map((answer, idx) => (
-                    <View key={idx} style={styles.answerItem}>
-                      <MaterialIcons 
-                        name={answer.correct ? "check-circle" : "cancel"} 
-                        size={20} 
-                        color={answer.correct ? "#4CAF50" : "#F44336"} 
-                      />
-                      <Text style={styles.answerItemText}>
-                        Q{idx + 1}: {answer.correct ? 'Correct' : 'Incorrect'}
-                      </Text>
-                    </View>
-                  ))}
+            <ScrollView 
+              style={{ flex: 1, width: '100%' }}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{ paddingBottom: 10 }}
+            >
+              {renderScoreDisplay()}
+              
+              {Array.isArray(quizCheckedAnswers) && quizCheckedAnswers.length > 0 && (
+                <View style={styles.answersSummary}>
+                  <Text style={styles.answersSummaryTitle}>Question Summary</Text>
+                  <View style={styles.answersList}>
+                    {quizCheckedAnswers.map((answer, idx) => (
+                      <View key={idx} style={styles.answerItem}>
+                        <MaterialIcons 
+                          name={answer.correct ? "check-circle" : "cancel"} 
+                          size={16} 
+                          color={answer.correct ? "#4CAF50" : "#F44336"} 
+                        />
+                        <Text style={[styles.answerItemText, { fontSize: 12 }]}>
+                          Q{idx + 1}: {answer.correct ? 'Correct' : 'Incorrect'}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
                 </View>
-              </View>
-            )}
+              )}
+            </ScrollView>
 
             <TouchableOpacity
               style={styles.resultsButton}
@@ -1721,54 +1727,55 @@ const styles = {
   },
   resultsModal: {
     backgroundColor: 'white',
-    borderRadius: 20,
-    padding: 24,
-    margin: 20,
-    width: width - 40,
+    borderRadius: 16,
+    padding: 16,
+    margin: 10,
+    width: width - 20,
+    maxHeight: '80%',
     alignItems: 'center',
   },
   resultsHeader: {
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 16,
   },
   resultsTitle: {
-    fontSize: 24,
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#333',
-    marginTop: 16,
+    marginTop: 8,
   },
   resultsContent: {
     width: '100%',
-    marginBottom: 24,
+    marginBottom: 16,
   },
   resultRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 12,
+    paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
   },
   resultLabel: {
-    fontSize: 16,
+    fontSize: 14,
     color: '#666',
     fontWeight: '500',
   },
   resultValue: {
-    fontSize: 16,
+    fontSize: 14,
     color: '#333',
     fontWeight: 'bold',
   },
   resultsButton: {
     backgroundColor: '#00418b',
-    paddingHorizontal: 32,
-    paddingVertical: 16,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
     borderRadius: 8,
     width: '100%',
     alignItems: 'center',
   },
   resultsButtonText: {
     color: 'white',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
   },
   loadingContainer: {

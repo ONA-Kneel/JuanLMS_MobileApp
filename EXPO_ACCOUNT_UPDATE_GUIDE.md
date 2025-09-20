@@ -176,3 +176,4 @@ Your JuanLMS app is now configured for your new Expo account "nochu" with the la
 
 Happy coding! 🚀
 
+

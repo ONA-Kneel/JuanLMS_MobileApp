@@ -43,3 +43,4 @@ console.log('3. Replace the placeholder files in the project');
 
 console.log('\n✅ Expo account update complete!');
 
+

@@ -1,5 +1,5 @@
 import { Text, TouchableOpacity, View, Image, ScrollView, ActivityIndicator, Alert, Modal, Dimensions, Linking } from 'react-native';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { ImageBackground, ProgressBar } from 'react-native-web';
 import { StatusBar } from 'expo-status-bar';
@@ -59,8 +59,15 @@ export default function StudentModule(){
     const [imageTranslateX, setImageTranslateX] = useState(0);
     const [imageTranslateY, setImageTranslateY] = useState(0);
 
+    // Add loading state and error handling for white screen issue
+    const [initialLoading, setInitialLoading] = useState(false);
+    const [error, setError] = useState(null);
+
     useEffect(() => {
         console.log('DEBUG StudentModule: useEffect classId:', classId);
+        setInitialLoading(true);
+        setError(null);
+        
         if (classId) {
             // If we have a specific classId from navigation, use it
             fetchSpecificClass(classId);
@@ -322,6 +329,8 @@ export default function StudentModule(){
 
     const fetchSpecificClass = async (targetClassId) => {
         try {
+            setInitialLoading(true);
+            setError(null);
             const token = await AsyncStorage.getItem('jwtToken');
             console.log('DEBUG StudentModule: fetchSpecificClass targetClassId:', targetClassId);
             // Fetch all classes and find the one with the exact classID
@@ -351,13 +360,18 @@ export default function StudentModule(){
             }
         } catch (err) {
             console.log('Error fetching specific class:', err);
+            setError(err.message);
             // Fallback to general class fetching
             fetchAvailableClasses();
+        } finally {
+            setInitialLoading(false);
         }
     };
 
     const fetchAvailableClasses = async () => {
         try {
+            setInitialLoading(true);
+            setError(null);
             const token = await AsyncStorage.getItem('jwtToken');
             // First, get all available classes
             const classesRes = await axios.get(`https://juanlms-webapp-server.onrender.com/api/classes`, {
@@ -383,14 +397,16 @@ export default function StudentModule(){
                     className: "No Classes Found",
                     classCode: "N/A"
                 });
-                setLoading(false);
             }
         } catch (err) {
             console.log('Error fetching classes:', err);
+            setError(err.message);
             setClassInfo({
                 className: "Error Loading Class",
                 classCode: "N/A"
             });
+        } finally {
+            setInitialLoading(false);
             setLoading(false);
         }
     };
@@ -733,12 +749,19 @@ export default function StudentModule(){
                                     );
                                 }
 
-                                // Only show posted items to students
-                                const posted = allItems.filter(item => item.isPosted);
+                // Show items to students (be more permissive for assignments)
+                const visible = allItems.filter(item => {
+                    // Show assignments unless explicitly hidden
+                    if (item.type === 'assignment') {
+                        return item.isPosted !== false; // Default to true if not specified
+                    }
+                    // For quizzes, show if posted or if no posting restriction
+                    return item.isPosted !== false;
+                });
 
-                                // Group posted by date (descending)
+                                // Group visible items by date (descending)
                                 const groupedByDate = {};
-                                posted.forEach(item => {
+                                visible.forEach(item => {
                                     const date = new Date(item.createdAt || item.postAt || new Date());
                                     const dateKey = date.toDateString();
                                     if (!groupedByDate[dateKey]) groupedByDate[dateKey] = [];
@@ -750,7 +773,7 @@ export default function StudentModule(){
                                     <>
                                         {/* Unposted items are hidden for students */}
 
-                                        {/* Posted grouped by date */}
+                                        {/* Visible items grouped by date */}
                                         {sortedDateKeys.map(dateKey => (
                                             <View key={dateKey} style={{ marginBottom: 24 }}>
                                                 <Text style={{ 
@@ -1087,6 +1110,69 @@ export default function StudentModule(){
                 return null;
         }
     };
+
+    // Show loading screen while initial data is being fetched
+    if (initialLoading) {
+        return (
+            <View style={{ flex: 1, backgroundColor: '#f5f5f5', justifyContent: 'center', alignItems: 'center' }}>
+                <ActivityIndicator size="large" color="#00418b" />
+                <Text style={{ marginTop: 16, fontSize: 16, color: '#666', fontFamily: 'Poppins-Regular' }}>
+                    Loading class information...
+                </Text>
+            </View>
+        );
+    }
+
+    // Show error screen if there's an error
+    if (error) {
+        return (
+            <View style={{ flex: 1, backgroundColor: '#f5f5f5', justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+                <MaterialIcons name="error-outline" size={64} color="#F44336" />
+                <Text style={{ marginTop: 16, fontSize: 18, color: '#333', fontFamily: 'Poppins-Bold', textAlign: 'center' }}>
+                    Error Loading Class
+                </Text>
+                <Text style={{ marginTop: 8, fontSize: 14, color: '#666', fontFamily: 'Poppins-Regular', textAlign: 'center' }}>
+                    {error}
+                </Text>
+                <TouchableOpacity
+                    style={{
+                        backgroundColor: '#00418b',
+                        paddingHorizontal: 24,
+                        paddingVertical: 12,
+                        borderRadius: 8,
+                        marginTop: 16
+                    }}
+                    onPress={() => {
+                        setError(null);
+                        setInitialLoading(true);
+                        if (classId) {
+                            fetchSpecificClass(classId);
+                        } else {
+                            fetchAvailableClasses();
+                        }
+                    }}
+                >
+                    <Text style={{ color: 'white', fontSize: 16, fontFamily: 'Poppins-Bold' }}>
+                        Retry
+                    </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                    style={{
+                        backgroundColor: '#ccc',
+                        paddingHorizontal: 24,
+                        paddingVertical: 12,
+                        borderRadius: 8,
+                        marginTop: 8
+                    }}
+                    onPress={() => navigation.goBack()}
+                >
+                    <Text style={{ color: 'white', fontSize: 16, fontFamily: 'Poppins-Bold' }}>
+                        Go Back
+                    </Text>
+                </TouchableOpacity>
+            </View>
+        );
+    }
 
     return (
         <View style={{ flex: 1, backgroundColor: '#f5f5f5' }}>
