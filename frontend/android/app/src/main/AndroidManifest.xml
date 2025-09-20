@@ -28,9 +28,9 @@
     </service>
     
     <!-- Default notification channel -->
-    <meta-data android:name="com.google.firebase.messaging.default_notification_channel_id" android:value="juanlms_notifications"/>
+    <meta-data android:name="com.google.firebase.messaging.default_notification_channel_id" android:value="juanlms_notifications" tools:replace="android:value"/>
     <meta-data android:name="com.google.firebase.messaging.default_notification_icon" android:resource="@drawable/ic_notification"/>
-    <meta-data android:name="com.google.firebase.messaging.default_notification_color" android:resource="@color/notification_color"/>
+    <meta-data android:name="com.google.firebase.messaging.default_notification_color" android:resource="@color/notification_color" tools:replace="android:resource"/>
     <activity android:name=".MainActivity" android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|uiMode" android:launchMode="singleTask" android:windowSoftInputMode="adjustPan" android:theme="@style/Theme.App.SplashScreen" android:exported="true" android:screenOrientation="portrait">
       <intent-filter>
         <action android:name="android.intent.action.MAIN"/>

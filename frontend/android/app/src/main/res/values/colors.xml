@@ -1,4 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="notification_color">#00418b</color>
+    <color name="colorPrimary">#03045E</color>
+    <color name="colorPrimaryDark">#02033A</color>
+    <color name="colorAccent">#3B82F6</color>
+    <color name="white">#FFFFFF</color>
+    <color name="splashscreen_background">#03045E</color>
+    <color name="iconBackground">#03045E</color>
 </resources>

@@ -9,7 +9,7 @@
       "client_info": {
         "mobilesdk_app_id": "your-mobilesdk-app-id",
         "android_client_info": {
-          "package_name": "com.juanlms.mobileapp"
+          "package_name": "com.kneelpngnbn.juanlms.mobileapp"
         }
       },
       "oauth_client": [
