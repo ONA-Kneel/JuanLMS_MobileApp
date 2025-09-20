@@ -433,6 +433,7 @@ export default function StudentMeeting() {
           callId: '9IH1mIBCkfbdP9y4q34W2',
         }}
         isHost={false}
+        useEnhancedUI={true} // Enable enhanced UI
       />
     )}
     </>

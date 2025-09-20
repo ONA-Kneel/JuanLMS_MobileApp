@@ -651,6 +651,7 @@ export default function FacultyMeeting() {
           }}
           isHost={true}
           hostUserId={'Woolly_Patch'}
+          useEnhancedUI={true} // Enable enhanced UI
         />
       )}
     </ScrollView>
