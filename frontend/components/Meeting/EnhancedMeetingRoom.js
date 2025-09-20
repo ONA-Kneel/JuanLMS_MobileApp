@@ -1,0 +1,462 @@
+import React, { useEffect, useState, useCallback } from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Dimensions,
+  Platform,
+  Alert,
+  Modal,
+  ActivityIndicator,
+} from 'react-native';
+import {
+  StreamVideo,
+  StreamCall,
+  CallContent,
+  Lobby,
+  CallingState,
+  NoiseCancellationProvider,
+  BackgroundFiltersProvider,
+} from '@stream-io/video-react-native-sdk';
+import { useMeeting } from '../../MeetingContext';
+import CustomCallControls from './CustomCallControls';
+import MeetingHeader from './MeetingHeader';
+import ParticipantGrid from './ParticipantGrid';
+import MeetingSettings from './MeetingSettings';
+import ErrorBoundary from './ErrorBoundary';
+import meetingRecordingService from '../../services/meetingRecordingService';
+import meetingScreenShareService from '../../services/meetingScreenShareService';
+
+const { width, height } = Dimensions.get('window');
+
+const EnhancedMeetingRoom = ({
+  isOpen,
+  onClose,
+  onLeave,
+  meetingData,
+  isHost = false,
+  hostUserId,
+  currentUser,
+}) => {
+  const {
+    isJoining,
+    isInMeeting,
+    error,
+    loading,
+    participants,
+    isHost: contextIsHost,
+    isMuted,
+    isVideoOn,
+    isScreenSharing,
+    createOrJoinMeeting,
+    leaveMeeting,
+    toggleMicrophone,
+    toggleCamera,
+    toggleScreenShare,
+    endMeetingForAll,
+    clearError,
+  } = useMeeting();
+
+  const [showSettings, setShowSettings] = useState(false);
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const [meetingStats, setMeetingStats] = useState(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isScreenSharing, setIsScreenSharing] = useState(false);
+
+  // Initialize meeting when component mounts
+  useEffect(() => {
+    if (isOpen && meetingData) {
+      handleJoinMeeting();
+    }
+  }, [isOpen, meetingData]);
+
+  // Update meeting stats periodically
+  useEffect(() => {
+    if (isInMeeting) {
+      const interval = setInterval(() => {
+        setMeetingStats({
+          participantCount: participants.length,
+          meetingDuration: meetingData ? 
+            Math.floor((Date.now() - new Date(meetingData.createdAt).getTime()) / 1000) : 0,
+        });
+      }, 1000);
+
+      return () => clearInterval(interval);
+    }
+  }, [isInMeeting, participants, meetingData]);
+
+  const handleJoinMeeting = useCallback(async () => {
+    try {
+      clearError();
+      await createOrJoinMeeting(meetingData, isHost);
+    } catch (error) {
+      console.error('Failed to join meeting:', error);
+    }
+  }, [meetingData, isHost, createOrJoinMeeting, clearError]);
+
+  const handleLeave = useCallback(async () => {
+    try {
+      await leaveMeeting();
+      if (onLeave) onLeave();
+      if (onClose) onClose();
+    } catch (error) {
+      console.error('Failed to leave meeting:', error);
+    }
+  }, [leaveMeeting, onLeave, onClose]);
+
+  const handleEndForAll = useCallback(async () => {
+    try {
+      await endMeetingForAll();
+      if (onLeave) onLeave();
+      if (onClose) onClose();
+    } catch (error) {
+      console.error('Failed to end meeting for all:', error);
+    }
+  }, [endMeetingForAll, onLeave, onClose]);
+
+  const handleToggleMic = useCallback(async () => {
+    try {
+      await toggleMicrophone();
+    } catch (error) {
+      console.error('Failed to toggle microphone:', error);
+    }
+  }, [toggleMicrophone]);
+
+  const handleToggleCamera = useCallback(async () => {
+    try {
+      await toggleCamera();
+    } catch (error) {
+      console.error('Failed to toggle camera:', error);
+    }
+  }, [toggleCamera]);
+
+  const handleToggleScreenShare = useCallback(async () => {
+    try {
+      if (isScreenSharing) {
+        await meetingScreenShareService.stopScreenShare(meetingData?.meetingId || meetingData?._id);
+        setIsScreenSharing(false);
+      } else {
+        await meetingScreenShareService.startScreenShare(meetingData?.meetingId || meetingData?._id);
+        setIsScreenSharing(true);
+      }
+      await toggleScreenShare();
+    } catch (error) {
+      console.error('Failed to toggle screen share:', error);
+    }
+  }, [toggleScreenShare, isScreenSharing, meetingData]);
+
+  const handleStartRecording = useCallback(async () => {
+    try {
+      const meetingId = meetingData?.meetingId || meetingData?._id;
+      await meetingRecordingService.startRecording(meetingId);
+      setIsRecording(true);
+    } catch (error) {
+      console.error('Failed to start recording:', error);
+    }
+  }, [meetingData]);
+
+  const handleStopRecording = useCallback(async () => {
+    try {
+      const meetingId = meetingData?.meetingId || meetingData?._id;
+      await meetingRecordingService.stopRecording(meetingId);
+      setIsRecording(false);
+    } catch (error) {
+      console.error('Failed to stop recording:', error);
+    }
+  }, [meetingData]);
+
+  const showLeaveConfirmation = () => {
+    setShowLeaveConfirm(true);
+  };
+
+  const hideLeaveConfirmation = () => {
+    setShowLeaveConfirm(false);
+  };
+
+  if (!isOpen) return null;
+
+  // Error state
+  if (error) {
+    return (
+      <Modal visible={isOpen} animationType="slide" transparent>
+        <View style={styles.overlay}>
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorTitle}>Unable to join meeting</Text>
+            <Text style={styles.errorMessage}>{error}</Text>
+            <View style={styles.errorActions}>
+              <TouchableOpacity
+                style={[styles.button, styles.secondaryButton]}
+                onPress={clearError}
+              >
+                <Text style={styles.secondaryButtonText}>Try Again</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.button, styles.primaryButton]}
+                onPress={handleLeave}
+              >
+                <Text style={styles.primaryButtonText}>Close</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    );
+  }
+
+  // Loading state
+  if (isJoining || loading) {
+    return (
+      <Modal visible={isOpen} animationType="slide" transparent>
+        <View style={styles.overlay}>
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#3B82F6" />
+            <Text style={styles.loadingText}>Joining meeting...</Text>
+            <Text style={styles.loadingSubtext}>
+              {meetingData?.title || 'Meeting'}
+            </Text>
+          </View>
+        </View>
+      </Modal>
+    );
+  }
+
+  // Main meeting interface
+  return (
+    <Modal visible={isOpen} animationType="slide" onRequestClose={showLeaveConfirmation}>
+      <ErrorBoundary>
+        <View style={styles.container}>
+          {/* Meeting Header */}
+          <MeetingHeader
+            meetingTitle={meetingData?.title || 'Meeting'}
+            participantCount={participants.length}
+            meetingStats={meetingStats}
+            isHost={contextIsHost}
+            onSettingsPress={() => setShowSettings(true)}
+            onLeavePress={showLeaveConfirmation}
+          />
+
+          {/* Main Meeting Content */}
+          <View style={styles.meetingContent}>
+            {isInMeeting ? (
+              <StreamVideo client={meetingService.client}>
+                <StreamCall call={meetingService.currentCall}>
+                  <NoiseCancellationProvider>
+                    <BackgroundFiltersProvider>
+                      <CallContent
+                        CallControls={CustomCallControls}
+                        layout="grid"
+                        supportedReactions={[
+                          { type: 'like', icon: '👍' },
+                          { type: 'love', icon: '❤️' },
+                          { type: 'laugh', icon: '😂' },
+                          { type: 'wow', icon: '😮' },
+                          { type: 'sad', icon: '😢' },
+                          { type: 'angry', icon: '😠' },
+                        ]}
+                        iOSPiPIncludeLocalParticipantVideo={true}
+                        disablePictureInPicture={false}
+                      />
+                    </BackgroundFiltersProvider>
+                  </NoiseCancellationProvider>
+                </StreamCall>
+              </StreamVideo>
+            ) : (
+              <Lobby />
+            )}
+          </View>
+
+          {/* Custom Controls Overlay */}
+          <View style={styles.controlsOverlay}>
+            <CustomCallControls
+              isMuted={isMuted}
+              isVideoOn={isVideoOn}
+              isScreenSharing={isScreenSharing}
+              isRecording={isRecording}
+              isHost={contextIsHost}
+              onToggleMic={handleToggleMic}
+              onToggleCamera={handleToggleCamera}
+              onToggleScreenShare={handleToggleScreenShare}
+              onStartRecording={handleStartRecording}
+              onStopRecording={handleStopRecording}
+              onLeave={showLeaveConfirmation}
+              onEndForAll={handleEndForAll}
+            />
+          </View>
+
+          {/* Settings Modal */}
+          <MeetingSettings
+            visible={showSettings}
+            onClose={() => setShowSettings(false)}
+            isHost={contextIsHost}
+          />
+
+          {/* Leave Confirmation Modal */}
+          <Modal
+            visible={showLeaveConfirm}
+            transparent
+            animationType="fade"
+            onRequestClose={hideLeaveConfirmation}
+          >
+            <View style={styles.modalOverlay}>
+              <View style={styles.confirmContainer}>
+                <Text style={styles.confirmTitle}>Leave meeting?</Text>
+                <Text style={styles.confirmMessage}>
+                  You can leave the meeting{contextIsHost ? ', or end it for everyone if you are the host.' : '.'}
+                </Text>
+                <View style={styles.confirmActions}>
+                  <TouchableOpacity
+                    style={[styles.button, styles.secondaryButton]}
+                    onPress={hideLeaveConfirmation}
+                  >
+                    <Text style={styles.secondaryButtonText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.button, styles.primaryButton]}
+                    onPress={handleLeave}
+                  >
+                    <Text style={styles.primaryButtonText}>Leave</Text>
+                  </TouchableOpacity>
+                  {contextIsHost && (
+                    <TouchableOpacity
+                      style={[styles.button, styles.dangerButton]}
+                      onPress={handleEndForAll}
+                    >
+                      <Text style={styles.dangerButtonText}>End for everyone</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+            </View>
+          </Modal>
+        </View>
+      </ErrorBoundary>
+    </Modal>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#000',
+  },
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  errorContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 24,
+    margin: 20,
+    maxWidth: width * 0.9,
+    alignItems: 'center',
+  },
+  errorTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 8,
+  },
+  errorMessage: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  loadingContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 32,
+    margin: 20,
+    maxWidth: width * 0.8,
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#1F2937',
+    marginTop: 16,
+  },
+  loadingSubtext: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginTop: 4,
+  },
+  meetingContent: {
+    flex: 1,
+  },
+  controlsOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    paddingBottom: Platform.OS === 'ios' ? 34 : 16,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  confirmContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 24,
+    margin: 20,
+    maxWidth: width * 0.9,
+  },
+  confirmTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 8,
+  },
+  confirmMessage: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 24,
+  },
+  confirmActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 12,
+  },
+  button: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 6,
+    minWidth: 80,
+    alignItems: 'center',
+  },
+  primaryButton: {
+    backgroundColor: '#3B82F6',
+  },
+  primaryButtonText: {
+    color: '#fff',
+    fontWeight: '500',
+  },
+  secondaryButton: {
+    backgroundColor: '#F3F4F6',
+  },
+  secondaryButtonText: {
+    color: '#374151',
+    fontWeight: '500',
+  },
+  dangerButton: {
+    backgroundColor: '#DC2626',
+  },
+  dangerButtonText: {
+    color: '#fff',
+    fontWeight: '500',
+  },
+  errorActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+});
+
+export default EnhancedMeetingRoom;

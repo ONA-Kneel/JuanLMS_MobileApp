@@ -9,6 +9,8 @@ import {
 } from '@stream-io/video-react-native-sdk';
 import InCallManager from 'react-native-incall-manager';
 import NetInfo from '@react-native-community/netinfo';
+import { MeetingProvider } from '../../MeetingContext';
+import EnhancedMeetingRoom from './EnhancedMeetingRoom';
 
 // A minimal Stream video meeting room for React Native.
 // Props:
@@ -29,7 +31,9 @@ export default function StreamMeetingRoomNative({
 	isHost = false,
 	hostUserId,
 	currentUser,
+	useEnhancedUI = true, // New prop to enable enhanced UI
 }) {
+	// Legacy state for backward compatibility
 	const [client, setClient] = useState(null);
 	const [call, setCall] = useState(null);
 	const [isJoining, setIsJoining] = useState(false);
@@ -125,6 +129,24 @@ export default function StreamMeetingRoomNative({
 
 	if (!isOpen) return null;
 
+	// Use enhanced UI if enabled
+	if (useEnhancedUI) {
+		return (
+			<MeetingProvider>
+				<EnhancedMeetingRoom
+					isOpen={isOpen}
+					onClose={onClose}
+					onLeave={onLeave}
+					meetingData={meetingData}
+					isHost={isHost}
+					hostUserId={hostUserId}
+					currentUser={currentUser}
+				/>
+			</MeetingProvider>
+		);
+	}
+
+	// Legacy UI for backward compatibility
 	return (
 		<Modal visible={isOpen} animationType="slide" onRequestClose={handleLeave} transparent>
 			<View style={styles.overlay}>
