@@ -2,6 +2,7 @@ import { Image } from 'react-native';
 import React from 'react';
 import { useFonts } from 'expo-font';
 import { View, ActivityIndicator } from 'react-native';
+import { MeetingProvider } from './contexts/MeetingContext';
 
 //folders
 import SplashScreen from './components/SplashScreen';
@@ -250,8 +251,9 @@ export default function App() {
       <ChatProvider>
         <NotificationProvider>
           <AnnouncementProvider>
-            <NavigationContainer>
-              <Screens.Navigator initialRouteName='Login'>
+            <MeetingProvider>
+              <NavigationContainer>
+                <Screens.Navigator initialRouteName='Login'>
 
                 {/*Assisted lang daw dapat */}
 
@@ -321,7 +323,8 @@ export default function App() {
 
 
               </Screens.Navigator>
-            </NavigationContainer>
+              </NavigationContainer>
+            </MeetingProvider>
           </AnnouncementProvider>
         </NotificationProvider>
       </ChatProvider>

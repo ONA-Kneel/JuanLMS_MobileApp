@@ -23,6 +23,7 @@ import ticketsRouter from "./routes/tickets.js";
 import lessonRoutes from './routes/lessonRoutes.js';
 import gradeRoutes from './routes/gradeRoutes.js';
 import auditRoutes from './routes/auditRoutes.js';
+import meetingRoutes from './routes/meetingRoutes.js';
 
 
 const app = express();
@@ -82,6 +83,7 @@ app.use('/api/grades', gradeRoutes);
 app.use('/api', adminRoutes);
 app.use('/api', auditRoutes);
 app.use('/api/group-chats', groupChatsRouter);
+app.use('/api/meetings', meetingRoutes);
 app.use('/uploads', express.static('uploads'));
 
 // Mobile app compatibility routes (direct routes without /api prefix)
