@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import { Modal, View, Text, TouchableOpacity, ActivityIndicator, StyleSheet, Platform, Alert, Dimensions, ScrollView } from 'react-native';
+import React, { useEffect, useState, useCallback } from 'react';
+import { Modal, View, Text, TouchableOpacity, ActivityIndicator, StyleSheet, Platform, Alert, Dimensions, TextInput } from 'react-native';
 import {
   StreamVideo,
   StreamVideoClient,
@@ -27,7 +27,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 const { width, height } = Dimensions.get('window');
 
-export default function EnhancedStreamMeetingRoom({
+export default function SimpleStreamMeetingRoom({
   isOpen,
   onClose,
   onLeave,
@@ -44,7 +44,6 @@ export default function EnhancedStreamMeetingRoom({
   const [showParticipants, setShowParticipants] = useState(false);
   const [showStats, setShowStats] = useState(false);
   const [showChat, setShowChat] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
   const [showConfirmLeave, setShowConfirmLeave] = useState(false);
   const [participantCount, setParticipantCount] = useState(0);
   const [isRecording, setIsRecording] = useState(false);
@@ -311,48 +310,18 @@ export default function EnhancedStreamMeetingRoom({
               {layout === 'grid' && (
                 <CallParticipantsGrid
                   style={styles.participantsGrid}
-                  ParticipantView={({ participant }) => (
-                    <View style={styles.participantView}>
-                      <Text style={styles.participantName}>
-                        {participant.name || 'Unknown'}
-                      </Text>
-                      {participant.isSpeaking && (
-                        <View style={styles.speakingIndicator} />
-                      )}
-                    </View>
-                  )}
                 />
               )}
               
               {layout === 'spotlight' && (
                 <CallParticipantsSpotlight
                   style={styles.participantsSpotlight}
-                  ParticipantView={({ participant }) => (
-                    <View style={styles.participantView}>
-                      <Text style={styles.participantName}>
-                        {participant.name || 'Unknown'}
-                      </Text>
-                      {participant.isSpeaking && (
-                        <View style={styles.speakingIndicator} />
-                      )}
-                    </View>
-                  )}
                 />
               )}
               
               {layout === 'speaker' && (
                 <SpeakerLayout
                   style={styles.speakerLayout}
-                  ParticipantView={({ participant }) => (
-                    <View style={styles.participantView}>
-                      <Text style={styles.participantName}>
-                        {participant.name || 'Unknown'}
-                      </Text>
-                      {participant.isSpeaking && (
-                        <View style={styles.speakingIndicator} />
-                      )}
-                    </View>
-                  )}
                 />
               )}
             </View>
@@ -379,13 +348,6 @@ export default function EnhancedStreamMeetingRoom({
                   onPress={() => setShowStats(!showStats)}
                 >
                   <Icon name="chart-line" size={20} color="#fff" />
-                </TouchableOpacity>
-                
-                <TouchableOpacity
-                  style={styles.topButton}
-                  onPress={() => setShowSettings(!showSettings)}
-                >
-                  <Icon name="cog" size={20} color="#fff" />
                 </TouchableOpacity>
               </View>
             </View>
@@ -505,10 +467,7 @@ export default function EnhancedStreamMeetingRoom({
                       <Icon name="close" size={24} color="#fff" />
                     </TouchableOpacity>
                   </View>
-                  <ScrollView style={styles.participantsList}>
-                    {/* Participants list would go here */}
-                    <Text style={styles.participantItem}>Loading participants...</Text>
-                  </ScrollView>
+                  <CallParticipantsList />
                 </View>
               </View>
             )}
@@ -543,7 +502,7 @@ export default function EnhancedStreamMeetingRoom({
                       <Icon name="close" size={24} color="#fff" />
                     </TouchableOpacity>
                   </View>
-                  <ScrollView style={styles.chatMessages}>
+                  <View style={styles.chatMessages}>
                     {chatMessages.map((message, index) => (
                       <View key={index} style={styles.chatMessage}>
                         <Text style={styles.chatMessageText}>{message.text}</Text>
@@ -552,7 +511,7 @@ export default function EnhancedStreamMeetingRoom({
                         </Text>
                       </View>
                     ))}
-                  </ScrollView>
+                  </View>
                   <View style={styles.chatInput}>
                     <TextInput
                       style={styles.chatInputField}
@@ -564,25 +523,6 @@ export default function EnhancedStreamMeetingRoom({
                     <TouchableOpacity style={styles.chatSendButton} onPress={sendMessage}>
                       <Icon name="send" size={20} color="#3B82F6" />
                     </TouchableOpacity>
-                  </View>
-                </View>
-              </View>
-            )}
-
-            {/* Settings Modal */}
-            {showSettings && (
-              <View style={styles.settingsModal}>
-                <View style={styles.settingsContent}>
-                  <View style={styles.settingsHeader}>
-                    <Text style={styles.settingsTitle}>Settings</Text>
-                    <TouchableOpacity onPress={() => setShowSettings(false)}>
-                      <Icon name="close" size={24} color="#fff" />
-                    </TouchableOpacity>
-                  </View>
-                  <View style={styles.settingsBody}>
-                    <Text style={styles.settingItem}>Audio Quality: High</Text>
-                    <Text style={styles.settingItem}>Video Quality: 720p</Text>
-                    <Text style={styles.settingItem}>Network: Good</Text>
                   </View>
                 </View>
               </View>
@@ -703,27 +643,6 @@ const styles = StyleSheet.create({
   },
   speakerLayout: {
     flex: 1,
-  },
-  participantView: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#1a1a1a',
-  },
-  participantName: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-    marginTop: 8,
-  },
-  speakingIndicator: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: '#10B981',
   },
   topControls: {
     position: 'absolute',
@@ -865,15 +784,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#fff',
   },
-  participantsList: {
-    flex: 1,
-    padding: 20,
-  },
-  participantItem: {
-    color: '#fff',
-    fontSize: 16,
-    paddingVertical: 8,
-  },
   statsModal: {
     position: 'absolute',
     top: 0,
@@ -978,41 +888,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#3B82F6',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  settingsModal: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.8)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  settingsContent: {
-    backgroundColor: '#1a1a1a',
-    borderRadius: 12,
-    padding: 20,
-    width: '90%',
-    maxHeight: '80%',
-  },
-  settingsHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  settingsTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#fff',
-  },
-  settingsBody: {
-    gap: 12,
-  },
-  settingItem: {
-    color: '#fff',
-    fontSize: 16,
   },
   confirmModal: {
     position: 'absolute',

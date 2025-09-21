@@ -18,11 +18,11 @@ import { useUser } from '../UserContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import StudentDashboardStyle from '../styles/Stud/StudentDashStyle';
 let StreamMeetingRoomNative = null;
-let EnhancedStreamMeetingRoom = null;
+let SimpleStreamMeetingRoom = null;
 if (Platform.OS !== 'web') {
   try { 
     StreamMeetingRoomNative = require('../Meeting/StreamMeetingRoomNative').default;
-    EnhancedStreamMeetingRoom = require('../Meeting/EnhancedStreamMeetingRoom').default;
+    SimpleStreamMeetingRoom = require('../Meeting/SimpleStreamMeetingRoom').default;
   } catch (e) { /* noop on web */ }
 }
 
@@ -423,8 +423,8 @@ export default function StudentMeeting() {
         </View>
       )}
     </ScrollView>
-    {activeMeeting && Platform.OS !== 'web' && EnhancedStreamMeetingRoom && (
-      <EnhancedStreamMeetingRoom
+    {activeMeeting && Platform.OS !== 'web' && SimpleStreamMeetingRoom && (
+      <SimpleStreamMeetingRoom
         isOpen={!!activeMeeting}
         onClose={() => setActiveMeeting(null)}
         onLeave={() => setActiveMeeting(null)}
