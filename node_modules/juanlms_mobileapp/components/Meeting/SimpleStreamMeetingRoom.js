@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Modal, View, Text, TouchableOpacity, ActivityIndicator, StyleSheet, Platform, Alert, Dimensions, TextInput } from 'react-native';
 import {
   StreamVideo,
@@ -54,12 +54,29 @@ export default function SimpleStreamMeetingRoom({
   const [reactions, setReactions] = useState([]);
   const [chatMessages, setChatMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
+  const isInitialized = useRef(false);
+  const initTimeoutRef = useRef(null);
 
   // Initialize Stream.io client
   useEffect(() => {
     if (!isOpen || !credentials) return;
 
-    const initClient = async () => {
+    // Prevent multiple initializations
+    if (isInitialized.current || client || call) {
+      console.log('Already initialized or client/call exists, skipping initialization');
+      return;
+    }
+
+    isInitialized.current = true;
+
+    // Clear any existing timeout
+    if (initTimeoutRef.current) {
+      clearTimeout(initTimeoutRef.current);
+    }
+
+    // Add a small delay to prevent rapid re-initializations
+    initTimeoutRef.current = setTimeout(async () => {
+      const initClient = async () => {
       try {
         setIsConnecting(true);
         setError(null);
@@ -169,16 +186,46 @@ export default function SimpleStreamMeetingRoom({
     };
 
     initClient();
+    }, 100); // 100ms delay
 
     return () => {
+      // Clear timeout
+      if (initTimeoutRef.current) {
+        clearTimeout(initTimeoutRef.current);
+      }
+      
       if (call) {
         call.leave();
       }
       if (client) {
         client.disconnectUser();
       }
+      // Reset initialization flag when component unmounts
+      isInitialized.current = false;
     };
   }, [isOpen, credentials]);
+
+  // Reset state when component closes
+  useEffect(() => {
+    if (!isOpen) {
+      setIsConnecting(false);
+      setError(null);
+      setShowParticipants(false);
+      setShowStats(false);
+      setShowChat(false);
+      setShowConfirmLeave(false);
+      setParticipantCount(0);
+      setIsRecording(false);
+      setIsScreenSharing(false);
+      setIsMuted(false);
+      setIsVideoOn(true);
+      setLayout('grid');
+      setReactions([]);
+      setChatMessages([]);
+      setNewMessage('');
+      isInitialized.current = false;
+    }
+  }, [isOpen]);
 
   const handleLeave = useCallback(async () => {
     try {
