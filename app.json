@@ -2,7 +2,7 @@
   "expo": {
     "name": "JuanLMS",
     "slug": "juanlms-mobile-app",
-    "owner": "nylineee",
+    "owner": "orionneil",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "frontend/assets/SanJuan.png",
@@ -43,10 +43,7 @@
       "icon": "frontend/assets/SanJuan.png"
     },
     "extra": {
-      "API_URL": "https://juanlms-webapp-server.onrender.com",
-      "eas": {
-        "projectId": "bb260978-af95-43bb-9a06-00369222eb8a"
-      }
+      "API_URL": "https://juanlms-webapp-server.onrender.com"
     },
     "plugins": [
       [
