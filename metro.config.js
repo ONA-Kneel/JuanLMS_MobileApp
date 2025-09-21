@@ -3,8 +3,9 @@ const path = require('path');
 
 const config = getDefaultConfig(__dirname);
 
-// Add the frontend directory to the project root
-config.projectRoot = path.resolve(__dirname, 'frontend');
+// Keep the default projectRoot (root directory)
+// config.projectRoot = path.resolve(__dirname, 'frontend'); // Removed this line
+
 config.watchFolders = [
   path.resolve(__dirname, 'frontend'),
   path.resolve(__dirname, 'node_modules'),

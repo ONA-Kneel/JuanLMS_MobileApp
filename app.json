@@ -33,12 +33,7 @@
         "android.permission.BLUETOOTH_CONNECT"
       ],
       "softwareKeyboardLayoutMode": "pan",
-      "allowBackup": true,
-      "usesCleartextTraffic": true,
-      "buildConfigFields": {
-        "androidx.core:core": "1.13.1",
-        "androidx.media:media": "1.0.0"
-      }
+      "allowBackup": true
     },
     "web": {
       "icon": "frontend/assets/SanJuan.png"
@@ -67,7 +62,12 @@
         "expo-build-properties",
         {
           "android": {
-            "minSdkVersion": 24
+            "minSdkVersion": 24,
+            "usesCleartextTraffic": true,
+            "buildConfigFields": {
+              "androidx.core:core": "1.13.1",
+              "androidx.media:media": "1.0.0"
+            }
           }
         }
       ],

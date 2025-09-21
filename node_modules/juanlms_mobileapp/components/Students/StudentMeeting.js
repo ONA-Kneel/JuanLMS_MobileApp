@@ -136,40 +136,45 @@ export default function StudentMeeting() {
 
   const handleJoinMeeting = async (meeting) => {
     try {
-      const token = await AsyncStorage.getItem('jwtToken');
-      const response = await fetch(`https://juanlms-webapp-server.onrender.com/api/meetings/${meeting._id}/join`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      // Fresh JWT token generated with correct API key and secret (valid for 24 hours)
+      const streamCredentials = {
+        apiKey: '5wr63nnqpkyh',
+        token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL3Byb250by5nZXRzdHJlYW0uaW8iLCJzdWIiOiJ1c2VyL1dvb2xseV9QYXRjaCIsInVzZXJfaWQiOiJXb29sbHlfUGF0Y2giLCJ2YWxpZGl0eV9pbl9zZWNvbmRzIjo2MDQ4MDAsImlhdCI6MTc1ODQ0MDc1NywiZXhwIjoxNzU4NTI3MTU3fQ.RkJiSPlYkxjKCEd-J2RfypxYceO9m9fcPPRtAZ8oOF8',
+        userId: 'Woolly_Patch',
+        callId: meeting._id
+      };
 
-      if (response.ok) {
-        const result = await response.json();
-        const enriched = { ...meeting, roomUrl: result.roomUrl, meetingId: String(meeting._id) };
-        if (Platform.OS === 'web') {
-          try { window.open(result.roomUrl, '_blank'); } catch (e) { Alert.alert('Meeting', 'Open this link: ' + result.roomUrl); }
-        } else {
-          // Request runtime permissions (Android)
-          try {
-            if (Platform.OS === 'android') {
-              const cam = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.CAMERA);
-              const mic = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.RECORD_AUDIO);
-              if (cam !== PermissionsAndroid.RESULTS.GRANTED || mic !== PermissionsAndroid.RESULTS.GRANTED) {
-                Alert.alert('Permissions required', 'Camera and microphone permissions are needed to join the meeting.');
-                return;
-              }
-            }
-          } catch (e) { /* ignore */ }
-          if (!StreamMeetingRoomNative) {
-            Alert.alert('Meeting', 'Native meeting module is unavailable. Make sure you run a development build (not Expo Go).');
-            return;
-          }
-          setActiveMeeting(enriched);
+      const enriched = { 
+        ...meeting, 
+        roomUrl: `https://getstream.io/call/${meeting._id}`, 
+        meetingId: String(meeting._id),
+        credentials: streamCredentials
+      };
+      
+      if (Platform.OS === 'web') {
+        try { 
+          window.open(enriched.roomUrl, '_blank'); 
+        } catch (e) { 
+          Alert.alert('Meeting', 'Open this link: ' + enriched.roomUrl); 
         }
       } else {
-        const result = await response.json();
-        Alert.alert('Error', result.message || 'Failed to join meeting');
+        try {
+          if (Platform.OS === 'android') {
+            const cam = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.CAMERA);
+            const mic = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.RECORD_AUDIO);
+            if (cam !== PermissionsAndroid.RESULTS.GRANTED || mic !== PermissionsAndroid.RESULTS.GRANTED) {
+              Alert.alert('Permissions required', 'Camera and microphone permissions are needed to join the meeting.');
+              return;
+            }
+          }
+        } catch (e) { /* ignore */ }
+        
+        if (!StreamMeetingRoomNative) {
+          Alert.alert('Meeting', 'Native meeting module is unavailable. Make sure you run a development build (not Expo Go).');
+          return;
+        }
+        
+        setActiveMeeting(enriched);
       }
     } catch (error) {
       console.error('Error joining meeting:', error);
@@ -426,12 +431,7 @@ export default function StudentMeeting() {
         onLeave={() => setActiveMeeting(null)}
         meetingData={activeMeeting}
         currentUser={{ name: user?.name || user?.username || 'Student' }}
-        credentials={{
-          apiKey: 'mmhfdzb5evj2',
-          token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL3Byb250by5nZXRzdHJlYW0uaW8iLCJzdWIiOiJ1c2VyL1dvb2xseV9QYXRjaCIsInVzZXJfaWQiOiJXb29sbHlfUGF0Y2giLCJ2YWxpZGl0eV9pbl9zZWNvbmRzIjo2MDQ4MDAsImlhdCI6MTc1NzM0MDk5OCwiZXhwIjoxNzU3OTQ1Nzk4fQ.nsL1ALmGwSTl8QUawile5zJdsCjGPW8lOkDy5vRWm2I',
-          userId: 'Woolly_Patch',
-          callId: '9IH1mIBCkfbdP9y4q34W2',
-        }}
+        credentials={activeMeeting.credentials}
         isHost={false}
       />
     )}
