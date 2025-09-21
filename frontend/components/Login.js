@@ -140,12 +140,17 @@ export default function Login() {
     }
   };
 
-  const fetchWithTimeout = async (url, options = {}, timeoutMs = 15000) => {
+  const fetchWithTimeout = async (url, options = {}, timeoutMs = 30000) => {
     const controller = new AbortController();
     const id = setTimeout(() => controller.abort(), timeoutMs);
     try {
       const resp = await fetch(url, { ...options, signal: controller.signal });
       return resp;
+    } catch (error) {
+      if (error.name === 'AbortError') {
+        throw new Error('Request timeout - please check your internet connection');
+      }
+      throw error;
     } finally {
       clearTimeout(id);
     }
@@ -249,9 +254,21 @@ export default function Login() {
         }
       }
     } catch (error) {
-      console.error('Auto-login error:', error);
-      showToast('An error occurred while logging in. Please check your connection.', 'error');
-      setErrorMessage('An error occurred while logging in. Please check your connection.');
+      console.error('Login error:', error);
+      let errorMessage = 'An error occurred while logging in. Please check your connection.';
+      
+      if (error.message.includes('timeout')) {
+        errorMessage = 'Connection timeout. Please check your internet connection and try again.';
+      } else if (error.message.includes('Network request failed')) {
+        errorMessage = 'Network error. Please check your internet connection.';
+      } else if (error.message.includes('Failed to fetch')) {
+        errorMessage = 'Cannot connect to server. Please check your internet connection.';
+      } else if (error.message.includes('AbortError')) {
+        errorMessage = 'Request was cancelled. Please try again.';
+      }
+      
+      showToast(errorMessage, 'error');
+      setErrorMessage(errorMessage);
     }
   };
 
@@ -290,6 +307,20 @@ export default function Login() {
       // Use the public backend URL
       const loginUrl = BACKEND_URL;
       console.log('Using backend URL:', loginUrl);
+      
+      // Test network connectivity first
+      try {
+        const testResponse = await fetchWithTimeout(`${loginUrl.replace('/login', '')}/health`, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json'
+          }
+        }, 10000);
+        console.log('Network connectivity test:', testResponse.status);
+      } catch (networkError) {
+        console.warn('Network connectivity test failed:', networkError.message);
+        // Continue with login attempt anyway
+      }
 
       const response = await fetchWithTimeout(loginUrl, {
         method: 'POST',
@@ -423,8 +454,20 @@ export default function Login() {
       }
     } catch (error) {
       console.error('Login error:', error);
-      showToast('An error occurred while logging in. Please check your connection.', 'error');
-      setErrorMessage('An error occurred while logging in. Please check your connection.');
+      let errorMessage = 'An error occurred while logging in. Please check your connection.';
+      
+      if (error.message.includes('timeout')) {
+        errorMessage = 'Connection timeout. Please check your internet connection and try again.';
+      } else if (error.message.includes('Network request failed')) {
+        errorMessage = 'Network error. Please check your internet connection.';
+      } else if (error.message.includes('Failed to fetch')) {
+        errorMessage = 'Cannot connect to server. Please check your internet connection.';
+      } else if (error.message.includes('AbortError')) {
+        errorMessage = 'Request was cancelled. Please try again.';
+      }
+      
+      showToast(errorMessage, 'error');
+      setErrorMessage(errorMessage);
     }
   };
 

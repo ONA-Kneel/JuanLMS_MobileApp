@@ -6,7 +6,7 @@ import android.content.Context;
 import android.os.Build;
 import androidx.core.app.NotificationCompat;
 
-public class NotificationChannel {
+public class NotificationChannelHelper {
     public static final String CHANNEL_ID = "juanlms_notifications";
     public static final String CHANNEL_NAME = "JuanLMS Notifications";
     public static final String CHANNEL_DESCRIPTION = "Notifications for JuanLMS app";
