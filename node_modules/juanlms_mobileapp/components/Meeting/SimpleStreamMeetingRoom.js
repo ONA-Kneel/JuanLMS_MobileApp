@@ -81,9 +81,33 @@ export default function SimpleStreamMeetingRoom({
         await callInstance.join({ create: true });
         setCall(callInstance);
 
+        // Check if call is already connected
+        console.log('Call state after join:', callInstance.state.status);
+        if (callInstance.state.status === 'joined' || callInstance.state.status === 'active') {
+          console.log('Call already joined/active');
+          setIsConnecting(false);
+        }
+
         // Set up call event listeners
         callInstance.on('call.updated', (event) => {
           console.log('Call updated:', event);
+          console.log('Call status:', event.call.state.status);
+          // Reset connecting state when call is updated (connected)
+          if (event.call.state.status === 'joined' || event.call.state.status === 'active') {
+            setIsConnecting(false);
+          }
+        });
+
+        // Listen for call session started event
+        callInstance.on('call.session_started', () => {
+          console.log('Call session started');
+          setIsConnecting(false);
+        });
+
+        // Listen for call joined event
+        callInstance.on('call.joined', () => {
+          console.log('Call joined');
+          setIsConnecting(false);
         });
 
         callInstance.on('call.ended', () => {
@@ -130,11 +154,17 @@ export default function SimpleStreamMeetingRoom({
 
         updateParticipantCount();
 
+        // Set a timeout to ensure connecting state is reset
+        setTimeout(() => {
+          setIsConnecting(false);
+        }, 5000); // 5 second timeout
+
       } catch (err) {
         console.error('Error initializing Stream client:', err);
         setError(err.message || 'Failed to initialize meeting');
       } finally {
-        setIsConnecting(false);
+        // Don't set isConnecting to false here as we want to wait for the call to join
+        // setIsConnecting(false);
       }
     };
 
