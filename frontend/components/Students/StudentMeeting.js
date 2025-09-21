@@ -18,8 +18,12 @@ import { useUser } from '../UserContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import StudentDashboardStyle from '../styles/Stud/StudentDashStyle';
 let StreamMeetingRoomNative = null;
+let EnhancedStreamMeetingRoom = null;
 if (Platform.OS !== 'web') {
-  try { StreamMeetingRoomNative = require('../Meeting/StreamMeetingRoomNative').default; } catch (e) { /* noop on web */ }
+  try { 
+    StreamMeetingRoomNative = require('../Meeting/StreamMeetingRoomNative').default;
+    EnhancedStreamMeetingRoom = require('../Meeting/EnhancedStreamMeetingRoom').default;
+  } catch (e) { /* noop on web */ }
 }
 
 const { width } = Dimensions.get('window');
@@ -419,8 +423,8 @@ export default function StudentMeeting() {
         </View>
       )}
     </ScrollView>
-    {activeMeeting && Platform.OS !== 'web' && StreamMeetingRoomNative && (
-      <StreamMeetingRoomNative
+    {activeMeeting && Platform.OS !== 'web' && EnhancedStreamMeetingRoom && (
+      <EnhancedStreamMeetingRoom
         isOpen={!!activeMeeting}
         onClose={() => setActiveMeeting(null)}
         onLeave={() => setActiveMeeting(null)}
@@ -433,6 +437,7 @@ export default function StudentMeeting() {
           callId: '9IH1mIBCkfbdP9y4q34W2',
         }}
         isHost={false}
+        hostUserId={'Woolly_Patch'}
       />
     )}
     </>
