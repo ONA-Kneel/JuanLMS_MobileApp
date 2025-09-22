@@ -1,5 +1,5 @@
 import { Image } from 'react-native';
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useFonts } from 'expo-font';
 import { View, ActivityIndicator } from 'react-native';
 
@@ -16,6 +16,9 @@ import Chat from './components/Chat';
 import GroupChat from './components/GroupChat';
 import GroupManagement from './components/GroupManagement';
 import UnifiedChat from './components/UnifiedChat';
+import {PermissionsAndroid} from 'react-native';
+import messaging from '@react-native-firebase/messaging';
+
 // import SupportMain from './components/SupportMain';
 // import SupportRequest from './components/SupportRequest';
 
@@ -118,6 +121,40 @@ function StudentTabs() {
     </Tabs.Navigator>
   );
 }
+//notifications
+const requestPermission = async () => {
+  try{
+    const result =await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS);
+    console.log("result**",result);
+    console.log("result2**",PermissionsAndroid.RESULTS.GRANTED);
+    if (result === PermissionsAndroid.RESULTS.GRANTED){
+      //request for device token
+      requesToken();
+    }
+    else{
+      Alert.alert("Permission Denied");
+    }
+  }
+  catch (error){
+    console.log(error);
+  }
+}
+
+const requesToken = async () => {
+  try{
+    await messaging().registerDeviceForRemoteMessages();
+    const token = await messaging().getToken();
+    console.log("token**",token);
+  }
+  catch (error){
+    console.log(error);
+  }
+}
+useEffect (() => {
+  requestPermission();
+  }, []);
+
+
 
 const facultyNavItems = [
   { label: 'Dashboard', icon: 'view-dashboard', route: 'FDashboard' },
