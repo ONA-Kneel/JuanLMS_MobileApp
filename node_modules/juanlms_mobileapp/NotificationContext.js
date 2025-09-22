@@ -1,5 +1,9 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { Platform, PermissionsAndroid, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import messaging from '@react-native-firebase/messaging';
+import Toast from 'react-native-root-toast';
+import { registerDeviceToken } from './services/notificationService';
 import { apiGet, apiPatch } from './utils/apiUtils';
 
 const NotificationContext = createContext();
@@ -16,6 +20,7 @@ export const NotificationProvider = ({ children }) => {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [fcmToken, setFcmToken] = useState(null);
 
   // Auto-fetch notifications when context is initialized
   useEffect(() => {
@@ -56,6 +61,125 @@ export const NotificationProvider = ({ children }) => {
     }, 30000);
 
     return () => clearInterval(interval);
+  }, []);
+
+  // Firebase Cloud Messaging: permissions, token, and foreground listener
+  useEffect(() => {
+    const requestNotificationPermissionAndroid = async () => {
+      try {
+        if (Platform.OS === 'android' && Platform.Version >= 33) {
+          // Optional rationale before system prompt
+          // You can customize this with your own UI modal if needed
+          // For now, a simple Alert as rationale
+          try {
+            Alert && Alert.alert && Alert.alert(
+              'Enable Notifications',
+              'Allow notifications to receive updates about messages, grades, and announcements.'
+            );
+          } catch {}
+          const result = await PermissionsAndroid.request(
+            PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS
+          );
+          if (result !== PermissionsAndroid.RESULTS.GRANTED) {
+            Alert && Alert.alert && Alert.alert('Permission Denied', 'Notifications may be limited.');
+            return false;
+          }
+        }
+        return true;
+      } catch (error) {
+        console.log('Android permission error:', error);
+        return false;
+      }
+    };
+
+    const requestNotificationPermissionIOS = async () => {
+      try {
+        const authStatus = await messaging().requestPermission();
+        const enabled =
+          authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
+          authStatus === messaging.AuthorizationStatus.PROVISIONAL;
+        if (!enabled) {
+          return false;
+        }
+        return true;
+      } catch (error) {
+        console.log('iOS permission error:', error);
+        return false;
+      }
+    };
+
+    const registerAndGetToken = async () => {
+      try {
+        await messaging().registerDeviceForRemoteMessages();
+        const token = await messaging().getToken();
+        if (token) {
+          setFcmToken(token);
+          console.log('FCM token:', token);
+          try { await AsyncStorage.setItem('fcmToken', token); } catch {}
+          try {
+            const storedUser = await AsyncStorage.getItem('user');
+            const userData = storedUser ? JSON.parse(storedUser) : null;
+            const userId = userData?._id || userData?.userID;
+            if (userId) {
+              await registerDeviceToken(userId, token);
+            }
+          } catch (syncErr) {
+            console.log('Token sync error:', syncErr);
+          }
+        }
+      } catch (error) {
+        console.log('FCM token error:', error);
+      }
+    };
+
+    const setupForegroundListener = () => {
+      const unsubscribeOnMessage = messaging().onMessage(async remoteMessage => {
+        try {
+          console.log('Foreground FCM message:', remoteMessage);
+          const title = remoteMessage?.notification?.title || 'New notification';
+          const body = remoteMessage?.notification?.body || '';
+          Toast.show(`${title}${body ? ': ' + body : ''}`, {
+            duration: Toast.durations.SHORT,
+            position: Toast.positions.TOP,
+          });
+        } catch (e) {
+          console.log('Toast error:', e);
+        }
+      });
+      return unsubscribeOnMessage;
+    };
+
+    let unsubscribeOnMessage;
+    let unsubscribeOnTokenRefresh;
+    (async () => {
+      const granted = Platform.OS === 'ios'
+        ? await requestNotificationPermissionIOS()
+        : await requestNotificationPermissionAndroid();
+      if (granted) {
+        await registerAndGetToken();
+        unsubscribeOnMessage = setupForegroundListener();
+        unsubscribeOnTokenRefresh = messaging().onTokenRefresh(async token => {
+          setFcmToken(token);
+          console.log('FCM token refreshed:', token);
+          try { await AsyncStorage.setItem('fcmToken', token); } catch {}
+          try {
+            const storedUser = await AsyncStorage.getItem('user');
+            const userData = storedUser ? JSON.parse(storedUser) : null;
+            const userId = userData?._id || userData?.userID;
+            if (userId) {
+              await registerDeviceToken(userId, token);
+            }
+          } catch (syncErr) {
+            console.log('Token refresh sync error:', syncErr);
+          }
+        });
+      }
+    })();
+
+    return () => {
+      if (unsubscribeOnMessage) unsubscribeOnMessage();
+      if (unsubscribeOnTokenRefresh) unsubscribeOnTokenRefresh();
+    };
   }, []);
 
   // API base URL handled by apiUtils
@@ -209,6 +333,7 @@ export const NotificationProvider = ({ children }) => {
     notifications,
     unreadCount,
     loading,
+    fcmToken,
     fetchNotifications,
     markAsRead,
     markAllAsRead,

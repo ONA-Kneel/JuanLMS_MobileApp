@@ -571,3 +571,51 @@ userRoutes.post('/validate-otp', async (req, res) => {
 });
 
 export default userRoutes;
+ 
+// ------------------ FCM DEVICE TOKEN ROUTES ------------------
+// Register or update a device token for a user
+userRoutes.post('/users/:id/device-token', async (req, res) => {
+    try {
+        const db = database.getDb();
+        const { token } = req.body;
+        if (!token) {
+            return res.status(400).json({ success: false, message: 'token is required' });
+        }
+        const userId = new ObjectId(req.params.id);
+        // Store tokens as simple strings to avoid object equality complexities
+        const result = await db.collection('users').updateOne(
+            { _id: userId },
+            { $addToSet: { deviceTokens: token } }
+        );
+        if (result.matchedCount === 0) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
+        return res.json({ success: true });
+    } catch (error) {
+        console.error('Register device token error:', error);
+        return res.status(500).json({ success: false, message: 'Failed to register device token' });
+    }
+});
+
+// Remove a device token for a user (e.g., on logout)
+userRoutes.delete('/users/:id/device-token', async (req, res) => {
+    try {
+        const db = database.getDb();
+        const { token } = req.body || {};
+        if (!token) {
+            return res.status(400).json({ success: false, message: 'token is required' });
+        }
+        const userId = new ObjectId(req.params.id);
+        const result = await db.collection('users').updateOne(
+            { _id: userId },
+            { $pull: { deviceTokens: token } }
+        );
+        if (result.matchedCount === 0) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
+        return res.json({ success: true });
+    } catch (error) {
+        console.error('Remove device token error:', error);
+        return res.status(500).json({ success: false, message: 'Failed to remove device token' });
+    }
+});

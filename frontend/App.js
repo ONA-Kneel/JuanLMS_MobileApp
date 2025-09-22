@@ -1,5 +1,4 @@
-import { Image } from 'react-native';
-import React, { useEffect } from 'react';
+import React from 'react';
 import { useFonts } from 'expo-font';
 import { View, ActivityIndicator } from 'react-native';
 
@@ -8,6 +7,7 @@ import SplashScreen from './components/SplashScreen';
 
 //Navigation
 import { NavigationContainer } from '@react-navigation/native';
+import { navigationRef } from './navigationRef';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Login from './components/Login';
@@ -16,8 +16,7 @@ import Chat from './components/Chat';
 import GroupChat from './components/GroupChat';
 import GroupManagement from './components/GroupManagement';
 import UnifiedChat from './components/UnifiedChat';
-import {PermissionsAndroid} from 'react-native';
-import messaging from '@react-native-firebase/messaging';
+ 
 
 // import SupportMain from './components/SupportMain';
 // import SupportRequest from './components/SupportRequest';
@@ -121,38 +120,7 @@ function StudentTabs() {
     </Tabs.Navigator>
   );
 }
-//notifications
-const requestPermission = async () => {
-  try{
-    const result =await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS);
-    console.log("result**",result);
-    console.log("result2**",PermissionsAndroid.RESULTS.GRANTED);
-    if (result === PermissionsAndroid.RESULTS.GRANTED){
-      //request for device token
-      requesToken();
-    }
-    else{
-      Alert.alert("Permission Denied");
-    }
-  }
-  catch (error){
-    console.log(error);
-  }
-}
-
-const requesToken = async () => {
-  try{
-    await messaging().registerDeviceForRemoteMessages();
-    const token = await messaging().getToken();
-    console.log("token**",token);
-  }
-  catch (error){
-    console.log(error);
-  }
-}
-useEffect (() => {
-  requestPermission();
-  }, []);
+ 
 
 
 
@@ -283,7 +251,7 @@ export default function App() {
       <ChatProvider>
         <NotificationProvider>
           <AnnouncementProvider>
-            <NavigationContainer>
+            <NavigationContainer ref={navigationRef}>
               <Screens.Navigator initialRouteName='Login'>
 
                 {/*Assisted lang daw dapat */}

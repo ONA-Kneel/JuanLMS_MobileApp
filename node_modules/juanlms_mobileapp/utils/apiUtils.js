@@ -137,7 +137,22 @@ export const isAuthenticated = async () => {
 // Logout helper
 export const logout = async () => {
   try {
+    // Attempt to unregister device token on backend
+    try {
+      const userJson = await AsyncStorage.getItem('user');
+      const token = await AsyncStorage.getItem('fcmToken');
+      if (userJson && token) {
+        const user = JSON.parse(userJson);
+        const userId = user?._id || user?.userID;
+        if (userId) {
+          await apiRequest('DELETE', `/api/users/${userId}/device-token`, { token });
+        }
+      }
+    } catch (cleanupErr) {
+      console.log('Logout token cleanup error:', cleanupErr);
+    }
     await AsyncStorage.removeItem('jwtToken');
+    await AsyncStorage.removeItem('fcmToken');
     await AsyncStorage.removeItem('userData');
     // Add any other cleanup needed
   } catch (error) {

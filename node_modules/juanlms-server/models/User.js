@@ -10,6 +10,8 @@ const userSchema = new mongoose.Schema({
   // Common identifiers used across the app
   userID: { type: String },
   schoolID: { type: String },
+  // Device tokens for push notifications (FCM)
+  deviceTokens: { type: [String], default: [] },
   // any other fields
 });
 
