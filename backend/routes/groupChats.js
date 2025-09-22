@@ -2,6 +2,7 @@ import express from 'express';
 import GroupChat from '../models/GroupChat.js';
 import GroupMessage from '../models/GroupMessage.js';
 import User from '../models/User.js';
+import { sendNotificationToUsers } from '../services/fcmService.js';
 
 const router = express.Router();
 
@@ -303,7 +304,21 @@ router.post('/:groupId/messages', async (req, res) => {
     });
 
     await newMessage.save();
-    res.status(201).json(newMessage);
+  // Notify all participants except sender
+  try {
+    const recipientIds = group.participants.filter(p => p !== senderId);
+    const title = group.name || 'New group message';
+    const body = `${senderName}: ${message?.slice(0, 90) || ''}`.trim();
+    await sendNotificationToUsers(recipientIds, { title, body }, {
+      screen: 'UnifiedChat',
+      params: JSON.stringify({ groupId, threadId: groupId }),
+      type: 'chat_group'
+    });
+  } catch (e) {
+    console.log('[GroupChat] FCM send error:', e);
+  }
+
+  res.status(201).json(newMessage);
   } catch (error) {
     console.error('Error sending group message:', error);
     res.status(500).json({ error: 'Failed to send message' });

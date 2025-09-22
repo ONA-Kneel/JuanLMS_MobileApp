@@ -1,5 +1,7 @@
 import express from 'express';
 import Message from '../models/Message.js';
+import User from '../models/User.js';
+import { sendNotificationToUser } from '../services/fcmService.js';
 
 const router = express.Router();
 
@@ -7,6 +9,22 @@ router.post('/', async (req, res) => {
   const { senderId, receiverId, message } = req.body;
   const newMessage = new Message({ senderId, receiverId, message });
   await newMessage.save();
+
+  // Fire-and-forget FCM notification to receiver
+  try {
+    const sender = await User.findById(senderId, 'firstname lastname');
+    const senderName = sender ? `${sender.firstname || ''} ${sender.lastname || ''}`.trim() || 'New message' : 'New message';
+    const title = senderName;
+    const body = message?.slice(0, 120) || 'You have a new message';
+    sendNotificationToUser(receiverId, { title, body }, {
+      screen: 'UnifiedChat',
+      params: JSON.stringify({ chatId: senderId, threadId: senderId }),
+      type: 'chat_direct'
+    });
+  } catch (e) {
+    console.log('[DM] FCM send error:', e);
+  }
+
   res.status(201).json(newMessage);
 });
 
