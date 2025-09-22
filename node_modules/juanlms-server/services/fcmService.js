@@ -71,9 +71,11 @@ export async function sendNotificationToUsers(userIds, notification, data = {}) 
       .filter(Boolean);
 
     if (tokens.length === 0) {
+      console.warn('[FCM] No tokens found for users:', userIds);
       return { successCount: 0, failureCount: 0 };
     }
 
+    console.log(`[FCM] Sending to ${tokens.length} tokens for users:`, userIds);
     const message = {
       tokens,
       notification,
@@ -88,6 +90,7 @@ export async function sendNotificationToUsers(userIds, notification, data = {}) 
     };
 
     const response = await admin.messaging().sendEachForMulticast(message);
+    console.log(`[FCM] Send result: success=${response.successCount}, failure=${response.failureCount}`);
 
     // Cleanup invalid tokens
     const invalidTokens = new Set();
@@ -100,6 +103,7 @@ export async function sendNotificationToUsers(userIds, notification, data = {}) 
         ) {
           invalidTokens.add(tokens[idx]);
         }
+        console.warn('[FCM] Token send failed:', tokens[idx], resp.error?.code, resp.error?.message);
       }
     });
 
@@ -108,6 +112,7 @@ export async function sendNotificationToUsers(userIds, notification, data = {}) 
         { _id: { $in: userIds } },
         { $pull: { deviceTokens: { $in: Array.from(invalidTokens) } } }
       );
+      console.log('[FCM] Removed invalid tokens:', Array.from(invalidTokens));
     }
 
     return { successCount: response.successCount, failureCount: response.failureCount };
