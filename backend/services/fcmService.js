@@ -75,17 +75,20 @@ export async function sendNotificationToUsers(userIds, notification, data = {}) 
       return { successCount: 0, failureCount: 0 };
     }
 
+    console.log(`[FCM] Token lookup: users=${userIds.length} totalTokens=${tokens.length}`);
+
     console.log(`[FCM] Sending to ${tokens.length} tokens for users:`, userIds);
     const message = {
       tokens,
       notification,
-      data,
+      data: Object.fromEntries(Object.entries(data || {}).map(([k, v]) => [k, v == null ? '' : String(v)])),
       android: {
         priority: 'high',
+        notification: { channelId: 'default', sound: 'default' },
       },
       apns: {
         headers: { 'apns-priority': '10' },
-        payload: { aps: { sound: 'default' } },
+        payload: { aps: { sound: 'default', badge: 1 } },
       },
     };
 

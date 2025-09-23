@@ -23,6 +23,8 @@ import lessonRoutes from './routes/lessonRoutes.js';
 import gradeRoutes from './routes/gradeRoutes.js';
 import auditRoutes from './routes/auditRoutes.js';
 import meetingRoutes from './routes/meetingRoutes.js';
+import pushRoutes, { registerCronEndpoints } from './routes/pushRoutes.js';
+import { startNotificationWatcher } from './services/notificationWatcher.js';
 
 
 const app = express();
@@ -82,6 +84,10 @@ app.use('/api', adminRoutes);
 app.use('/api', auditRoutes);
 app.use('/api/group-chats', groupChatsRouter);
 app.use('/api/meetings', meetingRoutes);
+app.use('/api', pushRoutes);
+
+// Register optional cron trigger endpoints (secured via CRON_TOKEN)
+registerCronEndpoints(app);
 app.use('/uploads', express.static('uploads'));
 
 // Mobile app compatibility routes (direct routes without /api prefix)
@@ -116,13 +122,16 @@ app.get('/test-assignments', (req, res) => {
 // Academic year route alias for mobile app compatibility
 app.get('/api/academic-year/active', async (req, res) => {
   try {
-    // Return hardcoded academic year data for mobile app compatibility
-    res.json({
-      academicYear: '2025-2026',
-      currentTerm: 'First Semester',
-      startDate: '2025-06-01',
-      endDate: '2026-03-31'
-    });
+    const { proxyJson } = await import('./utils/webProxy.js');
+    const data = await proxyJson('/api/schoolyears/active');
+    // Normalize shape for mobile clients if needed
+    const normalized = {
+      academicYear: `${data.schoolYearStart}-${data.schoolYearEnd}`,
+      currentTerm: data.currentTerm || data.termName || 'Unknown',
+      startDate: data.startDate,
+      endDate: data.endDate,
+    };
+    res.json(normalized);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -131,15 +140,9 @@ app.get('/api/academic-year/active', async (req, res) => {
 // School Year endpoints for mobile app compatibility
 app.get('/api/schoolyears/active', async (req, res) => {
   try {
-    // Return the current active school year (2025-2026)
-    res.json({
-      _id: "current",
-      schoolYearStart: "2025",
-      schoolYearEnd: "2026",
-      status: "active",
-      startDate: "2025-06-01",
-      endDate: "2026-03-31"
-    });
+    const { proxyJson } = await import('./utils/webProxy.js');
+    const data = await proxyJson('/api/schoolyears/active');
+    res.json(data);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -147,27 +150,9 @@ app.get('/api/schoolyears/active', async (req, res) => {
 
 app.get('/api/schoolyears', async (req, res) => {
   try {
-    // Return available school years including current and future ones
-    const schoolYears = [
-      {
-        _id: "current",
-        schoolYearStart: "2025",
-        schoolYearEnd: "2026",
-        status: "active",
-        startDate: "2025-06-01",
-        endDate: "2026-03-31"
-      },
-      {
-        _id: "future",
-        schoolYearStart: "2026",
-        schoolYearEnd: "2027",
-        status: "inactive",
-        startDate: "2026-06-01",
-        endDate: "2027-03-31"
-      }
-    ];
-    
-    res.json(schoolYears);
+    const { proxyJson } = await import('./utils/webProxy.js');
+    const data = await proxyJson('/api/schoolyears');
+    res.json(data);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -175,29 +160,10 @@ app.get('/api/schoolyears', async (req, res) => {
 
 app.get('/api/terms/schoolyear/:schoolYear', async (req, res) => {
   try {
+    const { proxyJson } = await import('./utils/webProxy.js');
     const { schoolYear } = req.params;
-    
-    // Return terms for the specified school year
-    const terms = [
-      {
-        _id: "term1",
-        termName: "Term 1",
-        schoolYear: schoolYear,
-        status: "active",
-        startDate: "2025-06-01",
-        endDate: "2025-10-31"
-      },
-      {
-        _id: "term2",
-        termName: "Term 2",
-        schoolYear: schoolYear,
-        status: "inactive",
-        startDate: "2025-11-01",
-        endDate: "2026-03-31"
-      }
-    ];
-    
-    res.json(terms);
+    const data = await proxyJson(`/api/terms/schoolyear/${encodeURIComponent(schoolYear)}`);
+    res.json(data);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -322,6 +288,8 @@ mongoose.connect(process.env.ATLAS_URI, {
 .then(async () => {
   console.log('Mongoose connected to MongoDB!');
   await connect.connectToServer();
+  // Start change stream watcher after DB is ready
+  startNotificationWatcher();
   server.listen(PORT, () => {
     console.log(`Server is running on port: ${PORT}`);
   });

@@ -255,6 +255,29 @@ router.post('/:quizId/submit', /*authenticateToken,*/ async (req, res) => {
     
     let score = 0;
     let checkedAnswers = [];
+
+    // Helpers to normalize diverse client answers into comparable forms
+    const toLowerTrim = (v) => (typeof v === 'string' ? v.trim().toLowerCase() : v);
+    const coerceBoolean = (v) => {
+      if (typeof v === 'boolean') return v;
+      const s = String(v).trim().toLowerCase();
+      if (s === 'true' || s === 't' || s === '1' || s === 'yes') return true;
+      if (s === 'false' || s === 'f' || s === '0' || s === 'no') return false;
+      return v;
+    };
+    const mapTextAnswersToIndices = (studentAns, choices) => {
+      if (!Array.isArray(choices) || choices.length === 0) return studentAns;
+      const normChoices = choices.map(c => toLowerTrim(String(c)));
+      if (Array.isArray(studentAns)) {
+        return studentAns.map(a => {
+          const idx = normChoices.indexOf(toLowerTrim(String(a)));
+          return idx >= 0 ? idx : a;
+        });
+      }
+      const idx = normChoices.indexOf(toLowerTrim(String(studentAns)));
+      return idx >= 0 ? idx : studentAns;
+    };
+    const caseInsensitiveEqual = (a, b) => toLowerTrim(String(a)) === toLowerTrim(String(b));
     
     // Process each question and answer
     quiz.questions.forEach((q, i) => {
@@ -285,12 +308,14 @@ router.post('/:quizId/submit', /*authenticateToken,*/ async (req, res) => {
           console.log('Student answer:', studentAnswer);
           
           // Check if student answer matches any of the correct answers
-          if (Array.isArray(studentAnswer)) {
-            correct = studentAnswer.length === q.correctAnswers.length &&
-              studentAnswer.every(a => q.correctAnswers.includes(a));
+          // Accept either indices or choice texts from clients
+          const normalizedStudent = mapTextAnswersToIndices(studentAnswer, q.choices);
+          if (Array.isArray(normalizedStudent)) {
+            correct = normalizedStudent.length === q.correctAnswers.length &&
+              normalizedStudent.every(a => q.correctAnswers.includes(a));
             console.log('Student answer is array, checking length and content match');
           } else {
-            correct = q.correctAnswers.includes(studentAnswer);
+            correct = q.correctAnswers.includes(normalizedStudent);
             console.log('Student answer is single value, checking if in correct answers');
           }
           
@@ -307,13 +332,21 @@ router.post('/:quizId/submit', /*authenticateToken,*/ async (req, res) => {
         // For true/false questions
         console.log('True/false question - correct answer:', q.correctAnswer);
         console.log('Student answer:', studentAnswer);
-        correct = studentAnswer === q.correctAnswer;
+        // Accept booleans or strings
+        const normStudent = coerceBoolean(studentAnswer);
+        const normCorrect = coerceBoolean(q.correctAnswer);
+        correct = normStudent === normCorrect;
         correctAnswerForStorage = q.correctAnswer;
       } else {
         // For identification questions
         console.log('Identification question - correct answer:', q.correctAnswer);
         console.log('Student answer:', studentAnswer);
-        correct = studentAnswer === q.correctAnswer;
+        // Case/space-insensitive comparison for text identification
+        if (studentAnswer == null || q.correctAnswer == null) {
+          correct = false;
+        } else {
+          correct = caseInsensitiveEqual(studentAnswer, q.correctAnswer);
+        }
         correctAnswerForStorage = q.correctAnswer;
       }
       

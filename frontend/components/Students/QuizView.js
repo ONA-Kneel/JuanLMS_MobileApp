@@ -619,9 +619,13 @@ const QuizView = React.memo(function QuizView() {
         
         // For the backend submission, we need to send answers in the format:
         // [{ questionId: "id1", answer: "value1" }, { questionId: "id2", answer: "value2" }]
+        // Preserve explicit false/0 answers; only default when value is truly missing
+        const normalizedAnswer = (answer === undefined || answer === null)
+          ? (question.type === 'multiple' ? [] : '')
+          : answer;
         const formattedAnswer = {
           questionId: question._id,
-          answer: answer || (question.type === 'multiple' ? [] : '')
+          answer: normalizedAnswer
         };
         
         console.log(`Formatted answer ${i}:`, formattedAnswer);
