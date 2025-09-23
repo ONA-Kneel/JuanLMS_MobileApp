@@ -8,7 +8,9 @@ import {
   Image, 
   Alert,
   Modal,
-  FlatList
+  FlatList,
+  ActivityIndicator,
+  TouchableWithoutFeedback
 } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useUser } from './UserContext';
@@ -51,6 +53,11 @@ export default function UnifiedChat() {
   const [activeTab, setActiveTab] = useState('groups'); // 'groups', 'create', 'join'
   const [isLoading, setIsLoading] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
+  
+  // Backend search states (similar to web app)
+  const [searchedUsers, setSearchedUsers] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showSearchDropdown, setShowSearchDropdown] = useState(false);
   const [academicContext, setAcademicContext] = useState('2025-2026 | Term 1');
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
   const socketRef = useRef(null);
@@ -82,6 +89,45 @@ export default function UnifiedChat() {
       try { fetchUsers(); } catch {}
     }
   }, [searchQuery]);
+
+  // Debounced backend search (similar to web app implementation)
+  useEffect(() => {
+    const term = (searchQuery || '').trim();
+    if (term === '') { 
+      setSearchedUsers([]); 
+      setShowSearchDropdown(false);
+      return; 
+    }
+    
+    setIsSearching(true);
+    setShowSearchDropdown(true);
+    
+    const handle = setTimeout(async () => {
+      try {
+        const headers = await getAuthHeaders();
+        const response = await axios.get(`${API_URL}/users/search`, {
+          params: { q: term },
+          headers
+        });
+        
+        const arr = Array.isArray(response.data) ? response.data : [];
+        // Filter out current user and users already in recent chats
+        const filteredUsers = arr.filter(user => 
+          user._id !== user?._id && 
+          !recentChatsList.some(chat => chat._id === user._id)
+        );
+        
+        setSearchedUsers(filteredUsers);
+      } catch (error) {
+        console.error('Backend search error:', error);
+        setSearchedUsers([]);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 300); // 300ms debounce like web app
+    
+    return () => clearTimeout(handle);
+  }, [searchQuery, recentChatsList]);
 
   const formatDateTime = (date) => {
     return date.toLocaleString('en-US', {
@@ -839,17 +885,23 @@ export default function UnifiedChat() {
     .filter(g => (g.name || '').toLowerCase().includes((searchQuery || '').toLowerCase()))
     .map(g => ({ ...g, type: 'group' }));
 
+  // Updated search results using backend search (similar to web app)
   const searchResults = (searchQuery || '').trim() === '' ? [] : [
-    ...unifiedChats.filter(chat => chat.type === 'group'
-      ? (chat.name || '').toLowerCase().includes((searchQuery || '').toLowerCase())
-      : ((chat.firstname || '').toLowerCase().includes((searchQuery || '').toLowerCase()) || (chat.lastname || '').toLowerCase().includes((searchQuery || '').toLowerCase()))
-    ),
+    // First show existing chats/groups that match (active conversations)
+    ...unifiedChats.filter(chat => {
+      if (chat.type === 'individual') {
+        return (
+          (chat.firstname || '').toLowerCase().includes((searchQuery || '').toLowerCase()) ||
+          (chat.lastname || '').toLowerCase().includes((searchQuery || '').toLowerCase())
+        );
+      } else {
+        return (chat.name || '').toLowerCase().includes((searchQuery || '').toLowerCase());
+      }
+    }),
+    // Then show additional groups that match
     ...additionalGroupSearchResults,
-    ...(allUsers || [])
-      .filter(userObj => userObj._id !== user._id)
-      .filter(userObj => !recentChatsList.some(c => c._id === userObj._id))
-      .filter(userObj => (`${userObj.firstname} ${userObj.lastname}`).toLowerCase().includes((searchQuery || '').toLowerCase()))
-      .map(userObj => ({ ...userObj, type: 'new_user', isNewUser: true }))
+    // Then show backend search results for new users
+    ...searchedUsers.map(user => ({ ...user, type: 'new_user', isNewUser: true }))
   ];
 
   // Build comprehensive individual conversations (not just recent):
@@ -937,22 +989,89 @@ export default function UnifiedChat() {
       </View>
 
         {/* Search + Tabs */}
-        {/* <View style={{ backgroundColor: '#fff', paddingHorizontal: 16, paddingTop: 12 }}>
-          <TextInput
-            placeholder="Search users or groups..."
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            style={{
-              borderWidth: 1,
-              borderColor: '#ccc',
-              borderRadius: 20,
-              paddingHorizontal: 14,
-              paddingVertical: 10,
-              backgroundColor: 'white',
-              marginBottom: 10
-            }}
-          />
-        </View> */}
+        <View style={{ backgroundColor: '#fff', paddingHorizontal: 16, paddingTop: 12 }}>
+          <TouchableWithoutFeedback onPress={() => setShowSearchDropdown(false)}>
+            <View style={{ position: 'relative' }}>
+            <TextInput
+              placeholder="Search users or groups..."
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              style={{
+                borderWidth: 1,
+                borderColor: '#ccc',
+                borderRadius: 20,
+                paddingHorizontal: 14,
+                paddingVertical: 10,
+                backgroundColor: 'white',
+                marginBottom: 10
+              }}
+            />
+            
+            {/* Backend Search Dropdown */}
+            {showSearchDropdown && (
+              <View style={{
+                position: 'absolute',
+                top: 50,
+                left: 16,
+                right: 16,
+                backgroundColor: 'white',
+                borderRadius: 10,
+                elevation: 5,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.25,
+                shadowRadius: 3.84,
+                zIndex: 1000,
+                maxHeight: 200
+              }}>
+                {isSearching ? (
+                  <View style={{ padding: 20, alignItems: 'center' }}>
+                    <ActivityIndicator size="small" color="#00418b" />
+                    <Text style={{ marginTop: 8, color: '#666', fontSize: 12 }}>Searching...</Text>
+                  </View>
+                ) : searchedUsers.length > 0 ? (
+                  <ScrollView style={{ maxHeight: 200 }}>
+                    {searchedUsers.map(user => (
+                      <TouchableOpacity
+                        key={user._id}
+                        onPress={() => {
+                          navigation.navigate('UnifiedChat', { selectedUser: user });
+                          setSearchQuery('');
+                          setShowSearchDropdown(false);
+                        }}
+                        style={{
+                          padding: 12,
+                          borderBottomWidth: 1,
+                          borderBottomColor: '#f0f0f0',
+                          flexDirection: 'row',
+                          alignItems: 'center'
+                        }}
+                      >
+                        <Image 
+                          source={user.profilePic || user.profilePicture ? { uri: user.profilePic || user.profilePicture } : require('../assets/profile-icon (2).png')} 
+                          style={{ width: 32, height: 32, borderRadius: 16, marginRight: 10 }} 
+                        />
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ fontWeight: 'bold', fontSize: 14 }}>
+                            {user.firstname} {user.lastname}
+                          </Text>
+                          <Text style={{ color: '#666', fontSize: 12 }}>
+                            {user.email}
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                ) : (
+                  <View style={{ padding: 20, alignItems: 'center' }}>
+                    <Text style={{ color: '#666', fontSize: 14 }}>No users found</Text>
+                  </View>
+                )}
+              </View>
+            )}
+            </View>
+          </TouchableWithoutFeedback>
+        </View>
         <View style={{ flexDirection: 'row', paddingHorizontal: 16, marginTop: '22%'   }}>
           <TouchableOpacity 
             onPress={() => setActiveTab('groups')}
