@@ -148,44 +148,107 @@ const StudentGrades = () => {
       
       console.log('🔍 Fetching grades using School ID:', schoolID);
 
-      // Try to fetch grades from the Semestral_Grades_Collection endpoint using schoolID (like web app)
+      // Try to fetch grades from the posted grades endpoint (like web app)
       let transformed = [];
       
       try {
-        const response = await fetch(`${API_BASE}/api/semestral-grades/student/${schoolID}?termName=${activeTermName}&academicYear=${activeYearName}`, {
+        console.log('🔍 Trying posted grades endpoint...');
+        
+        // First, get student classes to find classId and section
+        const classesResponse = await fetch(`${API_BASE}/classes/my-classes`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         
-        if (response.ok) {
-          const data = await response.json();
-          if (data.success && data.grades) {
-            console.log('✅ Grades loaded from Semestral_Grades_Collection using School ID:', schoolID);
-            console.log('Grades data:', data.grades);
-            
-            // Transform the grades data to match the expected format
-            transformed = data.grades.map(grade => ({
-              subjectCode: grade.subjectCode,
-              subjectDescription: grade.subjectName,
-              academicYear: grade.academicYear || activeYearName,
-              termName: grade.termName || activeTermName,
-              quarter1: grade.grades.quarter1 || '-',
-              quarter2: grade.grades.quarter2 || '-',
-              quarter3: grade.grades.quarter3 || '-',
-              quarter4: grade.grades.quarter4 || '-',
-              semestralGrade: grade.grades.semesterFinal || '-',
-              remarks: grade.grades.semesterFinal ? (parseFloat(grade.grades.semesterFinal) >= 75 ? 'PASSED' : 'FAILED') : 'No grades yet',
-            }));
-            
-            setGradesUnavailable(false);
+        if (classesResponse.ok) {
+          const classesData = await classesResponse.json();
+          console.log('📚 Student classes:', classesData);
+          
+          // Filter classes for current term and year
+          const currentTermClasses = classesData.filter(cls => 
+            cls.termName === activeTermName && 
+            cls.academicYear === activeYearName
+          );
+          
+          console.log('📚 Current term classes:', currentTermClasses);
+          
+          // Try to fetch posted grades for each class
+          for (const classItem of currentTermClasses) {
+            try {
+              const postedGradesResponse = await fetch(`${API_BASE}/api/student-posted-grades?studentId=${schoolID}&classId=${classItem.classID}&section=${classItem.section}`, {
+                headers: { Authorization: `Bearer ${token}` }
+              });
+              
+              if (postedGradesResponse.ok) {
+                const postedGradesData = await postedGradesResponse.json();
+                console.log('📊 Posted grades data:', postedGradesData);
+                
+                if (postedGradesData.success && postedGradesData.data && postedGradesData.data.grades && postedGradesData.data.grades.length > 0) {
+                  const studentGrades = postedGradesData.data.grades[0];
+                  console.log('📊 Student grades found:', studentGrades);
+                  
+                  // Transform posted grades to match expected format
+                  const gradeEntry = {
+                    subjectCode: classItem.classCode || 'N/A',
+                    subjectDescription: classItem.className || 'N/A',
+                    academicYear: activeYearName,
+                    termName: activeTermName,
+                    quarter1: studentGrades.grades.Q1?.quarterlyGrade || '-',
+                    quarter2: studentGrades.grades.Q2?.quarterlyGrade || '-',
+                    quarter3: studentGrades.grades.Q3?.quarterlyGrade || '-',
+                    quarter4: studentGrades.grades.Q4?.quarterlyGrade || '-',
+                    semestralGrade: studentGrades.grades.Q2?.termFinalGrade || studentGrades.grades.Q4?.termFinalGrade || '-',
+                    remarks: studentGrades.grades.Q2?.remarks || studentGrades.grades.Q4?.remarks || 'No grades yet',
+                  };
+                  
+                  transformed.push(gradeEntry);
+                  setGradesUnavailable(false);
+                }
+              }
+            } catch (error) {
+              console.log(`Error fetching posted grades for class ${classItem.classID}:`, error.message);
+            }
           }
-        } else if (response.status === 404) {
-          console.log('Semestral grades endpoint not found (404), trying traditional grades...');
         }
       } catch (error) {
-        console.log('Semestral grades endpoint error:', error.message);
+        console.log('Posted grades endpoint error:', error.message);
       }
       
-      // Fallback: Try to fetch from traditional grades endpoint
+      // Fallback: Try to fetch from semestral grades endpoint
+      if (transformed.length === 0) {
+        try {
+          const response = await fetch(`${API_BASE}/api/semestral-grades/student/${schoolID}?termName=${activeTermName}&academicYear=${activeYearName}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.grades) {
+              console.log('✅ Grades loaded from Semestral_Grades_Collection using School ID:', schoolID);
+              console.log('Grades data:', data.grades);
+              
+              // Transform the grades data to match the expected format
+              transformed = data.grades.map(grade => ({
+                subjectCode: grade.subjectCode,
+                subjectDescription: grade.subjectName,
+                academicYear: grade.academicYear || activeYearName,
+                termName: grade.termName || activeTermName,
+                quarter1: grade.grades.quarter1 || '-',
+                quarter2: grade.grades.quarter2 || '-',
+                quarter3: grade.grades.quarter3 || '-',
+                quarter4: grade.grades.quarter4 || '-',
+                semestralGrade: grade.grades.semesterFinal || '-',
+                remarks: grade.grades.semesterFinal ? (parseFloat(grade.grades.semesterFinal) >= 75 ? 'PASSED' : 'FAILED') : 'No grades yet',
+              }));
+              
+              setGradesUnavailable(false);
+            }
+          }
+        } catch (error) {
+          console.log('Semestral grades endpoint error:', error.message);
+        }
+      }
+      
+      // Final fallback: Try to fetch from traditional grades endpoint
       if (transformed.length === 0) {
         try {
           const traditionalResponse = await fetch(`${API_BASE}/api/traditional-grades/student/${schoolID}`, {
@@ -468,8 +531,44 @@ const StudentGrades = () => {
             </View>
           </View>
 
-          {/* Classes as Grade Rows */}
-          {studentClasses.map((classItem, index) => (
+          {/* Grades Rows */}
+          {grades.length > 0 ? grades.map((grade, index) => {
+            const { qa, qb } = pickQuarterValues(grade);
+            return (
+              <View key={index} style={styles.gradeRow}>
+                <View style={styles.subjectCell}>
+                  <Text style={styles.subjectCode}>{grade.subjectCode}</Text>
+                  <Text style={styles.subjectDescription} numberOfLines={2}>
+                    {grade.subjectDescription}
+                  </Text>
+                </View>
+                
+                <View style={styles.gradeCell}>
+                  <Text style={[styles.gradeText, { color: getGradeColor(qa) }]}>
+                    {qa || '-'}
+                  </Text>
+                </View>
+                
+                <View style={styles.gradeCell}>
+                  <Text style={[styles.gradeText, { color: getGradeColor(qb) }]}>
+                    {qb || '-'}
+                  </Text>
+                </View>
+                
+                <View style={styles.gradeCell}>
+                  <Text style={[styles.gradeText, { color: getGradeColor(grade.semestralGrade) }]}>
+                    {grade.semestralGrade || '-'}
+                  </Text>
+                </View>
+                
+                <View style={styles.remarksCell}>
+                  <View style={[styles.remarksBadge, { backgroundColor: getRemarksColor(grade.remarks) }]}>
+                    <Text style={styles.remarksText}>{grade.remarks || 'No grades yet'}</Text>
+                  </View>
+                </View>
+              </View>
+            );
+          }) : studentClasses.map((classItem, index) => (
             <View key={index} style={styles.gradeRow}>
               <View style={styles.subjectCell}>
                 <Text style={styles.subjectCode}>{classItem.className || classItem.name}</Text>
@@ -505,23 +604,31 @@ const StudentGrades = () => {
         <Text style={styles.summaryTitle}>Summary</Text>
         <View style={styles.summaryRow}>
           <Text style={styles.summaryLabel}>Total Subjects:</Text>
-          <Text style={styles.summaryValue}>{studentClasses.length}</Text>
+          <Text style={styles.summaryValue}>{grades.length > 0 ? grades.length : studentClasses.length}</Text>
         </View>
         <View style={styles.summaryRow}>
           <Text style={styles.summaryLabel}>No Grades Yet:</Text>
-          <Text style={styles.summaryValue}>{studentClasses.length}</Text>
+          <Text style={styles.summaryValue}>
+            {grades.length > 0 ? grades.filter(g => g.remarks === 'No grades yet' || !g.remarks).length : studentClasses.length}
+          </Text>
         </View>
         <View style={styles.summaryRow}>
           <Text style={styles.summaryLabel}>Passed:</Text>
-          <Text style={styles.summaryValue}>0</Text>
+          <Text style={styles.summaryValue}>
+            {grades.length > 0 ? grades.filter(g => g.remarks === 'PASSED' || g.remarks === 'Passed').length : 0}
+          </Text>
         </View>
         <View style={styles.summaryRow}>
           <Text style={styles.summaryLabel}>Conditional:</Text>
-          <Text style={styles.summaryValue}>0</Text>
+          <Text style={styles.summaryValue}>
+            {grades.length > 0 ? grades.filter(g => g.remarks === 'INCOMPLETE' || g.remarks === 'Conditional').length : 0}
+          </Text>
         </View>
         <View style={styles.summaryRow}>
           <Text style={styles.summaryLabel}>Failed:</Text>
-          <Text style={styles.summaryValue}>0</Text>
+          <Text style={styles.summaryValue}>
+            {grades.length > 0 ? grades.filter(g => g.remarks === 'FAILED' || g.remarks === 'Failed').length : 0}
+          </Text>
         </View>
       </View>
     </View>

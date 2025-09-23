@@ -416,6 +416,8 @@ const QuizView = React.memo(function QuizView() {
             percentage: percentage,
             timeSpent: responseData.timeSpent || 0,
             submittedAt: responseData.submittedAt || null,
+            graded: responseData.graded || false,
+            feedback: responseData.feedback || null,
           });
           
           if (Array.isArray(responseData.checkedAnswers)) {
@@ -735,6 +737,8 @@ const QuizView = React.memo(function QuizView() {
         percentage: percentage,
         timeSpent: result.timeSpent || 0,
         submittedAt: result.submittedAt || new Date().toISOString(),
+        graded: result.graded || false,
+        feedback: result.feedback || null,
       });
 
       // Per requirement: no results/reveal dialogs. Show simple message and return.
@@ -986,8 +990,8 @@ const QuizView = React.memo(function QuizView() {
   const renderScoreDisplay = () => {
     if (!quizResult) return null;
     
-    // Check if quiz is graded (has a score that's not 0 or null)
-    const isGraded = quizResult.score !== null && quizResult.score !== undefined && quizResult.score > 0;
+    // Check if quiz is graded - look for graded field or score > 0
+    const isGraded = quizResult.graded === true || (quizResult.score !== null && quizResult.score !== undefined && quizResult.score > 0);
     
     if (!isGraded) {
       return (
@@ -1058,6 +1062,14 @@ const QuizView = React.memo(function QuizView() {
               <Text style={styles.scoreDetailValue}>
                 {new Date(quizResult.submittedAt).toLocaleString()}
               </Text>
+            </View>
+          )}
+          
+          {quizResult.feedback && (
+            <View style={styles.feedbackContainer}>
+              <MaterialIcons name="feedback" size={20} color="#666" />
+              <Text style={styles.feedbackLabel}>Professor Feedback:</Text>
+              <Text style={styles.feedbackText}>{quizResult.feedback}</Text>
             </View>
           )}
         </View>
@@ -1983,6 +1995,25 @@ const styles = {
     fontSize: 14,
     color: '#666',
     textAlign: 'center',
+    lineHeight: 20,
+  },
+  feedbackContainer: {
+    marginTop: 16,
+    padding: 12,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: '#00418b',
+  },
+  feedbackLabel: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 4,
+  },
+  feedbackText: {
+    fontSize: 14,
+    color: '#555',
     lineHeight: 20,
   },
   scoreDetails: {

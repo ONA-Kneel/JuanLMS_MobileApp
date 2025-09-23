@@ -9,6 +9,7 @@ import path from 'path';
 import fs from 'fs';
 import cloudinary from '../utils/cloudinary.js';
 import QuizResponse from '../models/QuizResponse.js';
+import PostedGrades from '../models/PostedGrades.js';
 // import { authenticateToken } from '../middleware/authMiddleware.js';
 import seedrandom from 'seedrandom';
 import { createQuizNotification } from '../services/notificationService.js';
@@ -421,15 +422,58 @@ router.get('/:quizId/responses', /*authenticateToken,*/ async (req, res) => {
   }
 });
 
+// Mark all quiz responses as graded (for faculty convenience)
+router.patch('/:quizId/responses/mark-all-graded', /*authenticateToken,*/ async (req, res) => {
+  // if (req.user.role !== 'faculty') return res.status(403).json({ error: 'Forbidden' });
+  try {
+    const { quizId } = req.params;
+    
+    // Update all responses for this quiz to mark them as graded
+    const result = await QuizResponse.updateMany(
+      { quizId },
+      { 
+        graded: true,
+        updatedAt: new Date()
+      }
+    );
+    
+    res.json({
+      success: true,
+      message: `Marked ${result.modifiedCount} responses as graded`,
+      modifiedCount: result.modifiedCount
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // PATCH a quiz response's score by responseId
 router.patch('/:quizId/responses/:responseId', /*authenticateToken,*/ async (req, res) => {
   // if (req.user.role !== 'faculty') return res.status(403).json({ error: 'Forbidden' });
   try {
     const { responseId } = req.params;
-    const { score } = req.body;
-    if (typeof score !== 'number') return res.status(400).json({ error: 'Score must be a number.' });
-    const updated = await QuizResponse.findByIdAndUpdate(responseId, { score }, { new: true });
+    const { score, feedback } = req.body;
+    
+    // Validate score - allow 0 as a valid score since students may not pass anything
+    if (typeof score !== 'number' || score < 0) {
+      return res.status(400).json({ 
+        error: 'Score must be a non-negative number. Zero is a valid score for students who did not pass anything.' 
+      });
+    }
+    
+    const updateData = { 
+      score, 
+      graded: true,
+      updatedAt: new Date()
+    };
+    
+    if (feedback !== undefined) {
+      updateData.feedback = feedback;
+    }
+    
+    const updated = await QuizResponse.findByIdAndUpdate(responseId, updateData, { new: true });
     if (!updated) return res.status(404).json({ error: 'Quiz response not found.' });
+    
     res.json(updated);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -670,6 +714,126 @@ router.get('/faculty/:facultyId', /*authenticateToken,*/ async (req, res) => {
   } catch (err) {
     console.error('Error fetching faculty quizzes:', err);
     res.status(500).json({ error: 'Failed to fetch faculty quizzes.' });
+  }
+});
+
+// Get posted grades for a specific student
+router.get('/student-posted-grades', async (req, res) => {
+  try {
+    const { studentId, classId, section } = req.query;
+
+    // Validate required fields
+    if (!studentId || !classId || !section) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required fields: studentId, classId, section'
+      });
+    }
+
+    console.log('🔍 Fetching posted grades for student:', { 
+      studentId, 
+      classId, 
+      section,
+      studentIdType: typeof studentId,
+      studentIdValue: studentId
+    });
+
+    // Search through database for posted quarterly grades for this student
+    const studentGrades = [];
+    
+    try {
+      // Find all posted grades for this class and section
+      const postedGradesRecords = await PostedGrades.find({
+        classId: classId,
+        section: section
+      }).sort({ quarter: 1, postedAt: -1 });
+
+      console.log(`🔍 Found ${postedGradesRecords.length} posted grade records for class ${classId}, section ${section}`);
+
+      for (const postedGradesRecord of postedGradesRecords) {
+        console.log(`🔍 Checking quarter ${postedGradesRecord.quarter}:`, {
+          totalStudents: postedGradesRecord.grades.length,
+          studentIds: postedGradesRecord.grades.map(g => g.studentId.toString())
+        });
+
+        // Find the specific student's grades
+        const studentGrade = postedGradesRecord.grades.find(grade => {
+          const gradeStudentId = grade.studentId.toString();
+          const queryStudentId = studentId.toString();
+          console.log(`🔍 Comparing student IDs: ${gradeStudentId} === ${queryStudentId}`);
+          return gradeStudentId === queryStudentId;
+        });
+
+        if (studentGrade) {
+          studentGrades.push({
+            quarter: postedGradesRecord.quarter,
+            quarterlyGrade: studentGrade.quarterlyGrade,
+            termFinalGrade: studentGrade.termFinalGrade,
+            remarks: studentGrade.remarks,
+            postedAt: postedGradesRecord.postedAt
+          });
+          console.log(`✅ Found grades for student ${studentId} in ${postedGradesRecord.quarter}:`, studentGrade);
+        } else {
+          console.log(`⚠️ Student ${studentId} not found in ${postedGradesRecord.quarter} grades`);
+        }
+      }
+    } catch (dbError) {
+      console.error('❌ Error fetching from database:', dbError);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to fetch grades from database',
+        error: dbError.message
+      });
+    }
+    
+    if (studentGrades.length > 0) {
+      console.log('✅ Found posted grades for student:', studentGrades);
+      
+      // Transform the grades into the format expected by frontend
+      const transformedGrades = {
+        studentId: studentId,
+        grades: {}
+      };
+      
+      studentGrades.forEach(grade => {
+        transformedGrades.grades[grade.quarter] = {
+          quarterlyGrade: grade.quarterlyGrade,
+          termFinalGrade: grade.termFinalGrade,
+          remarks: grade.remarks
+        };
+      });
+      
+      res.json({
+        success: true,
+        message: 'Posted grades found',
+        data: {
+          studentId,
+          classId,
+          section,
+          grades: [transformedGrades] // Wrap in array as expected by frontend
+        }
+      });
+    } else {
+      console.log('❌ No posted grades found for student:', { studentId, classId, section });
+      res.json({
+        success: true,
+        message: 'No posted grades found',
+        data: {
+          studentId,
+          classId,
+          section,
+          grades: []
+        }
+      });
+    }
+
+  } catch (error) {
+    console.error('❌ Error in student-posted-grades endpoint:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message
+    });
   }
 });
 
