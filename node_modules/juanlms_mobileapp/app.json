@@ -2,7 +2,7 @@
   "expo": {
     "name": "JuanLMS",
     "slug": "juanlms-mobile-app",
-    "owner": "orionneil",
+    "owner": "dilucragvndr",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/SanJuan.png",
@@ -45,7 +45,7 @@
     "extra": {
       "API_URL": "https://juanlms-webapp-server.onrender.com",
       "eas": {
-        "projectId": "df6c73e6-3cc8-43c2-9e3a-a9ba7caa6191"
+        "projectId": "38396737-c3b5-4433-a471-4df1c9947ac0"
       }
     },
     "plugins": [

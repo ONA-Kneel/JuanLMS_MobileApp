@@ -70,7 +70,7 @@ const StudentCalendarStyle = StyleSheet.create({
         marginTop: 10,
     },
     calendarTitle: {
-        fontSize: 24,
+        fontSize: 20,
         fontFamily: 'Poppins-Bold',
         color: '#00418b',
     },
@@ -108,7 +108,7 @@ const StudentCalendarStyle = StyleSheet.create({
         borderRadius: 12,
     },
     monthText: {
-        fontSize: 20,
+        fontSize: 18,
         fontFamily: 'Poppins-Bold',
         color: '#333',
     },
@@ -117,8 +117,8 @@ const StudentCalendarStyle = StyleSheet.create({
     calendarContainer: {
         backgroundColor: '#fff',
         borderRadius: 16,
-        padding: 20,
-        marginBottom: 24,
+        padding: 16,
+        marginBottom: 18,
         shadowColor: '#000',
         shadowOpacity: 0.08,
         shadowRadius: 8,
@@ -131,7 +131,7 @@ const StudentCalendarStyle = StyleSheet.create({
     dayHeader: {
         flex: 1,
         textAlign: 'center',
-        fontSize: 14,
+        fontSize: 12,
         fontFamily: 'Poppins-SemiBold',
         color: '#666',
     },
@@ -157,7 +157,7 @@ const StudentCalendarStyle = StyleSheet.create({
         borderWidth: 2,
     },
     dayNumber: {
-        fontSize: 16,
+        fontSize: 14,
         fontFamily: 'Poppins-Regular',
         color: '#333',
     },
@@ -183,7 +183,7 @@ const StudentCalendarStyle = StyleSheet.create({
     },
     eventCount: {
         color: '#fff',
-        fontSize: 12,
+        fontSize: 10,
         fontFamily: 'Poppins-Bold',
         fontWeight: 'bold',
     },
@@ -193,7 +193,7 @@ const StudentCalendarStyle = StyleSheet.create({
         flex: 1,
     },
     eventsTitle: {
-        fontSize: 18,
+        fontSize: 16,
         fontFamily: 'Poppins-Bold',
         color: '#333',
         marginBottom: 16,
@@ -207,7 +207,7 @@ const StudentCalendarStyle = StyleSheet.create({
         paddingVertical: 40,
     },
     noEventsText: {
-        fontSize: 16,
+        fontSize: 14,
         fontFamily: 'Poppins-Regular',
         color: '#999',
         marginTop: 16,
@@ -234,7 +234,7 @@ const StudentCalendarStyle = StyleSheet.create({
         marginBottom: 3
     },
     headerTitle: {
-        fontSize: 22,
+        fontSize: 20,
         color: '#222',
         fontFamily: 'Poppins-Bold',
     },

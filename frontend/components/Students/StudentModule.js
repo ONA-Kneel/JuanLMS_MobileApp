@@ -405,22 +405,22 @@ export default function StudentModule(){
                                     borderRadius: 12,
                                     borderWidth: 1,
                                     borderColor: '#00418b',
-                                    paddingVertical: 20,
-                                    paddingHorizontal: 18,
+                                    paddingVertical: 14,
+                                    paddingHorizontal: 14,
                                     alignItems: 'center'
                                 }}>
                                     <Text style={{ 
                                         fontFamily: 'Poppins-Bold', 
                                         color: '#00418b', 
-                                        fontSize: 16, 
-                                        marginBottom: 8 
+                                        fontSize: 14, 
+                                        marginBottom: 6 
                                     }}>
                                         Announcement!
                                     </Text>
                                     <Text style={{ 
                                         fontFamily: 'Poppins-Regular', 
                                         color: '#666', 
-                                        fontSize: 14, 
+                                        fontSize: 12, 
                                         textAlign: 'center' 
                                     }}>
                                         No announcements yet.
@@ -435,9 +435,9 @@ export default function StudentModule(){
                                             borderRadius: 12,
                                             borderWidth: 1,
                                             borderColor: '#00418b',
-                                            paddingVertical: 16,
-                                            paddingHorizontal: 18,
-                                            marginBottom: 16,
+                                            paddingVertical: 12,
+                                            paddingHorizontal: 14,
+                                            marginBottom: 12,
                                             shadowColor: '#000',
                                             shadowOpacity: 0.04,
                                             shadowRadius: 4,
@@ -447,24 +447,24 @@ export default function StudentModule(){
                                         <Text style={{ 
                                             fontFamily: 'Poppins-Bold', 
                                             color: '#00418b', 
-                                            fontSize: 16, 
-                                            marginBottom: 8 
+                                            fontSize: 14, 
+                                            marginBottom: 6 
                                         }}>
                                             Announcement!
                                         </Text>
                                         <Text style={{ 
                                             fontFamily: 'Poppins-Bold', 
                                             color: '#00418b', 
-                                            fontSize: 17, 
-                                            marginBottom: 8 
+                                            fontSize: 15, 
+                                            marginBottom: 6 
                                         }}>
                                             {item.title}
                                         </Text>
                                         <Text style={{ 
                                             fontFamily: 'Poppins-Regular', 
                                             color: '#666', 
-                                            fontSize: 15, 
-                                            lineHeight: 21 
+                                            fontSize: 13, 
+                                            lineHeight: 18 
                                         }}>
                                             {item.content}
                                         </Text>
@@ -479,12 +479,12 @@ export default function StudentModule(){
                     <>
                         {/* Classwork Title Row */}
                         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
-                            <Text style={{ fontFamily: 'Poppins-Bold', fontSize: 18, color: '#222', flex: 1 }}>
+                        <Text style={{ fontFamily: 'Poppins-Bold', fontSize: 16, color: '#222', flex: 1 }}>
                                 {filterType === 'all' ? 'Classwork' : filterType === 'quiz' ? 'Quizzes' : 'Assignments'}
                             </Text>
                             {/* Filter Dropdown */}
                         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
-                            <Text style={{ fontFamily: 'Poppins-Regular', fontSize: 14, color: '#666', marginRight: 8 }}>Filter:</Text>
+                            <Text style={{ fontFamily: 'Poppins-Regular', fontSize: 12, color: '#666', marginRight: 8 }}>Filter:</Text>
                             <TouchableOpacity
                                 style={{ borderWidth: 1, borderColor: '#ccc', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4, backgroundColor: 'white' }}
                                 onPress={() => {
@@ -494,7 +494,7 @@ export default function StudentModule(){
                                     else setFilterType('all');
                                 }}
                             >
-                                <Text style={{ fontFamily: 'Poppins-Regular', fontSize: 14, color: '#333' }}>
+                                <Text style={{ fontFamily: 'Poppins-Regular', fontSize: 12, color: '#333' }}>
                                     {filterType === 'all' ? 'All' : filterType === 'quiz' ? 'Quiz' : 'Assignment'}
                                 </Text>
                             </TouchableOpacity>
@@ -608,8 +608,10 @@ export default function StudentModule(){
                                                         onPress={() => {
                                                             if (item.type === 'quiz') {
                                                                 if (item.isSubmitted) {
+                                                                    // score-only view
                                                                     navigation.navigate('QuizView', { quizId: item._id, review: true });
                                                                 } else {
+                                                                    // take quiz
                                                                     navigation.navigate('QuizView', { quizId: item._id });
                                                                 }
                                                             } else {
@@ -710,7 +712,7 @@ export default function StudentModule(){
                                                             <Text style={{ 
                                                                 fontFamily: 'Poppins-Bold', 
                                                                 color: '#666', 
-                                                                fontSize: 16, 
+                                                                fontSize: 14, 
                                                                 marginBottom: 4 
                                                             }}>
                                                                 {item.title}
@@ -719,7 +721,7 @@ export default function StudentModule(){
                                                             <Text style={{ 
                                                                 fontFamily: 'Poppins-Regular', 
                                                                 color: '#666', 
-                                                                fontSize: 14, 
+                                                                fontSize: 12, 
                                                                 marginBottom: 6 
                                                             }}>
                                                                 {item.section || item.className || 'N/A'}
@@ -730,7 +732,7 @@ export default function StudentModule(){
                                                                     style={{ 
                                                                         fontFamily: 'Poppins-Regular', 
                                                                         color: '#666', 
-                                                                        fontSize: 13, 
+                                                                        fontSize: 12, 
                                                                         marginBottom: 6,
                                                                         lineHeight: 18
                                                                     }}
@@ -745,7 +747,7 @@ export default function StudentModule(){
                                                                 <Text style={{ 
                                                                     fontFamily: 'Poppins-Regular', 
                                                                     color: '#999', 
-                                                                    fontSize: 12, 
+                                                                    fontSize: 11, 
                                                                     marginBottom: 2 
                                                                 }}>
                                                                     Due: {new Date(item.dueDate).toLocaleDateString('en-US', {
@@ -761,7 +763,7 @@ export default function StudentModule(){
                                                             <Text style={{ 
                                                                 fontFamily: 'Poppins-Regular', 
                                                                 color: '#999', 
-                                                                fontSize: 12, 
+                                                                fontSize: 11, 
                                                                 marginBottom: 2 
                                                             }}>
                                                                 Points: {item.points || 0}
@@ -815,11 +817,11 @@ export default function StudentModule(){
                                         borderTopRightRadius: 12,
                                     }}>
                                         <Icon name="file-document-outline" size={22} color="#fff" style={{ marginRight: 10 }} />
-                                        <Text style={{ fontFamily: 'Poppins-Bold', color: '#fff', fontSize: 17, flex: 1 }}>{lesson.title}</Text>
+                                        <Text style={{ fontFamily: 'Poppins-Bold', color: '#fff', fontSize: 15, flex: 1 }}>{lesson.title}</Text>
                                     </View>
                                     {/* Section label row */}
                                     <View style={{ flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 8, borderBottomWidth: 1, borderColor: '#e0e0e0', backgroundColor: '#f9f9f9' }}>
-                                        <Text style={{ fontFamily: 'Poppins-Bold', color: '#222', fontSize: 14, flex: 1 }}>Module</Text>
+                                        <Text style={{ fontFamily: 'Poppins-Bold', color: '#222', fontSize: 12, flex: 1 }}>Module</Text>
                                     </View>
                                     {/* External link (if provided) */}
                                     {lesson.link && (
@@ -828,7 +830,7 @@ export default function StudentModule(){
                                                 <MaterialIcons name="link" size={20} color="#1976d2" />
                                             </View>
                                             <TouchableOpacity style={{ flex: 1, marginRight: 12 }} onPress={() => handleOpenExternalLink(lesson.link)}>
-                                                <Text style={{ fontFamily: 'Poppins-Regular', color: '#1976d2', fontSize: 14, textDecorationLine: 'underline' }} numberOfLines={2}>
+                                                <Text style={{ fontFamily: 'Poppins-Regular', color: '#1976d2', fontSize: 12, textDecorationLine: 'underline' }} numberOfLines={2}>
                                                     {lesson.link}
                                                 </Text>
                                             </TouchableOpacity>
@@ -845,7 +847,7 @@ export default function StudentModule(){
                                                 onPress={() => handleOpenExternalLink(lesson.link)}
                                             >
                                                 <MaterialIcons name="open-in-new" size={16} color="white" />
-                                                <Text style={{ color: 'white', fontSize: 12, fontWeight: 'bold' }}>Open</Text>
+                                                <Text style={{ color: 'white', fontSize: 11, fontWeight: 'bold' }}>Open</Text>
                                             </TouchableOpacity>
                                         </View>
                                     )}
@@ -867,10 +869,10 @@ export default function StudentModule(){
                                             
                                             {/* File info */}
                                             <TouchableOpacity style={{ flex: 1, marginRight: 12 }} onPress={() => handleFilePress(file)}>
-                                                <Text style={{ fontFamily: 'Poppins-Regular', color: '#1976d2', fontSize: 14, textDecorationLine: 'underline', marginBottom: 2 }}>
+                                                <Text style={{ fontFamily: 'Poppins-Regular', color: '#1976d2', fontSize: 12, textDecorationLine: 'underline', marginBottom: 2 }}>
                                                     {file.fileName}
                                                 </Text>
-                                                <Text style={{ fontFamily: 'Poppins-Regular', color: '#666', fontSize: 12 }}>
+                                                <Text style={{ fontFamily: 'Poppins-Regular', color: '#666', fontSize: 11 }}>
                                                     {isImageFile(file.fileName) ? 'Image File' : 
                                                      isVideoFile(file.fileName) ? 'Video File' : 
                                                      isPdfFile(file.fileName) ? 'PDF Document' : 'Document'}
@@ -895,7 +897,7 @@ export default function StudentModule(){
                                                     size={16} 
                                                     color="white" 
                                                 />
-                                                <Text style={{ color: 'white', fontSize: 12, fontWeight: 'bold' }}>
+                                                <Text style={{ color: 'white', fontSize: 11, fontWeight: 'bold' }}>
                                                     {isImageFile(file.fileName) ? 'View' : 'Download'}
                                                 </Text>
                                             </TouchableOpacity>

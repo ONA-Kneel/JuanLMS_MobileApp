@@ -40,6 +40,7 @@ const QuizView = React.memo(function QuizView() {
   const [submitting, setSubmitting] = useState(false);
   const [timeLeft, setTimeLeft] = useState(null);
   const [showSubmitModal, setShowSubmitModal] = useState(false);
+  // Removed post-submit result/reveal popups per requirement
   const [showResultsModal, setShowResultsModal] = useState(false);
   const [showRevealModal, setShowRevealModal] = useState(false);
   const [revealScoreNow, setRevealScoreNow] = useState(false);
@@ -714,6 +715,7 @@ const QuizView = React.memo(function QuizView() {
       console.log('Time spent:', result.timeSpent);
       console.log('Submitted at:', result.submittedAt);
 
+      // Save basic result locally but do not pop up results
       setQuizResult({
         score: calculatedScore,
         totalPoints: totalPoints,
@@ -722,8 +724,19 @@ const QuizView = React.memo(function QuizView() {
         submittedAt: result.submittedAt || new Date().toISOString(),
       });
 
-      // Ask user whether to reveal now
-      setShowRevealModal(true);
+      // Per requirement: no results/reveal dialogs. Show simple message and return.
+      Alert.alert(
+        'Quiz Submitted',
+        'Quiz is finished and will be reviewed by faculty.',
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              navigation.goBack();
+            }
+          }
+        ]
+      );
     } catch (error) {
       console.error('=== QUIZ SUBMISSION ERROR ===');
       console.error('Error submitting quiz:', error);
@@ -1162,10 +1175,11 @@ const QuizView = React.memo(function QuizView() {
         {renderTimer()}
       </View>
 
-      {/* Score Header - Show in review mode when quiz result exists */}
+      {/* Score Header - In review mode show only score (no question review) */}
       {isReviewMode && quizResult && (
         <View style={styles.scoreHeader}>
           {renderScoreDisplay()}
+          <Text style={{ fontSize: 12, color: '#666', marginTop: 4 }}>Quiz is finished and will be reviewed by faculty.</Text>
         </View>
       )}
 
@@ -1197,15 +1211,11 @@ const QuizView = React.memo(function QuizView() {
       )}
 
       {/* Questions */}
+      {!isReviewMode && (
       <ScrollView style={styles.contentContainer} showsVerticalScrollIndicator={false}>
-        {isReviewMode ? (
-          // In review mode, show all questions
-          quiz?.questions?.map((question, index) => renderQuestion(question, index)) || []
-        ) : (
-          // In quiz mode, show only current question
-          currentQuestion && renderQuestion(currentQuestion, currentQuestionIndex)
-        )}
+          {currentQuestion && renderQuestion(currentQuestion, currentQuestionIndex)}
       </ScrollView>
+      )}
 
       {/* Navigation - Only show in quiz mode */}
       {!isReviewMode && (
@@ -1244,31 +1254,7 @@ const QuizView = React.memo(function QuizView() {
         </View>
       )}
 
-      {/* Question Navigation for Review Mode */}
-      {isReviewMode && (
-        <View style={styles.reviewNavigationContainer}>
-          <Text style={styles.reviewNavigationTitle}>Navigate to Question:</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.questionNumbersContainer}>
-            {Array.from({ length: questionsCount }, (_, index) => (
-              <TouchableOpacity
-                key={index}
-                style={[
-                  styles.questionNumberButton,
-                  currentQuestionIndex === index && styles.currentQuestionButton
-                ]}
-                onPress={() => setCurrentQuestionIndex(index)}
-              >
-                <Text style={[
-                  styles.questionNumberText,
-                  currentQuestionIndex === index && styles.currentQuestionNumberText
-                ]}>
-                  {index + 1}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-      )}
+      {/* No review navigation in review mode per requirement */}
 
       {/* Submit Confirmation Modal */}
       <Modal
@@ -1342,142 +1328,9 @@ const QuizView = React.memo(function QuizView() {
         </View>
       </Modal>
 
-      {/* Results Modal */}
-      <Modal
-        visible={showResultsModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => {
-          setShowResultsModal(false);
-          navigation.goBack();
-        }}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.resultsModal}>
-            {renderScoreDisplay()}
-            
-            {Array.isArray(quizCheckedAnswers) && quizCheckedAnswers.length > 0 && (
-              <View style={styles.answersSummary}>
-                <Text style={styles.answersSummaryTitle}>Question Summary</Text>
-                <View style={styles.answersList}>
-                  {quizCheckedAnswers.map((answer, idx) => (
-                    <View key={idx} style={styles.answerItem}>
-                      <MaterialIcons 
-                        name={answer.correct ? "check-circle" : "cancel"} 
-                        size={20} 
-                        color={answer.correct ? "#4CAF50" : "#F44336"} 
-                      />
-                      <Text style={styles.answerItemText}>
-                        Q{idx + 1}: {answer.correct ? 'Correct' : 'Incorrect'}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-              </View>
-            )}
+      {/* Results Modal removed per requirement */}
 
-            <TouchableOpacity
-              style={styles.resultsButton}
-              onPress={() => {
-                setShowResultsModal(false);
-                navigation.goBack();
-              }}
-            >
-              <Text style={styles.resultsButtonText}>Done</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Reveal Options Modal */}
-      <Modal
-        visible={showRevealModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => {
-          setShowRevealModal(false);
-          setShowResultsModal(true);
-        }}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modal}>
-            <Text style={styles.modalTitle}>View Results</Text>
-            <Text style={styles.modalText}>Choose what to reveal now.</Text>
-
-            <TouchableOpacity
-              onPress={() => setRevealScoreNow(!revealScoreNow)}
-              style={[styles.choiceButton, revealScoreNow && styles.selectedChoice]}
-            >
-              <MaterialIcons
-                name={revealScoreNow ? 'check-circle' : 'radio-button-unchecked'}
-                size={24}
-                color={revealScoreNow ? '#00418b' : '#ccc'}
-              />
-              <Text style={[styles.choiceText, revealScoreNow && styles.selectedChoiceText]}>
-                Show score now
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => setRevealAnswersNow(!revealAnswersNow)}
-              style={[styles.choiceButton, revealAnswersNow && styles.selectedChoice]}
-            >
-              <MaterialIcons
-                name={revealAnswersNow ? 'check-circle' : 'radio-button-unchecked'}
-                size={24}
-                color={revealAnswersNow ? '#00418b' : '#ccc'}
-              />
-              <Text style={[styles.choiceText, revealAnswersNow && styles.selectedChoiceText]}>
-                Show correct answers now
-              </Text>
-            </TouchableOpacity>
-
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={styles.modalButtonCancel}
-                onPress={() => {
-                  setShowRevealModal(false);
-                  setShowResultsModal(true);
-                }}
-              >
-                <Text style={styles.modalButtonText}>Later</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.modalButtonSubmit}
-                onPress={async () => {
-                  try {
-                    setShowRevealModal(false);
-                    if (!revealScoreNow && !revealAnswersNow) {
-                      setShowResultsModal(true);
-                      return;
-                    }
-                    const token = await AsyncStorage.getItem('jwtToken');
-                    const res = await fetch(`${API_BASE}/api/quizzes/${quizId}/myscore?studentId=${user._id}&revealAnswers=${revealAnswersNow ? 'true' : 'false'}`, {
-                      headers: { Authorization: `Bearer ${token}` }
-                    });
-                    if (res.ok) {
-                      const data = await res.json();
-                      setQuizResult({
-                        score: data.score || 0,
-                        totalPoints: typeof data.total === 'number' ? data.total : (quizResult?.totalPoints || 0),
-                        percentage: typeof data.percentage === 'number' ? data.percentage : (quizResult?.percentage || 0),
-                        timeSpent: data.timeSpent || quizResult?.timeSpent || 0,
-                        submittedAt: data.submittedAt || quizResult?.submittedAt,
-                      });
-                      setQuizCheckedAnswers(revealAnswersNow ? (data.checkedAnswers || []) : null);
-                    }
-                    setShowResultsModal(true);
-                  } catch (e) {
-                    setShowResultsModal(true);
-                  }
-                }}
-              >
-                <Text style={styles.modalButtonText}>Show</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      {/* Reveal Options Modal removed per requirement */}
     </View>
   );
 });

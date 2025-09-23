@@ -321,23 +321,12 @@ function ActivityCard({ activity, onActivityPress }) {
 
                  <View style={styles.actionButtonsRow}>
            {activity.type === 'quiz' && activity.isSubmitted && (
-             <TouchableOpacity 
-               style={[styles.actionButton, styles.resultsButton]}
-               onPress={handleResultsButtonPress}
-             >
-               <MaterialIcons 
-                 name="check-circle" 
-                 size={16} 
-                 color={activity.autoAssigned ? "#F44336" : "#4CAF50"} 
-               />
-               <Text style={[
-                 styles.resultsButtonText,
-                 activity.autoAssigned && { color: "#F44336" }
-               ]}>
-                 {activity.autoAssigned ? 'View Zero Score' : 'View Results'}
-               </Text>
-             </TouchableOpacity>
-           )}
+            <View style={{ paddingVertical: 6, paddingHorizontal: 8, backgroundColor: '#e8f5e9', borderRadius: 6 }}>
+              <Text style={[styles.resultsButtonText, activity.autoAssigned && { color: "#F44336" }]}>
+                {activity.autoAssigned ? 'Score: 0 (Auto-assigned)' : `Score: ${activity.score}/${activity.totalPoints || activity.points || 100}`}
+              </Text>
+            </View>
+          )}
 
            {activity.type === 'assignment' && activity.isSubmitted && (
              <TouchableOpacity 
@@ -1835,8 +1824,8 @@ whiteHeaderCard: {
     zIndex: 2,
     marginBottom: 16,
 },
-headerTitle: {
-  fontSize: 22,
+  headerTitle: {
+  fontSize: 20,
   color: '#222',
   fontFamily: 'Poppins-Bold',
 },
@@ -1908,7 +1897,7 @@ sectionTitle: {
   },
   activityTabText: {
     color: '#999',
-    fontSize: 16,
+    fontSize: 14,
     fontFamily: 'Poppins-Medium',
   },
   activityTabTextActive: {
@@ -1928,7 +1917,7 @@ sectionTitle: {
     marginBottom: 24,
   },
   dateHeader: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
     color: '#333',
     marginBottom: 12,
@@ -1954,20 +1943,20 @@ sectionTitle: {
     flex: 1,
   },
   activityTitle: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
     color: '#2196F3',
     marginBottom: 4,
     fontFamily: 'Poppins-Bold',
   },
   activityDueTime: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#333',
     marginBottom: 4,
     fontFamily: 'Poppins-Regular',
   },
   activityClass: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#666',
     fontFamily: 'Poppins-Regular',
   },
@@ -1976,7 +1965,7 @@ sectionTitle: {
     justifyContent: 'center',
   },
   pointsText: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: 'bold',
     color: '#333',
     fontFamily: 'Poppins-Bold',
@@ -1996,7 +1985,7 @@ sectionTitle: {
     marginRight: 10,
   },
   statText: {
-    fontSize: 10,
+    fontSize: 9,
     color: '#666',
     marginLeft: 2,
     fontFamily: 'Poppins-Regular',
@@ -2016,7 +2005,7 @@ sectionTitle: {
   },
   viewButtonText: {
     color: '#2196F3',
-    fontSize: 10,
+    fontSize: 9,
     marginLeft: 2,
     fontFamily: 'Poppins-Medium',
   },
