@@ -625,6 +625,8 @@ export default function StudentModule(){
                                                                 }
                                                                 navigation.navigate('AssignmentDetail', { 
                                                                     assignmentId: item._id,
+                                                                    assignment: item,
+                                                                    viewMode: item.isSubmitted, // Pass viewMode for submitted assignments
                                                                     onSubmissionComplete: () => {
                                                                         fetchClasswork(classID);
                                                                     }

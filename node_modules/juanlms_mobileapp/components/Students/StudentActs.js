@@ -802,7 +802,8 @@ export default function StudentActs() {
        // Filter for ONLY POSTED activities
        const now = new Date();
        
-       const postedActivities = allActivities.filter(item => {
+      // Only show posted/open items to non-faculty users
+      const postedActivities = allActivities.filter(item => {
          if (item.type === 'assignment') {
            const scheduleEnabled = item?.schedulePost === true;
            const postAt = item?.postAt ? new Date(item.postAt) : null;
@@ -812,39 +813,19 @@ export default function StudentActs() {
            }
            return true;
          } else if (item.type === 'quiz') {
-           return true;
-           
-           // For quizzes, we need to be more lenient with the posting logic
-           // Newly created quizzes should appear immediately unless explicitly scheduled
-           
-           const timing = item?.timing;
-           const openEnabled = timing?.openEnabled;
-           const openDate = timing?.open ? new Date(timing.open) : null;
-           const closeDate = timing?.close ? new Date(timing.close) : null;
-           
-           // If no timing object exists, consider quiz as posted (legacy quizzes)
-           if (!timing) {
-             return true;
-           }
-           
-           // If timing exists but openEnabled is false or undefined, consider as posted
-           if (openEnabled === false || openEnabled === undefined) {
-             return true;
-           }
-           
-           // If openEnabled is true but no open date, consider as posted (immediate posting)
-           if (openEnabled === true && !openDate) {
-             return true;
-           }
-           
-           // If openEnabled is true and open date exists, check if it's time to open
-           if (openEnabled === true && openDate) {
-             const isPosted = openDate <= now;
-             return isPosted;
-           }
-           
-           // Default case: consider as posted
-           return true;
+          const timing = item?.timing;
+          const openEnabled = timing?.openEnabled;
+          const openDate = timing?.open ? new Date(timing.open) : null;
+          const closeDate = timing?.close ? new Date(timing.close) : null;
+          if (!timing || openEnabled === false || openEnabled === undefined) return true;
+          if (openEnabled === true && !openDate) return true;
+          if (openEnabled === true && openDate) {
+            const nowTs = now.getTime();
+            const openTs = openDate.getTime();
+            const closeTs = closeDate ? closeDate.getTime() : Number.POSITIVE_INFINITY;
+            return nowTs >= openTs && nowTs <= closeTs;
+          }
+          return true;
          }
          return false;
        });

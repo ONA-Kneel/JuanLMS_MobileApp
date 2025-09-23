@@ -291,9 +291,13 @@ router.post('/:quizId/submit', /*authenticateToken,*/ async (req, res) => {
         correctAnswer: q.correctAnswer
       });
       
-      // Find the corresponding answer for this question by matching questionId
-      const questionAnswer = answers.find(a => a.questionId === q._id.toString());
-      const studentAnswer = questionAnswer?.answer;
+      // Find the corresponding answer for this question by matching questionId (robust)
+      let questionAnswer = answers.find(a => String(a?.questionId) === String(q._id));
+      let studentAnswer = questionAnswer?.answer;
+      // Fallback: if not found, try positional index
+      if (studentAnswer === undefined && i < answers.length) {
+        studentAnswer = answers[i]?.answer;
+      }
       
       console.log('Question answer found:', questionAnswer);
       console.log('Student answer for this question:', studentAnswer);
@@ -500,7 +504,11 @@ router.get('/:quizId/myscore', /*authenticateToken,*/ async (req, res) => {
         
         const regeneratedCheckedAnswers = [];
         quiz.questions.forEach((q, i) => {
-          const studentAnswer = response.answers[i]?.answer;
+          const found = Array.isArray(response.answers)
+            ? response.answers.find(a => String(a?.questionId) === String(q._id))
+            : null;
+          let studentAnswer = found?.answer;
+          if (studentAnswer === undefined) studentAnswer = response.answers?.[i]?.answer;
           let correct = false;
           let correctAnswerForStorage;
           
@@ -515,11 +523,20 @@ router.get('/:quizId/myscore', /*authenticateToken,*/ async (req, res) => {
           
           if (q.type === 'multiple') {
             if (Array.isArray(q.correctAnswers) && q.correctAnswers.length > 0) {
-              if (Array.isArray(studentAnswer)) {
-                correct = studentAnswer.length === q.correctAnswers.length &&
-                  studentAnswer.every(a => q.correctAnswers.includes(a));
+              const toLowerTrim = (v) => (typeof v === 'string' ? v.trim().toLowerCase() : v);
+              const normChoices = (q.choices || []).map(c => toLowerTrim(String(c)));
+              const mapToIndex = (ans) => {
+                if (Array.isArray(ans)) return ans.map(a => {
+                  const idx = normChoices.indexOf(toLowerTrim(String(a))); return idx >= 0 ? idx : a;
+                });
+                const idx = normChoices.indexOf(toLowerTrim(String(ans))); return idx >= 0 ? idx : ans;
+              };
+              const normalized = mapToIndex(studentAnswer);
+              if (Array.isArray(normalized)) {
+                correct = normalized.length === q.correctAnswers.length &&
+                  normalized.every(a => q.correctAnswers.includes(a));
               } else {
-                correct = q.correctAnswers.includes(studentAnswer);
+                correct = q.correctAnswers.includes(normalized);
               }
               // Convert indices to actual answer text for frontend highlighting
               correctAnswerForStorage = q.correctAnswers.map(index => q.choices[index]).filter(Boolean);
@@ -528,10 +545,22 @@ router.get('/:quizId/myscore', /*authenticateToken,*/ async (req, res) => {
               correctAnswerForStorage = [];
             }
           } else if (q.type === 'truefalse') {
-            correct = studentAnswer === q.correctAnswer;
+            const coerceBoolean = (v) => {
+              if (typeof v === 'boolean') return v;
+              const s = String(v).trim().toLowerCase();
+              if (s === 'true' || s === 't' || s === '1' || s === 'yes') return true;
+              if (s === 'false' || s === 'f' || s === '0' || s === 'no') return false;
+              return v;
+            };
+            correct = coerceBoolean(studentAnswer) === coerceBoolean(q.correctAnswer);
             correctAnswerForStorage = q.correctAnswer;
           } else {
-            correct = studentAnswer === q.correctAnswer;
+            const toLowerTrim = (v) => (typeof v === 'string' ? v.trim().toLowerCase() : v);
+            if (studentAnswer == null || q.correctAnswer == null) {
+              correct = false;
+            } else {
+              correct = toLowerTrim(studentAnswer) === toLowerTrim(q.correctAnswer);
+            }
             correctAnswerForStorage = q.correctAnswer;
           }
           

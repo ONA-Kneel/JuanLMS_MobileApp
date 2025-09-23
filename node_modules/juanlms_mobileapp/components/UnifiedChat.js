@@ -68,6 +68,21 @@ export default function UnifiedChat() {
     return () => clearInterval(timer);
   }, []);
 
+  // Refresh user directory when screen gains focus so newly created users appear
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      try { fetchUsers(); } catch {}
+    });
+    return unsubscribe;
+  }, [navigation]);
+
+  // Opportunistic refresh while typing a search if list is small (stale cache)
+  useEffect(() => {
+    if ((searchQuery || '').trim().length > 0 && (allUsers || []).length < 5) {
+      try { fetchUsers(); } catch {}
+    }
+  }, [searchQuery]);
+
   const formatDateTime = (date) => {
     return date.toLocaleString('en-US', {
       weekday: 'long',
@@ -304,8 +319,16 @@ export default function UnifiedChat() {
       
       if (response.data) {
         const userArray = Array.isArray(response.data) ? response.data : (response.data?.users || response.data?.data || []);
-        // Do NOT filter by role here; we need all users to reconstruct conversations
-        const otherUsers = userArray.filter(u => u._id !== user._id);
+        // Normalize and de-duplicate by id; ignore partial/undefined profiles
+        const byId = new Map();
+        (userArray || []).forEach(u => {
+          if (!u || !u._id || u._id === user._id) return;
+          const fn = (u.firstname || '').toString();
+          const ln = (u.lastname || '').toString();
+          if (!fn || !ln || fn === 'undefined' || ln === 'undefined') return;
+          if (!byId.has(u._id)) byId.set(u._id, u);
+        });
+        const otherUsers = Array.from(byId.values());
         console.log('Loaded users:', otherUsers.length);
         setAllUsers(otherUsers);
       }

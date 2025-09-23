@@ -159,15 +159,24 @@ const QuizView = React.memo(function QuizView() {
     
     const remaining = getRemainingTime(quizId);
     const isLowTime = remaining <= 60; // Show warning when less than 1 minute
+    const isCriticalTime = remaining <= 30; // Show critical warning when less than 30 seconds
     
     return (
-      <View style={[styles.timerContainer, isLowTime && styles.timerWarning]}>
+      <View style={[
+        styles.timerContainer, 
+        isLowTime && styles.timerWarning,
+        isCriticalTime && styles.timerCritical
+      ]}>
         <MaterialIcons 
           name="timer" 
           size={24} 
-          color={isLowTime ? '#f44336' : '#2196F3'} 
+          color={isCriticalTime ? '#d32f2f' : isLowTime ? '#f44336' : '#2196F3'} 
         />
-        <Text style={[styles.timerText, isLowTime && styles.timerWarningText]}>
+        <Text style={[
+          styles.timerText, 
+          isLowTime && styles.timerWarningText,
+          isCriticalTime && styles.timerCriticalText
+        ]}>
           {formatTime(remaining)}
         </Text>
         {isPaused && (
@@ -977,6 +986,41 @@ const QuizView = React.memo(function QuizView() {
   const renderScoreDisplay = () => {
     if (!quizResult) return null;
     
+    // Check if quiz is graded (has a score that's not 0 or null)
+    const isGraded = quizResult.score !== null && quizResult.score !== undefined && quizResult.score > 0;
+    
+    if (!isGraded) {
+      return (
+        <View style={styles.scoreDisplayContainer}>
+          <View style={styles.scoreHeader}>
+            <MaterialIcons name="hourglass-empty" size={48} color="#FF9800" />
+            <Text style={styles.scoreTitle}>Quiz Submitted</Text>
+          </View>
+          
+          <View style={styles.scoreMain}>
+            <Text style={styles.waitingMessage}>
+              Waiting for your professor to finalize the score
+            </Text>
+            <Text style={styles.waitingSubMessage}>
+              Your quiz has been submitted successfully. Please check back later for your results.
+            </Text>
+          </View>
+          
+          <View style={styles.scoreDetails}>
+            {quizResult.submittedAt && (
+              <View style={styles.scoreDetailRow}>
+                <MaterialIcons name="event" size={20} color="#666" />
+                <Text style={styles.scoreDetailLabel}>Submitted:</Text>
+                <Text style={styles.scoreDetailValue}>
+                  {new Date(quizResult.submittedAt).toLocaleString()}
+                </Text>
+              </View>
+            )}
+          </View>
+        </View>
+      );
+    }
+    
     const message = getMotivationalMessage(quizResult.score, quizResult.totalPoints);
     
     return (
@@ -1376,6 +1420,19 @@ const styles = {
     fontSize: 16,
     fontWeight: 'bold',
     marginLeft: 4,
+  },
+  timerWarning: {
+    backgroundColor: 'rgba(244, 67, 54, 0.3)',
+  },
+  timerWarningText: {
+    color: '#ffcdd2',
+  },
+  timerCritical: {
+    backgroundColor: 'rgba(211, 47, 47, 0.4)',
+  },
+  timerCriticalText: {
+    color: '#ffebee',
+    fontWeight: '900',
   },
   progressContainer: {
     backgroundColor: 'white',
@@ -1914,6 +1971,19 @@ const styles = {
     color: '#666',
     textAlign: 'center',
     lineHeight: 24,
+  },
+  waitingMessage: {
+    fontSize: 18,
+    color: '#FF9800',
+    textAlign: 'center',
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  waitingSubMessage: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 20,
   },
   scoreDetails: {
     width: '100%',
