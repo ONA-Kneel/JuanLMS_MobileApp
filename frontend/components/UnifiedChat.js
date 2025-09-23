@@ -359,7 +359,8 @@ export default function UnifiedChat() {
     try {
       const headers = await getAuthHeaders();
       
-      const response = await axios.get(`${API_URL}/users`, {
+      // Use the same endpoint as the web app for consistency
+      const response = await axios.get(`${API_URL}/users/active`, {
         headers
       });
       
