@@ -83,11 +83,16 @@ export default function StudentModule(){
 
         const initializeSocket = async () => {
             try {
-                await socketService.initialize(user._id);
-                socketInitialized.current = true;
-                console.log('[StudentModule] Socket initialized for real-time updates');
+                const socket = await socketService.initialize(user._id);
+                if (socket) {
+                    socketInitialized.current = true;
+                    console.log('[StudentModule] Socket initialized for real-time updates');
+                } else {
+                    console.log('[StudentModule] Socket initialization failed, continuing without real-time updates');
+                }
             } catch (error) {
                 console.error('[StudentModule] Failed to initialize socket:', error);
+                // Continue without real-time updates
             }
         };
 
@@ -110,50 +115,54 @@ export default function StudentModule(){
     useEffect(() => {
         if (!socketService.isSocketConnected()) return;
 
-        // New announcement listener
-        const handleNewAnnouncement = (data) => {
-            console.log('[StudentModule] New announcement received:', data);
-            if (data.classID === classID) {
-                setAnnouncements(prev => [data.announcement, ...prev]);
-                setNewAnnouncementCount(prev => prev + 1);
-                // Show notification
-                Alert.alert('New Announcement', `New announcement: ${data.announcement.title}`);
-            }
-        };
+        try {
+            // New announcement listener
+            const handleNewAnnouncement = (data) => {
+                console.log('[StudentModule] New announcement received:', data);
+                if (data.classID === classID) {
+                    setAnnouncements(prev => [data.announcement, ...prev]);
+                    setNewAnnouncementCount(prev => prev + 1);
+                    // Show notification
+                    Alert.alert('New Announcement', `New announcement: ${data.announcement.title}`);
+                }
+            };
 
-        // New assignment listener
-        const handleNewAssignment = (data) => {
-            console.log('[StudentModule] New assignment received:', data);
-            if (data.classID === classID) {
-                setClasswork(prev => [data.assignment, ...prev]);
-                setNewActivityCount(prev => prev + 1);
-                // Show notification
-                Alert.alert('New Activity', `New assignment: ${data.assignment.title}`);
-            }
-        };
+            // New assignment listener
+            const handleNewAssignment = (data) => {
+                console.log('[StudentModule] New assignment received:', data);
+                if (data.classID === classID) {
+                    setClasswork(prev => [data.assignment, ...prev]);
+                    setNewActivityCount(prev => prev + 1);
+                    // Show notification
+                    Alert.alert('New Activity', `New assignment: ${data.assignment.title}`);
+                }
+            };
 
-        // New lesson listener
-        const handleNewLesson = (data) => {
-            console.log('[StudentModule] New lesson received:', data);
-            if (data.classID === classID) {
-                setMaterials(prev => [data.lesson, ...prev]);
-                setNewLessonCount(prev => prev + 1);
-                // Show notification
-                Alert.alert('New Lesson', `New lesson: ${data.lesson.title}`);
-            }
-        };
+            // New lesson listener
+            const handleNewLesson = (data) => {
+                console.log('[StudentModule] New lesson received:', data);
+                if (data.classID === classID) {
+                    setMaterials(prev => [data.lesson, ...prev]);
+                    setNewLessonCount(prev => prev + 1);
+                    // Show notification
+                    Alert.alert('New Lesson', `New lesson: ${data.lesson.title}`);
+                }
+            };
 
-        // Add listeners
-        socketService.addEventListener('newAnnouncement', handleNewAnnouncement);
-        socketService.addEventListener('newAssignment', handleNewAssignment);
-        socketService.addEventListener('newLesson', handleNewLesson);
+            // Add listeners
+            socketService.addEventListener('newAnnouncement', handleNewAnnouncement);
+            socketService.addEventListener('newAssignment', handleNewAssignment);
+            socketService.addEventListener('newLesson', handleNewLesson);
 
-        // Cleanup listeners
-        return () => {
-            socketService.removeEventListener('newAnnouncement', handleNewAnnouncement);
-            socketService.removeEventListener('newAssignment', handleNewAssignment);
-            socketService.removeEventListener('newLesson', handleNewLesson);
-        };
+            // Cleanup listeners
+            return () => {
+                socketService.removeEventListener('newAnnouncement', handleNewAnnouncement);
+                socketService.removeEventListener('newAssignment', handleNewAssignment);
+                socketService.removeEventListener('newLesson', handleNewLesson);
+            };
+        } catch (error) {
+            console.error('[StudentModule] Error setting up real-time listeners:', error);
+        }
     }, [classID]);
 
     const fetchClasswork = async (classId) => {

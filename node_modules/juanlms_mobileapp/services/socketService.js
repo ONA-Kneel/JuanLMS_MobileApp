@@ -1,7 +1,14 @@
-import { io } from 'socket.io-client';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const SOCKET_URL = 'https://juanlms-webapp-server.onrender.com';
+
+// Try to import socket.io-client, fallback to null if not available
+let io = null;
+try {
+  io = require('socket.io-client');
+} catch (error) {
+  console.warn('[SocketService] Socket.IO client not available:', error.message);
+}
 
 class SocketService {
   constructor() {
@@ -18,6 +25,12 @@ class SocketService {
     }
 
     try {
+      // Check if io is available
+      if (!io || typeof io !== 'function') {
+        console.warn('[SocketService] Socket.IO client not available, real-time features disabled');
+        return null;
+      }
+
       const token = await AsyncStorage.getItem('jwtToken');
       if (!token) {
         console.log('[SocketService] No token found, cannot initialize socket');
@@ -77,13 +90,17 @@ class SocketService {
       return;
     }
 
-    if (this.currentClassId) {
-      this.leaveClass(this.currentClassId);
-    }
+    try {
+      if (this.currentClassId) {
+        this.leaveClass(this.currentClassId);
+      }
 
-    this.socket.emit('joinClass', classId);
-    this.currentClassId = classId;
-    console.log(`[SocketService] Joined class room: ${classId}`);
+      this.socket.emit('joinClass', classId);
+      this.currentClassId = classId;
+      console.log(`[SocketService] Joined class room: ${classId}`);
+    } catch (error) {
+      console.error('[SocketService] Error joining class:', error);
+    }
   }
 
   // Leave a class room
@@ -103,14 +120,18 @@ class SocketService {
       return;
     }
 
-    // Store listener for cleanup
-    if (!this.listeners.has(event)) {
-      this.listeners.set(event, []);
-    }
-    this.listeners.get(event).push(callback);
+    try {
+      // Store listener for cleanup
+      if (!this.listeners.has(event)) {
+        this.listeners.set(event, []);
+      }
+      this.listeners.get(event).push(callback);
 
-    this.socket.on(event, callback);
-    console.log(`[SocketService] Added listener for event: ${event}`);
+      this.socket.on(event, callback);
+      console.log(`[SocketService] Added listener for event: ${event}`);
+    } catch (error) {
+      console.error('[SocketService] Error adding event listener:', error);
+    }
   }
 
   // Remove specific event listener
@@ -162,7 +183,12 @@ class SocketService {
 
   // Check if connected
   isSocketConnected() {
-    return this.isConnected && this.socket && this.socket.connected;
+    try {
+      return this.isConnected && this.socket && this.socket.connected;
+    } catch (error) {
+      console.error('[SocketService] Error checking connection status:', error);
+      return false;
+    }
   }
 }
 
