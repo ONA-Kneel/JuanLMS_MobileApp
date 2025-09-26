@@ -1,5 +1,5 @@
 import { Text, TouchableOpacity, View, Image, ScrollView, ActivityIndicator, Alert, Modal, Dimensions, Linking } from 'react-native';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { ImageBackground, ProgressBar } from 'react-native-web';
 import { StatusBar } from 'expo-status-bar';
@@ -11,6 +11,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MaterialIcons } from '@expo/vector-icons';
 import { formatDate } from '../../utils/dateUtils';
 import { getAuthHeaders, handleApiError } from '../../utils/apiUtils';
+import socketService from '../../services/socketService';
+import { useUser } from '../../UserContext';
 
 const API_BASE = 'https://juanlms-webapp-server.onrender.com';
 
@@ -34,6 +36,7 @@ function groupByDate(items, getDate) {
 export default function StudentModule(){
     const route = useRoute();
     const navigation = useNavigation();
+    const { user } = useUser();
     
     // Get the classId from navigation params
     const classId = route.params?.classId;
@@ -56,6 +59,12 @@ export default function StudentModule(){
     const [imageScale, setImageScale] = useState(1);
     const [imageTranslateX, setImageTranslateX] = useState(0);
     const [imageTranslateY, setImageTranslateY] = useState(0);
+    
+    // Real-time update states
+    const [newAnnouncementCount, setNewAnnouncementCount] = useState(0);
+    const [newActivityCount, setNewActivityCount] = useState(0);
+    const [newLessonCount, setNewLessonCount] = useState(0);
+    const socketInitialized = useRef(false);
 
     useEffect(() => {
         console.log('DEBUG StudentModule: useEffect classId:', classId);
@@ -67,6 +76,85 @@ export default function StudentModule(){
             fetchAvailableClasses();
         }
     }, [classId]);
+
+    // Initialize socket and real-time listeners
+    useEffect(() => {
+        if (!user?._id || socketInitialized.current) return;
+
+        const initializeSocket = async () => {
+            try {
+                await socketService.initialize(user._id);
+                socketInitialized.current = true;
+                console.log('[StudentModule] Socket initialized for real-time updates');
+            } catch (error) {
+                console.error('[StudentModule] Failed to initialize socket:', error);
+            }
+        };
+
+        initializeSocket();
+
+        return () => {
+            // Cleanup will be handled by the socket service
+        };
+    }, [user?._id]);
+
+    // Join class room when classID changes
+    useEffect(() => {
+        if (classID && socketService.isSocketConnected()) {
+            socketService.joinClass(classID);
+            console.log(`[StudentModule] Joined class room: ${classID}`);
+        }
+    }, [classID]);
+
+    // Set up real-time listeners
+    useEffect(() => {
+        if (!socketService.isSocketConnected()) return;
+
+        // New announcement listener
+        const handleNewAnnouncement = (data) => {
+            console.log('[StudentModule] New announcement received:', data);
+            if (data.classID === classID) {
+                setAnnouncements(prev => [data.announcement, ...prev]);
+                setNewAnnouncementCount(prev => prev + 1);
+                // Show notification
+                Alert.alert('New Announcement', `New announcement: ${data.announcement.title}`);
+            }
+        };
+
+        // New assignment listener
+        const handleNewAssignment = (data) => {
+            console.log('[StudentModule] New assignment received:', data);
+            if (data.classID === classID) {
+                setClasswork(prev => [data.assignment, ...prev]);
+                setNewActivityCount(prev => prev + 1);
+                // Show notification
+                Alert.alert('New Activity', `New assignment: ${data.assignment.title}`);
+            }
+        };
+
+        // New lesson listener
+        const handleNewLesson = (data) => {
+            console.log('[StudentModule] New lesson received:', data);
+            if (data.classID === classID) {
+                setMaterials(prev => [data.lesson, ...prev]);
+                setNewLessonCount(prev => prev + 1);
+                // Show notification
+                Alert.alert('New Lesson', `New lesson: ${data.lesson.title}`);
+            }
+        };
+
+        // Add listeners
+        socketService.addEventListener('newAnnouncement', handleNewAnnouncement);
+        socketService.addEventListener('newAssignment', handleNewAssignment);
+        socketService.addEventListener('newLesson', handleNewLesson);
+
+        // Cleanup listeners
+        return () => {
+            socketService.removeEventListener('newAnnouncement', handleNewAnnouncement);
+            socketService.removeEventListener('newAssignment', handleNewAssignment);
+            socketService.removeEventListener('newLesson', handleNewLesson);
+        };
+    }, [classID]);
 
     const fetchClasswork = async (classId) => {
         try {
@@ -987,10 +1075,26 @@ export default function StudentModule(){
                 paddingHorizontal: 20,
                 gap: 8
             }}>
-                {['Home Page', 'Classwork', 'Class Materials'].map(tab => (
+                {['Home Page', 'Classwork', 'Class Materials'].map(tab => {
+                    const getNotificationCount = () => {
+                        if (tab === 'Home Page') return newAnnouncementCount;
+                        if (tab === 'Classwork') return newActivityCount;
+                        if (tab === 'Class Materials') return newLessonCount;
+                        return 0;
+                    };
+                    
+                    const notificationCount = getNotificationCount();
+                    
+                    return (
                     <TouchableOpacity
                         key={tab}
-                        onPress={() => setActiveTab(tab === 'Home Page' ? 'Announcement' : tab)}
+                        onPress={() => {
+                            setActiveTab(tab === 'Home Page' ? 'Announcement' : tab);
+                            // Reset notification count when tab is selected
+                            if (tab === 'Home Page') setNewAnnouncementCount(0);
+                            if (tab === 'Classwork') setNewActivityCount(0);
+                            if (tab === 'Class Materials') setNewLessonCount(0);
+                        }}
                         style={{
                             backgroundColor: (activeTab === 'Announcement' && tab === 'Home Page') || activeTab === tab ? '#003067' : 'white',
                             paddingVertical: 10,
@@ -1003,6 +1107,7 @@ export default function StudentModule(){
                             elevation: 3,
                         }}
                     >
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <Text style={{ 
                             color: (activeTab === 'Announcement' && tab === 'Home Page') || activeTab === tab ? 'white' : '#333', 
                             fontFamily: 'Poppins-Bold', 
@@ -1010,8 +1115,29 @@ export default function StudentModule(){
                         }}>
                             {tab}
                         </Text>
+                            {notificationCount > 0 && (
+                                <View style={{
+                                    backgroundColor: '#ff4444',
+                                    borderRadius: 10,
+                                    minWidth: 20,
+                                    height: 20,
+                                    justifyContent: 'center',
+                                    alignItems: 'center',
+                                    marginLeft: 8
+                                }}>
+                                    <Text style={{
+                                        color: 'white',
+                                        fontSize: 12,
+                                        fontFamily: 'Poppins-Bold'
+                                    }}>
+                                        {notificationCount > 99 ? '99+' : notificationCount}
+                                    </Text>
+                                </View>
+                            )}
+                        </View>
                     </TouchableOpacity>
-                ))}
+                    );
+                })}
             </View>
                 <ScrollView 
                     style={{ 

@@ -11,6 +11,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { formatDate } from '../../utils/dateUtils';
 import { getAuthHeaders, handleApiError } from '../../utils/apiUtils';
 import { MaterialIcons } from '@expo/vector-icons';
+import socketService from '../../services/socketService';
 
 function groupByDate(items, getDate) {
   const groups = {};
@@ -48,6 +49,12 @@ export default function FacultyModule() {
     const [showCreateAnnouncementModal, setShowCreateAnnouncementModal] = useState(false);
     const [announcementTitle, setAnnouncementTitle] = useState('');
     const [announcementContent, setAnnouncementContent] = useState('');
+    
+    // Real-time update states
+    const [newAnnouncementCount, setNewAnnouncementCount] = useState(0);
+    const [newActivityCount, setNewActivityCount] = useState(0);
+    const [newLessonCount, setNewLessonCount] = useState(0);
+    const socketInitialized = useRef(false);
     const [savingAnnouncement, setSavingAnnouncement] = useState(false);
     // Edit/Delete state
     const [showEditModal, setShowEditModal] = useState(false);
@@ -102,6 +109,79 @@ export default function FacultyModule() {
             activeTab: activeTab
         });
     }, [classwork, activeTab]);
+
+    // Initialize socket and real-time listeners
+    useEffect(() => {
+        if (!user?._id || socketInitialized.current) return;
+
+        const initializeSocket = async () => {
+            try {
+                await socketService.initialize(user._id);
+                socketInitialized.current = true;
+                console.log('[FacultyModule] Socket initialized for real-time updates');
+            } catch (error) {
+                console.error('[FacultyModule] Failed to initialize socket:', error);
+            }
+        };
+
+        initializeSocket();
+
+        return () => {
+            // Cleanup will be handled by the socket service
+        };
+    }, [user?._id]);
+
+    // Join class room when classID changes
+    useEffect(() => {
+        if (classID && socketService.isSocketConnected()) {
+            socketService.joinClass(classID);
+            console.log(`[FacultyModule] Joined class room: ${classID}`);
+        }
+    }, [classID]);
+
+    // Set up real-time listeners
+    useEffect(() => {
+        if (!socketService.isSocketConnected()) return;
+
+        // New announcement listener
+        const handleNewAnnouncement = (data) => {
+            console.log('[FacultyModule] New announcement received:', data);
+            if (data.classID === classID) {
+                setAnnouncements(prev => [data.announcement, ...prev]);
+                setNewAnnouncementCount(prev => prev + 1);
+            }
+        };
+
+        // New assignment listener
+        const handleNewAssignment = (data) => {
+            console.log('[FacultyModule] New assignment received:', data);
+            if (data.classID === classID) {
+                setClasswork(prev => [data.assignment, ...prev]);
+                setNewActivityCount(prev => prev + 1);
+            }
+        };
+
+        // New lesson listener
+        const handleNewLesson = (data) => {
+            console.log('[FacultyModule] New lesson received:', data);
+            if (data.classID === classID) {
+                setMaterials(prev => [data.lesson, ...prev]);
+                setNewLessonCount(prev => prev + 1);
+            }
+        };
+
+        // Add listeners
+        socketService.addEventListener('newAnnouncement', handleNewAnnouncement);
+        socketService.addEventListener('newAssignment', handleNewAssignment);
+        socketService.addEventListener('newLesson', handleNewLesson);
+
+        // Cleanup listeners
+        return () => {
+            socketService.removeEventListener('newAnnouncement', handleNewAnnouncement);
+            socketService.removeEventListener('newAssignment', handleNewAssignment);
+            socketService.removeEventListener('newLesson', handleNewLesson);
+        };
+    }, [classID]);
 
     const fetchClasswork = async (classId) => {
         try {
@@ -950,12 +1030,26 @@ export default function FacultyModule() {
                 </View>
             {/* Tabs */}
             <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: 18, gap: 8, marginLeft: 10, marginRight: 10 }}>
-                {['Announcement', 'Classwork', 'Class Materials'].map(tab => (
+                {['Announcement', 'Classwork', 'Class Materials'].map(tab => {
+                    const getNotificationCount = () => {
+                        if (tab === 'Announcement') return newAnnouncementCount;
+                        if (tab === 'Classwork') return newActivityCount;
+                        if (tab === 'Class Materials') return newLessonCount;
+                        return 0;
+                    };
+                    
+                    const notificationCount = getNotificationCount();
+                    
+                    return (
                     <TouchableOpacity
                         key={tab}
                         onPress={() => {
                             console.log('DEBUG: Tab selected:', tab);
                             setActiveTab(tab);
+                            // Reset notification count when tab is selected
+                            if (tab === 'Announcement') setNewAnnouncementCount(0);
+                            if (tab === 'Classwork') setNewActivityCount(0);
+                            if (tab === 'Class Materials') setNewLessonCount(0);
                         }}
                         style={{
                             backgroundColor: activeTab === tab ? '#00418b' : '#e3eefd',
@@ -964,9 +1058,31 @@ export default function FacultyModule() {
                             borderRadius: 10,
                         }}
                     >
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <Text style={{ color: activeTab === tab ? '#fff' : '#00418b', fontFamily: 'Poppins-Bold', fontSize: 14 }}>{tab}</Text>
+                            {notificationCount > 0 && (
+                                <View style={{
+                                    backgroundColor: '#ff4444',
+                                    borderRadius: 10,
+                                    minWidth: 20,
+                                    height: 20,
+                                    justifyContent: 'center',
+                                    alignItems: 'center',
+                                    marginLeft: 8
+                                }}>
+                                    <Text style={{
+                                        color: 'white',
+                                        fontSize: 12,
+                                        fontFamily: 'Poppins-Bold'
+                                    }}>
+                                        {notificationCount > 99 ? '99+' : notificationCount}
+                                    </Text>
+                                </View>
+                            )}
+                        </View>
                     </TouchableOpacity>
-                ))}
+                    );
+                })}
             </View>
             {/* Main Card */}
             <View style={{ flex: 1, alignItems: 'center', marginTop: 12, marginBottom: 0 }}>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Text,
   TouchableOpacity,
@@ -18,6 +18,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTimer } from '../../TimerContext';
 import * as DocumentPicker from 'expo-document-picker';
 import StudentActsStyle from '../styles/Stud/StudentActsStyle';
+import socketService from '../../services/socketService';
 
 // Check if DocumentPicker is available
 const isDocumentPickerAvailable = () => {
@@ -418,6 +419,10 @@ export default function StudentActs() {
   const [uploadingReplacement, setUploadingReplacement] = useState(false);
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
   const [academicContext, setAcademicContext] = useState('2025-2026 | Term 1');
+  
+  // Real-time update states
+  const [newActivityCount, setNewActivityCount] = useState(0);
+  const socketInitialized = useRef(false);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -439,6 +444,60 @@ export default function StudentActs() {
     });
     return unsubscribe;
   }, [navigation]);
+
+  // Initialize socket and real-time listeners
+  useEffect(() => {
+    if (!user?._id || socketInitialized.current) return;
+
+    const initializeSocket = async () => {
+      try {
+        await socketService.initialize(user._id);
+        socketInitialized.current = true;
+        console.log('[StudentActs] Socket initialized for real-time updates');
+      } catch (error) {
+        console.error('[StudentActs] Failed to initialize socket:', error);
+      }
+    };
+
+    initializeSocket();
+
+    return () => {
+      // Cleanup will be handled by the socket service
+    };
+  }, [user?._id]);
+
+  // Set up real-time listeners for new activities
+  useEffect(() => {
+    if (!socketService.isSocketConnected()) return;
+
+    // New assignment listener
+    const handleNewAssignment = (data) => {
+      console.log('[StudentActs] New assignment received:', data);
+      setActivities(prev => [data.assignment, ...prev]);
+      setNewActivityCount(prev => prev + 1);
+      // Show notification
+      Alert.alert('New Activity', `New assignment: ${data.assignment.title}`);
+    };
+
+    // New quiz listener
+    const handleNewQuiz = (data) => {
+      console.log('[StudentActs] New quiz received:', data);
+      setActivities(prev => [data.quiz, ...prev]);
+      setNewActivityCount(prev => prev + 1);
+      // Show notification
+      Alert.alert('New Activity', `New quiz: ${data.quiz.title}`);
+    };
+
+    // Add listeners
+    socketService.addEventListener('newAssignment', handleNewAssignment);
+    socketService.addEventListener('newQuiz', handleNewQuiz);
+
+    // Cleanup listeners
+    return () => {
+      socketService.removeEventListener('newAssignment', handleNewAssignment);
+      socketService.removeEventListener('newQuiz', handleNewQuiz);
+    };
+  }, []);
 
   // Separate effect to handle file replacement trigger
   useEffect(() => {
@@ -868,6 +927,7 @@ export default function StudentActs() {
 
   const onRefresh = () => {
     setRefreshing(true);
+    setNewActivityCount(0); // Reset notification count on refresh
     fetchActivities();
   };
 
@@ -1258,9 +1318,30 @@ export default function StudentActs() {
       <View style={styles.whiteHeaderCard}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <View>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Text style={styles.headerTitle}>
               Activites
             </Text>
+              {newActivityCount > 0 && (
+                <View style={{
+                  backgroundColor: '#ff4444',
+                  borderRadius: 10,
+                  minWidth: 20,
+                  height: 20,
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  marginLeft: 8
+                }}>
+                  <Text style={{
+                    color: 'white',
+                    fontSize: 12,
+                    fontFamily: 'Poppins-Bold'
+                  }}>
+                    {newActivityCount > 99 ? '99+' : newActivityCount}
+                  </Text>
+                </View>
+              )}
+            </View>
             <Text style={styles.headerSubtitle}>{academicContext}</Text>
             <Text style={styles.headerSubtitle2}>{formatDateTime(currentDateTime)}</Text>
           </View>
