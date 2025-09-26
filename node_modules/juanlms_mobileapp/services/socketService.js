@@ -1,12 +1,30 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import SafeSocketService from './safeSocketService.js';
 
 const SOCKET_URL = 'https://juanlms-webapp-server.onrender.com';
 
 // Try to import socket.io-client, fallback to null if not available
 let io = null;
+let socketAvailable = false;
+
 try {
-  io = require('socket.io-client');
+  // Try different import methods
+  if (typeof require !== 'undefined') {
+    io = require('socket.io-client');
+  } else {
+    io = null;
+  }
+  
+  // Check if io is actually a function
+  if (io && typeof io === 'function') {
+    socketAvailable = true;
+    console.log('[SocketService] Socket.IO client loaded successfully');
+  } else {
+    socketAvailable = false;
+    console.warn('[SocketService] Socket.IO client not properly loaded');
+  }
 } catch (error) {
+  socketAvailable = false;
   console.warn('[SocketService] Socket.IO client not available:', error.message);
 }
 
@@ -25,8 +43,8 @@ class SocketService {
     }
 
     try {
-      // Check if io is available
-      if (!io || typeof io !== 'function') {
+      // Check if socket.io is available
+      if (!socketAvailable || !io || typeof io !== 'function') {
         console.warn('[SocketService] Socket.IO client not available, real-time features disabled');
         return null;
       }
@@ -190,8 +208,13 @@ class SocketService {
       return false;
     }
   }
+
+  // Check if socket.io is available
+  isSocketAvailable() {
+    return socketAvailable;
+  }
 }
 
-// Create singleton instance
-const socketService = new SocketService();
+// Create singleton instance - use safe service if socket.io is not available
+const socketService = socketAvailable ? new SocketService() : new SafeSocketService();
 export default socketService;

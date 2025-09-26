@@ -83,6 +83,12 @@ export default function StudentModule(){
 
         const initializeSocket = async () => {
             try {
+                // Check if socket is available first
+                if (!socketService.isSocketAvailable()) {
+                    console.log('[StudentModule] Socket.IO not available, skipping real-time features');
+                    return;
+                }
+
                 const socket = await socketService.initialize(user._id);
                 if (socket) {
                     socketInitialized.current = true;
@@ -113,7 +119,7 @@ export default function StudentModule(){
 
     // Set up real-time listeners
     useEffect(() => {
-        if (!socketService.isSocketConnected()) return;
+        if (!socketService.isSocketAvailable() || !socketService.isSocketConnected()) return;
 
         try {
             // New announcement listener
