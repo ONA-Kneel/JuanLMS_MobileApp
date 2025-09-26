@@ -74,6 +74,69 @@ router.post('/', /*authenticateToken,*/ async (req, res) => {
       console.error('Error creating quiz notifications:', notificationError);
       // Don't fail the quiz creation if notification creation fails
     }
+
+    // Emit real-time events to all users in the class(es)
+    try {
+      const io = req.app.get('io');
+      if (io) {
+        if (quiz.classID) {
+          io.to(`class-${quiz.classID}`).emit('newQuiz', {
+            classID: quiz.classID,
+            quiz: {
+              _id: quiz._id,
+              title: quiz.title,
+              description: quiz.description,
+              instructions: quiz.instructions,
+              type: quiz.type,
+              dueDate: quiz.dueDate,
+              points: quiz.points,
+              questions: quiz.questions,
+              timing: quiz.timing,
+              questionBehaviour: quiz.questionBehaviour,
+              safeExamBrowser: quiz.safeExamBrowser,
+              grading: quiz.grading,
+              attachmentLink: quiz.attachmentLink,
+              attachmentFile: quiz.attachmentFile,
+              postAt: quiz.postAt,
+              createdAt: quiz.createdAt,
+              classID: quiz.classID
+            }
+          });
+          console.log(`[Real-time] Emitted newQuiz event to class ${quiz.classID}`);
+        } else if (quiz.assignedTo && Array.isArray(quiz.assignedTo)) {
+          for (const assignment of quiz.assignedTo) {
+            if (assignment.classID) {
+              io.to(`class-${assignment.classID}`).emit('newQuiz', {
+                classID: assignment.classID,
+                quiz: {
+                  _id: quiz._id,
+                  title: quiz.title,
+                  description: quiz.description,
+                  instructions: quiz.instructions,
+                  type: quiz.type,
+                  dueDate: quiz.dueDate,
+                  points: quiz.points,
+                  questions: quiz.questions,
+                  timing: quiz.timing,
+                  questionBehaviour: quiz.questionBehaviour,
+                  safeExamBrowser: quiz.safeExamBrowser,
+                  grading: quiz.grading,
+                  attachmentLink: quiz.attachmentLink,
+                  attachmentFile: quiz.attachmentFile,
+                  postAt: quiz.postAt,
+                  createdAt: quiz.createdAt,
+                  classID: assignment.classID
+                }
+              });
+              console.log(`[Real-time] Emitted newQuiz event to class ${assignment.classID}`);
+            }
+          }
+        }
+      }
+    } catch (socketError) {
+      console.error('Error emitting quiz socket event:', socketError);
+      // Don't fail the quiz creation if socket emission fails
+    }
     
     res.status(201).json(quiz);
   } catch (err) {

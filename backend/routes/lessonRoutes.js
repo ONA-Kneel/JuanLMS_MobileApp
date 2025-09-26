@@ -66,6 +66,28 @@ router.post('/', /*authenticateToken,*/ upload.array('files', 5), async (req, re
       // Don't fail the lesson creation if notification creation fails
     }
 
+    // Emit real-time event to all users in the class
+    try {
+      const io = req.app.get('io');
+      if (io) {
+        io.to(`class-${classID}`).emit('newLesson', {
+          classID,
+          lesson: {
+            _id: lesson._id,
+            title: lesson.title,
+            files: lesson.files,
+            link: lesson.link,
+            uploadedAt: lesson.uploadedAt,
+            classID: lesson.classID
+          }
+        });
+        console.log(`[Real-time] Emitted newLesson event to class ${classID}`);
+      }
+    } catch (socketError) {
+      console.error('Error emitting lesson socket event:', socketError);
+      // Don't fail the lesson creation if socket emission fails
+    }
+
     // Create audit log for material upload
     // const db = database.getDb();
     // await db.collection('AuditLogs').insertOne({

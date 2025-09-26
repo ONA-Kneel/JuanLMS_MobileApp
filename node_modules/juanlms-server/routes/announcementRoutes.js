@@ -148,6 +148,32 @@ router.post('/', /*authenticateToken,*/ async (req, res) => {
         console.error('Error creating announcement notifications:', notificationError);
         // Don't fail the announcement creation if notification creation fails
       }
+
+      // Emit real-time event to all users in the class
+      try {
+        const io = req.app.get('io');
+        if (io) {
+          io.to(`class-${classID}`).emit('newAnnouncement', {
+            classID,
+            announcement: {
+              _id: announcement._id,
+              title: announcement.title,
+              content: announcement.content,
+              priority: announcement.priority,
+              category: announcement.category,
+              targetAudience: announcement.targetAudience,
+              createdBy: announcement.createdBy,
+              isActive: announcement.isActive,
+              createdAt: announcement.createdAt,
+              classID: announcement.classID
+            }
+          });
+          console.log(`[Real-time] Emitted newAnnouncement event to class ${classID}`);
+        }
+      } catch (socketError) {
+        console.error('Error emitting announcement socket event:', socketError);
+        // Don't fail the announcement creation if socket emission fails
+      }
     }
     
     res.status(201).json(announcement);

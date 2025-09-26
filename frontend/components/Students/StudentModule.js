@@ -155,16 +155,32 @@ export default function StudentModule(){
                 }
             };
 
+            // New quiz listener
+            const handleNewQuiz = (data) => {
+                console.log('[StudentModule] New quiz received:', data);
+                if (data.classID === classID) {
+                    setClasswork(prev => [data.quiz, ...prev]);
+                    setNewActivityCount(prev => prev + 1);
+                    // Show notification
+                    Alert.alert('New Activity', `New quiz: ${data.quiz.title}`);
+                }
+            };
+
             // Add listeners
             socketService.addEventListener('newAnnouncement', handleNewAnnouncement);
             socketService.addEventListener('newAssignment', handleNewAssignment);
             socketService.addEventListener('newLesson', handleNewLesson);
+            socketService.addEventListener('newQuiz', handleNewQuiz);
 
-            // Cleanup listeners
+            // Cleanup listeners and leave class room
             return () => {
                 socketService.removeEventListener('newAnnouncement', handleNewAnnouncement);
                 socketService.removeEventListener('newAssignment', handleNewAssignment);
                 socketService.removeEventListener('newLesson', handleNewLesson);
+                socketService.removeEventListener('newQuiz', handleNewQuiz);
+                if (classID) {
+                    socketService.leaveClass(classID);
+                }
             };
         } catch (error) {
             console.error('[StudentModule] Error setting up real-time listeners:', error);

@@ -170,16 +170,30 @@ export default function FacultyModule() {
             }
         };
 
+        // New quiz listener
+        const handleNewQuiz = (data) => {
+            console.log('[FacultyModule] New quiz received:', data);
+            if (data.classID === classID) {
+                setClasswork(prev => [data.quiz, ...prev]);
+                setNewActivityCount(prev => prev + 1);
+            }
+        };
+
         // Add listeners
         socketService.addEventListener('newAnnouncement', handleNewAnnouncement);
         socketService.addEventListener('newAssignment', handleNewAssignment);
         socketService.addEventListener('newLesson', handleNewLesson);
+        socketService.addEventListener('newQuiz', handleNewQuiz);
 
-        // Cleanup listeners
+        // Cleanup listeners and leave class room
         return () => {
             socketService.removeEventListener('newAnnouncement', handleNewAnnouncement);
             socketService.removeEventListener('newAssignment', handleNewAssignment);
             socketService.removeEventListener('newLesson', handleNewLesson);
+            socketService.removeEventListener('newQuiz', handleNewQuiz);
+            if (classID) {
+                socketService.leaveClass(classID);
+            }
         };
     }, [classID]);
 

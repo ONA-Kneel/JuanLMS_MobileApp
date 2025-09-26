@@ -233,6 +233,37 @@ router.post('/', /*authenticateToken,*/ upload.single('attachmentFile'), async (
           console.error('Error creating assignment notifications:', notificationError);
           // Don't fail the assignment creation if notification creation fails
         }
+
+        // Emit real-time event to all users in the class
+        try {
+          const io = req.app.get('io');
+          if (io) {
+            io.to(`class-${cid}`).emit('newAssignment', {
+              classID: cid,
+              assignment: {
+                _id: assignment._id,
+                title: assignment.title,
+                instructions: assignment.instructions,
+                type: assignment.type,
+                description: assignment.description,
+                dueDate: assignment.dueDate,
+                points: assignment.points,
+                fileUploadRequired: assignment.fileUploadRequired,
+                allowedFileTypes: assignment.allowedFileTypes,
+                fileInstructions: assignment.fileInstructions,
+                attachmentLink: assignment.attachmentLink,
+                attachmentFile: assignment.attachmentFile,
+                postAt: assignment.postAt,
+                createdAt: assignment.createdAt,
+                classID: assignment.classID
+              }
+            });
+            console.log(`[Real-time] Emitted newAssignment event to class ${cid}`);
+          }
+        } catch (socketError) {
+          console.error('Error emitting assignment socket event:', socketError);
+          // Don't fail the assignment creation if socket emission fails
+        }
       }
       return res.status(201).json(assignments);
     } else if (classID) {
@@ -262,6 +293,37 @@ router.post('/', /*authenticateToken,*/ upload.single('attachmentFile'), async (
       } catch (notificationError) {
         console.error('Error creating assignment notifications:', notificationError);
         // Don't fail the assignment creation if notification creation fails
+      }
+
+      // Emit real-time event to all users in the class
+      try {
+        const io = req.app.get('io');
+        if (io) {
+          io.to(`class-${classID}`).emit('newAssignment', {
+            classID,
+            assignment: {
+              _id: assignment._id,
+              title: assignment.title,
+              instructions: assignment.instructions,
+              type: assignment.type,
+              description: assignment.description,
+              dueDate: assignment.dueDate,
+              points: assignment.points,
+              fileUploadRequired: assignment.fileUploadRequired,
+              allowedFileTypes: assignment.allowedFileTypes,
+              fileInstructions: assignment.fileInstructions,
+              attachmentLink: assignment.attachmentLink,
+              attachmentFile: assignment.attachmentFile,
+              postAt: assignment.postAt,
+              createdAt: assignment.createdAt,
+              classID: assignment.classID
+            }
+          });
+          console.log(`[Real-time] Emitted newAssignment event to class ${classID}`);
+        }
+      } catch (socketError) {
+        console.error('Error emitting assignment socket event:', socketError);
+        // Don't fail the assignment creation if socket emission fails
       }
       
       return res.status(201).json([assignment]);

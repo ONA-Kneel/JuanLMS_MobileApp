@@ -236,6 +236,9 @@ const io = new Server(server, {
   }
 });
 
+// Store io instance globally for use in routes
+app.set('io', io);
+
 io.on('connection', (socket) => {
   console.log('A user connected');
   
@@ -249,6 +252,17 @@ io.on('connection', (socket) => {
   socket.on('test', (data) => {
     console.log('Test message received:', data);
     socket.emit('testResponse', 'Hello from backend!');
+  });
+  
+  // Class room events for real-time updates
+  socket.on('joinClass', (classId) => {
+    socket.join(`class-${classId}`);
+    console.log(`User ${socket.userId} joined class ${classId}`);
+  });
+  
+  socket.on('leaveClass', (classId) => {
+    socket.leave(`class-${classId}`);
+    console.log(`User ${socket.userId} left class ${classId}`);
   });
   
   // Individual chat events
