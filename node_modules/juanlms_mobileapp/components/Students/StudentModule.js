@@ -53,7 +53,8 @@ export default function StudentModule(){
     const [materials, setMaterials] = useState([]);
     const [materialsLoading, setMaterialsLoading] = useState(true);
     const [filterType, setFilterType] = useState('all'); // Add filter state
-    const [newAnnouncementAlert, setNewAnnouncementAlert] = useState(null);
+    const [bannerHeading, setBannerHeading] = useState(null);
+    const [bannerTitle, setBannerTitle] = useState(null);
     const [selectedFile, setSelectedFile] = useState(null);
     const [showFileViewer, setShowFileViewer] = useState(false);
     const [imageLoading, setImageLoading] = useState(false);
@@ -157,8 +158,8 @@ export default function StudentModule(){
                         classID: classID,
                         timestamp: new Date().toISOString() 
                     });
-                    if (newAnnouncementAlert) {
-                        console.log('[StudentModule] Banner currently visible for title:', newAnnouncementAlert);
+                    if (bannerTitle) {
+                        console.log('[StudentModule] Banner currently visible for title:', bannerTitle);
                     } else {
                         console.log('[StudentModule] No banner visible at verification time.');
                     }
@@ -216,8 +217,9 @@ export default function StudentModule(){
                 });
 
                 // Show immediate visual feedback
-                setNewAnnouncementAlert(announcement.title);
-                setTimeout(() => setNewAnnouncementAlert(null), 3000);
+                setBannerHeading('New Announcement!');
+                setBannerTitle(announcement.title);
+                setTimeout(() => { setBannerHeading(null); setBannerTitle(null); }, 3000);
 
                 // Also trigger a refresh of the data to ensure consistency
                 console.log('[StudentModule] Triggering data refresh for immediate sync...');
@@ -297,6 +299,12 @@ export default function StudentModule(){
 
             if (data.classID === classID) {
                 console.log('[StudentModule] Refreshing classwork for new assignment');
+                // Banner for assignment
+                const title = data?.assignment?.title || data?.title || 'New Assignment';
+                setBannerHeading('New Assignment!');
+                setBannerTitle(title);
+                setTimeout(() => { setBannerHeading(null); setBannerTitle(null); }, 3000);
+
                 // Refresh classwork to include the new assignment
                 fetchClasswork(classID);
             }
@@ -317,6 +325,12 @@ export default function StudentModule(){
 
             if (data.classID === classID) {
                 console.log('[StudentModule] Refreshing classwork for new quiz');
+                // Banner for quiz
+                const title = data?.quiz?.title || data?.title || 'New Quiz';
+                setBannerHeading('New Quiz!');
+                setBannerTitle(title);
+                setTimeout(() => { setBannerHeading(null); setBannerTitle(null); }, 3000);
+
                 // Refresh classwork to include the new quiz
                 fetchClasswork(classID);
             }
@@ -1193,7 +1207,7 @@ export default function StudentModule(){
         <View style={{ flex: 1, backgroundColor: '#f5f5f5' }}>
             
             {/* New Announcement Alert */}
-            {newAnnouncementAlert && (
+            {bannerHeading && (
                 <View style={{
                     position: 'absolute',
                     top: 50,
@@ -1213,8 +1227,8 @@ export default function StudentModule(){
                 }}>
                     <MaterialIcons name="announcement" size={24} color="white" style={{ marginRight: 10 }} />
                     <View style={{ flex: 1 }}>
-                        <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>New Announcement!</Text>
-                        <Text style={{ color: 'white', fontSize: 14 }}>{newAnnouncementAlert}</Text>
+                        <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>{bannerHeading}</Text>
+                        <Text style={{ color: 'white', fontSize: 14 }}>{bannerTitle}</Text>
                     </View>
                 </View>
             )}
