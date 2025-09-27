@@ -2,7 +2,7 @@
   "expo": {
     "name": "JuanLMS",
     "slug": "juanlms-mobile-app",
-    "owner": "mpes_orion",
+    "owner": "nylineee",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "frontend/assets/SanJuan.png",
@@ -30,19 +30,7 @@
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE",
         "android.permission.RECORD_AUDIO",
-        "android.permission.BLUETOOTH_CONNECT",
-        "android.permission.BLUETOOTH",
-        "android.permission.BLUETOOTH_ADMIN",
-        "android.permission.WAKE_LOCK",
-        "android.permission.INTERNET",
-        "android.permission.CAMERA",
-        "android.permission.READ_EXTERNAL_STORAGE",
-        "android.permission.WRITE_EXTERNAL_STORAGE",
-        "android.permission.RECORD_AUDIO",
-        "android.permission.BLUETOOTH_CONNECT",
-        "android.permission.BLUETOOTH",
-        "android.permission.BLUETOOTH_ADMIN",
-        "android.permission.WAKE_LOCK"
+        "android.permission.BLUETOOTH_CONNECT"
       ],
       "softwareKeyboardLayoutMode": "pan",
       "allowBackup": true
@@ -53,7 +41,7 @@
     "extra": {
       "API_URL": "https://juanlms-webapp-server.onrender.com",
       "eas": {
-        "projectId": "3b39fc68-41c9-4e75-bb86-e405d399e411"
+        "projectId": "bb260978-af95-43bb-9a06-00369222eb8a"
       }
     },
     "plugins": [
@@ -70,13 +58,27 @@
           "androidMode": "default"
         }
       ],
-      "@stream-io/video-react-native-sdk"
-    ],
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
-    "updates": {
-      "url": "https://u.expo.dev/3b39fc68-41c9-4e75-bb86-e405d399e411"
-    }
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 24,
+            "usesCleartextTraffic": true,
+            "buildConfigFields": {
+              "androidx.core:core": "1.13.1",
+              "androidx.media:media": "1.0.0"
+            }
+          }
+        }
+      ],
+      "@stream-io/video-react-native-sdk",
+      [
+        "@config-plugins/react-native-webrtc",
+        {
+          "cameraPermission": "$(PRODUCT_NAME) requires camera access in order to capture and transmit video",
+          "microphonePermission": "$(PRODUCT_NAME) requires microphone access in order to capture and transmit audio"
+        }
+      ]
+    ]
   }
 }

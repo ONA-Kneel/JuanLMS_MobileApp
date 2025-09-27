@@ -18,7 +18,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTimer } from '../../TimerContext';
 import * as DocumentPicker from 'expo-document-picker';
 import StudentActsStyle from '../styles/Stud/StudentActsStyle';
-import classSocketService from '../../services/classSocketService';
 
 // Check if DocumentPicker is available
 const isDocumentPickerAvailable = () => {
@@ -442,7 +441,6 @@ export default function StudentActs() {
   useEffect(() => {
     if (user && user._id) {
       fetchActivities();
-      initializeSocketForActivities();
     }
   }, [user]);
 
@@ -452,178 +450,6 @@ export default function StudentActs() {
     });
     return unsubscribe;
   }, [navigation]);
-
-  // Socket integration for real-time activity updates
-  const initializeSocketForActivities = async () => {
-    try {
-      console.log('[StudentActs] Initializing socket for real-time activity updates');
-      console.log('[StudentActs] User ID:', user?._id);
-      
-      if (!user || !user._id) {
-        console.error('[StudentActs] Cannot initialize socket - user not found');
-        return;
-      }
-
-      const socket = await classSocketService.initialize(user._id);
-      
-      if (!socket) {
-        console.error('[StudentActs] Socket initialization failed');
-        return;
-      }
-
-      console.log('[StudentActs] Socket initialized successfully');
-      
-      // Set up event listeners for activity updates
-      classSocketService.addEventListener('newAssignment', handleNewAssignmentActivity);
-      classSocketService.addEventListener('assignmentUpdated', handleAssignmentUpdatedActivity);
-      classSocketService.addEventListener('assignmentDeleted', handleAssignmentDeletedActivity);
-      classSocketService.addEventListener('newQuiz', handleNewQuizActivity);
-      classSocketService.addEventListener('quizUpdated', handleQuizUpdatedActivity);
-      classSocketService.addEventListener('quizDeleted', handleQuizDeletedActivity);
-      
-      console.log('[StudentActs] All activity event listeners set up');
-      
-      // Test connection
-      setTimeout(() => {
-        if (classSocketService.isSocketConnected()) {
-          console.log('[StudentActs] Socket connection verified - ready for real-time activity updates');
-        } else {
-          console.warn('[StudentActs] Socket connection verification failed');
-        }
-      }, 2000);
-      
-    } catch (error) {
-      console.error('[StudentActs] Error initializing socket for activities:', error);
-      console.error('[StudentActs] Error details:', {
-        message: error.message,
-        stack: error.stack,
-        userId: user?._id
-      });
-    }
-  };
-
-  // Socket event handlers for activities
-  const handleNewAssignmentActivity = (data) => {
-    try {
-      console.log('[StudentActs] New assignment activity received:', data);
-      
-      if (!data || !data.assignment) {
-        console.error('[StudentActs] Invalid new assignment data:', data);
-        return;
-      }
-
-      console.log('[StudentActs] Refreshing activities to include new assignment:', data.assignment.title);
-      
-      // Refresh activities to include the new assignment
-      setTimeout(() => {
-        fetchActivities();
-      }, 1000); // Small delay to ensure backend processing is complete
-      
-    } catch (error) {
-      console.error('[StudentActs] Error handling new assignment activity:', error);
-    }
-  };
-
-  const handleAssignmentUpdatedActivity = (data) => {
-    try {
-      console.log('[StudentActs] Assignment updated activity received:', data);
-      
-      if (!data || !data.assignment) {
-        console.error('[StudentActs] Invalid updated assignment data:', data);
-        return;
-      }
-
-      console.log('[StudentActs] Refreshing activities for updated assignment:', data.assignment.title);
-      
-      // Refresh activities to reflect the update
-      setTimeout(() => {
-        fetchActivities();
-      }, 1000);
-      
-    } catch (error) {
-      console.error('[StudentActs] Error handling updated assignment activity:', error);
-    }
-  };
-
-  const handleAssignmentDeletedActivity = (data) => {
-    try {
-      console.log('[StudentActs] Assignment deleted activity received:', data);
-      
-      if (!data || !data.assignmentId) {
-        console.error('[StudentActs] Invalid deleted assignment data:', data);
-        return;
-      }
-
-      console.log('[StudentActs] Removing deleted assignment from activities:', data.assignmentId);
-      
-      // Remove the deleted assignment from activities
-      setActivities(prev => prev.filter(activity => activity._id !== data.assignmentId));
-      
-    } catch (error) {
-      console.error('[StudentActs] Error handling deleted assignment activity:', error);
-    }
-  };
-
-  const handleNewQuizActivity = (data) => {
-    try {
-      console.log('[StudentActs] New quiz activity received:', data);
-      
-      if (!data || !data.quiz) {
-        console.error('[StudentActs] Invalid new quiz data:', data);
-        return;
-      }
-
-      console.log('[StudentActs] Refreshing activities to include new quiz:', data.quiz.title);
-      
-      // Refresh activities to include the new quiz
-      setTimeout(() => {
-        fetchActivities();
-      }, 1000);
-      
-    } catch (error) {
-      console.error('[StudentActs] Error handling new quiz activity:', error);
-    }
-  };
-
-  const handleQuizUpdatedActivity = (data) => {
-    try {
-      console.log('[StudentActs] Quiz updated activity received:', data);
-      
-      if (!data || !data.quiz) {
-        console.error('[StudentActs] Invalid updated quiz data:', data);
-        return;
-      }
-
-      console.log('[StudentActs] Refreshing activities for updated quiz:', data.quiz.title);
-      
-      // Refresh activities to reflect the update
-      setTimeout(() => {
-        fetchActivities();
-      }, 1000);
-      
-    } catch (error) {
-      console.error('[StudentActs] Error handling updated quiz activity:', error);
-    }
-  };
-
-  const handleQuizDeletedActivity = (data) => {
-    try {
-      console.log('[StudentActs] Quiz deleted activity received:', data);
-      
-      if (!data || !data.quizId) {
-        console.error('[StudentActs] Invalid deleted quiz data:', data);
-        return;
-      }
-
-      console.log('[StudentActs] Removing deleted quiz from activities:', data.quizId);
-      
-      // Remove the deleted quiz from activities
-      setActivities(prev => prev.filter(activity => activity._id !== data.quizId));
-      
-    } catch (error) {
-      console.error('[StudentActs] Error handling deleted quiz activity:', error);
-    }
-  };
 
   // Separate effect to handle file replacement trigger
   useEffect(() => {

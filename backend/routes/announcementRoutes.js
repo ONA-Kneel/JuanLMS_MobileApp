@@ -2,7 +2,6 @@ import express from 'express';
 import Announcement from '../models/Announcement.js';
 // import { authenticateToken } from '../middleware/authMiddleware.js';
 import { createAnnouncementNotification } from '../services/notificationService.js';
-import { getIO } from '../server.js';
 import mongoose from 'mongoose'; // Added for database connection check
 
 const router = express.Router();
@@ -151,17 +150,6 @@ router.post('/', /*authenticateToken,*/ async (req, res) => {
       }
     }
     
-    // Emit real-time update to all users in the class
-    const io = getIO();
-    if (io && classID) {
-      io.to(`class_${classID}`).emit('newAnnouncement', {
-        announcement,
-        classID,
-        timestamp: new Date().toISOString()
-      });
-      console.log(`Emitted newAnnouncement event to class_${classID}`);
-    }
-    
     res.status(201).json(announcement);
   } catch (error) {
     console.error('Error creating announcement:', error);
@@ -171,28 +159,11 @@ router.post('/', /*authenticateToken,*/ async (req, res) => {
 
 // Edit announcement
 router.put('/:id', /*authenticateToken,*/ async (req, res) => {
-  try {
   const { title, content } = req.body;
   const announcement = await Announcement.findByIdAndUpdate(
     req.params.id, { title, content }, { new: true }
   );
-    
-    // Emit real-time update for announcement edit
-    const io = getIO();
-    if (io && announcement) {
-      io.to(`class_${announcement.classID}`).emit('announcementUpdated', {
-        announcement,
-        classID: announcement.classID,
-        timestamp: new Date().toISOString()
-      });
-      console.log(`Emitted announcementUpdated event to class_${announcement.classID}`);
-    }
-    
   res.json(announcement);
-  } catch (error) {
-    console.error('Error updating announcement:', error);
-    res.status(500).json({ error: 'Failed to update announcement' });
-  }
 });
 
 // Partial update (e.g., toggle active status)
@@ -216,27 +187,8 @@ router.patch('/:id', /*authenticateToken,*/ async (req, res) => {
 
 // Delete announcement
 router.delete('/:id', /*authenticateToken,*/ async (req, res) => {
-  try {
-    const announcement = await Announcement.findById(req.params.id);
-    if (announcement) {
-      // Emit real-time update for announcement deletion
-      const io = getIO();
-      if (io) {
-        io.to(`class_${announcement.classID}`).emit('announcementDeleted', {
-          announcementId: req.params.id,
-          classID: announcement.classID,
-          timestamp: new Date().toISOString()
-        });
-        console.log(`Emitted announcementDeleted event to class_${announcement.classID}`);
-      }
-    }
-    
   await Announcement.findByIdAndDelete(req.params.id);
   res.json({ success: true });
-  } catch (error) {
-    console.error('Error deleting announcement:', error);
-    res.status(500).json({ error: 'Failed to delete announcement' });
-  }
 });
 
 export default router; 
