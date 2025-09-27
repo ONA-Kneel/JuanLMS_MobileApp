@@ -111,15 +111,34 @@ export default function StudentModule(){
 
     // Join class room when classID changes
     useEffect(() => {
-        if (classID && socketService.isSocketConnected()) {
-            socketService.joinClass(classID);
-            console.log(`[StudentModule] Joined class room: ${classID}`);
+        if (classID && socketService && socketService.isSocketConnected && socketService.isSocketConnected()) {
+            try {
+                socketService.joinClass(classID);
+                console.log(`[StudentModule] Joined class room: ${classID}`);
+            } catch (error) {
+                console.error('[StudentModule] Error joining class room:', error);
+            }
         }
     }, [classID]);
 
     // Set up real-time listeners
     useEffect(() => {
-        if (!socketService.isSocketAvailable() || !socketService.isSocketConnected()) return;
+        // Skip real-time features if socket service is not available
+        if (!socketService) {
+            console.log('[StudentModule] Socket service not available, skipping real-time features');
+            return;
+        }
+
+        // Check if socket is available and connected
+        if (!socketService.isSocketAvailable || !socketService.isSocketConnected) {
+            console.log('[StudentModule] Socket methods not available, skipping real-time features');
+            return;
+        }
+
+        if (!socketService.isSocketAvailable() || !socketService.isSocketConnected()) {
+            console.log('[StudentModule] Socket not available or connected, skipping real-time features');
+            return;
+        }
 
         try {
             // New announcement listener
@@ -174,12 +193,18 @@ export default function StudentModule(){
 
             // Cleanup listeners and leave class room
             return () => {
-                socketService.removeEventListener('newAnnouncement', handleNewAnnouncement);
-                socketService.removeEventListener('newAssignment', handleNewAssignment);
-                socketService.removeEventListener('newLesson', handleNewLesson);
-                socketService.removeEventListener('newQuiz', handleNewQuiz);
-                if (classID) {
-                    socketService.leaveClass(classID);
+                try {
+                    if (socketService && socketService.removeEventListener) {
+                        socketService.removeEventListener('newAnnouncement', handleNewAnnouncement);
+                        socketService.removeEventListener('newAssignment', handleNewAssignment);
+                        socketService.removeEventListener('newLesson', handleNewLesson);
+                        socketService.removeEventListener('newQuiz', handleNewQuiz);
+                    }
+                    if (classID && socketService && socketService.leaveClass) {
+                        socketService.leaveClass(classID);
+                    }
+                } catch (error) {
+                    console.error('[StudentModule] Error during cleanup:', error);
                 }
             };
         } catch (error) {

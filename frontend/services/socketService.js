@@ -8,11 +8,14 @@ let io = null;
 let socketAvailable = false;
 
 try {
-  // Try different import methods
+  // Try different import methods for React Native
   if (typeof require !== 'undefined') {
-    io = require('socket.io-client');
-  } else {
-    io = null;
+    try {
+      io = require('socket.io-client');
+    } catch (requireError) {
+      console.warn('[SocketService] require() failed, trying dynamic import');
+      io = null;
+    }
   }
   
   // Check if io is actually a function
@@ -21,7 +24,7 @@ try {
     console.log('[SocketService] Socket.IO client loaded successfully');
   } else {
     socketAvailable = false;
-    console.warn('[SocketService] Socket.IO client not properly loaded');
+    console.warn('[SocketService] Socket.IO client not properly loaded, using fallback');
   }
 } catch (error) {
   socketAvailable = false;
@@ -35,12 +38,18 @@ class SocketService {
     this.listeners = new Map();
     this.userId = null;
     this.currentClassId = null;
+    this.initializationAttempted = false;
+    this.connectionTimeout = null;
   }
 
   async initialize(userId) {
-    if (this.socket && this.isConnected) {
+    // Prevent multiple initialization attempts
+    if (this.initializationAttempted) {
+      console.log('[SocketService] Initialization already attempted');
       return this.socket;
     }
+
+    this.initializationAttempted = true;
 
     try {
       // Check if socket.io is available
@@ -57,10 +66,14 @@ class SocketService {
 
       this.userId = userId;
       
+      console.log('[SocketService] Initializing socket connection...');
+      
       this.socket = io(SOCKET_URL, {
-        transports: ['websocket'],
-        reconnectionAttempts: 5,
-        timeout: 10000,
+        transports: ['websocket', 'polling'], // Add polling as fallback
+        reconnectionAttempts: 3,
+        reconnectionDelay: 1000,
+        timeout: 15000,
+        forceNew: true,
         auth: {
           token: token,
           userId: userId
@@ -68,9 +81,19 @@ class SocketService {
       });
 
       this.setupConnectionListeners();
+      
+      // Set a timeout to handle connection issues
+      this.connectionTimeout = setTimeout(() => {
+        if (!this.isConnected) {
+          console.warn('[SocketService] Connection timeout, falling back to safe mode');
+          this.cleanup();
+        }
+      }, 20000);
+
       return this.socket;
     } catch (error) {
       console.error('[SocketService] Error initializing socket:', error);
+      this.initializationAttempted = false;
       return null;
     }
   }
@@ -81,23 +104,56 @@ class SocketService {
     this.socket.on('connect', () => {
       console.log('[SocketService] Connected to server');
       this.isConnected = true;
-      this.socket.emit('addUser', this.userId);
+      
+      // Clear connection timeout
+      if (this.connectionTimeout) {
+        clearTimeout(this.connectionTimeout);
+        this.connectionTimeout = null;
+      }
+      
+      // Register user with server
+      try {
+        this.socket.emit('addUser', this.userId);
+      } catch (error) {
+        console.error('[SocketService] Error emitting addUser:', error);
+      }
     });
 
-    this.socket.on('disconnect', () => {
-      console.log('[SocketService] Disconnected from server');
+    this.socket.on('disconnect', (reason) => {
+      console.log('[SocketService] Disconnected from server:', reason);
       this.isConnected = false;
     });
 
     this.socket.on('connect_error', (error) => {
       console.error('[SocketService] Connection error:', error);
       this.isConnected = false;
+      
+      // Clear connection timeout on error
+      if (this.connectionTimeout) {
+        clearTimeout(this.connectionTimeout);
+        this.connectionTimeout = null;
+      }
     });
 
-    this.socket.on('reconnect', () => {
-      console.log('[SocketService] Reconnected to server');
+    this.socket.on('reconnect', (attemptNumber) => {
+      console.log('[SocketService] Reconnected to server after', attemptNumber, 'attempts');
       this.isConnected = true;
-      this.socket.emit('addUser', this.userId);
+      
+      // Re-register user
+      try {
+        this.socket.emit('addUser', this.userId);
+      } catch (error) {
+        console.error('[SocketService] Error emitting addUser on reconnect:', error);
+      }
+    });
+
+    this.socket.on('reconnect_error', (error) => {
+      console.error('[SocketService] Reconnection error:', error);
+    });
+
+    this.socket.on('reconnect_failed', () => {
+      console.error('[SocketService] Reconnection failed, giving up');
+      this.isConnected = false;
     });
   }
 
@@ -105,37 +161,65 @@ class SocketService {
   joinClass(classId) {
     if (!this.socket || !this.isConnected) {
       console.log('[SocketService] Socket not connected, cannot join class');
-      return;
+      return false;
+    }
+
+    if (!classId) {
+      console.warn('[SocketService] No classId provided for joinClass');
+      return false;
     }
 
     try {
-      if (this.currentClassId) {
+      // Leave previous class if any
+      if (this.currentClassId && this.currentClassId !== classId) {
         this.leaveClass(this.currentClassId);
       }
 
       this.socket.emit('joinClass', classId);
       this.currentClassId = classId;
       console.log(`[SocketService] Joined class room: ${classId}`);
+      return true;
     } catch (error) {
       console.error('[SocketService] Error joining class:', error);
+      return false;
     }
   }
 
   // Leave a class room
   leaveClass(classId) {
     if (!this.socket || !this.isConnected) {
-      return;
+      console.log('[SocketService] Socket not connected, cannot leave class');
+      return false;
     }
 
-    this.socket.emit('leaveClass', classId);
-    console.log(`[SocketService] Left class room: ${classId}`);
+    if (!classId) {
+      console.warn('[SocketService] No classId provided for leaveClass');
+      return false;
+    }
+
+    try {
+      this.socket.emit('leaveClass', classId);
+      if (this.currentClassId === classId) {
+        this.currentClassId = null;
+      }
+      console.log(`[SocketService] Left class room: ${classId}`);
+      return true;
+    } catch (error) {
+      console.error('[SocketService] Error leaving class:', error);
+      return false;
+    }
   }
 
   // Add event listener for real-time updates
   addEventListener(event, callback) {
     if (!this.socket) {
       console.log('[SocketService] Socket not initialized, cannot add listener');
-      return;
+      return false;
+    }
+
+    if (!event || typeof callback !== 'function') {
+      console.warn('[SocketService] Invalid event or callback provided');
+      return false;
     }
 
     try {
@@ -147,51 +231,88 @@ class SocketService {
 
       this.socket.on(event, callback);
       console.log(`[SocketService] Added listener for event: ${event}`);
+      return true;
     } catch (error) {
       console.error('[SocketService] Error adding event listener:', error);
+      return false;
     }
   }
 
   // Remove specific event listener
   removeEventListener(event, callback) {
-    if (!this.socket) return;
+    if (!this.socket) {
+      console.log('[SocketService] Socket not initialized, cannot remove listener');
+      return false;
+    }
 
-    this.socket.off(event, callback);
-    
-    if (this.listeners.has(event)) {
-      const listeners = this.listeners.get(event);
-      const index = listeners.indexOf(callback);
-      if (index > -1) {
-        listeners.splice(index, 1);
+    if (!event || typeof callback !== 'function') {
+      console.warn('[SocketService] Invalid event or callback provided for removal');
+      return false;
+    }
+
+    try {
+      this.socket.off(event, callback);
+      
+      if (this.listeners.has(event)) {
+        const listeners = this.listeners.get(event);
+        const index = listeners.indexOf(callback);
+        if (index > -1) {
+          listeners.splice(index, 1);
+        }
       }
+      console.log(`[SocketService] Removed listener for event: ${event}`);
+      return true;
+    } catch (error) {
+      console.error('[SocketService] Error removing event listener:', error);
+      return false;
     }
   }
 
   // Remove all listeners for an event
   removeAllListeners(event) {
-    if (!this.socket) return;
+    if (!this.socket) {
+      console.log('[SocketService] Socket not initialized, cannot remove listeners');
+      return false;
+    }
 
-    this.socket.removeAllListeners(event);
-    if (this.listeners.has(event)) {
-      this.listeners.get(event).forEach(callback => {
-        this.socket.off(event, callback);
-      });
-      this.listeners.delete(event);
+    try {
+      this.socket.removeAllListeners(event);
+      if (this.listeners.has(event)) {
+        this.listeners.delete(event);
+      }
+      console.log(`[SocketService] Removed all listeners for event: ${event}`);
+      return true;
+    } catch (error) {
+      console.error('[SocketService] Error removing all listeners:', error);
+      return false;
     }
   }
 
   // Clean up all listeners and disconnect
   cleanup() {
-    if (this.socket) {
-      this.socket.removeAllListeners();
-      this.socket.disconnect();
-      this.socket = null;
+    try {
+      // Clear connection timeout
+      if (this.connectionTimeout) {
+        clearTimeout(this.connectionTimeout);
+        this.connectionTimeout = null;
+      }
+
+      if (this.socket) {
+        this.socket.removeAllListeners();
+        this.socket.disconnect();
+        this.socket = null;
+      }
+      
+      this.isConnected = false;
+      this.listeners.clear();
+      this.userId = null;
+      this.currentClassId = null;
+      this.initializationAttempted = false;
+      
+      console.log('[SocketService] Cleaned up socket connection');
+    } catch (error) {
+      console.error('[SocketService] Error during cleanup:', error);
     }
-    this.isConnected = false;
-    this.listeners.clear();
-    this.userId = null;
-    this.currentClassId = null;
-    console.log('[SocketService] Cleaned up socket connection');
   }
 
   // Get socket instance
@@ -213,8 +334,20 @@ class SocketService {
   isSocketAvailable() {
     return socketAvailable;
   }
+
+  // Get connection status info
+  getConnectionStatus() {
+    return {
+      isConnected: this.isConnected,
+      socketExists: !!this.socket,
+      socketConnected: this.socket ? this.socket.connected : false,
+      currentClassId: this.currentClassId,
+      userId: this.userId,
+      socketAvailable: socketAvailable
+    };
+  }
 }
 
-// Create singleton instance - use safe service if socket.io is not available
+// Create singleton instance with proper fallback
 const socketService = socketAvailable ? new SocketService() : new SafeSocketService();
 export default socketService;
