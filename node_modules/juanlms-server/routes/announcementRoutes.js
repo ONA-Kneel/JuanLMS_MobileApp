@@ -2,6 +2,7 @@ import express from 'express';
 import Announcement from '../models/Announcement.js';
 // import { authenticateToken } from '../middleware/authMiddleware.js';
 import { createAnnouncementNotification } from '../services/notificationService.js';
+import { getIO } from '../server.js';
 import mongoose from 'mongoose'; // Added for database connection check
 
 const router = express.Router();
@@ -150,6 +151,17 @@ router.post('/', /*authenticateToken,*/ async (req, res) => {
       }
     }
     
+    // Emit real-time update to all users in the class
+    const io = getIO();
+    if (io && classID) {
+      io.to(`class_${classID}`).emit('newAnnouncement', {
+        announcement,
+        classID,
+        timestamp: new Date().toISOString()
+      });
+      console.log(`Emitted newAnnouncement event to class_${classID}`);
+    }
+    
     res.status(201).json(announcement);
   } catch (error) {
     console.error('Error creating announcement:', error);
@@ -159,11 +171,28 @@ router.post('/', /*authenticateToken,*/ async (req, res) => {
 
 // Edit announcement
 router.put('/:id', /*authenticateToken,*/ async (req, res) => {
+  try {
   const { title, content } = req.body;
   const announcement = await Announcement.findByIdAndUpdate(
     req.params.id, { title, content }, { new: true }
   );
+    
+    // Emit real-time update for announcement edit
+    const io = getIO();
+    if (io && announcement) {
+      io.to(`class_${announcement.classID}`).emit('announcementUpdated', {
+        announcement,
+        classID: announcement.classID,
+        timestamp: new Date().toISOString()
+      });
+      console.log(`Emitted announcementUpdated event to class_${announcement.classID}`);
+    }
+    
   res.json(announcement);
+  } catch (error) {
+    console.error('Error updating announcement:', error);
+    res.status(500).json({ error: 'Failed to update announcement' });
+  }
 });
 
 // Partial update (e.g., toggle active status)
@@ -187,8 +216,219 @@ router.patch('/:id', /*authenticateToken,*/ async (req, res) => {
 
 // Delete announcement
 router.delete('/:id', /*authenticateToken,*/ async (req, res) => {
+  try {
+    const announcement = await Announcement.findById(req.params.id);
+    if (announcement) {
+      // Emit real-time update for announcement deletion
+      const io = getIO();
+      if (io) {
+        io.to(`class_${announcement.classID}`).emit('announcementDeleted', {
+          announcementId: req.params.id,
+          classID: announcement.classID,
+          timestamp: new Date().toISOString()
+        });
+        console.log(`Emitted announcementDeleted event to class_${announcement.classID}`);
+      }
+    }
+    
   await Announcement.findByIdAndDelete(req.params.id);
   res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting announcement:', error);
+    res.status(500).json({ error: 'Failed to delete announcement' });
+  }
 });
+
+export default router; 
+
+    }
+
+    
+
+    const { classID } = req.query;
+
+    
+
+    if (classID) {
+
+      // Get announcements for a specific class
+
+      console.log('Fetching announcements for classID:', classID);
+
+      const announcements = await Announcement.find({ classID }).sort({ createdAt: -1 });
+
+      console.log('Found announcements for class:', announcements.length);
+
+      res.json(announcements);
+
+    } else {
+
+      // Get all announcements
+
+      console.log('Fetching all announcements');
+
+      const announcements = await Announcement.find({}).sort({ createdAt: -1 });
+
+      console.log('Found total announcements:', announcements.length);
+
+      res.json(announcements);
+
+    }
+
+  } catch (error) {
+
+    console.error('Error in GET /api/announcements:', error);
+
+    res.status(500).json({ error: error.message });
+
+  }
+
+});
+
+
+
+// Create announcement
+
+router.post('/', /*authenticateToken,*/ async (req, res) => {
+
+  try {
+
+    const { classID, title, content, priority, category, targetAudience, createdBy } = req.body;
+
+    console.log(`Creating announcement:`, { title, content, priority, category, targetAudience, createdBy });
+
+    
+
+    const announcement = new Announcement({
+
+      classID: classID || null,
+
+      title, 
+
+      content, 
+
+      priority: priority || 'medium',
+
+      category: category || 'general',
+
+      targetAudience: targetAudience || ['everyone'],
+
+      createdBy: createdBy || req.user?._id,
+
+      isActive: true
+
+    });
+
+    await announcement.save();
+
+    
+
+    console.log(`Announcement saved with ID: ${announcement._id}`);
+
+    
+
+    // Create notifications for students in the class if classID is provided
+
+    if (classID) {
+
+      console.log(`Creating notifications for class: ${classID}`);
+
+      try {
+
+        await createAnnouncementNotification(classID, announcement);
+
+      } catch (notificationError) {
+
+        console.error('Error creating announcement notifications:', notificationError);
+
+        // Don't fail the announcement creation if notification creation fails
+
+      }
+
+    }
+
+    
+
+    res.status(201).json(announcement);
+
+  } catch (error) {
+
+    console.error('Error creating announcement:', error);
+
+    res.status(500).json({ error: 'Failed to create announcement' });
+
+  }
+
+});
+
+
+
+// Edit announcement
+
+router.put('/:id', /*authenticateToken,*/ async (req, res) => {
+
+  const { title, content } = req.body;
+
+  const announcement = await Announcement.findByIdAndUpdate(
+
+    req.params.id, { title, content }, { new: true }
+
+  );
+
+  res.json(announcement);
+
+});
+
+
+
+// Partial update (e.g., toggle active status)
+
+router.patch('/:id', /*authenticateToken,*/ async (req, res) => {
+
+  try {
+
+    const update = req.body || {};
+
+    const announcement = await Announcement.findByIdAndUpdate(
+
+      req.params.id,
+
+      update,
+
+      { new: true }
+
+    );
+
+    if (!announcement) {
+
+      return res.status(404).json({ success: false, error: 'Announcement not found' });
+
+    }
+
+    res.json(announcement);
+
+  } catch (error) {
+
+    console.error('Error patching announcement:', error);
+
+    res.status(500).json({ success: false, error: 'Failed to update announcement' });
+
+  }
+
+});
+
+
+
+// Delete announcement
+
+router.delete('/:id', /*authenticateToken,*/ async (req, res) => {
+
+  await Announcement.findByIdAndDelete(req.params.id);
+
+  res.json({ success: true });
+
+});
+
+
 
 export default router; 

@@ -236,6 +236,9 @@ const io = new Server(server, {
   }
 });
 
+// Export getIO function for use in routes
+export const getIO = () => io;
+
 io.on('connection', (socket) => {
   console.log('A user connected');
   
@@ -278,6 +281,17 @@ io.on('connection', (socket) => {
     io.to(`group-${msg.groupId}`).emit('receiveGroupMessage', msg);
   });
   
+  // Class-specific events for real-time updates
+  socket.on('joinClass', (classId) => {
+    console.log(`User joined class: ${classId}`);
+    socket.join(`class_${classId}`);
+  });
+  
+  socket.on('leaveClass', (classId) => {
+    console.log(`User left class: ${classId}`);
+    socket.leave(`class_${classId}`);
+  });
+  
   socket.on('disconnect', () => console.log('A user disconnected'));
 });
 
@@ -298,3 +312,333 @@ mongoose.connect(process.env.ATLAS_URI, {
   console.error('Mongoose connection error:', err);
   process.exit(1);
 });
+
+    
+
+    res.json(schoolYears);
+
+  } catch (err) {
+
+    res.status(500).json({ error: err.message });
+
+  }
+
+});
+
+
+
+app.get('/api/terms/schoolyear/:schoolYear', async (req, res) => {
+
+  try {
+
+    const { schoolYear } = req.params;
+
+    
+
+    // Return terms for the specified school year
+
+    const terms = [
+
+      {
+
+        _id: "term1",
+
+        termName: "Term 1",
+
+        schoolYear: schoolYear,
+
+        status: "active",
+
+        startDate: "2025-06-01",
+
+        endDate: "2025-10-31"
+
+      },
+
+      {
+
+        _id: "term2",
+
+        termName: "Term 2",
+
+        schoolYear: schoolYear,
+
+        status: "inactive",
+
+        startDate: "2025-11-01",
+
+        endDate: "2026-03-31"
+
+      }
+
+    ];
+
+    
+
+    res.json(terms);
+
+  } catch (err) {
+
+    res.status(500).json({ error: err.message });
+
+  }
+
+});
+
+
+
+// Test route to verify server is working
+
+app.get('/api/test', (req, res) => {
+
+  res.json({ message: 'Server is working!', timestamp: new Date().toISOString() });
+
+});
+
+
+
+// Test announcement route
+
+app.get('/api/test-announcements', async (req, res) => {
+
+  try {
+
+    res.json({ 
+
+      message: 'Announcement route is accessible!', 
+
+      timestamp: new Date().toISOString(),
+
+      routes: ['/api/announcements', '/api/general-announcements']
+
+    });
+
+  } catch (err) {
+
+    res.status(500).json({ error: err.message });
+
+  }
+
+});
+
+
+
+// Serve uploaded files
+
+app.use('/uploads', express.static('uploads'));
+
+
+
+// Events API endpoint
+
+app.get('/api/events', async (req, res) => {
+
+  try {
+
+    const db = mongoose.connection.db;
+
+    const events = await db.collection('Events').find().toArray();
+
+    res.json(events);
+
+  } catch (err) {
+
+    res.status(500).json({ error: err.message });
+
+  }
+
+});
+
+
+
+// Catch-all route for unmatched API routes
+
+app.use('/api/*', (req, res) => {
+
+  console.log(`404 - API route not found: ${req.method} ${req.originalUrl}`);
+
+  res.status(404).json({ 
+
+    error: 'API route not found', 
+
+    method: req.method, 
+
+    url: req.originalUrl,
+
+    availableRoutes: [
+
+      '/api/test',
+
+      '/api/test-announcements',
+
+      '/api/announcements',
+
+      '/api/general-announcements',
+
+      '/api/academic-year/active'
+
+    ]
+
+  });
+
+});
+
+
+
+// Catch-all route for unmatched routes
+
+app.use('*', (req, res) => {
+
+  console.log(`404 - Route not found: ${req.method} ${req.originalUrl}`);
+
+  res.status(404).json({ 
+
+    error: 'Route not found', 
+
+    method: req.method, 
+
+    url: req.originalUrl 
+
+  });
+
+});
+
+
+
+const server = http.createServer(app);
+
+const io = new Server(server, {
+
+  cors: {
+
+    origin: '*',
+
+    methods: ['GET', 'POST']
+
+  }
+
+});
+
+
+
+io.on('connection', (socket) => {
+
+  console.log('A user connected');
+
+  
+
+  // Handle user registration
+
+  socket.on('addUser', (userId) => {
+
+    console.log('User registered:', userId);
+
+    socket.userId = userId;
+
+  });
+
+  
+
+  // Test socket connection
+
+  socket.on('test', (data) => {
+
+    console.log('Test message received:', data);
+
+    socket.emit('testResponse', 'Hello from backend!');
+
+  });
+
+  
+
+  // Individual chat events
+
+  socket.on('joinChat', (chatId) => {
+
+    console.log('User joined chat:', chatId);
+
+    socket.join(chatId);
+
+  });
+
+  
+
+  socket.on('sendMessage', (msg) => {
+
+    console.log('Sending message to chat:', msg.chatId, 'Message:', msg);
+
+    io.to(msg.chatId).emit('receiveMessage', msg);
+
+  });
+
+  
+
+  // Group chat events
+
+  socket.on('joinGroup', (data) => {
+
+    socket.join(`group-${data.groupId}`);
+
+    console.log(`User ${data.userId} joined group ${data.groupId}`);
+
+  });
+
+  
+
+  socket.on('leaveGroup', (data) => {
+
+    socket.leave(`group-${data.groupId}`);
+
+    console.log(`User ${data.userId} left group ${data.groupId}`);
+
+  });
+
+  
+
+  socket.on('sendGroupMessage', (msg) => {
+
+    console.log('Sending group message to group:', msg.groupId, 'Message:', msg);
+
+    io.to(`group-${msg.groupId}`).emit('receiveGroupMessage', msg);
+
+  });
+
+  
+
+  socket.on('disconnect', () => console.log('A user disconnected'));
+
+});
+
+
+
+mongoose.connect(process.env.ATLAS_URI, {
+
+  useNewUrlParser: true,
+
+  useUnifiedTopology: true,
+
+})
+
+.then(async () => {
+
+  console.log('Mongoose connected to MongoDB!');
+
+  await connect.connectToServer();
+
+  server.listen(PORT, () => {
+
+    console.log(`Server is running on port: ${PORT}`);
+
+  });
+
+})
+
+.catch(err => {
+
+  console.error('Mongoose connection error:', err);
+
+  process.exit(1);
+
+});
+
+
