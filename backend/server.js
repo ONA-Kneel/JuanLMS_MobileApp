@@ -268,6 +268,9 @@ const io = new Server(server, {
   }
 });
 
+// Export getIO function for use in routes
+export const getIO = () => io;
+
 io.on('connection', (socket) => {
   console.log('A user connected');
   
@@ -308,6 +311,17 @@ io.on('connection', (socket) => {
   socket.on('sendGroupMessage', (msg) => {
     console.log('Sending group message to group:', msg.groupId, 'Message:', msg);
     io.to(`group-${msg.groupId}`).emit('receiveGroupMessage', msg);
+  });
+  
+  // Class-specific events for real-time updates
+  socket.on('joinClass', (classId) => {
+    console.log(`User joined class: ${classId}`);
+    socket.join(`class_${classId}`);
+  });
+  
+  socket.on('leaveClass', (classId) => {
+    console.log(`User left class: ${classId}`);
+    socket.leave(`class_${classId}`);
   });
   
   socket.on('disconnect', () => console.log('A user disconnected'));
