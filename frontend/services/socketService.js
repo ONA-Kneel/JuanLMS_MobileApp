@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import SafeSocketService from './safeSocketService.js';
+import SafeSocketServiceFinal from './safeSocketServiceFinal.js';
 
 const SOCKET_URL = 'https://juanlms-webapp-server.onrender.com';
 
@@ -348,6 +349,167 @@ class SocketService {
   }
 }
 
-// Create singleton instance with proper fallback
-const socketService = socketAvailable ? new SocketService() : new SafeSocketService();
+// Create a robust socket service wrapper that handles all edge cases
+class RobustSocketService {
+  constructor() {
+    // Temporarily use the completely safe version to prevent crashes
+    this.service = new SafeSocketServiceFinal();
+    // this.service = socketAvailable ? new SocketService() : new SafeSocketService();
+  }
+
+  // Proxy all methods to the underlying service with error handling
+  async initialize(userId) {
+    try {
+      return await this.service.initialize(userId);
+    } catch (error) {
+      console.error('[RobustSocketService] Error in initialize:', error);
+      return null;
+    }
+  }
+
+  setupConnectionListeners() {
+    try {
+      if (this.service.setupConnectionListeners) {
+        this.service.setupConnectionListeners();
+      }
+    } catch (error) {
+      console.error('[RobustSocketService] Error in setupConnectionListeners:', error);
+    }
+  }
+
+  joinClass(classId) {
+    try {
+      if (this.service.joinClass) {
+        return this.service.joinClass(classId);
+      }
+      return false;
+    } catch (error) {
+      console.error('[RobustSocketService] Error in joinClass:', error);
+      return false;
+    }
+  }
+
+  leaveClass(classId) {
+    try {
+      if (this.service.leaveClass) {
+        return this.service.leaveClass(classId);
+      }
+      return false;
+    } catch (error) {
+      console.error('[RobustSocketService] Error in leaveClass:', error);
+      return false;
+    }
+  }
+
+  addEventListener(event, callback) {
+    try {
+      if (this.service.addEventListener) {
+        return this.service.addEventListener(event, callback);
+      }
+      return false;
+    } catch (error) {
+      console.error('[RobustSocketService] Error in addEventListener:', error);
+      return false;
+    }
+  }
+
+  removeEventListener(event, callback) {
+    try {
+      if (this.service.removeEventListener) {
+        return this.service.removeEventListener(event, callback);
+      }
+      return false;
+    } catch (error) {
+      console.error('[RobustSocketService] Error in removeEventListener:', error);
+      return false;
+    }
+  }
+
+  removeAllListeners(event) {
+    try {
+      if (this.service.removeAllListeners) {
+        return this.service.removeAllListeners(event);
+      }
+      return false;
+    } catch (error) {
+      console.error('[RobustSocketService] Error in removeAllListeners:', error);
+      return false;
+    }
+  }
+
+  cleanup() {
+    try {
+      if (this.service.cleanup) {
+        this.service.cleanup();
+      }
+    } catch (error) {
+      console.error('[RobustSocketService] Error in cleanup:', error);
+    }
+  }
+
+  getSocket() {
+    try {
+      if (this.service.getSocket) {
+        return this.service.getSocket();
+      }
+      return null;
+    } catch (error) {
+      console.error('[RobustSocketService] Error in getSocket:', error);
+      return null;
+    }
+  }
+
+  isSocketConnected() {
+    try {
+      if (this.service.isSocketConnected) {
+        return this.service.isSocketConnected();
+      }
+      return false;
+    } catch (error) {
+      console.error('[RobustSocketService] Error in isSocketConnected:', error);
+      return false;
+    }
+  }
+
+  isSocketAvailable() {
+    try {
+      if (this.service.isSocketAvailable) {
+        return this.service.isSocketAvailable();
+      }
+      return false;
+    } catch (error) {
+      console.error('[RobustSocketService] Error in isSocketAvailable:', error);
+      return false;
+    }
+  }
+
+  getConnectionStatus() {
+    try {
+      if (this.service.getConnectionStatus) {
+        return this.service.getConnectionStatus();
+      }
+      return {
+        isConnected: false,
+        socketExists: false,
+        socketConnected: false,
+        currentClassId: null,
+        userId: null,
+        socketAvailable: false
+      };
+    } catch (error) {
+      console.error('[RobustSocketService] Error in getConnectionStatus:', error);
+      return {
+        isConnected: false,
+        socketExists: false,
+        socketConnected: false,
+        currentClassId: null,
+        userId: null,
+        socketAvailable: false
+      };
+    }
+  }
+}
+
+// Create singleton instance with robust error handling
+const socketService = new RobustSocketService();
 export default socketService;

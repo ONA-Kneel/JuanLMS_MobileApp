@@ -129,14 +129,19 @@ export default function StudentModule(){
             return;
         }
 
-        // Check if socket is available and connected
-        if (!socketService.isSocketAvailable || !socketService.isSocketConnected) {
-            console.log('[StudentModule] Socket methods not available, skipping real-time features');
-            return;
-        }
+        // Simple check for socket availability and connection
+        try {
+            if (!socketService.isSocketAvailable || !socketService.isSocketConnected) {
+                console.log('[StudentModule] Socket methods not available, skipping real-time features');
+                return;
+            }
 
-        if (!socketService.isSocketAvailable() || !socketService.isSocketConnected()) {
-            console.log('[StudentModule] Socket not available or connected, skipping real-time features');
+            if (!socketService.isSocketAvailable() || !socketService.isSocketConnected()) {
+                console.log('[StudentModule] Socket not available or connected, skipping real-time features');
+                return;
+            }
+        } catch (error) {
+            console.log('[StudentModule] Error checking socket status, skipping real-time features:', error);
             return;
         }
 
