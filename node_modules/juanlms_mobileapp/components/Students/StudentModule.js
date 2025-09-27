@@ -11,6 +11,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MaterialIcons } from '@expo/vector-icons';
 import { formatDate } from '../../utils/dateUtils';
 import { getAuthHeaders, handleApiError } from '../../utils/apiUtils';
+import classSocketService from '../../services/classSocketService';
+import { useUser } from '../UserContext';
 
 const API_BASE = 'https://juanlms-webapp-server.onrender.com';
 
@@ -34,6 +36,7 @@ function groupByDate(items, getDate) {
 export default function StudentModule(){
     const route = useRoute();
     const navigation = useNavigation();
+    const { user } = useUser();
     
     // Get the classId from navigation params
     const classId = route.params?.classId;
@@ -50,6 +53,7 @@ export default function StudentModule(){
     const [materials, setMaterials] = useState([]);
     const [materialsLoading, setMaterialsLoading] = useState(true);
     const [filterType, setFilterType] = useState('all'); // Add filter state
+    const [newAnnouncementAlert, setNewAnnouncementAlert] = useState(null);
     const [selectedFile, setSelectedFile] = useState(null);
     const [showFileViewer, setShowFileViewer] = useState(false);
     const [imageLoading, setImageLoading] = useState(false);
@@ -67,6 +71,280 @@ export default function StudentModule(){
             fetchAvailableClasses();
         }
     }, [classId]);
+
+    // Socket integration for real-time updates
+    useEffect(() => {
+        if (user?._id && classID) {
+            initializeSocket();
+        }
+
+        return () => {
+            // Cleanup socket listeners when component unmounts
+            if (classID) {
+                classSocketService.leaveClass(classID);
+                classSocketService.removeEventListener('newAnnouncement', handleNewAnnouncement);
+                classSocketService.removeEventListener('announcementUpdated', handleAnnouncementUpdated);
+                classSocketService.removeEventListener('announcementDeleted', handleAnnouncementDeleted);
+                classSocketService.removeEventListener('newAssignment', handleNewAssignment);
+                classSocketService.removeEventListener('newQuiz', handleNewQuiz);
+                classSocketService.removeEventListener('newLesson', handleNewLesson);
+            }
+        };
+    }, [user?._id, classID]);
+
+    const initializeSocket = async () => {
+        try {
+            console.log('[StudentModule] Starting socket initialization for classID:', classID);
+            console.log('[StudentModule] User ID:', user._id);
+            console.log('[StudentModule] User object:', user);
+            
+            if (!user || !user._id) {
+                console.error('[StudentModule] Cannot initialize socket - user or user._id is missing');
+                return;
+            }
+
+            if (!classID) {
+                console.error('[StudentModule] Cannot initialize socket - classID is missing');
+                return;
+            }
+
+            const socket = await classSocketService.initialize(user._id);
+            
+            if (!socket) {
+                console.error('[StudentModule] Socket initialization returned null - check connection and authentication');
+                return;
+            }
+
+            console.log('[StudentModule] Socket initialized successfully. Will join when connected...');
+            
+            // Set up event listeners for real-time updates
+            console.log('[StudentModule] Setting up event listeners...');
+            // Connection lifecycle
+            classSocketService.addEventListener('connected', ({ socketId }) => {
+                console.log('[StudentModule] Socket connected. ID:', socketId);
+                console.log('[StudentModule] Now joining class room:', classID);
+                classSocketService.joinClass(classID);
+            });
+            classSocketService.addEventListener('disconnected', ({ reason }) => {
+                console.warn('[StudentModule] Socket disconnected. Reason:', reason);
+            });
+            classSocketService.addEventListener('newAnnouncement', handleNewAnnouncement);
+            classSocketService.addEventListener('announcementUpdated', handleAnnouncementUpdated);
+            classSocketService.addEventListener('announcementDeleted', handleAnnouncementDeleted);
+            classSocketService.addEventListener('newAssignment', handleNewAssignment);
+            classSocketService.addEventListener('newQuiz', handleNewQuiz);
+            classSocketService.addEventListener('newLesson', handleNewLesson);
+            
+            console.log('[StudentModule] All event listeners set up successfully');
+            console.log('[StudentModule] Socket initialization complete for class:', classID);
+            
+            // Add test event listener to verify socket is working
+            classSocketService.addEventListener('test', (data) => {
+                console.log('🧪 [StudentModule] TEST EVENT RECEIVED:', data);
+            });
+            
+            // Test the connection and log banner visibility state
+            setTimeout(() => {
+                if (classSocketService.isSocketConnected()) {
+                    console.log('[StudentModule] Socket connection verified - ready to receive real-time updates');
+                    console.log('[StudentModule] Socket ID:', classSocketService.getSocketId());
+                    console.log('[StudentModule] Current class room: class_' + classID);
+                    
+                    // Test socket connection by emitting a test event
+                    console.log('[StudentModule] Testing socket connection...');
+                    classSocketService.emit('test', { 
+                        message: 'Test from mobile app', 
+                        classID: classID,
+                        timestamp: new Date().toISOString() 
+                    });
+                    if (newAnnouncementAlert) {
+                        console.log('[StudentModule] Banner currently visible for title:', newAnnouncementAlert);
+                    } else {
+                        console.log('[StudentModule] No banner visible at verification time.');
+                    }
+                } else {
+                    console.warn('[StudentModule] Socket connection verification failed - real-time updates may not work');
+                }
+            }, 2000);
+            
+        } catch (error) {
+            console.error('[StudentModule] Socket initialization failed with error:', error);
+            console.error('[StudentModule] Error details:', {
+                message: error.message,
+                stack: error.stack,
+                classID,
+                userId: user?._id
+            });
+        }
+    };
+
+    // Socket event handlers with comprehensive error handling
+    const handleNewAnnouncement = (data) => {
+        try {
+            console.log('🚨 [StudentModule] NEW ANNOUNCEMENT SOCKET EVENT TRIGGERED! 🚨');
+            console.log('[StudentModule] Raw socket data received:', JSON.stringify(data, null, 2));
+            console.log('[StudentModule] Current classID:', classID);
+            console.log('[StudentModule] Announcement classID:', data?.classID);
+            
+            if (!data) {
+                console.error('[StudentModule] New announcement data is null or undefined');
+                return;
+            }
+
+            // Handle different data structures from socket
+            let announcement = data.announcement || data;
+            let socketClassID = data.classID || announcement.classID;
+
+            console.log('[StudentModule] Processed announcement:', announcement);
+            console.log('[StudentModule] Processed classID:', socketClassID);
+
+            if (!announcement || !announcement.title) {
+                console.error('[StudentModule] New announcement missing required fields:', data);
+                return;
+            }
+
+            if (socketClassID === classID) {
+                console.log('✅ [StudentModule] Class IDs match! Adding announcement to state:', announcement.title);
+                
+                // Force immediate UI update
+                setAnnouncements(prev => {
+                    console.log('[StudentModule] Previous announcements count:', prev.length);
+                    const updated = [announcement, ...prev];
+                    console.log('[StudentModule] Updated announcements count:', updated.length);
+                    console.log('🎉 [StudentModule] ANNOUNCEMENT ADDED TO UI STATE! 🎉');
+                    return updated;
+                });
+
+                // Show immediate visual feedback
+                setNewAnnouncementAlert(announcement.title);
+                setTimeout(() => setNewAnnouncementAlert(null), 3000);
+
+                // Also trigger a refresh of the data to ensure consistency
+                console.log('[StudentModule] Triggering data refresh for immediate sync...');
+                setTimeout(() => {
+                    if (classID) {
+                        console.log('[StudentModule] Refreshing class data after socket event...');
+                        fetchSpecificClass(classID);
+                    }
+                }, 500);
+                
+            } else {
+                console.log('[StudentModule] Ignoring announcement for different class. Expected:', classID, 'Got:', socketClassID);
+            }
+        } catch (error) {
+            console.error('[StudentModule] Error handling new announcement:', error);
+            console.error('[StudentModule] Error stack:', error.stack);
+            console.error('[StudentModule] Problematic data:', data);
+        }
+    };
+
+    const handleAnnouncementUpdated = (data) => {
+        try {
+            console.log('[StudentModule] Announcement updated:', data);
+            
+            if (!data || !data.announcement) {
+                console.error('[StudentModule] Updated announcement data is invalid:', data);
+                return;
+            }
+
+            if (data.classID === classID) {
+                console.log('[StudentModule] Updating announcement in state:', data.announcement._id);
+                setAnnouncements(prev => {
+                    const updated = prev.map(ann => 
+                        ann._id === data.announcement._id ? data.announcement : ann
+                    );
+                    console.log('[StudentModule] Announcement update complete');
+                    return updated;
+                });
+            }
+        } catch (error) {
+            console.error('[StudentModule] Error handling announcement update:', error);
+            console.error('[StudentModule] Problematic data:', data);
+        }
+    };
+
+    const handleAnnouncementDeleted = (data) => {
+        try {
+            console.log('[StudentModule] Announcement deleted:', data);
+            
+            if (!data || !data.announcementId) {
+                console.error('[StudentModule] Deleted announcement data is invalid:', data);
+                return;
+            }
+
+            if (data.classID === classID) {
+                console.log('[StudentModule] Removing announcement from state:', data.announcementId);
+                setAnnouncements(prev => {
+                    const updated = prev.filter(ann => ann._id !== data.announcementId);
+                    console.log('[StudentModule] Announcement deletion complete, remaining count:', updated.length);
+                    return updated;
+                });
+            }
+        } catch (error) {
+            console.error('[StudentModule] Error handling announcement deletion:', error);
+            console.error('[StudentModule] Problematic data:', data);
+        }
+    };
+
+    const handleNewAssignment = (data) => {
+        try {
+            console.log('[StudentModule] New assignment received:', data);
+            
+            if (!data) {
+                console.error('[StudentModule] New assignment data is null or undefined');
+                return;
+            }
+
+            if (data.classID === classID) {
+                console.log('[StudentModule] Refreshing classwork for new assignment');
+                // Refresh classwork to include the new assignment
+                fetchClasswork(classID);
+            }
+        } catch (error) {
+            console.error('[StudentModule] Error handling new assignment:', error);
+            console.error('[StudentModule] Problematic data:', data);
+        }
+    };
+
+    const handleNewQuiz = (data) => {
+        try {
+            console.log('[StudentModule] New quiz received:', data);
+            
+            if (!data) {
+                console.error('[StudentModule] New quiz data is null or undefined');
+                return;
+            }
+
+            if (data.classID === classID) {
+                console.log('[StudentModule] Refreshing classwork for new quiz');
+                // Refresh classwork to include the new quiz
+                fetchClasswork(classID);
+            }
+        } catch (error) {
+            console.error('[StudentModule] Error handling new quiz:', error);
+            console.error('[StudentModule] Problematic data:', data);
+        }
+    };
+
+    const handleNewLesson = (data) => {
+        try {
+            console.log('[StudentModule] New lesson received:', data);
+            
+            if (!data) {
+                console.error('[StudentModule] New lesson data is null or undefined');
+                return;
+            }
+
+            if (data.classID === classID) {
+                console.log('[StudentModule] Refreshing materials for new lesson');
+                // Refresh materials to include the new lesson
+                fetchMaterials(classID);
+            }
+        } catch (error) {
+            console.error('[StudentModule] Error handling new lesson:', error);
+            console.error('[StudentModule] Problematic data:', data);
+        }
+    };
 
     const fetchClasswork = async (classId) => {
         try {
@@ -914,6 +1192,32 @@ export default function StudentModule(){
     return (
         <View style={{ flex: 1, backgroundColor: '#f5f5f5' }}>
             
+            {/* New Announcement Alert */}
+            {newAnnouncementAlert && (
+                <View style={{
+                    position: 'absolute',
+                    top: 50,
+                    left: 20,
+                    right: 20,
+                    backgroundColor: '#4CAF50',
+                    padding: 15,
+                    borderRadius: 10,
+                    zIndex: 1000,
+                    elevation: 10,
+                    shadowColor: '#000',
+                    shadowOffset: { width: 0, height: 2 },
+                    shadowOpacity: 0.25,
+                    shadowRadius: 3.84,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                }}>
+                    <MaterialIcons name="announcement" size={24} color="white" style={{ marginRight: 10 }} />
+                    <View style={{ flex: 1 }}>
+                        <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>New Announcement!</Text>
+                        <Text style={{ color: 'white', fontSize: 14 }}>{newAnnouncementAlert}</Text>
+                    </View>
+                </View>
+            )}
 
             {/* Main Content */}
             <View style={{ flex: 1 }}>
