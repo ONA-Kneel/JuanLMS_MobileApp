@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useFonts } from 'expo-font';
-import { View, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator, PermissionsAndroid, Alert } from 'react-native';
 
 //folders
 import SplashScreen from './components/SplashScreen';
@@ -11,6 +11,9 @@ import { navigationRef } from './navigationRef';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Login from './components/Login';
+import TestLogin from './components/TestLogin';
+import SimpleTest from './components/SimpleTest';
+import ErrorBoundary from './components/ErrorBoundary';
 import ForgotPassword from './components/ForgotPassword';
 import Chat from './components/Chat';
 import GroupChat from './components/GroupChat';
@@ -120,7 +123,8 @@ function StudentTabs() {
     </Tabs.Navigator>
   );
 }
- 
+// FCM token handling is now managed by NotificationContext
+// Removed duplicate FCM token code to avoid conflicts
 
 
 
@@ -237,6 +241,27 @@ export default function App() {
     'Poppins-Thin': require('./assets/fonts/Poppins-Thin.ttf'),
   });
 
+  // Request notification permissions
+  useEffect(() => {
+    const requestPermission = async () => {
+      try {
+        const result = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS);
+        console.log("result**", result);
+        console.log("result2**", PermissionsAndroid.RESULTS.GRANTED);
+        if (result === PermissionsAndroid.RESULTS.GRANTED) {
+          // FCM token handling is now managed by NotificationContext
+          console.log("Notification permission granted");
+        } else {
+          Alert.alert("Permission Denied");
+        }
+      } catch (error) {
+        console.log(error);
+      }
+    };
+
+    requestPermission();
+  }, []);
+
   if (!fontsLoaded) {
     return (
       <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}>
@@ -246,24 +271,12 @@ export default function App() {
   }
 
   return (
-    <TimerProvider>
-      <UserProvider>
-      <ChatProvider>
-        <NotificationProvider>
-          <AnnouncementProvider>
-            <NavigationContainer ref={navigationRef}>
-              <Screens.Navigator initialRouteName='Login'>
-
-                {/*Assisted lang daw dapat */}
-
-                {/* Used Everytime */}
-                <Screens.Screen name='SplashScreen' component={SplashScreen} options={{ headerShown: false }}/>
-                <Screens.Screen name='Chat' component={Chat} options={{ headerShown: false }}/>
-                <Screens.Screen name='GroupChat' component={GroupChat} options={{ headerShown: false }}/>
-                <Screens.Screen name='GroupManagement' component={GroupManagement} options={{ headerShown: false }}/>
-                <Screens.Screen name='UnifiedChat' component={UnifiedChat} options={{ headerShown: false }}/>
-                <Screens.Screen name='Login' component={Login} options={{ headerShown: false }}/>
-                <Screens.Screen name='ForgotPassword' component={ForgotPassword} options={{ headerShown: false }}/>
+    <NavigationContainer ref={navigationRef}>
+      <Screens.Navigator initialRouteName='Login'>
+        {/* Test with minimal screens first */}
+        <Screens.Screen name='Login' component={SimpleTest} options={{ headerShown: false }}/>
+        <Screens.Screen name='SplashScreen' component={SplashScreen} options={{ headerShown: false }}/>
+        <Screens.Screen name='ForgotPassword' component={ForgotPassword} options={{ headerShown: false }}/>
 
                 {/* Students */}
                 <Screens.Screen name='SDash' component={StudentTabs} options={{ headerShown: false }}/>
@@ -321,12 +334,7 @@ export default function App() {
                 <Screens.Screen name='PrincipalSupportCenter' component={PrincipalSupportCenter} options={{ headerShown: false }}/>
 
 
-              </Screens.Navigator>
-            </NavigationContainer>
-          </AnnouncementProvider>
-        </NotificationProvider>
-      </ChatProvider>
-      </UserProvider>
-    </TimerProvider>
+      </Screens.Navigator>
+    </NavigationContainer>
   );
 }

@@ -1,7 +1,6 @@
 apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
-apply plugin: 'com.google.gms.google-services'
 
 def projectRoot = rootDir.getAbsoluteFile().getParentFile().getAbsolutePath()
 
@@ -121,17 +120,6 @@ android {
         jniLibs {
             useLegacyPackaging (findProperty('expo.useLegacyPackaging')?.toBoolean() ?: false)
         }
-        pickFirst '**/libc++_shared.so'
-        pickFirst '**/libjsc.so'
-        exclude 'META-INF/DEPENDENCIES'
-        exclude 'META-INF/LICENSE'
-        exclude 'META-INF/LICENSE.txt'
-        exclude 'META-INF/license.txt'
-        exclude 'META-INF/NOTICE'
-        exclude 'META-INF/NOTICE.txt'
-        exclude 'META-INF/notice.txt'
-        exclude 'META-INF/ASL2.0'
-        exclude 'META-INF/*.kotlin_module'
     }
     androidResources {
         ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:!CVS:!thumbs.db:!picasa.ini:!*~'
@@ -155,13 +143,6 @@ android {
         options.each {
             android.packagingOptions[prop] += it
         }
-    }
-}
-
-configurations.all {
-    resolutionStrategy {
-        force 'androidx.core:core:1.13.1'
-        force 'androidx.media:media:1.0.0'
     }
 }
 
@@ -192,4 +173,39 @@ dependencies {
     } else {
         implementation jscFlavor
     }
+}
+
+// Exclude old Android Support Library dependencies to prevent conflicts with AndroidX
+configurations.all {
+    exclude group: 'com.android.support', module: 'support-compat'
+    exclude group: 'com.android.support', module: 'support-media-compat'
+    exclude group: 'com.android.support', module: 'support-fragment'
+    exclude group: 'com.android.support', module: 'support-core-utils'
+    exclude group: 'com.android.support', module: 'support-core-ui'
+    exclude group: 'com.android.support', module: 'support-annotations'
+    exclude group: 'com.android.support', module: 'support-v4'
+    exclude group: 'com.android.support', module: 'support-v13'
+    exclude group: 'com.android.support', module: 'support-vector-drawable'
+    exclude group: 'com.android.support', module: 'animated-vector-drawable'
+    exclude group: 'com.android.support', module: 'appcompat-v7'
+    exclude group: 'com.android.support', module: 'design'
+    exclude group: 'com.android.support', module: 'recyclerview-v7'
+    exclude group: 'com.android.support', module: 'cardview-v7'
+    exclude group: 'com.android.support', module: 'palette-v7'
+    exclude group: 'com.android.support', module: 'preference-v7'
+    exclude group: 'com.android.support', module: 'preference-v14'
+    exclude group: 'com.android.support', module: 'leanback-v17'
+    exclude group: 'com.android.support', module: 'gridlayout-v7'
+    exclude group: 'com.android.support', module: 'percent'
+    exclude group: 'com.android.support', module: 'recommendation'
+    exclude group: 'com.android.support', module: 'transition'
+    exclude group: 'com.android.support', module: 'customtabs'
+    exclude group: 'com.android.support', module: 'multidex'
+    exclude group: 'com.android.support', module: 'multidex-instrumentation'
+    exclude group: 'com.android.support', module: 'exifinterface'
+    exclude group: 'com.android.support', module: 'localbroadcastmanager'
+    exclude group: 'com.android.support', module: 'print'
+    exclude group: 'com.android.support', module: 'support-tv-provider'
+    exclude group: 'com.android.support', module: 'support-wear'
+    exclude group: 'com.android.support', module: 'wear'
 }

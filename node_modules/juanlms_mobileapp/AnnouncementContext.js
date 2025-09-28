@@ -18,7 +18,20 @@ export const AnnouncementProvider = ({ children }) => {
   const [loadingAcknowledged, setLoadingAcknowledged] = useState(false);
 
   // API base URL - Use the same render server as the web application
+  // TODO: Make this configurable based on environment
   const API_BASE = 'https://juanlms-webapp-server.onrender.com';
+  
+  // Fallback API base URL for local development
+  const FALLBACK_API_BASE = 'http://localhost:5000';
+  
+  // Get API base URL from environment or use default
+  const getApiBaseUrl = () => {
+    // Check if we're in development mode
+    if (__DEV__) {
+      return FALLBACK_API_BASE;
+    }
+    return API_BASE;
+  };
 
   // Fetch announcements based on user role
   const fetchAnnouncements = async () => {
@@ -26,20 +39,41 @@ export const AnnouncementProvider = ({ children }) => {
       setLoading(true);
       const token = await AsyncStorage.getItem('jwtToken');
       
-      if (!token) return;
+      if (!token) {
+        console.log('No JWT token found for announcements');
+        return;
+      }
       
-      const response = await fetch(`${API_BASE}/api/general-announcements`, {
+      const apiUrl = getApiBaseUrl();
+      console.log('Fetching announcements from:', `${apiUrl}/api/general-announcements`);
+      let response = await fetch(`${apiUrl}/api/general-announcements`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       });
 
+      console.log('Announcements response status:', response.status);
+      
+      // Try fallback URL if primary fails
+      if (!response.ok && (response.status >= 500 || response.status === 404)) {
+        const fallbackUrl = apiUrl === API_BASE ? FALLBACK_API_BASE : API_BASE;
+        console.log('Primary API failed, trying fallback:', `${fallbackUrl}/api/general-announcements`);
+        response = await fetch(`${fallbackUrl}/api/general-announcements`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+        console.log('Fallback announcements response status:', response.status);
+      }
+      
       if (response.ok) {
         const data = await response.json();
+        console.log('Fetched announcements:', data.length);
         setAnnouncements(data);
       } else {
-        console.error('Failed to fetch announcements');
+        console.error('Failed to fetch announcements, status:', response.status);
         setAnnouncements([]);
       }
     } catch (error) {
@@ -56,20 +90,42 @@ export const AnnouncementProvider = ({ children }) => {
       setLoadingAcknowledged(true);
       const token = await AsyncStorage.getItem('jwtToken');
       
-      if (!token) return;
+      if (!token) {
+        console.log('No JWT token found for acknowledged announcements');
+        return;
+      }
       
-      const response = await fetch(`${API_BASE}/api/general-announcements/acknowledged`, {
+      const apiUrl = getApiBaseUrl();
+      console.log('Fetching acknowledged announcements from:', `${apiUrl}/api/general-announcements/acknowledged`);
+      let response = await fetch(`${apiUrl}/api/general-announcements/acknowledged`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       });
 
+      console.log('Acknowledged announcements response status:', response.status);
+      
+      // Try fallback URL if primary fails
+      if (!response.ok && (response.status >= 500 || response.status === 404)) {
+        const fallbackUrl = apiUrl === API_BASE ? FALLBACK_API_BASE : API_BASE;
+        console.log('Primary API failed, trying fallback:', `${fallbackUrl}/api/general-announcements/acknowledged`);
+        response = await fetch(`${fallbackUrl}/api/general-announcements/acknowledged`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+        console.log('Fallback acknowledged announcements response status:', response.status);
+      }
+      
       if (response.ok) {
         const data = await response.json();
+        console.log('Fetched acknowledged announcements:', data.length);
+        console.log('Acknowledged announcements data:', data);
         setAcknowledgedAnnouncements(data);
       } else {
-        console.error('Failed to fetch acknowledged announcements');
+        console.error('Failed to fetch acknowledged announcements, status:', response.status);
         setAcknowledgedAnnouncements([]);
       }
     } catch (error) {

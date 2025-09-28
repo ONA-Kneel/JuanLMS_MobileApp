@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Platform, PermissionsAndroid, Alert } from 'react-native';
+import { Platform, PermissionsAndroid, Alert, AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import messaging from '@react-native-firebase/messaging';
 import Toast from 'react-native-root-toast';
@@ -114,21 +114,36 @@ export const NotificationProvider = ({ children }) => {
         const token = await messaging().getToken();
         if (token) {
           setFcmToken(token);
-          console.log('FCM token:', token);
-          try { await AsyncStorage.setItem('fcmToken', token); } catch {}
+          console.log('FCM token obtained:', token.substring(0, 20) + '...');
+          try { 
+            await AsyncStorage.setItem('fcmToken', token); 
+            console.log('FCM token stored in AsyncStorage');
+          } catch (storageErr) {
+            console.error('Failed to store FCM token:', storageErr);
+          }
           try {
             const storedUser = await AsyncStorage.getItem('user');
             const userData = storedUser ? JSON.parse(storedUser) : null;
             const userId = userData?._id || userData?.userID;
             if (userId) {
-              await registerDeviceToken(userId, token);
+              console.log('Registering FCM token for user:', userId);
+              const success = await registerDeviceToken(userId, token);
+              if (success) {
+                console.log('FCM token registered successfully');
+              } else {
+                console.warn('Failed to register FCM token with backend');
+              }
+            } else {
+              console.warn('No user ID found for FCM token registration');
             }
           } catch (syncErr) {
-            console.log('Token sync error:', syncErr);
+            console.error('Token sync error:', syncErr);
           }
+        } else {
+          console.warn('No FCM token received');
         }
       } catch (error) {
-        console.log('FCM token error:', error);
+        console.error('FCM token error:', error);
       }
     };
 
@@ -160,17 +175,30 @@ export const NotificationProvider = ({ children }) => {
         unsubscribeOnMessage = setupForegroundListener();
         unsubscribeOnTokenRefresh = messaging().onTokenRefresh(async token => {
           setFcmToken(token);
-          console.log('FCM token refreshed:', token);
-          try { await AsyncStorage.setItem('fcmToken', token); } catch {}
+          console.log('FCM token refreshed:', token.substring(0, 20) + '...');
+          try { 
+            await AsyncStorage.setItem('fcmToken', token); 
+            console.log('Refreshed FCM token stored in AsyncStorage');
+          } catch (storageErr) {
+            console.error('Failed to store refreshed FCM token:', storageErr);
+          }
           try {
             const storedUser = await AsyncStorage.getItem('user');
             const userData = storedUser ? JSON.parse(storedUser) : null;
             const userId = userData?._id || userData?.userID;
             if (userId) {
-              await registerDeviceToken(userId, token);
+              console.log('Registering refreshed FCM token for user:', userId);
+              const success = await registerDeviceToken(userId, token);
+              if (success) {
+                console.log('Refreshed FCM token registered successfully');
+              } else {
+                console.warn('Failed to register refreshed FCM token');
+              }
+            } else {
+              console.warn('No user ID found for refreshed FCM token registration');
             }
           } catch (syncErr) {
-            console.log('Token refresh sync error:', syncErr);
+            console.error('Token refresh sync error:', syncErr);
           }
         });
       }
@@ -180,6 +208,38 @@ export const NotificationProvider = ({ children }) => {
       if (unsubscribeOnMessage) unsubscribeOnMessage();
       if (unsubscribeOnTokenRefresh) unsubscribeOnTokenRefresh();
     };
+  }, []);
+
+  // Handle app state changes to re-register tokens when app becomes active
+  useEffect(() => {
+    const handleAppStateChange = async (nextAppState) => {
+      if (nextAppState === 'active') {
+        try {
+          const storedUser = await AsyncStorage.getItem('user');
+          const fcmToken = await AsyncStorage.getItem('fcmToken');
+          
+          if (storedUser && fcmToken) {
+            const userData = JSON.parse(storedUser);
+            const userId = userData._id || userData.userID;
+            
+            if (userId) {
+              console.log('App became active, re-registering FCM token for user:', userId);
+              const success = await registerDeviceToken(userId, fcmToken);
+              if (success) {
+                console.log('FCM token re-registered successfully on app resume');
+              } else {
+                console.warn('Failed to re-register FCM token on app resume');
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Error re-registering FCM token on app resume:', error);
+        }
+      }
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    return () => subscription?.remove();
   }, []);
 
   // API base URL handled by apiUtils

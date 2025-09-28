@@ -69,17 +69,26 @@ export default function NotificationCenter({ visible, onClose }) {
     onClose();
   };
 
-  // Choose items for the active tab - simplified filtering logic
+  // Choose items for the active tab - improved filtering logic
   const getFilteredNotifications = () => {
     if (activeTab === 'announcements') {
-      // Show acknowledged announcements from Principal/VPE (like web app)
-      return acknowledgedAnnouncements.filter(announcement => 
-        announcement.createdBy?.role?.toLowerCase() === 'principal' || 
-        announcement.createdBy?.role?.toLowerCase() === 'vice president of education' ||
-        announcement.createdBy?.role?.toLowerCase() === 'vpe'
-      );
+      // Show acknowledged announcements from Principal/VPE
+      console.log('Filtering announcements - Total acknowledged:', acknowledgedAnnouncements.length);
+      console.log('Acknowledged announcements data:', acknowledgedAnnouncements);
+      
+      const filtered = acknowledgedAnnouncements.filter(announcement => {
+        const role = announcement.createdBy?.role?.toLowerCase();
+        console.log('Checking announcement role:', role, 'for announcement:', announcement.title);
+        
+        return role === 'principal' || 
+               role === 'vice president of education' ||
+               role === 'vpe';
+      });
+      
+      console.log('Filtered announcements count:', filtered.length);
+      return filtered;
     } else {
-      // Show all notifications in the Updates tab - simplified to show everything
+      // Show all notifications in the Updates tab
       console.log('Total notifications available:', notifications.length);
       console.log('Notification types:', notifications.map(n => n.type));
       return notifications;
@@ -88,15 +97,20 @@ export default function NotificationCenter({ visible, onClose }) {
 
   const filteredItems = getFilteredNotifications();
 
-  // Debug logging
-  console.log('NotificationCenter Debug:');
+  // Enhanced debug logging
+  console.log('=== NotificationCenter Debug ===');
   console.log('- Active tab:', activeTab);
   console.log('- Total notifications:', notifications.length);
+  console.log('- Total announcements:', announcements.length);
+  console.log('- Total acknowledged announcements:', acknowledgedAnnouncements.length);
   console.log('- Filtered items:', filteredItems.length);
   console.log('- Loading notifications:', loadingNotifications);
   console.log('- Loading announcements:', loadingAnnouncements);
   console.log('- Notifications data:', notifications);
+  console.log('- Announcements data:', announcements);
+  console.log('- Acknowledged announcements data:', acknowledgedAnnouncements);
   console.log('- Filtered items data:', filteredItems);
+  console.log('================================');
 
   return (
     <Modal visible={visible} animationType="slide" transparent={true} onRequestClose={onClose}>
@@ -173,6 +187,9 @@ export default function NotificationCenter({ visible, onClose }) {
                   <Text style={styles.emptyStateSubtext}>
                     Debug: {notifications.length} total notifications, {filteredItems.length} filtered
                   </Text>
+                  <Text style={styles.emptyStateSubtext}>
+                    Announcements: {acknowledgedAnnouncements.length} acknowledged
+                  </Text>
                 </View>
               ) : (
                 filteredItems.map((notification, index) => (
@@ -209,6 +226,12 @@ export default function NotificationCenter({ visible, onClose }) {
                 <View style={styles.emptyState}>
                   <Icon name="bullhorn-off" size={48} color="#ccc" />
                   <Text style={styles.emptyStateText}>No announcements yet</Text>
+                  <Text style={styles.emptyStateSubtext}>
+                    Debug: {acknowledgedAnnouncements.length} total acknowledged, {filteredItems.length} filtered
+                  </Text>
+                  <Text style={styles.emptyStateSubtext}>
+                    Only Principal and VPE announcements are shown
+                  </Text>
                 </View>
               ) : (
                 filteredItems.map((announcement) => (
@@ -221,11 +244,17 @@ export default function NotificationCenter({ visible, onClose }) {
                       <Text style={styles.announcementTitle} numberOfLines={2}>
                         {announcement.title}
                       </Text>
+                      <Text style={styles.announcementBody} numberOfLines={3}>
+                        {announcement.body}
+                      </Text>
                       <Text style={styles.announcementDate}>
                         {formatAnnouncementDate(announcement.createdAt)}
                       </Text>
                       <Text style={styles.announcementCreator}>
                         👤 {announcement.createdBy?.firstname} {announcement.createdBy?.lastname} ({announcement.createdBy?.role})
+                      </Text>
+                      <Text style={styles.announcementTerm}>
+                        📅 {announcement.termName} - {announcement.schoolYear}
                       </Text>
                     </View>
                   </TouchableOpacity>
@@ -383,6 +412,19 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: 'Poppins-Medium',
     color: '#00418b',
+    marginBottom: 4,
+  },
+  announcementBody: {
+    fontSize: 14,
+    fontFamily: 'Poppins-Regular',
+    color: '#666',
+    marginBottom: 8,
+    lineHeight: 20,
+  },
+  announcementTerm: {
+    fontSize: 11,
+    fontFamily: 'Poppins-Regular',
+    color: '#999',
   },
   notificationItem: {
     backgroundColor: '#f8f9fa',

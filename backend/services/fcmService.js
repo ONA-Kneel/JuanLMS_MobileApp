@@ -15,6 +15,7 @@ function initFirebaseAdmin() {
         credential: admin.credential.cert(credentials),
       });
       isInitialized = true;
+      console.log('[FCM] Initialized with FIREBASE_SERVICE_ACCOUNT');
       return;
     }
 
@@ -24,10 +25,11 @@ function initFirebaseAdmin() {
         credential: admin.credential.applicationDefault(),
       });
       isInitialized = true;
+      console.log('[FCM] Initialized with GOOGLE_APPLICATION_CREDENTIALS');
       return;
     }
 
-    // Option 3: Fallback to env key pair (not recommended, but supported)
+    // Option 3: Fallback to env key pair (current config format)
     const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
     const privateKey = process.env.FIREBASE_PRIVATE_KEY && process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n');
     const projectId = process.env.FIREBASE_PROJECT_ID;
@@ -40,12 +42,14 @@ function initFirebaseAdmin() {
         }),
       });
       isInitialized = true;
+      console.log('[FCM] Initialized with individual environment variables');
       return;
     }
 
-    console.warn('[FCM] Firebase Admin not configured. Set FIREBASE_SERVICE_ACCOUNT or GOOGLE_APPLICATION_CREDENTIALS.');
+    console.warn('[FCM] Firebase Admin not configured. Set FIREBASE_SERVICE_ACCOUNT, GOOGLE_APPLICATION_CREDENTIALS, or individual FIREBASE_* variables.');
   } catch (error) {
     console.error('[FCM] Initialization error:', error);
+    isInitialized = false;
   }
 }
 
@@ -65,6 +69,12 @@ export async function sendNotificationToUsers(userIds, notification, data = {}) 
       return { successCount: 0, failureCount: 0 };
     }
 
+    if (!userIds || userIds.length === 0) {
+      console.warn('[FCM] No user IDs provided');
+      return { successCount: 0, failureCount: 0 };
+    }
+
+    console.log(`[FCM] Looking up tokens for ${userIds.length} users:`, userIds);
     const users = await User.find({ _id: { $in: userIds } }, 'deviceTokens');
     const tokens = users
       .flatMap(u => Array.isArray(u.deviceTokens) ? u.deviceTokens : [])
@@ -72,6 +82,7 @@ export async function sendNotificationToUsers(userIds, notification, data = {}) 
 
     if (tokens.length === 0) {
       console.warn('[FCM] No tokens found for users:', userIds);
+      console.log('[FCM] Users found:', users.length, 'with tokens');
       return { successCount: 0, failureCount: 0 };
     }
 

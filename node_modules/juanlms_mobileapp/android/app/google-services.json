@@ -1,29 +1,29 @@
 {
-  "project_info": {
-    "project_number": "460357912009",
-    "project_id": "juanlms-pushnotf",
-    "storage_bucket": "juanlms-pushnotf.firebasestorage.app"
-  },
-  "client": [
-    {
-      "client_info": {
-        "mobilesdk_app_id": "1:460357912009:android:0bf527b6a35dac3f14d418",
-        "android_client_info": {
-          "package_name": "com.kneelpngnbn.juanlms.mobileapp"
-        }
-      },
-      "oauth_client": [],
-      "api_key": [
-        {
-          "current_key": "AIzaSyDURM7YmkIs1KEnQZ6bbsOh2RCAKAdAwzo"
-        }
-      ],
-      "services": {
-        "appinvite_service": {
-          "other_platform_oauth_client": []
+    "project_info": {
+      "project_number": "460357912009",
+      "project_id": "juanlms-pushnotf",
+      "storage_bucket": "juanlms-pushnotf.firebasestorage.app"
+    },
+    "client": [
+      {
+        "client_info": {
+          "mobilesdk_app_id": "1:460357912009:android:0bf527b6a35dac3f14d418",
+          "android_client_info": {
+            "package_name": "com.kneelpngnbn.juanlms.mobileapp"
+          }
+        },
+        "oauth_client": [],
+        "api_key": [
+          {
+            "current_key": "AIzaSyDURM7YmkIs1KEnQZ6bbsOh2RCAKAdAwzo"
+          }
+        ],
+        "services": {
+          "appinvite_service": {
+            "other_platform_oauth_client": []
+          }
         }
       }
-    }
-  ],
-  "configuration_version": "1"
-}
+    ],
+    "configuration_version": "1"
+  }

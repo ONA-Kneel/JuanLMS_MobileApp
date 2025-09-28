@@ -17,6 +17,7 @@ const STORAGE_KEYS = {
 };
 
 export default function Login() {
+  console.log('🔐 Login component rendering...');
   //mema commit na lang para lang may kulay ako today
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
@@ -32,6 +33,7 @@ export default function Login() {
   const { setUserAndToken } = useUser();
 
   useEffect(() => {
+    console.log('🔐 Login useEffect running...');
     const loadLockoutState = async () => {
       const attempts = await AsyncStorage.getItem('failedAttempts');
       const cooldownEnd = await AsyncStorage.getItem('cooldownEndTime');
@@ -357,7 +359,32 @@ export default function Login() {
           lastname: userData.lastname
         });
 
+        // Ensure we use the MongoDB _id for consistency
+        if (!userData._id) {
+          console.error('User data missing _id field:', userData);
+          throw new Error('Invalid user data received from server');
+        }
+
         await setUserAndToken(userData, data.token);
+
+        // Register FCM token after successful login
+        try {
+          const fcmToken = await AsyncStorage.getItem('fcmToken');
+          if (fcmToken && userData._id) {
+            console.log('Registering FCM token after login for user:', userData._id);
+            const { registerDeviceToken } = await import('../services/notificationService');
+            const success = await registerDeviceToken(userData._id, fcmToken);
+            if (success) {
+              console.log('FCM token registered successfully after login');
+            } else {
+              console.warn('Failed to register FCM token after login');
+            }
+          } else {
+            console.log('No FCM token or user ID available for registration');
+          }
+        } catch (fcmError) {
+          console.error('Error registering FCM token after login:', fcmError);
+        }
 
         // Save or clear credentials depending on remember setting
         await saveCredentialsIfRemembered(email.trim().toLowerCase(), password.trim());
