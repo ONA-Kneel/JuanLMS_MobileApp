@@ -2,10 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { Text, TouchableOpacity, View, Image, TextInput, ImageBackground, Platform } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import LoginStyle from './styles/LoginStyle';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Toast from 'react-native-root-toast';
 import { useUser } from './UserContext';
+import { useNotifications } from '../NotificationContext';
 import { addAuditLog } from './Admin/auditTrailUtils';
 
 // Set your public backend URL here (replace with your actual deployed backend URL)
@@ -31,6 +32,7 @@ export default function Login() {
   const [isDisabledByRememberClicks, setIsDisabledByRememberClicks] = useState(false);
   const navigation = useNavigation();
   const { setUserAndToken } = useUser();
+  const { registerFCMTokenAfterLogin } = useNotifications();
 
   useEffect(() => {
     console.log('🔐 Login useEffect running...');
@@ -369,19 +371,7 @@ export default function Login() {
 
         // Register FCM token after successful login
         try {
-          const fcmToken = await AsyncStorage.getItem('fcmToken');
-          if (fcmToken && userData._id) {
-            console.log('Registering FCM token after login for user:', userData._id);
-            const { registerDeviceToken } = await import('../services/notificationService');
-            const success = await registerDeviceToken(userData._id, fcmToken);
-            if (success) {
-              console.log('FCM token registered successfully after login');
-            } else {
-              console.warn('Failed to register FCM token after login');
-            }
-          } else {
-            console.log('No FCM token or user ID available for registration');
-          }
+          await registerFCMTokenAfterLogin(userData._id);
         } catch (fcmError) {
           console.error('Error registering FCM token after login:', fcmError);
         }
@@ -495,7 +485,7 @@ export default function Login() {
             style={LoginStyle.eyeIcon}
             activeOpacity={0.7}
           >
-            <Icon
+            <MaterialCommunityIcons
               name={showPassword ? 'eye-off' : 'eye'}
               size={24}
               color="#888"
@@ -513,7 +503,7 @@ export default function Login() {
               style={LoginStyle.checkbox}
             >
               {rememberMe ? (
-                <Icon name="check" size={18} color="#1976d2" />
+                <MaterialCommunityIcons name="check" size={18} color="#1976d2" />
               ) : null}
             </TouchableOpacity>
             <Text style={LoginStyle.rememberText}>Remember Me</Text>

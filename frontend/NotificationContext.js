@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Platform, PermissionsAndroid, Alert, AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import messaging from '@react-native-firebase/messaging';
+import { getApp } from '@react-native-firebase/app';
 import Toast from 'react-native-root-toast';
 import { registerDeviceToken } from './services/notificationService';
 import { apiGet, apiPatch } from './utils/apiUtils';
@@ -21,6 +22,42 @@ export const NotificationProvider = ({ children }) => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [fcmToken, setFcmToken] = useState(null);
+
+  // Check if Firebase is initialized
+  const checkFirebaseInitialization = () => {
+    try {
+      const app = getApp();
+      console.log('Firebase app initialized:', app.name);
+      return true;
+    } catch (error) {
+      console.error('Firebase not initialized:', error);
+      return false;
+    }
+  };
+
+  // Function to register FCM token with backend after login
+  const registerFCMTokenAfterLogin = async (userId) => {
+    try {
+      const token = await AsyncStorage.getItem('fcmToken');
+      if (token && userId) {
+        console.log('Registering FCM token after login for user:', userId);
+        const success = await registerDeviceToken(userId, token);
+        if (success) {
+          console.log('FCM token registered successfully after login');
+          return true;
+        } else {
+          console.warn('Failed to register FCM token after login');
+          return false;
+        }
+      } else {
+        console.log('No FCM token or user ID available for registration');
+        return false;
+      }
+    } catch (error) {
+      console.error('Error registering FCM token after login:', error);
+      return false;
+    }
+  };
 
   // Auto-fetch notifications when context is initialized
   useEffect(() => {
@@ -110,6 +147,12 @@ export const NotificationProvider = ({ children }) => {
 
     const registerAndGetToken = async () => {
       try {
+        // Check if Firebase is initialized before using messaging
+        if (!checkFirebaseInitialization()) {
+          console.error('Firebase not initialized, cannot get FCM token');
+          return;
+        }
+        
         await messaging().registerDeviceForRemoteMessages();
         const token = await messaging().getToken();
         if (token) {
@@ -121,24 +164,9 @@ export const NotificationProvider = ({ children }) => {
           } catch (storageErr) {
             console.error('Failed to store FCM token:', storageErr);
           }
-          try {
-            const storedUser = await AsyncStorage.getItem('user');
-            const userData = storedUser ? JSON.parse(storedUser) : null;
-            const userId = userData?._id || userData?.userID;
-            if (userId) {
-              console.log('Registering FCM token for user:', userId);
-              const success = await registerDeviceToken(userId, token);
-              if (success) {
-                console.log('FCM token registered successfully');
-              } else {
-                console.warn('Failed to register FCM token with backend');
-              }
-            } else {
-              console.warn('No user ID found for FCM token registration');
-            }
-          } catch (syncErr) {
-            console.error('Token sync error:', syncErr);
-          }
+          // Store FCM token locally but don't register with backend yet
+          // Backend registration will happen after successful login
+          console.log('FCM token obtained and stored locally. Backend registration will happen after login.');
         } else {
           console.warn('No FCM token received');
         }
@@ -148,6 +176,12 @@ export const NotificationProvider = ({ children }) => {
     };
 
     const setupForegroundListener = () => {
+      // Check if Firebase is initialized before setting up listeners
+      if (!checkFirebaseInitialization()) {
+        console.error('Firebase not initialized, cannot setup foreground listener');
+        return null;
+      }
+      
       const unsubscribeOnMessage = messaging().onMessage(async remoteMessage => {
         try {
           console.log('Foreground FCM message:', remoteMessage);
@@ -399,6 +433,7 @@ export const NotificationProvider = ({ children }) => {
     markAllAsRead,
     refreshNotifications,
     getCurrentUserId,
+    registerFCMTokenAfterLogin,
   };
 
   return (

@@ -2,6 +2,9 @@ import { registerRootComponent } from 'expo';
 import messaging from '@react-native-firebase/messaging';
 import { navigate } from './navigationRef';
 
+// Initialize Firebase before importing App
+import './config/firebase';
+
 import App from './App';
 
 // registerRootComponent calls AppRegistry.registerComponent('main', () => App);

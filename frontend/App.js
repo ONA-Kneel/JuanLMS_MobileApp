@@ -11,8 +11,6 @@ import { navigationRef } from './navigationRef';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Login from './components/Login';
-import TestLogin from './components/TestLogin';
-import SimpleTest from './components/SimpleTest';
 import ErrorBoundary from './components/ErrorBoundary';
 import ForgotPassword from './components/ForgotPassword';
 import Chat from './components/Chat';
@@ -271,10 +269,11 @@ export default function App() {
   }
 
   return (
-    <NavigationContainer ref={navigationRef}>
-      <Screens.Navigator initialRouteName='Login'>
-        {/* Test with minimal screens first */}
-        <Screens.Screen name='Login' component={SimpleTest} options={{ headerShown: false }}/>
+    <UserProvider>
+      <NotificationProvider>
+        <NavigationContainer ref={navigationRef}>
+          <Screens.Navigator initialRouteName='Login'>
+        <Screens.Screen name='Login' component={Login} options={{ headerShown: false }}/>
         <Screens.Screen name='SplashScreen' component={SplashScreen} options={{ headerShown: false }}/>
         <Screens.Screen name='ForgotPassword' component={ForgotPassword} options={{ headerShown: false }}/>
 
@@ -334,7 +333,9 @@ export default function App() {
                 <Screens.Screen name='PrincipalSupportCenter' component={PrincipalSupportCenter} options={{ headerShown: false }}/>
 
 
-      </Screens.Navigator>
-    </NavigationContainer>
+          </Screens.Navigator>
+        </NavigationContainer>
+      </NotificationProvider>
+    </UserProvider>
   );
 }
