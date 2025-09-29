@@ -62,7 +62,27 @@ export default function StudentDashboard() {
           activeTerm = academicData.academicYear.currentTerm;
           console.log('Using academic year data:', activeYear, activeTerm);
         } else {
-          console.log('Academic year data not in expected format:', academicData);
+          console.log('Academic year data not in expected format, falling back via schoolyears/terms:', academicData);
+          try {
+            const yearRes = await fetch(`https://juanlms-webapp-server.onrender.com/api/schoolyears/active`, {
+              headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (yearRes.ok) {
+              const year = await yearRes.json();
+              const schoolYearName = `${year.schoolYearStart}-${year.schoolYearEnd}`;
+              activeYear = schoolYearName;
+              const termsRes = await fetch(`https://juanlms-webapp-server.onrender.com/api/terms/schoolyear/${schoolYearName}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+              });
+              if (termsRes.ok) {
+                const terms = await termsRes.json();
+                const active = Array.isArray(terms) ? terms.find(t => t.status === 'active') : null;
+                if (active) activeTerm = active.termName;
+              }
+            }
+          } catch (e) {
+            console.log('Fallback failed:', e?.message || e);
+          }
         }
       } else {
         console.log('Academic year API not available, using default values');

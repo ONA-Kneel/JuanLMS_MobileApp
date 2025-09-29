@@ -76,6 +76,25 @@ export default function StudentMeeting() {
         if (academicData.success && academicData.academicYear) {
           activeYear = academicData.academicYear.year;
           activeTerm = academicData.academicYear.currentTerm;
+        } else {
+          try {
+            const yearRes = await fetch('https://juanlms-webapp-server.onrender.com/api/schoolyears/active', {
+              headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (yearRes.ok) {
+              const year = await yearRes.json();
+              const schoolYearName = `${year.schoolYearStart}-${year.schoolYearEnd}`;
+              activeYear = schoolYearName;
+              const termsRes = await fetch(`https://juanlms-webapp-server.onrender.com/api/terms/schoolyear/${schoolYearName}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+              });
+              if (termsRes.ok) {
+                const terms = await termsRes.json();
+                const active = Array.isArray(terms) ? terms.find(t => t.status === 'active') : null;
+                if (active) activeTerm = active.termName;
+              }
+            }
+          } catch (_) {}
         }
       }
       

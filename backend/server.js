@@ -129,7 +129,11 @@ app.get('/api/academic-year/active', async (req, res) => {
     const yearName = `${activeYear.schoolYearStart}-${activeYear.schoolYearEnd}`;
 
     // Fetch terms for this school year and pick the one marked active
-    const terms = await proxyJson(`/api/terms/schoolyear/${encodeURIComponent(yearName)}`);
+    // Pass the authorization header from the mobile request to the web backend
+    const authHeader = req.headers.authorization;
+    const terms = await proxyJson(`/api/terms/schoolyear/${encodeURIComponent(yearName)}`, {
+      headers: authHeader ? { 'Authorization': authHeader } : {}
+    });
     const activeTerm = Array.isArray(terms) ? terms.find(t => t.status === 'active') : null;
 
     res.json({
@@ -171,7 +175,11 @@ app.get('/api/terms/schoolyear/:schoolYear', async (req, res) => {
   try {
     const { proxyJson } = await import('./utils/webProxy.js');
     const { schoolYear } = req.params;
-    const data = await proxyJson(`/api/terms/schoolyear/${encodeURIComponent(schoolYear)}`);
+    // Pass the authorization header from the mobile request to the web backend
+    const authHeader = req.headers.authorization;
+    const data = await proxyJson(`/api/terms/schoolyear/${encodeURIComponent(schoolYear)}`, {
+      headers: authHeader ? { 'Authorization': authHeader } : {}
+    });
     res.json(data);
   } catch (err) {
     res.status(500).json({ error: err.message });
