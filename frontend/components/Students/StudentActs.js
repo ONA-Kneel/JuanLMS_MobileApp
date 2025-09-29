@@ -428,6 +428,25 @@ export default function StudentActs() {
     return () => clearInterval(timer);
   }, []);
 
+  // Fetch active academic year and term for header
+  useEffect(() => {
+    const fetchAcademic = async () => {
+      try {
+        const token = await AsyncStorage.getItem('jwtToken');
+        const res = await fetch('https://juanlms-webapp-server.onrender.com/api/academic-year/active', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.success && data.academicYear) {
+            setAcademicContext(`${data.academicYear.year} | ${data.academicYear.currentTerm}`);
+          }
+        }
+      } catch (_) {}
+    };
+    fetchAcademic();
+  }, []);
+
   useEffect(() => {
     if (user && user._id) {
       fetchActivities();

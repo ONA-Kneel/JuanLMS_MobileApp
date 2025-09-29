@@ -75,6 +75,27 @@ export default function UnifiedChat() {
     return () => clearInterval(timer);
   }, []);
 
+  // Fetch active academic year and term for header context
+  useEffect(() => {
+    const fetchAcademicContext = async () => {
+      try {
+        const token = await AsyncStorage.getItem('jwtToken');
+        const res = await fetch(`${API_URL}/api/academic-year/active`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.success && data.academicYear) {
+            setAcademicContext(`${data.academicYear.year} | ${data.academicYear.currentTerm}`);
+          }
+        }
+      } catch (_) {
+        // leave default on error
+      }
+    };
+    fetchAcademicContext();
+  }, []);
+
   // Refresh user directory when screen gains focus so newly created users appear
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {

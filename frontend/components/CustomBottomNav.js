@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, TouchableOpacity, Text } from 'react-native';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 const defaultNavItems = [
   { label: 'Dashboard', icon: 'view-dashboard', route: 'StudentDashboard' },
@@ -32,7 +32,7 @@ export default function CustomBottomNav({ state, descriptors, navigation, navIte
             onPress={() => navigation.navigate(item.route)}
             style={{ alignItems: 'center', flex: 1 }}
           >
-            <Icon
+            <MaterialCommunityIcons
               name={item.icon}
               size={28}
               color={isFocused ? '#00418b' : '#222'}

@@ -120,18 +120,27 @@ app.get('/test-assignments', (req, res) => {
 });
 
 // Academic year route alias for mobile app compatibility
+// Returns { success, academicYear: { year, currentTerm, startDate, endDate } }
 app.get('/api/academic-year/active', async (req, res) => {
   try {
     const { proxyJson } = await import('./utils/webProxy.js');
-    const data = await proxyJson('/api/schoolyears/active');
-    // Normalize shape for mobile clients if needed
-    const normalized = {
-      academicYear: `${data.schoolYearStart}-${data.schoolYearEnd}`,
-      currentTerm: data.currentTerm || data.termName || 'Unknown',
-      startDate: data.startDate,
-      endDate: data.endDate,
-    };
-    res.json(normalized);
+    const activeYear = await proxyJson('/api/schoolyears/active');
+
+    const yearName = `${activeYear.schoolYearStart}-${activeYear.schoolYearEnd}`;
+
+    // Fetch terms for this school year and pick the one marked active
+    const terms = await proxyJson(`/api/terms/schoolyear/${encodeURIComponent(yearName)}`);
+    const activeTerm = Array.isArray(terms) ? terms.find(t => t.status === 'active') : null;
+
+    res.json({
+      success: true,
+      academicYear: {
+        year: yearName,
+        currentTerm: activeTerm?.termName || activeYear.currentTerm || 'Unknown',
+        startDate: activeYear.startDate,
+        endDate: activeYear.endDate,
+      }
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -327,63 +336,7 @@ mongoose.connect(process.env.ATLAS_URI, {
 
 
 
-app.get('/api/terms/schoolyear/:schoolYear', async (req, res) => {
-
-  try {
-
-    const { schoolYear } = req.params;
-
-    
-
-    // Return terms for the specified school year
-
-    const terms = [
-
-      {
-
-        _id: "term1",
-
-        termName: "Term 1",
-
-        schoolYear: schoolYear,
-
-        status: "active",
-
-        startDate: "2025-06-01",
-
-        endDate: "2025-10-31"
-
-      },
-
-      {
-
-        _id: "term2",
-
-        termName: "Term 2",
-
-        schoolYear: schoolYear,
-
-        status: "inactive",
-
-        startDate: "2025-11-01",
-
-        endDate: "2026-03-31"
-
-      }
-
-    ];
-
-    
-
-    res.json(terms);
-
-  } catch (err) {
-
-    res.status(500).json({ error: err.message });
-
-  }
-
-});
+// Removed duplicate hardcoded terms endpoint; proxy-based version is defined earlier
 
 
 

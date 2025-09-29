@@ -35,7 +35,7 @@ export default function StudentSCMain() {
               <Text style={StudentDashboardStyle.headerSubtitle}>{academicContext}</Text>
              <Text style={StudentDashboardStyle.headerSubtitle2}>{formatDateTime(currentDateTime)}</Text>
           </View>
-          <TouchableOpacity onPress={() => changeScreen.navigate('SProfile')}>
+          <TouchableOpacity onPress={() => navigation.navigate('SProfile')}>
             {resolveProfileUri() ? (
               <Image 
                 source={{ uri: resolveProfileUri() }} 

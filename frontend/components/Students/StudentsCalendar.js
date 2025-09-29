@@ -104,7 +104,7 @@ export default function StudentCalendar() {
     fetchAcademicYear();
   }, []);
 
-  // Fetch active term for the academic year
+  // Fetch active term for the academic year and update header context
   useEffect(() => {
     const fetchActiveTermForYear = async () => {
       if (!academicYear) return;
@@ -118,6 +118,11 @@ export default function StudentCalendar() {
           const terms = await res.json();
           const active = terms.find(term => term.status === 'active');
           setCurrentTerm(active || null);
+          if (active) {
+            setAcademicContext(`${schoolYearName} | ${active.termName}`);
+          } else {
+            setAcademicContext(`${schoolYearName}`);
+          }
         } else {
           setCurrentTerm(null);
         }
@@ -406,7 +411,7 @@ export default function StudentCalendar() {
                          <Text style={StudentDashboardStyle.headerSubtitle}>{academicContext}</Text>
              <Text style={StudentDashboardStyle.headerSubtitle2}>{formatDateTime(currentDateTime)}</Text>
           </View>
-          <TouchableOpacity onPress={() => changeScreen.navigate('SProfile')}>
+          <TouchableOpacity onPress={() => navigation.navigate('SProfile')}>
             {resolveProfileUri() ? (
               <Image 
                 source={{ uri: resolveProfileUri() }} 

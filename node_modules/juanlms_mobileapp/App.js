@@ -147,7 +147,6 @@ function FacultyTabs() {
       <Tabs.Screen name="FCalendar" component={FacultyCalendar} />
       <Tabs.Screen name="FChat" component={FacultyChats} />
       <Tabs.Screen name="FMeeting" component={FacultyMeeting} />
-      {/* <Tabs.Screen name="FProfile" component={FacultyProfile} /> */}
     </Tabs.Navigator>
   );
 }
@@ -156,7 +155,6 @@ const adminNavItems = [
   { label: 'Dashboard', icon: 'view-dashboard', route: 'AdminDashB' },
   { label: 'Calendar', icon: 'calendar', route: 'ACalendar' },
   { label: 'Chats', icon: 'chat', route: 'AChat' },
-  // { label: 'Profile', icon: 'account', route: 'AProfile' },
 ];
 
 
@@ -172,7 +170,6 @@ function AdminDash() {
       <Tabs.Screen name='AChat' component={AdminChats} />
       {/* <Tabs.Screen name='AAuditTrail' component={AdminAuditTrail} /> */}
       {/* <Tabs.Screen name='ASupportCenter' component={AdminSupportCenter} /> */}
-      {/* <Tabs.Screen name='AProfile' component={AdminProfile} /> */}
     </Tabs.Navigator>
   );
 }
