@@ -7,7 +7,9 @@ import {
   ActivityIndicator,
   Alert,
   StyleSheet,
-  Dimensions
+  Dimensions,
+  Platform,
+  PermissionsAndroid
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
@@ -16,12 +18,22 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width } = Dimensions.get('window');
 
+let StreamMeetingRoomNative = null;
+let SimpleStreamMeetingRoom = null;
+if (Platform.OS !== 'web') {
+  try {
+    StreamMeetingRoomNative = require('../Meeting/StreamMeetingRoomNative').default;
+    SimpleStreamMeetingRoom = require('../Meeting/SimpleStreamMeetingRoom').default;
+  } catch (e) { /* noop on web */ }
+}
+
 export default function PrincipalMeeting() {
   const navigation = useNavigation();
   const { user } = useUser();
   const [meetings, setMeetings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [academicContext, setAcademicContext] = useState('2025-2026 | Term 1');
+  const [activeMeeting, setActiveMeeting] = useState(null);
 
   useEffect(() => {
     fetchAllMeetings();
@@ -57,8 +69,8 @@ export default function PrincipalMeeting() {
       
       setAcademicContext(`${activeYear} | ${activeTerm}`);
 
-      // Fetch all meetings across all classes
-      const response = await fetch('https://juanlms-webapp-server.onrender.com/api/meetings', {
+      // Fetch direct-invite meetings for Principal
+      const response = await fetch('https://juanlms-webapp-server.onrender.com/api/meetings/direct-invite', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -66,12 +78,7 @@ export default function PrincipalMeeting() {
 
       if (response.ok) {
         const data = await response.json();
-        // Filter meetings for current academic year and term
-        const filteredMeetings = data.filter(meeting => {
-          // You might need to adjust this filtering based on your data structure
-          return meeting;
-        });
-        setMeetings(filteredMeetings);
+        setMeetings(Array.isArray(data) ? data : []);
       }
     } catch (error) {
       console.error('Error fetching meetings:', error);
@@ -92,8 +99,26 @@ export default function PrincipalMeeting() {
 
       if (response.ok) {
         const result = await response.json();
-        Alert.alert('Meeting', `Joining meeting: ${meeting.title}`);
-        // You can implement actual meeting joining logic here
+        const enriched = { ...meeting, roomUrl: result.roomUrl, meetingId: String(meeting._id) };
+        if (Platform.OS === 'web') {
+          try { window.open(result.roomUrl, '_blank'); } catch (e) { Alert.alert('Meeting', 'Open this link: ' + result.roomUrl); }
+        } else {
+          try {
+            if (Platform.OS === 'android') {
+              const cam = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.CAMERA);
+              const mic = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.RECORD_AUDIO);
+              if (cam !== PermissionsAndroid.RESULTS.GRANTED || mic !== PermissionsAndroid.RESULTS.GRANTED) {
+                Alert.alert('Permissions required', 'Camera and microphone permissions are needed to join the meeting.');
+                return;
+              }
+            }
+          } catch (e) { /* ignore */ }
+          if (!StreamMeetingRoomNative && !SimpleStreamMeetingRoom) {
+            Alert.alert('Meeting', 'Native meeting module is unavailable. Make sure you run a development build (not Expo Go).');
+            return;
+          }
+          setActiveMeeting(enriched);
+        }
       } else {
         const result = await response.json();
         Alert.alert('Error', result.message || 'Failed to join meeting');
@@ -320,6 +345,23 @@ export default function PrincipalMeeting() {
           )}
         </View>
       </View>
+      {activeMeeting && Platform.OS !== 'web' && SimpleStreamMeetingRoom && (
+        <SimpleStreamMeetingRoom
+          isOpen={!!activeMeeting}
+          onClose={() => setActiveMeeting(null)}
+          onLeave={() => setActiveMeeting(null)}
+          meetingData={activeMeeting}
+          currentUser={{ name: user?.name || user?.username || 'Host' }}
+          credentials={{
+              apiKey: 'mmhfdzb5evj2',
+              token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL3Byb250by5nZXRzdHJlYW0uaW8iLCJzdWIiOiJ1c2VyL1plc3R5X1JlbGlzaCIsInVzZXJfaWQiOiJaZXN0eV9SZWxpc2giLCJ2YWxpZGl0eV9pbl9zZWNvbmRzIjo2MDQ4MDAsImlhdCI6MTc1OTEzMzAwMywiZXhwIjoxNzU5NzM3ODAzfQ.LYzxEgFR_VrhXqS-QT_RAZEMOlRIBeiCX0UTGU8h3Tw',
+              userId: 'Zesty_Relish',
+              callId: 'FWRAWIjfrs3W1AtGZUTBc',
+          }}
+          isHost={true}
+          hostUserId={'Zesty_Relish'}
+        />
+      )}
     </ScrollView>
   );
 }
