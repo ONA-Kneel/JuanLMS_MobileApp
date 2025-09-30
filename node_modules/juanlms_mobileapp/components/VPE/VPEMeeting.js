@@ -34,9 +34,17 @@ export default function VPEMeeting() {
   const [loading, setLoading] = useState(true);
   const [academicContext, setAcademicContext] = useState('2025-2026 | Term 1');
   const [activeMeeting, setActiveMeeting] = useState(null);
+  const [allUsers, setAllUsers] = useState([]);
+  const [selectedUsers, setSelectedUsers] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [showSelection, setShowSelection] = useState(true);
+  const [meetingTitle, setMeetingTitle] = useState('');
+  const [meetingDescription, setMeetingDescription] = useState('');
 
   useEffect(() => {
     fetchAllMeetings();
+    fetchAllUsers();
   }, []);
 
   const fetchAllMeetings = async () => {
@@ -84,6 +92,95 @@ export default function VPEMeeting() {
       console.error('Error fetching meetings:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchAllUsers = async () => {
+    try {
+      const token = await AsyncStorage.getItem('jwtToken');
+      const response = await fetch('https://juanlms-webapp-server.onrender.com/users/all', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const users = await response.json();
+        const currentUserId = user?._id;
+        const filtered = Array.isArray(users)
+          ? users.filter(u => u && u._id && u._id !== currentUserId && u.status !== 'inactive' && u.role !== 'admin')
+          : [];
+        setAllUsers(filtered);
+      }
+    } catch (e) {
+      console.error('Error fetching users:', e);
+    }
+  };
+
+  const toggleUserSelection = (u) => {
+    setSelectedUsers(prev => {
+      const exists = prev.some(p => p._id === u._id);
+      if (exists) return prev.filter(p => p._id !== u._id);
+      return [...prev, u];
+    });
+  };
+
+  const usersByRole = allUsers
+    .filter(u => {
+      const name = `${u.firstName || ''} ${u.lastName || ''}`.toLowerCase();
+      const email = (u.email || '').toLowerCase();
+      const role = (u.role || '').toLowerCase();
+      const q = searchTerm.toLowerCase();
+      return name.includes(q) || email.includes(q) || role.includes(q);
+    })
+    .reduce((acc, u) => {
+      const role = u.role || 'unknown';
+      if (!acc[role]) acc[role] = [];
+      acc[role].push(u);
+      return acc;
+    }, {});
+
+  const handleCreateDirectInvite = async () => {
+    if (selectedUsers.length === 0) return;
+    if (!meetingTitle.trim()) {
+      Alert.alert('Meeting Title Required', 'Please enter a meeting title.');
+      return;
+    }
+    try {
+      setCreating(true);
+      const token = await AsyncStorage.getItem('jwtToken');
+      const body = {
+        title: meetingTitle.trim(),
+        description: meetingDescription.trim(),
+        meetingType: 'instant',
+        classID: 'direct-invite',
+        participants: selectedUsers.map(u => u._id),
+      };
+      const response = await fetch('https://juanlms-webapp-server.onrender.com/api/meetings/direct-invite', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(body),
+      });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.message || 'Failed to create meeting');
+      }
+      const newMeeting = await response.json();
+      setSelectedUsers([]);
+      setMeetingTitle('');
+      setMeetingDescription('');
+      fetchAllMeetings();
+      // Auto-join instant meetings
+      if (newMeeting && newMeeting.meetingType === 'instant') {
+        handleJoinMeeting(newMeeting);
+      } else {
+        Alert.alert('Success', 'Meeting created');
+      }
+    } catch (e) {
+      console.error('Create direct-invite error:', e);
+      Alert.alert('Error', e.message || 'Failed to create meeting');
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -259,6 +356,87 @@ export default function VPEMeeting() {
         <View>
           <Text style={styles.title}>Meeting Overview</Text>
           <Text style={styles.subtitle}>{academicContext} | {new Date().toLocaleDateString()}</Text>
+        </View>
+      </View>
+
+      {/* Direct Invite - User Selection */}
+      <View style={styles.selectionCard}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <Text style={styles.sectionTitle}>Select Meeting Participants</Text>
+          <TouchableOpacity
+            disabled={selectedUsers.length === 0 || creating || !meetingTitle.trim()}
+            onPress={handleCreateDirectInvite}
+            style={[styles.createButton, (selectedUsers.length === 0 || creating || !meetingTitle.trim()) && { opacity: 0.6 }]}
+          >
+            <Icon name="plus" size={18} color="#fff" />
+            <Text style={styles.createButtonText}>Create ({selectedUsers.length})</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Title/Description inputs (simple RN text inputs via platform prompt) */}
+        <View style={{ marginBottom: 8 }}>
+          <TouchableOpacity onPress={() => {
+            const title = prompt('Enter meeting title', meetingTitle) || '';
+            setMeetingTitle(title);
+          }} style={styles.inputLikeRow}>
+            <Icon name="format-title" size={18} color="#6B7280" />
+            <Text style={styles.inputLikeText}>{meetingTitle || 'Add a meeting title'}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => {
+            const desc = prompt('Enter description (optional)', meetingDescription) || '';
+            setMeetingDescription(desc);
+          }} style={styles.inputLikeRow}>
+            <Icon name="text" size={18} color="#6B7280" />
+            <Text style={styles.inputLikeText}>{meetingDescription || 'Add a description (optional)'}</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Search */}
+        <View style={styles.searchRow}>
+          <Icon name="magnify" size={18} color="#6B7280" />
+          <Text style={styles.searchPlaceholder}>{searchTerm || 'Search users by name, email, or role...'}</Text>
+          <TouchableOpacity onPress={() => setSearchTerm(prompt('Search', searchTerm) || '')}>
+            <Text style={{ color: '#2563EB', fontWeight: '500' }}>Edit</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Selected chips */}
+        {selectedUsers.length > 0 && (
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+            {selectedUsers.map(u => (
+              <TouchableOpacity key={u._id} onPress={() => toggleUserSelection(u)} style={styles.chip}>
+                <Text style={styles.chipText}>{(u.firstName || u.firstname || '?')[0]}{(u.lastName || u.lastname || '?')[0]} · {u.firstName || u.firstname} {u.lastName || u.lastname}</Text>
+                <Text style={styles.chipRemove}>×</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+
+        {/* Users grouped by role */}
+        <View style={{ gap: 8 }}>
+          {Object.entries(usersByRole).map(([role, list]) => (
+            <View key={role} style={{ marginBottom: 8 }}>
+              <Text style={styles.roleHeader}>{role} ({list.length})</Text>
+              <View style={{ gap: 6 }}>
+                {list.map(u => {
+                  const isSelected = selectedUsers.some(s => s._id === u._id);
+                  return (
+                    <TouchableOpacity key={u._id} onPress={() => toggleUserSelection(u)} style={[styles.userRow, isSelected && styles.userRowSelected]}>
+                      <View style={styles.avatar}>
+                        <Text style={styles.avatarText}>{(u.firstName || u.firstname || '?')[0]}{(u.lastName || u.lastname || '?')[0]}</Text>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.userName}>{u.firstName || u.firstname} {u.lastName || u.lastname}</Text>
+                        <Text style={styles.userEmail}>{u.email}</Text>
+                        <Text style={styles.userRole}>{u.role}</Text>
+                      </View>
+                      {isSelected && <Icon name="check-circle" size={20} color="#2563EB" />}
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+          ))}
         </View>
       </View>
 

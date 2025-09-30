@@ -46,7 +46,10 @@
       "icon": "./assets/SanJuan.png"
     },
     "extra": {
-      "API_URL": "https://juanlms-webapp-server.onrender.com"
+      "API_URL": "https://juanlms-webapp-server.onrender.com",
+      "eas": {
+        "projectId": "1531e67f-7384-43cd-beb2-8d19d2c2ca26"
+      }
     },
     "plugins": [
       [
