@@ -38,9 +38,12 @@ export default function VPEMeeting() {
   const [selectedUsers, setSelectedUsers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [creating, setCreating] = useState(false);
-  const [showSelection, setShowSelection] = useState(true);
   const [meetingTitle, setMeetingTitle] = useState('');
   const [meetingDescription, setMeetingDescription] = useState('');
+  const [meetingType, setMeetingType] = useState('instant'); // 'instant' | 'scheduled'
+  const [scheduledDate, setScheduledDate] = useState(''); // YYYY-MM-DD
+  const [scheduledTime, setScheduledTime] = useState(''); // HH:mm
+  const [duration, setDuration] = useState(''); // minutes
 
   useEffect(() => {
     fetchAllMeetings();
@@ -143,15 +146,32 @@ export default function VPEMeeting() {
       Alert.alert('Meeting Title Required', 'Please enter a meeting title.');
       return;
     }
+    if (meetingType === 'scheduled') {
+      if (!scheduledDate || !scheduledTime) {
+        Alert.alert('Schedule Required', 'Please provide date and time for scheduled meeting.');
+        return;
+      }
+    }
     try {
       setCreating(true);
       const token = await AsyncStorage.getItem('jwtToken');
+      // Compose scheduledTime when applicable
+      let scheduledIso = new Date().toISOString();
+      if (meetingType === 'scheduled') {
+        const composed = new Date(`${scheduledDate}T${scheduledTime}:00`);
+        if (!isNaN(composed.getTime())) {
+          scheduledIso = composed.toISOString();
+        }
+      }
+
       const body = {
         title: meetingTitle.trim(),
         description: meetingDescription.trim(),
-        meetingType: 'instant',
+        meetingType,
         classID: 'direct-invite',
         participants: selectedUsers.map(u => u._id),
+        scheduledTime: scheduledIso,
+        duration: duration ? parseInt(duration) : null,
       };
       const response = await fetch('https://juanlms-webapp-server.onrender.com/api/meetings/direct-invite', {
         method: 'POST',
@@ -169,6 +189,10 @@ export default function VPEMeeting() {
       setSelectedUsers([]);
       setMeetingTitle('');
       setMeetingDescription('');
+      setMeetingType('instant');
+      setScheduledDate('');
+      setScheduledTime('');
+      setDuration('');
       fetchAllMeetings();
       // Auto-join instant meetings
       if (newMeeting && newMeeting.meetingType === 'instant') {
@@ -364,7 +388,7 @@ export default function VPEMeeting() {
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
           <Text style={styles.sectionTitle}>Select Meeting Participants</Text>
           <TouchableOpacity
-            disabled={selectedUsers.length === 0 || creating || !meetingTitle.trim()}
+            disabled={selectedUsers.length === 0 || creating || !meetingTitle.trim() || (meetingType === 'scheduled' && (!scheduledDate || !scheduledTime))}
             onPress={handleCreateDirectInvite}
             style={[styles.createButton, (selectedUsers.length === 0 || creating || !meetingTitle.trim()) && { opacity: 0.6 }]}
           >
@@ -373,22 +397,76 @@ export default function VPEMeeting() {
           </TouchableOpacity>
         </View>
 
-        {/* Title/Description inputs (simple RN text inputs via platform prompt) */}
-        <View style={{ marginBottom: 8 }}>
-          <TouchableOpacity onPress={() => {
-            const title = prompt('Enter meeting title', meetingTitle) || '';
-            setMeetingTitle(title);
-          }} style={styles.inputLikeRow}>
+        {/* Inline inputs */}
+        <View style={{ gap: 8 }}>
+          <View style={styles.textInputRow}>
             <Icon name="format-title" size={18} color="#6B7280" />
-            <Text style={styles.inputLikeText}>{meetingTitle || 'Add a meeting title'}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => {
-            const desc = prompt('Enter description (optional)', meetingDescription) || '';
-            setMeetingDescription(desc);
-          }} style={styles.inputLikeRow}>
+            <Text style={styles.textLabel}>Title</Text>
+          </View>
+          <View style={styles.inputField}>
+            <Text
+              style={styles.inputFieldText}
+              onPress={() => setMeetingTitle(prompt('Title', meetingTitle) || '')}
+            >{meetingTitle || 'Add a meeting title'}</Text>
+          </View>
+
+          <View style={styles.textInputRow}>
             <Icon name="text" size={18} color="#6B7280" />
-            <Text style={styles.inputLikeText}>{meetingDescription || 'Add a description (optional)'}</Text>
-          </TouchableOpacity>
+            <Text style={styles.textLabel}>Description (optional)</Text>
+          </View>
+          <View style={styles.inputField}>
+            <Text
+              style={styles.inputFieldText}
+              onPress={() => setMeetingDescription(prompt('Description (optional)', meetingDescription) || '')}
+            >{meetingDescription || 'Add a description (optional)'}</Text>
+          </View>
+
+          {/* Meeting type toggle */}
+          <View style={styles.typeToggleRow}>
+            <TouchableOpacity onPress={() => setMeetingType('instant')} style={[styles.typePill, meetingType === 'instant' && styles.typePillActive]}>
+              <Text style={[styles.typePillText, meetingType === 'instant' && styles.typePillTextActive]}>Instant</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setMeetingType('scheduled')} style={[styles.typePill, meetingType === 'scheduled' && styles.typePillActive]}>
+              <Text style={[styles.typePillText, meetingType === 'scheduled' && styles.typePillTextActive]}>Scheduled</Text>
+            </TouchableOpacity>
+          </View>
+
+          {meetingType === 'scheduled' && (
+            <View style={{ gap: 8 }}>
+              <View style={styles.inlineRow}>
+                <Icon name="calendar" size={18} color="#6B7280" />
+                <Text style={styles.inlineLabel}>Date (YYYY-MM-DD)</Text>
+              </View>
+              <View style={styles.inputField}>
+                <Text
+                  style={styles.inputFieldText}
+                  onPress={() => setScheduledDate(prompt('Date (YYYY-MM-DD)', scheduledDate) || '')}
+                >{scheduledDate || 'e.g. 2025-10-05'}</Text>
+              </View>
+
+              <View style={styles.inlineRow}>
+                <Icon name="clock-outline" size={18} color="#6B7280" />
+                <Text style={styles.inlineLabel}>Time (HH:mm)</Text>
+              </View>
+              <View style={styles.inputField}>
+                <Text
+                  style={styles.inputFieldText}
+                  onPress={() => setScheduledTime(prompt('Time (HH:mm)', scheduledTime) || '')}
+                >{scheduledTime || 'e.g. 14:30'}</Text>
+              </View>
+
+              <View style={styles.inlineRow}>
+                <Icon name="timer" size={18} color="#6B7280" />
+                <Text style={styles.inlineLabel}>Duration (minutes)</Text>
+              </View>
+              <View style={styles.inputField}>
+                <Text
+                  style={styles.inputFieldText}
+                  onPress={() => setDuration(prompt('Duration (minutes)', duration) || '')}
+                >{duration || 'optional'}</Text>
+              </View>
+            </View>
+          )}
         </View>
 
         {/* Search */}
@@ -548,6 +626,170 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F3F4F6',
+  },
+  selectionCard: {
+    backgroundColor: 'white',
+    padding: 16,
+    marginHorizontal: 16,
+    marginTop: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  createButton: {
+    backgroundColor: '#2563EB',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  createButtonText: {
+    color: 'white',
+    fontWeight: '600',
+  },
+  textInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  textLabel: {
+    color: '#374151',
+    fontWeight: '500',
+  },
+  inputField: {
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  inputFieldText: {
+    color: '#111827',
+    fontSize: 14,
+  },
+  typeToggleRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 4,
+  },
+  typePill: {
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    backgroundColor: '#FFF',
+  },
+  typePillActive: {
+    backgroundColor: '#DBEAFE',
+    borderColor: '#93C5FD',
+  },
+  typePillText: {
+    color: '#374151',
+    fontWeight: '500',
+  },
+  typePillTextActive: {
+    color: '#1D4ED8',
+  },
+  inlineRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  inlineLabel: {
+    color: '#374151',
+    fontWeight: '500',
+  },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginTop: 8,
+  },
+  searchPlaceholder: {
+    color: '#6B7280',
+    flex: 1,
+    marginLeft: 8,
+    marginRight: 8,
+  },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#DBEAFE',
+    borderRadius: 16,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  chipText: {
+    color: '#1D4ED8',
+    fontSize: 12,
+    marginRight: 6,
+  },
+  chipRemove: {
+    color: '#1D4ED8',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  roleHeader: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 6,
+    textTransform: 'capitalize',
+  },
+  userRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 10,
+    padding: 10,
+    backgroundColor: 'white',
+  },
+  userRowSelected: {
+    borderColor: '#93C5FD',
+    backgroundColor: '#EFF6FF',
+  },
+  avatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#E5E7EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: {
+    color: '#374151',
+    fontWeight: '600',
+  },
+  userName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  userEmail: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  userRole: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    textTransform: 'capitalize',
   },
   loadingContainer: {
     flex: 1,
