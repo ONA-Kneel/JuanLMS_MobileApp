@@ -61,6 +61,70 @@ export default function NotificationCenter({ visible, onClose }) {
 
 
 
+  const handleNotificationPress = async (notification) => {
+    try {
+      if (!notification) return;
+      if (notification._id) {
+        await markAsRead(notification._id);
+      }
+      const userStr = await AsyncStorage.getItem('user');
+      const user = userStr ? JSON.parse(userStr) : null;
+      const role = (user?.role || '').toLowerCase();
+      const type = (notification.type || '').toLowerCase();
+      // Navigate based on notification type
+      switch (type) {
+        case 'message':
+          // Route to the Chats tab inside the proper tab navigator
+          if (role.includes('faculty') || role.includes('teacher')) {
+            navigation.navigate('FDash', { screen: 'FChat' });
+          } else if (role.includes('principal')) {
+            navigation.navigate('PrincipalDash', { screen: 'PrincipalChats' });
+          } else if (role.includes('vice president') || role === 'vpe') {
+            navigation.navigate('VPEDash', { screen: 'VPEChats' });
+          } else {
+            // default student
+            navigation.navigate('SDash', { screen: 'SChat' });
+          }
+          break;
+        case 'activity':
+        case 'assignment':
+        case 'quiz':
+          // Go to Activities in the student tab navigator by default
+          if (role.includes('faculty') || role.includes('teacher')) {
+            navigation.navigate('FDash', { screen: 'FActs' });
+          } else {
+            navigation.navigate('SDash', { screen: 'SActs' });
+          }
+          break;
+        case 'announcement':
+          // For students, previously announcements are shown via SReq or appropriate tab
+          if (role.includes('principal')) {
+            navigation.navigate('PrincipalDash', { screen: 'PrincipalAnnouncements' });
+          } else if (role.includes('vice president') || role === 'vpe') {
+            navigation.navigate('VPEDash', { screen: 'VPEAnnouncements' });
+          } else {
+            // Keep existing student behavior
+            navigation.navigate('SReq');
+          }
+          break;
+        default:
+          // Fallback to dashboard
+          if (role.includes('faculty') || role.includes('teacher')) {
+            navigation.navigate('FDash');
+          } else if (role.includes('principal')) {
+            navigation.navigate('PrincipalDash');
+          } else if (role.includes('vice president') || role === 'vpe') {
+            navigation.navigate('VPEDash');
+          } else {
+            navigation.navigate('SDash');
+          }
+      }
+      onClose && onClose();
+    } catch (e) {
+      console.log('handleNotificationPress error:', e);
+    }
+  };
+
   const handleAnnouncementPress = (announcement) => {
     // Acknowledge the announcement
     acknowledgeAnnouncement(announcement._id);
@@ -196,7 +260,7 @@ export default function NotificationCenter({ visible, onClose }) {
                   <TouchableOpacity
                     key={notification._id || `notification-${index}`}
                     style={[styles.notificationItem, !notification.read && styles.unreadNotification]}
-                    onPress={() => notification._id && markAsRead(notification._id)}
+                    onPress={() => handleNotificationPress(notification)}
                   >
                     <View style={styles.notificationContent}>
                       <Text style={styles.notificationTitle} numberOfLines={2}>
