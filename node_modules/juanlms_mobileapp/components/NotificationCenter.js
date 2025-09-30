@@ -69,6 +69,13 @@ export default function NotificationCenter({ visible, onClose }) {
       }
       const userStr = await AsyncStorage.getItem('user');
       const user = userStr ? JSON.parse(userStr) : null;
+      const token = await AsyncStorage.getItem('jwtToken');
+      // If not authenticated, send to Login
+      if (!token || !user) {
+        navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+        onClose && onClose();
+        return;
+      }
       const role = (user?.role || '').toLowerCase();
       const type = (notification.type || '').toLowerCase();
       // Navigate based on notification type
