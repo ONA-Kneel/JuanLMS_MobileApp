@@ -93,9 +93,17 @@ export default function SimpleStreamMeetingRoom({
 
         setClient(streamClient);
 
-        // Create call
+        // Create call and join with mic/camera disabled by default
         const callInstance = streamClient.call('default', credentials.callId);
         await callInstance.join({ create: true });
+        try {
+          await callInstance.microphone?.disable?.();
+        } catch (e) { /* ignore */ }
+        try {
+          await callInstance.camera?.disable?.();
+        } catch (e) { /* ignore */ }
+        setIsMuted(true);
+        setIsVideoOn(false);
         setCall(callInstance);
 
         // Check if call is already connected

@@ -94,8 +94,10 @@ export default function StreamMeetingRoomNative({
 				const c = new StreamVideoClient({ apiKey });
 				await c.connectUser(userInfo, userToken);
 				if (cancelled) return;
-				const callInstance = c.call('default', resolvedCallId);
-				await callInstance.join({ create: true });
+                const callInstance = c.call('default', resolvedCallId);
+                await callInstance.join({ create: true });
+                try { await callInstance.microphone?.disable?.(); } catch {}
+                try { await callInstance.camera?.disable?.(); } catch {}
 				if (cancelled) {
 					await cleanup(c, callInstance);
 					return;

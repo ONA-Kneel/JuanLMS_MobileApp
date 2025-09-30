@@ -7,7 +7,9 @@ import {
   ActivityIndicator,
   Alert,
   StyleSheet,
-  Dimensions
+  Dimensions,
+  Platform,
+  PermissionsAndroid
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
@@ -16,15 +18,36 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width } = Dimensions.get('window');
 
+let StreamMeetingRoomNative = null;
+let SimpleStreamMeetingRoom = null;
+if (Platform.OS !== 'web') {
+  try {
+    StreamMeetingRoomNative = require('../Meeting/StreamMeetingRoomNative').default;
+    SimpleStreamMeetingRoom = require('../Meeting/SimpleStreamMeetingRoom').default;
+  } catch (e) { /* noop on web */ }
+}
+
 export default function PrincipalMeeting() {
   const navigation = useNavigation();
   const { user } = useUser();
   const [meetings, setMeetings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [academicContext, setAcademicContext] = useState('2025-2026 | Term 1');
+  const [activeMeeting, setActiveMeeting] = useState(null);
+  const [allUsers, setAllUsers] = useState([]);
+  const [selectedUsers, setSelectedUsers] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [meetingTitle, setMeetingTitle] = useState('');
+  const [meetingDescription, setMeetingDescription] = useState('');
+  const [meetingType, setMeetingType] = useState('instant');
+  const [scheduledDate, setScheduledDate] = useState('');
+  const [scheduledTime, setScheduledTime] = useState('');
+  const [duration, setDuration] = useState('');
 
   useEffect(() => {
     fetchAllMeetings();
+    fetchAllUsers();
   }, []);
 
   const fetchAllMeetings = async () => {
@@ -57,8 +80,8 @@ export default function PrincipalMeeting() {
       
       setAcademicContext(`${activeYear} | ${activeTerm}`);
 
-      // Fetch all meetings across all classes
-      const response = await fetch('https://juanlms-webapp-server.onrender.com/api/meetings', {
+      // Fetch direct-invite meetings for Principal
+      const response = await fetch('https://juanlms-webapp-server.onrender.com/api/meetings/direct-invite', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -66,17 +89,120 @@ export default function PrincipalMeeting() {
 
       if (response.ok) {
         const data = await response.json();
-        // Filter meetings for current academic year and term
-        const filteredMeetings = data.filter(meeting => {
-          // You might need to adjust this filtering based on your data structure
-          return meeting;
-        });
-        setMeetings(filteredMeetings);
+        setMeetings(Array.isArray(data) ? data : []);
       }
     } catch (error) {
       console.error('Error fetching meetings:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchAllUsers = async () => {
+    try {
+      const token = await AsyncStorage.getItem('jwtToken');
+      const response = await fetch('https://juanlms-webapp-server.onrender.com/users/all', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const users = await response.json();
+        const currentUserId = user?._id;
+        const filtered = Array.isArray(users)
+          ? users.filter(u => u && u._id && u._id !== currentUserId && u.status !== 'inactive')
+          : [];
+        setAllUsers(filtered);
+      }
+    } catch (e) {
+      console.error('Error fetching users:', e);
+    }
+  };
+
+  const toggleUserSelection = (u) => {
+    setSelectedUsers(prev => {
+      const exists = prev.some(p => p._id === u._id);
+      if (exists) return prev.filter(p => p._id !== u._id);
+      return [...prev, u];
+    });
+  };
+
+  const usersByRole = allUsers
+    .filter(u => {
+      const name = `${u.firstName || ''} ${u.lastName || ''}`.toLowerCase();
+      const email = (u.email || '').toLowerCase();
+      const role = (u.role || '').toLowerCase();
+      const q = searchTerm.toLowerCase();
+      return name.includes(q) || email.includes(q) || role.includes(q);
+    })
+    .reduce((acc, u) => {
+      const role = u.role || 'unknown';
+      if (!acc[role]) acc[role] = [];
+      acc[role].push(u);
+      return acc;
+    }, {});
+
+  const handleCreateDirectInvite = async () => {
+    if (selectedUsers.length === 0) return;
+    if (!meetingTitle.trim()) {
+      Alert.alert('Meeting Title Required', 'Please enter a meeting title.');
+      return;
+    }
+    if (meetingType === 'scheduled') {
+      if (!scheduledDate || !scheduledTime) {
+        Alert.alert('Schedule Required', 'Please provide date and time for scheduled meeting.');
+        return;
+      }
+    }
+    try {
+      setCreating(true);
+      const token = await AsyncStorage.getItem('jwtToken');
+      let scheduledIso = new Date().toISOString();
+      if (meetingType === 'scheduled') {
+        const composed = new Date(`${scheduledDate}T${scheduledTime}:00`);
+        if (!isNaN(composed.getTime())) {
+          scheduledIso = composed.toISOString();
+        }
+      }
+
+      const body = {
+        title: meetingTitle.trim(),
+        description: meetingDescription.trim(),
+        meetingType,
+        classID: 'direct-invite',
+        participants: selectedUsers.map(u => u._id),
+        scheduledTime: scheduledIso,
+        duration: duration ? parseInt(duration) : null,
+      };
+      const response = await fetch('https://juanlms-webapp-server.onrender.com/api/meetings/direct-invite', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(body),
+      });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.message || 'Failed to create meeting');
+      }
+      const newMeeting = await response.json();
+      setSelectedUsers([]);
+      setMeetingTitle('');
+      setMeetingDescription('');
+      setMeetingType('instant');
+      setScheduledDate('');
+      setScheduledTime('');
+      setDuration('');
+      fetchAllMeetings();
+      if (newMeeting && newMeeting.meetingType === 'instant') {
+        handleJoinMeeting(newMeeting);
+      } else {
+        Alert.alert('Success', 'Meeting created');
+      }
+    } catch (e) {
+      console.error('Create direct-invite error:', e);
+      Alert.alert('Error', e.message || 'Failed to create meeting');
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -92,8 +218,26 @@ export default function PrincipalMeeting() {
 
       if (response.ok) {
         const result = await response.json();
-        Alert.alert('Meeting', `Joining meeting: ${meeting.title}`);
-        // You can implement actual meeting joining logic here
+        const enriched = { ...meeting, roomUrl: result.roomUrl, meetingId: String(meeting._id) };
+        if (Platform.OS === 'web') {
+          try { window.open(result.roomUrl, '_blank'); } catch (e) { Alert.alert('Meeting', 'Open this link: ' + result.roomUrl); }
+        } else {
+          try {
+            if (Platform.OS === 'android') {
+              const cam = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.CAMERA);
+              const mic = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.RECORD_AUDIO);
+              if (cam !== PermissionsAndroid.RESULTS.GRANTED || mic !== PermissionsAndroid.RESULTS.GRANTED) {
+                Alert.alert('Permissions required', 'Camera and microphone permissions are needed to join the meeting.');
+                return;
+              }
+            }
+          } catch (e) { /* ignore */ }
+          if (!StreamMeetingRoomNative && !SimpleStreamMeetingRoom) {
+            Alert.alert('Meeting', 'Native meeting module is unavailable. Make sure you run a development build (not Expo Go).');
+            return;
+          }
+          setActiveMeeting(enriched);
+        }
       } else {
         const result = await response.json();
         Alert.alert('Error', result.message || 'Failed to join meeting');
@@ -237,6 +381,192 @@ export default function PrincipalMeeting() {
         </View>
       </View>
 
+      {/* Direct Invite - User Selection */}
+      <View style={styles.selectionCard}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <Text style={styles.sectionTitle}>Select Meeting Participants</Text>
+          <TouchableOpacity
+            disabled={selectedUsers.length === 0 || creating || !meetingTitle.trim()}
+            onPress={handleCreateDirectInvite}
+            style={[styles.createButton, (selectedUsers.length === 0 || creating || !meetingTitle.trim()) && { opacity: 0.6 }]}
+          >
+            <Icon name="plus" size={18} color="#fff" />
+            <Text style={styles.createButtonText}>Create ({selectedUsers.length})</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={{ marginBottom: 8 }}>
+          <TouchableOpacity onPress={() => { const t = prompt('Enter meeting title', meetingTitle) || ''; setMeetingTitle(t); }} style={styles.inputLikeRow}>
+            <Icon name="format-title" size={18} color="#6B7280" />
+            <Text style={styles.inputLikeText}>{meetingTitle || 'Add a meeting title'}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => { const d = prompt('Enter description (optional)', meetingDescription) || ''; setMeetingDescription(d); }} style={styles.inputLikeRow}>
+            <Icon name="text" size={18} color="#6B7280" />
+            <Text style={styles.inputLikeText}>{meetingDescription || 'Add a description (optional)'}</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.searchRow}>
+          <Icon name="magnify" size={18} color="#6B7280" />
+          <Text style={styles.searchPlaceholder}>{searchTerm || 'Search users by name, email, or role...'}</Text>
+          <TouchableOpacity onPress={() => setSearchTerm(prompt('Search', searchTerm) || '')}>
+            <Text style={{ color: '#2563EB', fontWeight: '500' }}>Edit</Text>
+          </TouchableOpacity>
+        </View>
+
+        {selectedUsers.length > 0 && (
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+            {selectedUsers.map(u => (
+              <TouchableOpacity key={u._id} onPress={() => toggleUserSelection(u)} style={styles.chip}>
+                <Text style={styles.chipText}>{(u.firstName || u.firstname || '?')[0]}{(u.lastName || u.lastname || '?')[0]} · {u.firstName || u.firstname} {u.lastName || u.lastname}</Text>
+                <Text style={styles.chipRemove}>×</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+
+        <View style={{ gap: 8 }}>
+          {Object.entries(usersByRole).map(([role, list]) => (
+            <View key={role} style={{ marginBottom: 8 }}>
+              <Text style={styles.roleHeader}>{role} ({list.length})</Text>
+              <View style={{ gap: 6 }}>
+                {list.map(u => {
+                  const isSelected = selectedUsers.some(s => s._id === u._id);
+                  return (
+                    <TouchableOpacity key={u._id} onPress={() => toggleUserSelection(u)} style={[styles.userRow, isSelected && styles.userRowSelected]}>
+                      <View style={styles.avatar}>
+                        <Text style={styles.avatarText}>{(u.firstName || u.firstname || '?')[0]}{(u.lastName || u.lastname || '?')[0]}</Text>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.userName}>{u.firstName || u.firstname} {u.lastName || u.lastname}</Text>
+                        <Text style={styles.userEmail}>{u.email}</Text>
+                        <Text style={styles.userRole}>{u.role}</Text>
+                      </View>
+                      {isSelected && <Icon name="check-circle" size={20} color="#2563EB" />}
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+          ))}
+        </View>
+      </View>
+
+      {/* Direct Invite - User Selection */}
+      <View style={styles.selectionCard}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <Text style={styles.sectionTitle}>Select Meeting Participants</Text>
+          <TouchableOpacity
+            disabled={selectedUsers.length === 0 || creating || !meetingTitle.trim() || (meetingType === 'scheduled' && (!scheduledDate || !scheduledTime))}
+            onPress={handleCreateDirectInvite}
+            style={[styles.createButton, (selectedUsers.length === 0 || creating || !meetingTitle.trim()) && { opacity: 0.6 }]}
+          >
+            <Icon name="plus" size={18} color="#fff" />
+            <Text style={styles.createButtonText}>Create ({selectedUsers.length})</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={{ gap: 8 }}>
+          <View style={styles.textInputRow}>
+            <Icon name="format-title" size={18} color="#6B7280" />
+            <Text style={styles.textLabel}>Title</Text>
+          </View>
+          <View style={styles.inputField}>
+            <Text style={styles.inputFieldText} onPress={() => setMeetingTitle(prompt('Title', meetingTitle) || '')}>{meetingTitle || 'Add a meeting title'}</Text>
+          </View>
+
+          <View style={styles.textInputRow}>
+            <Icon name="text" size={18} color="#6B7280" />
+            <Text style={styles.textLabel}>Description (optional)</Text>
+          </View>
+          <View style={styles.inputField}>
+            <Text style={styles.inputFieldText} onPress={() => setMeetingDescription(prompt('Description (optional)', meetingDescription) || '')}>{meetingDescription || 'Add a description (optional)'}</Text>
+          </View>
+
+          <View style={styles.typeToggleRow}>
+            <TouchableOpacity onPress={() => setMeetingType('instant')} style={[styles.typePill, meetingType === 'instant' && styles.typePillActive]}>
+              <Text style={[styles.typePillText, meetingType === 'instant' && styles.typePillTextActive]}>Instant</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setMeetingType('scheduled')} style={[styles.typePill, meetingType === 'scheduled' && styles.typePillActive]}>
+              <Text style={[styles.typePillText, meetingType === 'scheduled' && styles.typePillTextActive]}>Scheduled</Text>
+            </TouchableOpacity>
+          </View>
+
+          {meetingType === 'scheduled' && (
+            <View style={{ gap: 8 }}>
+              <View style={styles.inlineRow}>
+                <Icon name="calendar" size={18} color="#6B7280" />
+                <Text style={styles.inlineLabel}>Date (YYYY-MM-DD)</Text>
+              </View>
+              <View style={styles.inputField}>
+                <Text style={styles.inputFieldText} onPress={() => setScheduledDate(prompt('Date (YYYY-MM-DD)', scheduledDate) || '')}>{scheduledDate || 'e.g. 2025-10-05'}</Text>
+              </View>
+
+              <View style={styles.inlineRow}>
+                <Icon name="clock-outline" size={18} color="#6B7280" />
+                <Text style={styles.inlineLabel}>Time (HH:mm)</Text>
+              </View>
+              <View style={styles.inputField}>
+                <Text style={styles.inputFieldText} onPress={() => setScheduledTime(prompt('Time (HH:mm)', scheduledTime) || '')}>{scheduledTime || 'e.g. 14:30'}</Text>
+              </View>
+
+              <View style={styles.inlineRow}>
+                <Icon name="timer" size={18} color="#6B7280" />
+                <Text style={styles.inlineLabel}>Duration (minutes)</Text>
+              </View>
+              <View style={styles.inputField}>
+                <Text style={styles.inputFieldText} onPress={() => setDuration(prompt('Duration (minutes)', duration) || '')}>{duration || 'optional'}</Text>
+              </View>
+            </View>
+          )}
+        </View>
+
+        <View style={styles.searchRow}>
+          <Icon name="magnify" size={18} color="#6B7280" />
+          <Text style={styles.searchPlaceholder}>{searchTerm || 'Search users by name, email, or role...'}</Text>
+          <TouchableOpacity onPress={() => setSearchTerm(prompt('Search', searchTerm) || '')}>
+            <Text style={{ color: '#2563EB', fontWeight: '500' }}>Edit</Text>
+          </TouchableOpacity>
+        </View>
+
+        {selectedUsers.length > 0 && (
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+            {selectedUsers.map(u => (
+              <TouchableOpacity key={u._id} onPress={() => toggleUserSelection(u)} style={styles.chip}>
+                <Text style={styles.chipText}>{(u.firstName || u.firstname || '?')[0]}{(u.lastName || u.lastname || '?')[0]} · {u.firstName || u.firstname} {u.lastName || u.lastname}</Text>
+                <Text style={styles.chipRemove}>×</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+
+        <View style={{ gap: 8 }}>
+          {Object.entries(usersByRole).map(([role, list]) => (
+            <View key={role} style={{ marginBottom: 8 }}>
+              <Text style={styles.roleHeader}>{role} ({list.length})</Text>
+              <View style={{ gap: 6 }}>
+                {list.map(u => {
+                  const isSelected = selectedUsers.some(s => s._id === u._id);
+                  return (
+                    <TouchableOpacity key={u._id} onPress={() => toggleUserSelection(u)} style={[styles.userRow, isSelected && styles.userRowSelected]}>
+                      <View style={styles.avatar}>
+                        <Text style={styles.avatarText}>{(u.firstName || u.firstname || '?')[0]}{(u.lastName || u.lastname || '?')[0]}</Text>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.userName}>{u.firstName || u.firstname} {u.lastName || u.lastname}</Text>
+                        <Text style={styles.userEmail}>{u.email}</Text>
+                        <Text style={styles.userRole}>{u.role}</Text>
+                      </View>
+                      {isSelected && <Icon name="check-circle" size={20} color="#2563EB" />}
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+          ))}
+        </View>
+      </View>
+
       {/* Meeting List */}
       <View style={styles.meetingSection}>
         <View style={styles.meetingHeader}>
@@ -320,6 +650,23 @@ export default function PrincipalMeeting() {
           )}
         </View>
       </View>
+      {activeMeeting && Platform.OS !== 'web' && SimpleStreamMeetingRoom && (
+        <SimpleStreamMeetingRoom
+          isOpen={!!activeMeeting}
+          onClose={() => setActiveMeeting(null)}
+          onLeave={() => setActiveMeeting(null)}
+          meetingData={activeMeeting}
+          currentUser={{ name: user?.name || user?.username || 'Host' }}
+          credentials={{
+              apiKey: 'mmhfdzb5evj2',
+              token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL3Byb250by5nZXRzdHJlYW0uaW8iLCJzdWIiOiJ1c2VyL1plc3R5X1JlbGlzaCIsInVzZXJfaWQiOiJaZXN0eV9SZWxpc2giLCJ2YWxpZGl0eV9pbl9zZWNvbmRzIjo2MDQ4MDAsImlhdCI6MTc1OTEzMzAwMywiZXhwIjoxNzU5NzM3ODAzfQ.LYzxEgFR_VrhXqS-QT_RAZEMOlRIBeiCX0UTGU8h3Tw',
+              userId: 'Zesty_Relish',
+              callId: 'FWRAWIjfrs3W1AtGZUTBc',
+          }}
+          isHost={true}
+          hostUserId={'Zesty_Relish'}
+        />
+      )}
     </ScrollView>
   );
 }
@@ -328,6 +675,170 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F3F4F6',
+  },
+  selectionCard: {
+    backgroundColor: 'white',
+    padding: 16,
+    marginHorizontal: 16,
+    marginTop: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  createButton: {
+    backgroundColor: '#2563EB',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  createButtonText: {
+    color: 'white',
+    fontWeight: '600',
+  },
+  textInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  textLabel: {
+    color: '#374151',
+    fontWeight: '500',
+  },
+  inputField: {
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  inputFieldText: {
+    color: '#111827',
+    fontSize: 14,
+  },
+  typeToggleRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 4,
+  },
+  typePill: {
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    backgroundColor: '#FFF',
+  },
+  typePillActive: {
+    backgroundColor: '#DBEAFE',
+    borderColor: '#93C5FD',
+  },
+  typePillText: {
+    color: '#374151',
+    fontWeight: '500',
+  },
+  typePillTextActive: {
+    color: '#1D4ED8',
+  },
+  inlineRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  inlineLabel: {
+    color: '#374151',
+    fontWeight: '500',
+  },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginTop: 8,
+  },
+  searchPlaceholder: {
+    color: '#6B7280',
+    flex: 1,
+    marginLeft: 8,
+    marginRight: 8,
+  },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#DBEAFE',
+    borderRadius: 16,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  chipText: {
+    color: '#1D4ED8',
+    fontSize: 12,
+    marginRight: 6,
+  },
+  chipRemove: {
+    color: '#1D4ED8',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  roleHeader: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 6,
+    textTransform: 'capitalize',
+  },
+  userRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 10,
+    padding: 10,
+    backgroundColor: 'white',
+  },
+  userRowSelected: {
+    borderColor: '#93C5FD',
+    backgroundColor: '#EFF6FF',
+  },
+  avatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#E5E7EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: {
+    color: '#374151',
+    fontWeight: '600',
+  },
+  userName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  userEmail: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  userRole: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    textTransform: 'capitalize',
   },
   loadingContainer: {
     flex: 1,
