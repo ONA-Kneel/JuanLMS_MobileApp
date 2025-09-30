@@ -79,18 +79,21 @@ export default function NotificationCenter({ visible, onClose }) {
       const role = (user?.role || '').toLowerCase();
       const type = (notification.type || '').toLowerCase();
       // Navigate based on notification type
-      switch (type) {
+      // Close the modal first to avoid overlay issues, then navigate
+      onClose && onClose();
+      setTimeout(() => {
+        switch (type) {
         case 'message':
           // Route to the Chats tab inside the proper tab navigator
           if (role.includes('faculty') || role.includes('teacher')) {
-            navigation.navigate('FDash', { screen: 'FChat' });
+            try { navigation.navigate('FDash', { screen: 'FChat' }); } catch (_) { try { navigation.navigate('FChat'); } catch (__) {} }
           } else if (role.includes('principal')) {
-            navigation.navigate('PrincipalDash', { screen: 'PrincipalChats' });
+            try { navigation.navigate('PrincipalDash', { screen: 'PrincipalChats' }); } catch (_) { try { navigation.navigate('PrincipalChats'); } catch (__) {} }
           } else if (role.includes('vice president') || role === 'vpe') {
-            navigation.navigate('VPEDash', { screen: 'VPEChats' });
+            try { navigation.navigate('VPEDash', { screen: 'VPEChats' }); } catch (_) { try { navigation.navigate('VPEChats'); } catch (__) {} }
           } else {
             // default student
-            navigation.navigate('SDash', { screen: 'SChat' });
+            try { navigation.navigate('SDash', { screen: 'SChat' }); } catch (_) { try { navigation.navigate('SChat'); } catch (__) {} }
           }
           break;
         case 'activity':
@@ -98,34 +101,35 @@ export default function NotificationCenter({ visible, onClose }) {
         case 'quiz':
           // Go to Activities in the student tab navigator by default
           if (role.includes('faculty') || role.includes('teacher')) {
-            navigation.navigate('FDash', { screen: 'FActs' });
+            try { navigation.navigate('FDash', { screen: 'FActs' }); } catch (_) { try { navigation.navigate('FActs'); } catch (__) {} }
           } else {
-            navigation.navigate('SDash', { screen: 'SActs' });
+            try { navigation.navigate('SDash', { screen: 'SActs' }); } catch (_) { try { navigation.navigate('SActs'); } catch (__) {} }
           }
           break;
         case 'announcement':
           // For students, previously announcements are shown via SReq or appropriate tab
           if (role.includes('principal')) {
-            navigation.navigate('PrincipalDash', { screen: 'PrincipalAnnouncements' });
+            try { navigation.navigate('PrincipalDash', { screen: 'PrincipalAnnouncements' }); } catch (_) { try { navigation.navigate('PrincipalAnnouncements'); } catch (__) {} }
           } else if (role.includes('vice president') || role === 'vpe') {
-            navigation.navigate('VPEDash', { screen: 'VPEAnnouncements' });
+            try { navigation.navigate('VPEDash', { screen: 'VPEAnnouncements' }); } catch (_) { try { navigation.navigate('VPEAnnouncements'); } catch (__) {} }
           } else {
             // Keep existing student behavior
-            navigation.navigate('SReq');
+            try { navigation.navigate('SReq'); } catch (_) {}
           }
           break;
         default:
           // Fallback to dashboard
           if (role.includes('faculty') || role.includes('teacher')) {
-            navigation.navigate('FDash');
+            try { navigation.navigate('FDash'); } catch (_) {}
           } else if (role.includes('principal')) {
-            navigation.navigate('PrincipalDash');
+            try { navigation.navigate('PrincipalDash'); } catch (_) {}
           } else if (role.includes('vice president') || role === 'vpe') {
-            navigation.navigate('VPEDash');
+            try { navigation.navigate('VPEDash'); } catch (_) {}
           } else {
-            navigation.navigate('SDash');
+            try { navigation.navigate('SDash'); } catch (_) {}
           }
-      }
+        }
+      }, 0);
       onClose && onClose();
     } catch (e) {
       console.log('handleNotificationPress error:', e);
