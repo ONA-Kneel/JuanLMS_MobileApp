@@ -42,32 +42,21 @@ export default function StudentDashboard() {
       const token = await AsyncStorage.getItem('jwtToken');
       
       // Get the current active academic year and term directly from web backend
-      let activeYear = '2025-2026';
-      let activeTerm = 'Term 1';
-      
       try {
-        // Get active school year
-        const yearRes = await fetch(`https://juanlms-webapp-server.onrender.com/api/schoolyears/active`);
-        if (yearRes.ok) {
-          const year = await yearRes.json();
-          const schoolYearName = `${year.schoolYearStart}-${year.schoolYearEnd}`;
-          activeYear = schoolYearName;
-          console.log('Active school year:', activeYear);
-          
-          // Get active term - this requires auth, so we'll use a fallback approach
-          // Since we can't get terms without auth, we'll assume Term 2 is active
-          // This matches what the web app shows
-          activeTerm = 'Term 2';
-          console.log('Using Term 2 as active term (matching web app)');
+        const academicRes = await fetch('https://juanlms-webapp-server.onrender.com/api/academic-year/active', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (academicRes.ok) {
+          const data = await academicRes.json();
+          if (data && data.success && data.academicYear) {
+            setAcademicContext(`${data.academicYear.year} | ${data.academicYear.currentTerm}`);
+            console.log('Active Academic Year:', data.academicYear.year, 'Term:', data.academicYear.currentTerm);
+          }
         }
       } catch (e) {
         console.log('Failed to fetch academic year, using defaults:', e?.message || e);
+        setAcademicContext('2025-2026 | Term 1');
       }
-
-      console.log('Active Academic Year:', activeYear, 'Term:', activeTerm);
-      
-      // Update academic context for display
-      setAcademicContext(`${activeYear} | ${activeTerm}`);
       
       // Use the web app's my-classes endpoint to get only the student's registered classes
       const response = await fetch(`https://juanlms-webapp-server.onrender.com/classes/my-classes`, {

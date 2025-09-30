@@ -47,9 +47,11 @@ export default function VPEDashboard() {
 
         if (academicResponse.ok) {
           const academicData = await academicResponse.json();
-          setAcademicYear(academicData.data.academicYear || '2025-2026');
-          setCurrentTerm(academicData.data.currentTerm || 'Term 1');
-          setAcademicContext(`${academicData.data.academicYear || '2025-2026'} | ${academicData.data.currentTerm || 'Term 1'}`);
+          if (academicData.success && academicData.academicYear) {
+            setAcademicYear(academicData.academicYear.year || '2025-2026');
+            setCurrentTerm(academicData.academicYear.currentTerm || 'Term 1');
+            setAcademicContext(`${academicData.academicYear.year || '2025-2026'} | ${academicData.academicYear.currentTerm || 'Term 1'}`);
+          }
         }
 
       } catch (error) {

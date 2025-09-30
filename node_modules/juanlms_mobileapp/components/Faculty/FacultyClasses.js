@@ -26,8 +26,25 @@ export default function FacultyClasses() {
       setCurrentDateTime(new Date());
     }, 1000);
 
+    fetchAcademicContext();
     return () => clearInterval(timer);
   }, []);
+
+  // Fetch active academic year and term for header
+  const fetchAcademicContext = async () => {
+    try {
+      const token = await AsyncStorage.getItem('jwtToken');
+      const res = await fetch('https://juanlms-webapp-server.onrender.com/api/academic-year/active', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.success && data.academicYear) {
+          setAcademicContext(`${data.academicYear.year} | ${data.academicYear.currentTerm}`);
+        }
+      }
+    } catch (_) {}
+  };
 
   useEffect(() => {
     const fetchClasses = async () => {

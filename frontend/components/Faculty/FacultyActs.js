@@ -163,7 +163,24 @@ const FacultyActs = () => {
 
   useEffect(() => {
     fetchActivities();
+    fetchAcademicContext();
   }, []);
+
+  // Fetch active academic year and term for header
+  const fetchAcademicContext = async () => {
+    try {
+      const token = await AsyncStorage.getItem('jwtToken');
+      const res = await fetch('https://juanlms-webapp-server.onrender.com/api/academic-year/active', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.success && data.academicYear) {
+          setAcademicContext(`${data.academicYear.year} | ${data.academicYear.currentTerm}`);
+        }
+      }
+    } catch (_) {}
+  };
 
   // Add focus listener to refresh grading status when returning from grading submissions
   useEffect(() => {

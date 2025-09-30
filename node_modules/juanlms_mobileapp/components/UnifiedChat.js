@@ -30,8 +30,12 @@ const ALLOWED_ROLES = ['students', 'director', 'admin', 'faculty'];
 export default function UnifiedChat() {
   const navigation = useNavigation();
   const route = useRoute();
-  const { selectedUser, selectedGroup, setRecentChats } = route.params || {};
+  const { selectedUser: routeSelectedUser, selectedGroup: routeSelectedGroup, setRecentChats } = route.params || {};
   const { user, setUser } = useUser();
+  
+  // Internal state for managing selected chat (overrides route params)
+  const [selectedUser, setSelectedUser] = useState(routeSelectedUser);
+  const [selectedGroup, setSelectedGroup] = useState(routeSelectedGroup);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [groupMembers, setGroupMembers] = useState([]);
@@ -218,15 +222,15 @@ export default function UnifiedChat() {
 
     // Validate that we have a valid selectedUser for individual chat
     if (selectedUser && (!selectedUser._id || !selectedUser.firstname)) {
-      console.log('Invalid selectedUser, going back');
-      navigation.goBack();
+      console.log('Invalid selectedUser, clearing selection');
+      setSelectedUser(null);
       return;
     }
 
     // Validate that we have a valid selectedGroup for group chat
     if (selectedGroup && (!selectedGroup._id || !selectedGroup.name)) {
-      console.log('Invalid selectedGroup, going back');
-      navigation.goBack();
+      console.log('Invalid selectedGroup, clearing selection');
+      setSelectedGroup(null);
       return;
     }
 
@@ -1110,7 +1114,8 @@ export default function UnifiedChat() {
                       <TouchableOpacity
                         key={user._id}
                         onPress={() => {
-                          navigation.navigate('UnifiedChat', { selectedUser: user });
+                          setSelectedUser(user);
+                          setSelectedGroup(null);
                           setSearchQuery('');
                           setShowSearchDropdown(false);
                         }}
@@ -1227,8 +1232,14 @@ export default function UnifiedChat() {
                     <TouchableOpacity
                       key={chat._id}
                       onPress={() => chat.type === 'group'
-                        ? navigation.navigate('UnifiedChat', { selectedGroup: chat })
-                        : navigation.navigate('UnifiedChat', { selectedUser: { _id: chat._id, firstname: chat.firstname, lastname: chat.lastname, profilePicture: chat.profilePic, role: 'students' } })
+                        ? (() => {
+                            setSelectedGroup(chat);
+                            setSelectedUser(null);
+                          })()
+                        : (() => {
+                            setSelectedUser({ _id: chat._id, firstname: chat.firstname, lastname: chat.lastname, profilePicture: chat.profilePic, role: 'students' });
+                            setSelectedGroup(null);
+                          })()
                       }
                       style={{ backgroundColor: 'white', padding: 15, borderRadius: 10, marginBottom: 10, flexDirection: 'row', alignItems: 'center', elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.2, shadowRadius: 2 }}
                     >
@@ -1294,7 +1305,10 @@ export default function UnifiedChat() {
                           {matchingGroups.map(group => (
                             <TouchableOpacity
                               key={group._id}
-                              onPress={() => navigation.navigate('UnifiedChat', { selectedGroup: group })}
+                              onPress={() => {
+                                setSelectedGroup(group);
+                                setSelectedUser(null);
+                              }}
                               style={{ backgroundColor: 'white', padding: 15, borderRadius: 10, marginBottom: 10, flexDirection: 'row', alignItems: 'center', elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.2, shadowRadius: 2 }}
                             >
                               <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#00418b', marginRight: 12, justifyContent: 'center', alignItems: 'center' }}>
@@ -1321,7 +1335,10 @@ export default function UnifiedChat() {
                             return (
                               <TouchableOpacity
                                 key={user._id}
-                                onPress={() => navigation.navigate('UnifiedChat', { selectedUser: user })}
+                                onPress={() => {
+                                  setSelectedUser(user);
+                                  setSelectedGroup(null);
+                                }}
                                 style={{ 
                                   backgroundColor: isExistingChat ? '#f0f8ff' : 'white', 
                                   padding: 15, 
@@ -1385,7 +1402,10 @@ export default function UnifiedChat() {
               ).map(chat => (
                 <TouchableOpacity
                   key={chat._id}
-                  onPress={() => navigation.navigate('UnifiedChat', { selectedUser: { _id: chat._id, firstname: chat.firstname, lastname: chat.lastname, profilePicture: chat.profilePic, role: 'students' } })}
+                  onPress={() => {
+                    setSelectedUser({ _id: chat._id, firstname: chat.firstname, lastname: chat.lastname, profilePicture: chat.profilePic, role: 'students' });
+                    setSelectedGroup(null);
+                  }}
                   style={{ backgroundColor: 'white', padding: 15, borderRadius: 10, marginBottom: 10, flexDirection: 'row', alignItems: 'center', elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.2, shadowRadius: 2 }}
                 >
                   <Image source={chat.profilePic ? { uri: chat.profilePic } : require('../assets/profile-icon (2).png')} style={{ width: 40, height: 40, borderRadius: 20, marginRight: 12 }} />
@@ -1427,7 +1447,10 @@ export default function UnifiedChat() {
                       return (
                         <TouchableOpacity
                           key={u._id}
-                          onPress={() => navigation.navigate('UnifiedChat', { selectedUser: u })}
+                          onPress={() => {
+                            setSelectedUser(u);
+                            setSelectedGroup(null);
+                          }}
                           style={{ 
                             backgroundColor: isExistingChat ? '#f0f8ff' : 'white', 
                             padding: 15, 
@@ -1472,7 +1495,10 @@ export default function UnifiedChat() {
                     {list.map(u => (
                       <TouchableOpacity
                         key={u._id}
-                        onPress={() => navigation.navigate('UnifiedChat', { selectedUser: u })}
+                        onPress={() => {
+                          setSelectedUser(u);
+                          setSelectedGroup(null);
+                        }}
                         style={{ backgroundColor: 'white', padding: 15, borderRadius: 10, marginBottom: 10, flexDirection: 'row', alignItems: 'center', elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.2, shadowRadius: 2 }}
                       >
                         <Image source={u.profilePicture ? { uri: u.profilePicture } : require('../assets/profile-icon (2).png')} style={{ width: 40, height: 40, borderRadius: 20, marginRight: 12 }} />
@@ -1704,7 +1730,10 @@ export default function UnifiedChat() {
                       return (
                         <TouchableOpacity
                           key={u._id}
-                          onPress={() => navigation.navigate('UnifiedChat', { selectedUser: u })}
+                          onPress={() => {
+                            setSelectedUser(u);
+                            setSelectedGroup(null);
+                          }}
                           style={{ 
                             backgroundColor: isExistingChat ? '#f0f8ff' : isInGroup ? '#f8f9fa' : 'white', 
                             padding: 15, 
@@ -1757,7 +1786,10 @@ export default function UnifiedChat() {
       {/* Blue Header */}
       <View style={AdminChatStyle.blueHeaderBackground}>
         <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 40, paddingHorizontal: 16 }}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginRight: 12 }}>
+          <TouchableOpacity onPress={() => {
+            setSelectedUser(null);
+            setSelectedGroup(null);
+          }} style={{ marginRight: 12 }}>
             <Text style={{ fontSize: 22, color: '#fff' }}>{'<'}</Text>
           </TouchableOpacity>
           {isGroupChat ? (
