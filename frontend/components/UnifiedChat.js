@@ -14,7 +14,7 @@ import {
 } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useUser } from './UserContext';
-import io from 'socket.io-client';
+import classSocketService from '../services/classSocketService';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import AdminChatStyle from './styles/administrator/AdminChatStyle';
@@ -64,7 +64,6 @@ export default function UnifiedChat() {
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
   const [academicContext, setAcademicContext] = useState('2025-2026 | Term 1');
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
-  const socketRef = useRef(null);
   const scrollViewRef = useRef();
 
   const isGroupChat = !!selectedGroup;
@@ -200,6 +199,154 @@ export default function UnifiedChat() {
     return uri;
   };
 
+  // Socket integration for real-time messaging (similar to activities)
+  const initializeSocketForMessages = async () => {
+    try {
+      console.log('[UnifiedChat] Initializing socket for real-time messaging');
+      console.log('[UnifiedChat] User ID:', user?._id);
+      
+      if (!user || !user._id) {
+        console.error('[UnifiedChat] Cannot initialize socket - user not found');
+        return;
+      }
+
+      const socket = await classSocketService.initialize(user._id);
+      
+      if (!socket) {
+        console.error('[UnifiedChat] Socket initialization failed');
+        return;
+      }
+
+      console.log('[UnifiedChat] Socket initialized successfully');
+      
+      // Set up event listeners for message updates
+      classSocketService.addEventListener('receiveMessage', handleReceiveMessage);
+      classSocketService.addEventListener('receiveGroupMessage', handleReceiveGroupMessage);
+      
+      console.log('[UnifiedChat] All message event listeners set up');
+      
+      // Test connection
+      setTimeout(() => {
+        if (classSocketService.isSocketConnected()) {
+          console.log('[UnifiedChat] Socket connection verified - ready for real-time messaging');
+        } else {
+          console.warn('[UnifiedChat] Socket connection verification failed');
+        }
+      }, 2000);
+      
+    } catch (error) {
+      console.error('[UnifiedChat] Error initializing socket for messaging:', error);
+      console.error('[UnifiedChat] Error details:', {
+        message: error.message,
+        stack: error.stack,
+        userId: user?._id
+      });
+    }
+  };
+
+  // Socket event handlers for messages (similar to activity handlers)
+  const handleReceiveMessage = (data) => {
+    try {
+      console.log('[UnifiedChat] New message received:', data);
+      
+      if (!data || !data.senderId) {
+        console.error('[UnifiedChat] Invalid message data:', data);
+        return;
+      }
+
+      console.log('[UnifiedChat] Adding message to state:', data);
+      
+      // Update messages state immediately for real-time UI
+      setMessages(prev => {
+        const newMessages = [...prev, data];
+        console.log('[UnifiedChat] Updated messages array length:', newMessages.length);
+        return newMessages;
+      });
+
+      // Update DM messages cache
+      setDmMessages(prev => {
+        const list = prev[data.senderId] || [];
+        return { ...prev, [data.senderId]: [...list, data] };
+      });
+
+      // Update recent chats list
+      const u = allUsers.find(x => x._id === data.senderId);
+      const entry = { 
+        _id: data.senderId, 
+        firstname: u?.firstname || '', 
+        lastname: u?.lastname || '', 
+        profilePic: u?.profilePic || u?.profilePicture || null, 
+        lastMessageTime: new Date().toISOString() 
+      };
+      setRecentChatsList(prev => {
+        const filtered = prev.filter(c => c._id !== entry._id);
+        const updated = [entry, ...filtered];
+        AsyncStorage.setItem(RECENTS_KEY, JSON.stringify(updated)).catch(() => {});
+        return updated;
+      });
+
+      // Update last messages preview
+      const text = data.message ? data.message : (data.fileUrl ? 'File sent' : '');
+      setLastMessages(prev => ({ ...prev, [entry._id]: { prefix: 'You: ', text } }));
+      
+    } catch (error) {
+      console.error('[UnifiedChat] Error handling received message:', error);
+    }
+  };
+
+  const handleReceiveGroupMessage = (data) => {
+    try {
+      console.log('[UnifiedChat] New group message received:', data);
+      
+      if (!data || !data.groupId) {
+        console.error('[UnifiedChat] Invalid group message data:', data);
+        return;
+      }
+
+      console.log('[UnifiedChat] Adding group message to state:', data);
+      
+      // Stamp device time for immediate UI
+      const incoming = { ...data, createdAt: new Date().toISOString() };
+      
+      // Update messages state immediately for real-time UI
+      setMessages(prev => {
+        const newMessages = [...prev, incoming];
+        console.log('[UnifiedChat] Updated messages array length:', newMessages.length);
+        return newMessages;
+      });
+
+      // Update group messages cache
+      setGroupMsgsById(prev => ({
+        ...prev,
+        [data.groupId]: [ ...(prev[data.groupId] || []), incoming ]
+      }));
+
+      // Update user groups order (move to top)
+      setUserGroups(prev => {
+        const arr = [...prev];
+        const idx = arr.findIndex(g => g._id === data.groupId);
+        if (idx > -1) { 
+          const g = arr.splice(idx,1)[0]; 
+          return [g, ...arr]; 
+        }
+        return prev;
+      });
+
+      // Update last messages preview
+      const text = incoming.text ? incoming.text : (incoming.fileUrl ? 'File sent' : '');
+      setLastMessages(prev => ({ 
+        ...prev, 
+        [data.groupId]: { 
+          prefix: incoming.senderId === user._id ? 'You: ' : `${incoming.senderName || 'Unknown User'}: `, 
+          text 
+        } 
+      }));
+      
+    } catch (error) {
+      console.error('[UnifiedChat] Error handling received group message:', error);
+    }
+  };
+
   useEffect(() => {
     if (!user || !user._id) {
       console.log('No user found, showing loading state');
@@ -284,123 +431,28 @@ export default function UnifiedChat() {
       })();
     }
 
-    // Setup socket connection
-    if (!socketRef.current) {
-      console.log('Creating new socket connection to:', SOCKET_URL);
-      socketRef.current = io(SOCKET_URL, {
-        transports: ['websocket'],
-        reconnectionAttempts: 5,
-        timeout: 10000,
-      });
-      
-      // Add connection event listeners
-      socketRef.current.on('connect', () => {
-        console.log('Socket connected successfully');
-      });
-      
-      socketRef.current.on('disconnect', () => {
-        console.log('Socket disconnected');
-      });
-      
-      socketRef.current.on('connect_error', (error) => {
-        console.log('Socket connection error:', error);
-      });
-      
-      socketRef.current.emit('addUser', user._id);
-      console.log('Emitted addUser with userId:', user._id);
-      
-      // Test socket connection
-      socketRef.current.emit('test', 'Hello from mobile app');
-      socketRef.current.on('testResponse', (data) => {
-        console.log('Socket test response received:', data);
-      });
-    }
+    // Initialize socket service for real-time messaging
+    initializeSocketForMessages();
 
     if (isGroupChat) {
-      console.log('Setting up group chat socket events for groupId:', selectedGroup._id);
-      socketRef.current.emit('joinGroup', { userId: user._id, groupId: selectedGroup._id });
-      console.log('Emitted joinGroup with userId:', user._id, 'groupId:', selectedGroup._id);
-      
-      // Remove existing listener to avoid duplicates
-      socketRef.current.off('receiveGroupMessage');
-      
-      socketRef.current.on('receiveGroupMessage', (data) => {
-        console.log('Received group message:', data);
-        // Stamp device time for immediate UI
-        const incoming = { ...data, createdAt: new Date().toISOString() };
-        console.log('Adding group message to state:', incoming);
-        setMessages(prev => {
-          const newMessages = [...prev, incoming];
-          console.log('Updated messages array length:', newMessages.length);
-          console.log('Previous messages count:', prev.length);
-          console.log('New messages count:', newMessages.length);
-          // Force UI update
-          setTimeout(() => {
-            console.log('Forcing UI update for group message');
-          }, 100);
-          return newMessages;
-        });
-        setGroupMsgsById(prev => ({
-          ...prev,
-          [data.groupId]: [ ...(prev[data.groupId] || []), incoming ]
-        }));
-        setUserGroups(prev => {
-          const arr = [...prev];
-          const idx = arr.findIndex(g => g._id === data.groupId);
-          if (idx > -1) { const g = arr.splice(idx,1)[0]; return [g, ...arr]; }
-          return prev;
-        });
-        const text = incoming.text ? incoming.text : (incoming.fileUrl ? 'File sent' : '');
-        setLastMessages(prev => ({ ...prev, [data.groupId]: { prefix: incoming.senderId === user._id ? 'You: ' : `${incoming.senderName || 'Unknown User'}: `, text } }));
-      });
+      console.log('[UnifiedChat] Joining group chat:', selectedGroup._id);
+      classSocketService.joinGroup({ userId: user._id, groupId: selectedGroup._id });
     } else {
-      // Join chat room and listen for messages
+      // Join direct chat room
       const directChatId = [user._id, selectedUser._id].sort().join('-');
-      console.log('Setting up direct chat socket events for chatId:', directChatId);
-      socketRef.current.emit('joinChat', directChatId);
-      console.log('Emitted joinChat with chatId:', directChatId);
-      
-      // Remove existing listener to avoid duplicates
-      socketRef.current.off('receiveMessage');
-      
-      socketRef.current.on('receiveMessage', (msg) => {
-        console.log('Received direct message:', msg);
-        console.log('Adding direct message to state:', msg);
-        setMessages(prev => {
-          const newMessages = [...prev, msg];
-          console.log('Updated messages array length:', newMessages.length);
-          console.log('Previous messages count:', prev.length);
-          console.log('New messages count:', newMessages.length);
-          // Force UI update
-          setTimeout(() => {
-            console.log('Forcing UI update for direct message');
-          }, 100);
-          return newMessages;
-        });
-        setDmMessages(prev => {
-          const list = prev[msg.senderId] || [];
-          return { ...prev, [msg.senderId]: [...list, msg] };
-        });
-        const u = allUsers.find(x => x._id === msg.senderId);
-        const entry = { _id: msg.senderId, firstname: u?.firstname || '', lastname: u?.lastname || '', profilePic: u?.profilePic || u?.profilePicture || null, lastMessageTime: new Date().toISOString() };
-        setRecentChatsList(prev => {
-          const filtered = prev.filter(c => c._id !== entry._id);
-          const updated = [entry, ...filtered];
-          AsyncStorage.setItem(RECENTS_KEY, JSON.stringify(updated)).catch(() => {});
-          return updated;
-        });
-        const text = msg.message ? msg.message : (msg.fileUrl ? 'File sent' : '');
-        setLastMessages(prev => ({ ...prev, [entry._id]: { prefix: 'You: ' , text } }));
-      });
+      console.log('[UnifiedChat] Joining direct chat:', directChatId);
+      classSocketService.joinChat(directChatId);
     }
 
     return () => {
-      if (socketRef.current) {
-        if (isGroupChat) {
-          socketRef.current.off('receiveGroupMessage');
-        } else {
-          socketRef.current.off('receiveMessage');
-        }
+      // Clean up when leaving chat
+      if (isGroupChat) {
+        console.log('[UnifiedChat] Leaving group chat:', selectedGroup._id);
+        classSocketService.leaveGroup({ userId: user._id, groupId: selectedGroup._id });
+      } else if (selectedUser) {
+        const directChatId = [user._id, selectedUser._id].sort().join('-');
+        console.log('[UnifiedChat] Leaving direct chat:', directChatId);
+        classSocketService.leaveChat(directChatId);
       }
     };
   }, [selectedUser, selectedGroup, user]);
@@ -655,7 +707,7 @@ export default function UnifiedChat() {
         const sentMessage = res.data;
         
         // Emit to socket for real-time delivery
-        socketRef.current.emit('sendGroupMessage', {
+        classSocketService.sendGroupMessage({
           senderId: user._id,
           groupId: selectedGroup._id,
           text: sentMessage.message,
@@ -705,7 +757,7 @@ export default function UnifiedChat() {
         console.log('Direct message sent successfully:', res.data);
         const sentMessage = res.data;
         // Emit to socket for real-time delivery (matches mobile backend pattern)
-        socketRef.current.emit('sendMessage', {
+        classSocketService.sendMessage({
           chatId: [user._id, selectedUser._id].sort().join('-'),
           senderId: user._id,
           receiverId: selectedUser._id,
@@ -1484,33 +1536,6 @@ export default function UnifiedChat() {
                 </View>
               )}
 
-              {/* Other users (only shown when not searching) */}
-              {(searchQuery || '').trim() === '' && (() => {
-                const list = (allUsers || [])
-                  .filter(u => !individualConversations.some(c => c._id === u._id));
-                if (list.length === 0) return null;
-                return (
-                  <View style={{ marginTop: 8 }}>
-                    <Text style={{ fontWeight: 'bold', fontSize: 14, marginBottom: 8, color: '#555' }}>Other users</Text>
-                    {list.map(u => (
-                      <TouchableOpacity
-                        key={u._id}
-                        onPress={() => {
-                          setSelectedUser(u);
-                          setSelectedGroup(null);
-                        }}
-                        style={{ backgroundColor: 'white', padding: 15, borderRadius: 10, marginBottom: 10, flexDirection: 'row', alignItems: 'center', elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.2, shadowRadius: 2 }}
-                      >
-                        <Image source={u.profilePicture ? { uri: u.profilePicture } : require('../assets/profile-icon (2).png')} style={{ width: 40, height: 40, borderRadius: 20, marginRight: 12 }} />
-                        <View style={{ flex: 1 }}>
-                          <Text style={{ fontWeight: 'bold', fontSize: 16 }}>{u.firstname} {u.lastname}</Text>
-                          <Text style={{ color: '#0a7', fontSize: 12 }}>Click to start new chat</Text>
-                        </View>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                );
-              })()}
             </View>
           )}
 

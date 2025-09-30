@@ -348,6 +348,33 @@ class ClassSocketService {
       this.emitToListeners('newNotification', data);
     });
 
+    // Message events
+    this.socket.on('receiveMessage', (data) => {
+      try {
+        socketLog('info', 'CLASS_SOCKET_SERVICE', 'Message received', {
+          messageId: data?._id,
+          senderId: data?.senderId,
+          receiverId: data?.receiverId
+        });
+        this.emitToListeners('receiveMessage', data);
+      } catch (error) {
+        socketLog('error', 'CLASS_SOCKET_SERVICE', 'Error handling receiveMessage event', { error: error.message, data });
+      }
+    });
+
+    this.socket.on('receiveGroupMessage', (data) => {
+      try {
+        socketLog('info', 'CLASS_SOCKET_SERVICE', 'Group message received', {
+          messageId: data?._id,
+          groupId: data?.groupId,
+          senderId: data?.senderId
+        });
+        this.emitToListeners('receiveGroupMessage', data);
+      } catch (error) {
+        socketLog('error', 'CLASS_SOCKET_SERVICE', 'Error handling receiveGroupMessage event', { error: error.message, data });
+      }
+    });
+
     // Test events
     this.socket.on('testResponse', (data) => {
       console.log('[ClassSocketService] Test response received:', data);
@@ -475,6 +502,157 @@ class ClassSocketService {
       timestamp: new Date().toISOString(),
       userId: this.userId 
     });
+  }
+
+  // Chat management methods
+  joinChat(chatId) {
+    try {
+      if (!chatId) {
+        socketLog('error', 'CLASS_SOCKET_SERVICE', 'Cannot join chat - no chatId provided');
+        return;
+      }
+
+      if (!this.socket) {
+        socketLog('error', 'CLASS_SOCKET_SERVICE', 'Cannot join chat - socket is null');
+        return;
+      }
+
+      if (!this.isConnected) {
+        socketLog('warn', 'CLASS_SOCKET_SERVICE', `Socket not connected. Queuing join for chat ${chatId} until connected.`);
+        return;
+      }
+
+      socketLog('info', 'CLASS_SOCKET_SERVICE', `Joining chat: ${chatId}`);
+      this.socket.emit('joinChat', chatId);
+      socketLog('debug', 'CLASS_SOCKET_SERVICE', `Emitted joinChat event for chat: ${chatId}`);
+    } catch (error) {
+      socketLog('error', 'CLASS_SOCKET_SERVICE', `Error joining chat ${chatId}`, error);
+    }
+  }
+
+  leaveChat(chatId) {
+    try {
+      if (!this.socket) {
+        socketLog('warn', 'CLASS_SOCKET_SERVICE', 'Cannot leave chat - socket is null');
+        return;
+      }
+
+      if (!this.isConnected) {
+        socketLog('warn', 'CLASS_SOCKET_SERVICE', `Cannot leave chat ${chatId} - socket not connected`);
+        return;
+      }
+
+      if (!chatId) {
+        socketLog('warn', 'CLASS_SOCKET_SERVICE', 'Cannot leave chat - no chatId provided');
+        return;
+      }
+
+      socketLog('info', 'CLASS_SOCKET_SERVICE', `Leaving chat: ${chatId}`);
+      this.socket.emit('leaveChat', chatId);
+      socketLog('debug', 'CLASS_SOCKET_SERVICE', `Emitted leaveChat event for chat: ${chatId}`);
+    } catch (error) {
+      socketLog('error', 'CLASS_SOCKET_SERVICE', `Error leaving chat ${chatId}`, error);
+    }
+  }
+
+  joinGroup(groupData) {
+    try {
+      if (!groupData || !groupData.groupId) {
+        socketLog('error', 'CLASS_SOCKET_SERVICE', 'Cannot join group - invalid groupData provided');
+        return;
+      }
+
+      if (!this.socket) {
+        socketLog('error', 'CLASS_SOCKET_SERVICE', 'Cannot join group - socket is null');
+        return;
+      }
+
+      if (!this.isConnected) {
+        socketLog('warn', 'CLASS_SOCKET_SERVICE', `Socket not connected. Queuing join for group ${groupData.groupId} until connected.`);
+        return;
+      }
+
+      socketLog('info', 'CLASS_SOCKET_SERVICE', `Joining group: ${groupData.groupId}`);
+      this.socket.emit('joinGroup', groupData);
+      socketLog('debug', 'CLASS_SOCKET_SERVICE', `Emitted joinGroup event for group: ${groupData.groupId}`);
+    } catch (error) {
+      socketLog('error', 'CLASS_SOCKET_SERVICE', `Error joining group ${groupData.groupId}`, error);
+    }
+  }
+
+  leaveGroup(groupData) {
+    try {
+      if (!groupData || !groupData.groupId) {
+        socketLog('error', 'CLASS_SOCKET_SERVICE', 'Cannot leave group - invalid groupData provided');
+        return;
+      }
+
+      if (!this.socket) {
+        socketLog('warn', 'CLASS_SOCKET_SERVICE', 'Cannot leave group - socket is null');
+        return;
+      }
+
+      if (!this.isConnected) {
+        socketLog('warn', 'CLASS_SOCKET_SERVICE', `Cannot leave group ${groupData.groupId} - socket not connected`);
+        return;
+      }
+
+      socketLog('info', 'CLASS_SOCKET_SERVICE', `Leaving group: ${groupData.groupId}`);
+      this.socket.emit('leaveGroup', groupData);
+      socketLog('debug', 'CLASS_SOCKET_SERVICE', `Emitted leaveGroup event for group: ${groupData.groupId}`);
+    } catch (error) {
+      socketLog('error', 'CLASS_SOCKET_SERVICE', `Error leaving group ${groupData.groupId}`, error);
+    }
+  }
+
+  sendMessage(messageData) {
+    try {
+      if (!messageData) {
+        socketLog('error', 'CLASS_SOCKET_SERVICE', 'Cannot send message - no messageData provided');
+        return;
+      }
+
+      if (!this.socket) {
+        socketLog('error', 'CLASS_SOCKET_SERVICE', 'Cannot send message - socket is null');
+        return;
+      }
+
+      if (!this.isConnected) {
+        socketLog('warn', 'CLASS_SOCKET_SERVICE', 'Cannot send message - socket not connected');
+        return;
+      }
+
+      socketLog('info', 'CLASS_SOCKET_SERVICE', 'Sending message');
+      this.socket.emit('sendMessage', messageData);
+      socketLog('debug', 'CLASS_SOCKET_SERVICE', 'Emitted sendMessage event');
+    } catch (error) {
+      socketLog('error', 'CLASS_SOCKET_SERVICE', 'Error sending message', error);
+    }
+  }
+
+  sendGroupMessage(messageData) {
+    try {
+      if (!messageData) {
+        socketLog('error', 'CLASS_SOCKET_SERVICE', 'Cannot send group message - no messageData provided');
+        return;
+      }
+
+      if (!this.socket) {
+        socketLog('error', 'CLASS_SOCKET_SERVICE', 'Cannot send group message - socket is null');
+        return;
+      }
+
+      if (!this.isConnected) {
+        socketLog('warn', 'CLASS_SOCKET_SERVICE', 'Cannot send group message - socket not connected');
+        return;
+      }
+
+      socketLog('info', 'CLASS_SOCKET_SERVICE', 'Sending group message');
+      this.socket.emit('sendGroupMessage', messageData);
+      socketLog('debug', 'CLASS_SOCKET_SERVICE', 'Emitted sendGroupMessage event');
+    } catch (error) {
+      socketLog('error', 'CLASS_SOCKET_SERVICE', 'Error sending group message', error);
+    }
   }
 
   cleanup() {
