@@ -330,18 +330,6 @@ mongoose.connect(process.env.ATLAS_URI, {
   process.exit(1);
 });
 
-    
-
-    res.json(schoolYears);
-
-  } catch (err) {
-
-    res.status(500).json({ error: err.message });
-
-  }
-
-});
-
 
 
 // Removed duplicate hardcoded terms endpoint; proxy-based version is defined earlier
@@ -461,22 +449,6 @@ app.use('*', (req, res) => {
     url: req.originalUrl 
 
   });
-
-});
-
-
-
-const server = http.createServer(app);
-
-const io = new Server(server, {
-
-  cors: {
-
-    origin: '*',
-
-    methods: ['GET', 'POST']
-
-  }
 
 });
 
