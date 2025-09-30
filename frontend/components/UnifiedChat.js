@@ -85,11 +85,36 @@ export default function UnifiedChat() {
         });
         if (res.ok) {
           const data = await res.json();
+          console.log('Academic context response:', data);
           if (data && data.success && data.academicYear) {
             setAcademicContext(`${data.academicYear.year} | ${data.academicYear.currentTerm}`);
+          } else {
+            // Fallback: try direct schoolyear + terms approach
+            try {
+              const yearRes = await fetch(`${API_URL}/api/schoolyears/active`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+              });
+              if (yearRes.ok) {
+                const year = await yearRes.json();
+                const schoolYearName = `${year.schoolYearStart}-${year.schoolYearEnd}`;
+                const termsRes = await fetch(`${API_URL}/api/terms/schoolyear/${schoolYearName}`, {
+                  headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (termsRes.ok) {
+                  const terms = await termsRes.json();
+                  const active = Array.isArray(terms) ? terms.find(t => t.status === 'active') : null;
+                  if (active) {
+                    setAcademicContext(`${schoolYearName} | ${active.termName}`);
+                  }
+                }
+              }
+            } catch (fallbackErr) {
+              console.log('Fallback academic fetch failed:', fallbackErr);
+            }
           }
         }
-      } catch (_) {
+      } catch (err) {
+        console.log('Academic context fetch error:', err);
         // leave default on error
       }
     };
@@ -453,10 +478,24 @@ export default function UnifiedChat() {
           const msgs = dmMessages[u._id] || [];
           if (msgs.length > 0) {
             const last = msgs[msgs.length - 1];
-            list.push({ _id: u._id, firstname: u.firstname, lastname: u.lastname, profilePic: u.profilePic || u.profilePicture || null, lastMessageTime: last.createdAt || last.updatedAt });
-            const text = last.message ? last.message : (last.fileUrl ? 'File sent' : '');
-            const prefix = last.senderId === user._id ? 'You: ' : `${u.firstname || 'Unknown'} ${u.lastname || 'User'}: `;
-            setLastMessages(prev => ({ ...prev, [u._id]: { prefix, text } }));
+            
+            // Only include conversations with recent messages (within last 30 days)
+            const lastMessageDate = new Date(last.createdAt || last.updatedAt);
+            const thirtyDaysAgo = new Date();
+            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+            
+            if (lastMessageDate >= thirtyDaysAgo) {
+              list.push({ 
+                _id: u._id, 
+                firstname: u.firstname, 
+                lastname: u.lastname, 
+                profilePic: u.profilePic || u.profilePicture || null, 
+                lastMessageTime: last.createdAt || last.updatedAt 
+              });
+              const text = last.message ? last.message : (last.fileUrl ? 'File sent' : '');
+              const prefix = last.senderId === user._id ? 'You: ' : `${u.firstname || 'Unknown'} ${u.lastname || 'User'}: `;
+              setLastMessages(prev => ({ ...prev, [u._id]: { prefix, text } }));
+            }
           }
         });
         list.sort((a,b)=> new Date(b.lastMessageTime) - new Date(a.lastMessageTime));
@@ -476,7 +515,21 @@ export default function UnifiedChat() {
         if (!u) return;
         msgs.sort((a,b)=> new Date(a.createdAt||a.updatedAt) - new Date(b.createdAt||b.updatedAt));
         const last = msgs[msgs.length-1];
-        list.push({ _id: otherUserId, firstname: u.firstname, lastname: u.lastname, profilePic: u.profilePic || u.profilePicture || null, lastMessageTime: last.createdAt || last.updatedAt });
+        
+        // Only include conversations with recent messages (within last 30 days)
+        const lastMessageDate = new Date(last.createdAt || last.updatedAt);
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        
+        if (lastMessageDate >= thirtyDaysAgo) {
+          list.push({ 
+            _id: otherUserId, 
+            firstname: u.firstname, 
+            lastname: u.lastname, 
+            profilePic: u.profilePic || u.profilePicture || null, 
+            lastMessageTime: last.createdAt || last.updatedAt 
+          });
+        }
       });
       list.sort((a,b)=> new Date(b.lastMessageTime) - new Date(a.lastMessageTime));
       setRecentChatsList(list);
