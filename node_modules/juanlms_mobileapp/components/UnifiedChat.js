@@ -66,6 +66,10 @@ export default function UnifiedChat() {
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
   const scrollViewRef = useRef();
 
+  // Auto-refresh and highlight states (from web app)
+  const [highlightedChats, setHighlightedChats] = useState([]);
+  const [currentUserId, setCurrentUserId] = useState(user?._id);
+
   const isGroupChat = !!selectedGroup;
   const chatTarget = isGroupChat ? selectedGroup : selectedUser;
   const RECENTS_KEY = 'recentChats_mobile';
@@ -77,6 +81,30 @@ export default function UnifiedChat() {
 
     return () => clearInterval(timer);
   }, []);
+
+  // Load highlighted chats from storage (from web app)
+  useEffect(() => {
+    const loadHighlightedChats = async () => {
+      try {
+        const stored = await AsyncStorage.getItem('highlightedChats_mobile');
+        if (stored) {
+          setHighlightedChats(JSON.parse(stored));
+        }
+      } catch (error) {
+        console.error('Error loading highlighted chats:', error);
+      }
+    };
+    loadHighlightedChats();
+  }, []);
+
+  // Auto-refresh recent conversations (from web app)
+  useEffect(() => {
+    if (!currentUserId) return;
+    const id = setInterval(() => {
+      try { fetchRecentConversations(); } catch {}
+    }, 8000);
+    return () => clearInterval(id);
+  }, [currentUserId]);
 
   // Fetch active academic year and term for header context
   useEffect(() => {
@@ -191,6 +219,31 @@ export default function UnifiedChat() {
     });
   };
 
+  // Chat highlighting functions (from web app)
+  const addHighlightedChat = async (chatId) => {
+    try {
+      const newHighlights = [...highlightedChats, chatId];
+      setHighlightedChats(newHighlights);
+      await AsyncStorage.setItem('highlightedChats_mobile', JSON.stringify(newHighlights));
+    } catch (error) {
+      console.error('Error adding highlighted chat:', error);
+    }
+  };
+
+  const removeHighlightedChat = async (chatId) => {
+    try {
+      const newHighlights = highlightedChats.filter(id => id !== chatId);
+      setHighlightedChats(newHighlights);
+      await AsyncStorage.setItem('highlightedChats_mobile', JSON.stringify(newHighlights));
+    } catch (error) {
+      console.error('Error removing highlighted chat:', error);
+    }
+  };
+
+  const isChatHighlighted = (chatId) => {
+    return highlightedChats.includes(chatId);
+  };
+
   const resolveProfileUri = () => {
     const API_BASE = 'https://juanlms-webapp-server.onrender.com';
     const uri = user?.profilePic || user?.profilePicture;
@@ -288,6 +341,11 @@ export default function UnifiedChat() {
       // Update last messages preview
       const text = data.message ? data.message : (data.fileUrl ? 'File sent' : '');
       setLastMessages(prev => ({ ...prev, [entry._id]: { prefix: 'You: ', text } }));
+
+      // Add highlight for new message (if not from current user)
+      if (data.senderId !== user._id) {
+        addHighlightedChat(entry._id);
+      }
       
     } catch (error) {
       console.error('[UnifiedChat] Error handling received message:', error);
@@ -341,11 +399,21 @@ export default function UnifiedChat() {
           text 
         } 
       }));
+
+      // Add highlight for new group message (if not from current user)
+      if (incoming.senderId !== user._id) {
+        addHighlightedChat(data.groupId);
+      }
       
     } catch (error) {
       console.error('[UnifiedChat] Error handling received group message:', error);
     }
   };
+
+  // Update currentUserId when user changes
+  useEffect(() => {
+    setCurrentUserId(user?._id);
+  }, [user]);
 
   useEffect(() => {
     if (!user || !user._id) {
@@ -1268,17 +1336,35 @@ export default function UnifiedChat() {
                   unifiedChats.map(chat => (
                     <TouchableOpacity
                       key={chat._id}
-                      onPress={() => chat.type === 'group'
-                        ? (() => {
-                            setSelectedGroup(chat);
-                            setSelectedUser(null);
-                          })()
-                        : (() => {
-                            setSelectedUser({ _id: chat._id, firstname: chat.firstname, lastname: chat.lastname, profilePicture: chat.profilePic, role: 'students' });
-                            setSelectedGroup(null);
-                          })()
-                      }
-                      style={{ backgroundColor: 'white', padding: 15, borderRadius: 10, marginBottom: 10, flexDirection: 'row', alignItems: 'center', elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.2, shadowRadius: 2 }}
+                      onPress={() => {
+                        // Remove highlight when chat is opened
+                        if (isChatHighlighted(chat._id)) {
+                          removeHighlightedChat(chat._id);
+                        }
+                        
+                        if (chat.type === 'group') {
+                          setSelectedGroup(chat);
+                          setSelectedUser(null);
+                        } else {
+                          setSelectedUser({ _id: chat._id, firstname: chat.firstname, lastname: chat.lastname, profilePicture: chat.profilePic, role: 'students' });
+                          setSelectedGroup(null);
+                        }
+                      }}
+                      style={{ 
+                        backgroundColor: isChatHighlighted(chat._id) ? '#fff3cd' : 'white', 
+                        padding: 15, 
+                        borderRadius: 10, 
+                        marginBottom: 10, 
+                        flexDirection: 'row', 
+                        alignItems: 'center', 
+                        elevation: 2, 
+                        shadowColor: '#000', 
+                        shadowOffset: { width: 0, height: 1 }, 
+                        shadowOpacity: 0.2, 
+                        shadowRadius: 2,
+                        borderLeftWidth: isChatHighlighted(chat._id) ? 4 : 0,
+                        borderLeftColor: isChatHighlighted(chat._id) ? '#ffc107' : 'transparent'
+                      }}
                     >
                       {chat.type === 'group' ? (
                         <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#00418b', marginRight: 12, justifyContent: 'center', alignItems: 'center' }}>
@@ -1294,7 +1380,18 @@ export default function UnifiedChat() {
                         })()
                       )}
                       <View style={{ flex: 1 }}>
-                        <Text style={{ fontWeight: 'bold', fontSize: 16 }}>{chat.type === 'group' ? chat.name : `${chat.firstname} ${chat.lastname}`}</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                          <Text style={{ fontWeight: 'bold', fontSize: 16 }}>{chat.type === 'group' ? chat.name : `${chat.firstname} ${chat.lastname}`}</Text>
+                          {isChatHighlighted(chat._id) && (
+                            <View style={{ 
+                              width: 8, 
+                              height: 8, 
+                              borderRadius: 4, 
+                              backgroundColor: '#ffc107', 
+                              marginLeft: 8 
+                            }} />
+                          )}
+                        </View>
                         {!!lastMessages[chat._id] && (
                           <Text style={{ color: '#666', fontSize: 12 }} numberOfLines={1}>
                             {lastMessages[chat._id].prefix}{lastMessages[chat._id].text}
@@ -1440,14 +1537,43 @@ export default function UnifiedChat() {
                 <TouchableOpacity
                   key={chat._id}
                   onPress={() => {
+                    // Remove highlight when chat is opened
+                    if (isChatHighlighted(chat._id)) {
+                      removeHighlightedChat(chat._id);
+                    }
                     setSelectedUser({ _id: chat._id, firstname: chat.firstname, lastname: chat.lastname, profilePicture: chat.profilePic, role: 'students' });
                     setSelectedGroup(null);
                   }}
-                  style={{ backgroundColor: 'white', padding: 15, borderRadius: 10, marginBottom: 10, flexDirection: 'row', alignItems: 'center', elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.2, shadowRadius: 2 }}
+                  style={{ 
+                    backgroundColor: isChatHighlighted(chat._id) ? '#fff3cd' : 'white', 
+                    padding: 15, 
+                    borderRadius: 10, 
+                    marginBottom: 10, 
+                    flexDirection: 'row', 
+                    alignItems: 'center', 
+                    elevation: 2, 
+                    shadowColor: '#000', 
+                    shadowOffset: { width: 0, height: 1 }, 
+                    shadowOpacity: 0.2, 
+                    shadowRadius: 2,
+                    borderLeftWidth: isChatHighlighted(chat._id) ? 4 : 0,
+                    borderLeftColor: isChatHighlighted(chat._id) ? '#ffc107' : 'transparent'
+                  }}
                 >
                   <Image source={chat.profilePic ? { uri: chat.profilePic } : require('../assets/profile-icon (2).png')} style={{ width: 40, height: 40, borderRadius: 20, marginRight: 12 }} />
                   <View style={{ flex: 1 }}>
-                    <Text style={{ fontWeight: 'bold', fontSize: 16 }}>{chat.firstname} {chat.lastname}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <Text style={{ fontWeight: 'bold', fontSize: 16 }}>{chat.firstname} {chat.lastname}</Text>
+                      {isChatHighlighted(chat._id) && (
+                        <View style={{ 
+                          width: 8, 
+                          height: 8, 
+                          borderRadius: 4, 
+                          backgroundColor: '#ffc107', 
+                          marginLeft: 8 
+                        }} />
+                      )}
+                    </View>
                     {!!lastMessages[chat._id] && (
                       <Text style={{ color: '#666', fontSize: 12 }} numberOfLines={1}>
                         {lastMessages[chat._id].prefix}{lastMessages[chat._id].text}
