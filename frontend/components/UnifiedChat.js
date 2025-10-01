@@ -25,7 +25,7 @@ import { getAuthHeaders, handleApiError } from '../utils/apiUtils';
 
 const API_URL = 'https://juanlms-webapp-server.onrender.com';
 const SOCKET_URL = 'https://juanlms-webapp-server.onrender.com';
-const ALLOWED_ROLES = ['students', 'director', 'admin', 'faculty'];
+// Role restrictions removed: all roles may use direct messages
 
 export default function UnifiedChat() {
   const navigation = useNavigation();
@@ -381,18 +381,7 @@ export default function UnifiedChat() {
       return;
     }
 
-    // Validate if both users have allowed roles for individual chat
-    if (selectedUser && (
-      !ALLOWED_ROLES.includes((user?.role || '').toLowerCase()) ||
-      !ALLOWED_ROLES.includes((selectedUser?.role || '').toLowerCase())
-    )) {
-      Alert.alert(
-        "Access Denied",
-        "You cannot chat with this user due to role restrictions.",
-        [{ text: "OK", onPress: () => navigation.goBack() }]
-      );
-      return;
-    }
+    // Role restrictions removed: allow DM regardless of role
 
     console.log('Current user:', user);
     console.log('Chat target:', chatTarget);
@@ -730,11 +719,7 @@ export default function UnifiedChat() {
         return;
       }
     } else {
-      // Send individual message
-      if (!ALLOWED_ROLES.includes(user.role.toLowerCase()) || !ALLOWED_ROLES.includes(selectedUser.role.toLowerCase())) {
-        Alert.alert("Error", "You cannot send messages to this user due to role restrictions.");
-        return;
-      }
+      // Send individual message (no role restrictions)
 
       try {
         const token = await AsyncStorage.getItem('jwtToken');

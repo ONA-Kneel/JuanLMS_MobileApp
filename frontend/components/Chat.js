@@ -11,7 +11,7 @@ import { getAuthHeaders, handleApiError } from '../utils/apiUtils';
 const API_URL = 'https://juanlms-webapp-server.onrender.com';
 const SOCKET_URL = 'https://juanlms-webapp-server.onrender.com';
 
-const ALLOWED_ROLES = ['students', 'director', 'admin', 'faculty'];
+// Role restrictions removed: all roles may use direct messages
 
 export default function Chat() {
   const navigation = useNavigation();
@@ -30,14 +30,7 @@ export default function Chat() {
       return;
     }
 
-    if (!ALLOWED_ROLES.includes(user.role.toLowerCase()) || !ALLOWED_ROLES.includes(selectedUser.role.toLowerCase())) {
-      Alert.alert(
-        "Access Denied",
-        "You cannot chat with this user due to role restrictions.",
-        [{ text: "OK", onPress: () => navigation.goBack() }]
-      );
-      return;
-    }
+    // Role restrictions removed: allow DM regardless of role
 
     console.log('Current user:', user);
     console.log('Selected user:', selectedUser);
@@ -126,11 +119,7 @@ export default function Chat() {
   const handleSend = async () => {
     if (!input.trim() || !selectedUser) return;
     
-    // Validate roles before sending
-    if (!ALLOWED_ROLES.includes(user.role.toLowerCase()) || !ALLOWED_ROLES.includes(selectedUser.role.toLowerCase())) {
-      Alert.alert("Error", "You cannot send messages to this user due to role restrictions.");
-      return;
-    }
+    // No role validation required before sending
 
     // 1. Save to database first
     try {
