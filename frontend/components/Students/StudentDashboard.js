@@ -7,10 +7,16 @@ import CustomBottomNav from '../CustomBottomNav';
 import StudentDashboardStyle from '../styles/Stud/StudentDashStyle';
 import { useUser } from '../UserContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useNotifications } from '../../NotificationContext';
+import NotificationCenter from '../NotificationCenter';
+import { useAnnouncements } from '../../AnnouncementContext';
 
 export default function StudentDashboard() {
   const changeScreen = useNavigation();
   const { user } = useUser();
+  const { unreadCount } = useNotifications();
+  const { announcements, loading: loadingAnnouncements } = useAnnouncements();
+  const [showNotificationCenter, setShowNotificationCenter] = useState(false);
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
   const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -20,6 +26,18 @@ export default function StudentDashboard() {
   const [assignmentsToday, setAssignmentsToday] = useState([]);
   const [assignmentsCompletedToday, setAssignmentsCompletedToday] = useState(0);
   const [academicContext, setAcademicContext] = useState('2025-2026 | Term 1');
+
+  // Add safety check to prevent white screen
+  if (!user) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f7f9fa' }}>
+        <ActivityIndicator size="large" color="#00418b" />
+        <Text style={{ marginTop: 16, fontSize: 16, color: '#666', fontFamily: 'Poppins-Regular' }}>
+          Loading user data...
+        </Text>
+      </View>
+    );
+  }
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -31,68 +49,77 @@ export default function StudentDashboard() {
 
   useEffect(() => {
     // Fetch classes for the logged-in student
-      const fetchClasses = async () => {
-    if (!user || !user._id) return;
-    
-    setLoading(true);
-    setError(null);
-    
-    try {
-      console.log('Fetching classes for student:', user._id);
-      const token = await AsyncStorage.getItem('jwtToken');
-      
-      // Get the current active academic year and term directly from web backend
-      try {
-        const academicRes = await fetch('https://juanlms-webapp-server.onrender.com/api/academic-year/active', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (academicRes.ok) {
-          const data = await academicRes.json();
-          if (data && data.success && data.academicYear) {
-            setAcademicContext(`${data.academicYear.year} | ${data.academicYear.currentTerm}`);
-            console.log('Active Academic Year:', data.academicYear.year, 'Term:', data.academicYear.currentTerm);
-          }
-        }
-      } catch (e) {
-        console.log('Failed to fetch academic year, using defaults:', e?.message || e);
-        setAcademicContext('2025-2026 | Term 1');
+    const fetchClasses = async () => {
+      if (!user || !user._id) {
+        console.log('No user or user._id available, skipping class fetch');
+        setLoading(false);
+        return;
       }
       
-      // Use the web app's my-classes endpoint to get only the student's registered classes
-      const response = await fetch(`https://juanlms-webapp-server.onrender.com/classes/my-classes`, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      console.log('API Response from /my-classes:', data);
-      
-      // The my-classes endpoint already filters classes based on user role and membership
-      // No need for additional filtering - just set the classes directly
-      setClasses(Array.isArray(data) ? data : []);
-      console.log('Classes set for student:', Array.isArray(data) ? data.length : 0);
-      
+      setLoading(true);
       setError(null);
       
-      // No completion percentage needed for active classes
-      setCompletedClassesPercent(0);
-    } catch (error) {
-      console.error('Network error fetching classes:', error);
-      setClasses([]);
-      setCompletedClassesPercent(0);
-      setError('Network error occurred: ' + error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+      try {
+        console.log('Fetching classes for student:', user._id);
+        const token = await AsyncStorage.getItem('jwtToken');
+        
+        if (!token) {
+          console.error('No JWT token found');
+          throw new Error('Authentication token not found');
+        }
+        
+        // Get the current active academic year and term directly from web backend
+        try {
+          const academicRes = await fetch('https://juanlms-webapp-server.onrender.com/api/academic-year/active', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (academicRes.ok) {
+            const data = await academicRes.json();
+            if (data && data.success && data.academicYear) {
+              setAcademicContext(`${data.academicYear.year} | ${data.academicYear.currentTerm}`);
+              console.log('Active Academic Year:', data.academicYear.year, 'Term:', data.academicYear.currentTerm);
+            }
+          }
+        } catch (e) {
+          console.log('Failed to fetch academic year, using defaults:', e?.message || e);
+          setAcademicContext('2025-2026 | Term 1');
+        }
+        
+        // Use the web app's my-classes endpoint to get only the student's registered classes
+        const response = await fetch(`https://juanlms-webapp-server.onrender.com/classes/my-classes`, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+        });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        console.log('API Response from /my-classes:', data);
+        
+        // The my-classes endpoint already filters classes based on user role and membership
+        // No need for additional filtering - just set the classes directly
+        setClasses(Array.isArray(data) ? data : []);
+        console.log('Classes set for student:', Array.isArray(data) ? data.length : 0);
+        
+        setError(null);
+        
+        // No completion percentage needed for active classes
+        setCompletedClassesPercent(0);
+      } catch (error) {
+        console.error('Network error fetching classes:', error);
+        setClasses([]);
+        setCompletedClassesPercent(0);
+        setError('Network error occurred: ' + error.message);
+      } finally {
+        setLoading(false);
+      }
+    };
     
     fetchClasses();
   }, [user]);
@@ -110,13 +137,22 @@ export default function StudentDashboard() {
         const todayStr = `${yyyy}-${mm}-${dd}`;
         
         const token = await AsyncStorage.getItem('jwtToken');
+        if (!token) {
+          console.error('No JWT token found for assignments');
+          return;
+        }
+        
         const response = await fetch(`https://juanlms-webapp-server.onrender.com/api/student-assignments?studentID=${user._id}&date=${todayStr}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
         const data = await response.json();
         
         if (data.success) {
-          setAssignmentsToday(data.assignments);
+          setAssignmentsToday(data.assignments || []);
           setAssignmentsCompletedToday(0);
           setCompletedAssignmentsPercent(0);
         } else {
@@ -125,6 +161,7 @@ export default function StudentDashboard() {
           setCompletedAssignmentsPercent(0);
         }
       } catch (error) {
+        console.error('Error fetching assignments:', error);
         setAssignmentsToday([]);
         setAssignmentsCompletedToday(0);
         setCompletedAssignmentsPercent(0);
@@ -142,7 +179,6 @@ export default function StudentDashboard() {
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
-      second: '2-digit',
       hour12: true
     });
   };
@@ -196,21 +232,50 @@ export default function StudentDashboard() {
               <Text style={StudentDashboardStyle.headerSubtitle}>{academicContext}</Text>
              <Text style={StudentDashboardStyle.headerSubtitle2}>{formatDateTime(currentDateTime)}</Text>
           </View>
-          <TouchableOpacity onPress={() => changeScreen.navigate('SProfile')}>
-            {resolveProfileUri() ? (
-              <Image 
-                source={{ uri: resolveProfileUri() }} 
-                style={{ width: 36, height: 36, borderRadius: 18 }}
-                resizeMode="cover"
-              />
-            ) : (
-              <Image 
-                source={require('../../assets/profile-icon (2).png')} 
-                style={{ width: 36, height: 36, borderRadius: 18 }}
-                resizeMode="cover"
-              />
-            )}
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <TouchableOpacity 
+              onPress={() => setShowNotificationCenter(true)}
+              style={{ marginRight: 12, position: 'relative', opacity: 0 }}
+            >
+              <Icon name="bell" size={24} color="#00418b" />
+              {unreadCount > 0 && (
+                <View style={{
+                  position: 'absolute',
+                  top: -5,
+                  right: -5,
+                  backgroundColor: '#ff4444',
+                  borderRadius: 10,
+                  minWidth: 20,
+                  height: 20,
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}>
+                  <Text style={{
+                    color: 'white',
+                    fontSize: 12,
+                    fontFamily: 'Poppins-Bold',
+                  }}>
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => changeScreen.navigate('SProfile')}>
+              {resolveProfileUri() ? (
+                <Image 
+                  source={{ uri: resolveProfileUri() }} 
+                  style={{ width: 36, height: 36, borderRadius: 18 }}
+                  resizeMode="cover"
+                />
+              ) : (
+                <Image 
+                  source={require('../../assets/profile-icon (2).png')} 
+                  style={{ width: 36, height: 36, borderRadius: 18 }}
+                  resizeMode="cover"
+                />
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
         {/* Stats Row */}
@@ -232,6 +297,89 @@ export default function StudentDashboard() {
           <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#e0e0e0', borderRadius: 16, padding: 16, marginBottom: 16 }}>
             <Icon name="calendar" size={32} color="#00418b" />
             <Text style={{ marginLeft: 12, color: '#222', fontSize: 15, fontWeight: 'bold', fontFamily: 'Poppins-Bold' }}>You have a due assignment today</Text>
+          </View>
+        )}
+
+        {/* Announcements Preview Section */}
+        {announcements && announcements.length > 0 && (
+          <View style={{ marginBottom: 20 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <Text style={{ fontSize: 18, fontWeight: 'bold', fontFamily: 'Poppins-Bold', color: '#333' }}>Announcements</Text>
+              <TouchableOpacity
+                onPress={() => setShowNotificationCenter(true)}
+                style={{
+                  backgroundColor: '#00418b',
+                  paddingHorizontal: 12,
+                  paddingVertical: 6,
+                  borderRadius: 8
+                }}>
+                <Text style={{ color: '#fff', fontSize: 12, fontFamily: 'Poppins-Bold' }}>View All</Text>
+              </TouchableOpacity>
+            </View>
+            
+            {/* Show latest announcement */}
+            <View style={{
+              backgroundColor: '#fff',
+              borderRadius: 16,
+              padding: 16,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.1,
+              shadowRadius: 4,
+              elevation: 3,
+              borderLeftWidth: 4,
+              borderLeftColor: '#ff6b6b'
+            }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                <Icon name="bell" size={16} color="#ff6b6b" />
+                <Text style={{ 
+                  fontSize: 16, 
+                  fontWeight: 'bold', 
+                  color: '#333', 
+                  fontFamily: 'Poppins-Bold',
+                  marginLeft: 8,
+                  flex: 1
+                }}>
+                  {announcements[0].title}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => setShowNotificationCenter(true)}
+                  style={{ padding: 4 }}
+                >
+                  <Icon name="close" size={16} color="#999" />
+                </TouchableOpacity>
+              </View>
+              
+              <Text style={{ 
+                fontSize: 12, 
+                color: '#666', 
+                fontFamily: 'Poppins-Regular',
+                marginBottom: 8
+              }}>
+                {academicContext}
+              </Text>
+              
+              <Text style={{ 
+                fontSize: 14, 
+                color: '#555', 
+                fontFamily: 'Poppins-Regular',
+                lineHeight: 20
+              }} numberOfLines={3}>
+                {announcements[0].content}
+              </Text>
+              
+              {announcements[0].createdBy && (
+                <Text style={{ 
+                  fontSize: 12, 
+                  color: '#888', 
+                  fontFamily: 'Poppins-Regular',
+                  marginTop: 8,
+                  fontStyle: 'italic'
+                }}>
+                  - {announcements[0].createdBy}
+                </Text>
+              )}
+            </View>
           </View>
         )}
 
@@ -338,6 +486,12 @@ export default function StudentDashboard() {
 
 
       </ScrollView>
+      
+      {/* Notification Center */}
+      <NotificationCenter 
+        visible={showNotificationCenter} 
+        onClose={() => setShowNotificationCenter(false)} 
+      />
     </View>
   );
 } 

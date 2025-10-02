@@ -3,8 +3,13 @@ import GroupChat from '../models/GroupChat.js';
 import GroupMessage from '../models/GroupMessage.js';
 import User from '../models/User.js';
 import { sendNotificationToUsers } from '../services/fcmService.js';
+import multer from 'multer';
+import fs from 'fs';
+import path from 'path';
+import cloudinary from '../utils/cloudinary.js';
 
 const router = express.Router();
+const upload = multer({ storage: multer.memoryStorage() });
 
 // Create a new group chat
 router.post('/', async (req, res) => {
@@ -276,13 +281,19 @@ router.get('/:groupId/messages', async (req, res) => {
 });
 
 // Send a message to group
-router.post('/:groupId/messages', async (req, res) => {
+router.post('/:groupId/messages', upload.single('file'), async (req, res) => {
   try {
     const { groupId } = req.params;
-    const { senderId, message, fileUrl } = req.body;
+    const { senderId } = req.body;
+    let { message } = req.body;
 
-    if (!senderId || !message) {
-      return res.status(400).json({ error: 'Sender ID and message are required' });
+    if (!senderId) {
+      return res.status(400).json({ error: 'Sender ID is required' });
+    }
+
+    // Allow file-only messages by defaulting empty message to ''
+    if ((!message || String(message).trim() === '') && req.file) {
+      message = '';
     }
 
     // Check if user is a member of the group
@@ -295,10 +306,34 @@ router.post('/:groupId/messages', async (req, res) => {
     const sender = await User.findById(senderId);
     const senderName = sender ? `${sender.firstname} ${sender.lastname}` : 'Unknown';
 
+    let fileUrl = null;
+    if (req.file) {
+      if (!process.env.CLOUDINARY_CLOUD_NAME) {
+        const uploadDir = 'uploads/chat-attachments';
+        fs.mkdirSync(uploadDir, { recursive: true });
+        const unique = Date.now() + '-' + Math.round(Math.random() * 1e9);
+        const ext = path.extname(req.file.originalname || '') || '';
+        const filename = `group-${groupId}-${unique}${ext}`;
+        const filepath = path.join(uploadDir, filename);
+        fs.writeFileSync(filepath, req.file.buffer);
+        fileUrl = `/uploads/chat-attachments/${filename}`;
+      } else {
+        const result = await new Promise((resolve, reject) => {
+          const opts = { folder: 'juanlms/chat-attachments', resource_type: 'auto' };
+          const stream = cloudinary.uploader.upload_stream(opts, (err, r) => {
+            if (err) return reject(err);
+            resolve(r);
+          });
+          stream.end(req.file.buffer);
+        });
+        fileUrl = result.secure_url;
+      }
+    }
+
     const newMessage = new GroupMessage({
       senderId,
       groupId,
-      message,
+      message: message || '',
       fileUrl,
       senderName
     });

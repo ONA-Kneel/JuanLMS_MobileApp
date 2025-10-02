@@ -15,6 +15,9 @@ import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../UserContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useNotifications } from '../../NotificationContext';
+import NotificationCenter from '../NotificationCenter';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useTimer } from '../../TimerContext';
 import * as DocumentPicker from 'expo-document-picker';
 import StudentActsStyle from '../styles/Stud/StudentActsStyle';
@@ -404,6 +407,8 @@ function ActivityCard({ activity, onActivityPress }) {
 export default function StudentActs() {
   const navigation = useNavigation();
   const { user } = useUser();
+  const { unreadCount } = useNotifications();
+  const [showNotificationCenter, setShowNotificationCenter] = useState(false);
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -1457,21 +1462,50 @@ export default function StudentActs() {
             <Text style={styles.headerSubtitle}>{academicContext}</Text>
             <Text style={styles.headerSubtitle2}>{formatDateTime(currentDateTime)}</Text>
           </View>
-          <TouchableOpacity onPress={() => navigation.navigate('SProfile')}>
-            {resolveProfileUri() ? (
-              <Image 
-                source={{ uri: resolveProfileUri() }} 
-                style={{ width: 36, height: 36, borderRadius: 18 }}
-                resizeMode="cover"
-              />
-            ) : (
-              <Image 
-                source={require('../../assets/profile-icon (2).png')} 
-                style={{ width: 36, height: 36, borderRadius: 18 }}
-                resizeMode="cover"
-              />
-            )}
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <TouchableOpacity 
+              onPress={() => setShowNotificationCenter(true)}
+              style={{ marginRight: 12, position: 'relative', opacity: 0 }}
+            >
+              <Icon name="bell" size={24} color="#00418b" />
+              {unreadCount > 0 && (
+                <View style={{
+                  position: 'absolute',
+                  top: -5,
+                  right: -5,
+                  backgroundColor: '#ff4444',
+                  borderRadius: 10,
+                  minWidth: 20,
+                  height: 20,
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}>
+                  <Text style={{
+                    color: 'white',
+                    fontSize: 12,
+                    fontFamily: 'Poppins-Bold',
+                  }}>
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.navigate('SProfile')}>
+              {resolveProfileUri() ? (
+                <Image 
+                  source={{ uri: resolveProfileUri() }} 
+                  style={{ width: 36, height: 36, borderRadius: 18 }}
+                  resizeMode="cover"
+                />
+              ) : (
+                <Image 
+                  source={require('../../assets/profile-icon (2).png')} 
+                  style={{ width: 36, height: 36, borderRadius: 18 }}
+                  resizeMode="cover"
+                />
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
@@ -1970,6 +2004,12 @@ export default function StudentActs() {
            </View>
          </View>
        </Modal>
+       
+       {/* Notification Center */}
+       <NotificationCenter 
+         visible={showNotificationCenter} 
+         onClose={() => setShowNotificationCenter(false)} 
+       />
      </View>
    );
  }

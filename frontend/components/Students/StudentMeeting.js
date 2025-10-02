@@ -17,6 +17,8 @@ import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../UserContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import StudentDashboardStyle from '../styles/Stud/StudentDashStyle';
+import { useNotifications } from '../../NotificationContext';
+import NotificationCenter from '../NotificationCenter';
 let StreamMeetingRoomNative = null;
 let SimpleStreamMeetingRoom = null;
 if (Platform.OS !== 'web') {
@@ -31,6 +33,8 @@ const { width } = Dimensions.get('window');
 export default function StudentMeeting() {
   const navigation = useNavigation();
   const { user } = useUser();
+  const { unreadCount } = useNotifications();
+  const [showNotificationCenter, setShowNotificationCenter] = useState(false);
   const [classes, setClasses] = useState([]);
   const [selectedClass, setSelectedClass] = useState(null);
   const [meetings, setMeetings] = useState([]);
@@ -305,25 +309,53 @@ export default function StudentMeeting() {
                day: 'numeric',
                hour: '2-digit',
                minute: '2-digit',
-               second: '2-digit',
                hour12: true
              })}</Text>
           </View>
-          <TouchableOpacity onPress={() => navigation.navigate('SProfile')}>
-            {resolveProfileUri() ? (
-              <Image 
-                source={{ uri: resolveProfileUri() }} 
-                style={{ width: 36, height: 36, borderRadius: 18 }}
-                resizeMode="cover"
-              />
-            ) : (
-              <Image 
-                source={require('../../assets/profile-icon (2).png')} 
-                style={{ width: 36, height: 36, borderRadius: 18 }}
-                resizeMode="cover"
-              />
-            )}
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <TouchableOpacity 
+              onPress={() => setShowNotificationCenter(true)}
+              style={{ marginRight: 12, position: 'relative', opacity: 0 }}
+            >
+              <Icon name="bell" size={24} color="#00418b" />
+              {unreadCount > 0 && (
+                <View style={{
+                  position: 'absolute',
+                  top: -5,
+                  right: -5,
+                  backgroundColor: '#ff4444',
+                  borderRadius: 10,
+                  minWidth: 20,
+                  height: 20,
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}>
+                  <Text style={{
+                    color: 'white',
+                    fontSize: 12,
+                    fontFamily: 'Poppins-Bold',
+                  }}>
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.navigate('SProfile')}>
+              {resolveProfileUri() ? (
+                <Image 
+                  source={{ uri: resolveProfileUri() }} 
+                  style={{ width: 36, height: 36, borderRadius: 18 }}
+                  resizeMode="cover"
+                />
+              ) : (
+                <Image 
+                  source={require('../../assets/profile-icon (2).png')} 
+                  style={{ width: 36, height: 36, borderRadius: 18 }}
+                  resizeMode="cover"
+                />
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
@@ -459,6 +491,12 @@ export default function StudentMeeting() {
         hostUserId={'Melted_English'}
       />
     )}
+    
+    {/* Notification Center */}
+    <NotificationCenter 
+      visible={showNotificationCenter} 
+      onClose={() => setShowNotificationCenter(false)} 
+    />
     </>
   );
 }

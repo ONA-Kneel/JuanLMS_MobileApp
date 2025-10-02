@@ -289,7 +289,22 @@ export default function Chat() {
                 <Text style={{ color: isMe ? '#fff' : '#222', fontWeight: '500', marginBottom: 2 }}>
                   {isMe ? 'You' : selectedUser.firstname}
                 </Text>
-                <Text style={{ color: isMe ? '#fff' : '#222' }}>{msg.message}</Text>
+                {msg.message ? (
+                  <Text style={{ color: isMe ? '#fff' : '#222' }}>{msg.message}</Text>
+                ) : null}
+                {msg.fileUrl ? (
+                  <TouchableOpacity onPress={() => {
+                    try {
+                      const url = String(msg.fileUrl).startsWith('http') ? msg.fileUrl : `${API_URL.replace(/\/$/, '')}/${String(msg.fileUrl).replace(/^\//, '')}`;
+                      const Linking = require('react-native').Linking;
+                      Linking.openURL(url);
+                    } catch {}
+                  }}>
+                    <Text style={{ color: isMe ? '#d1eaff' : '#666', fontSize: 12, marginTop: msg.message ? 6 : 0 }}>
+                      📎 {String(msg.fileUrl).split('/').pop()}
+                    </Text>
+                  </TouchableOpacity>
+                ) : null}
                 <Text style={{ color: isMe ? '#d1eaff' : '#888', fontSize: 10, alignSelf: 'flex-end', marginTop: 4 }}>
                   {msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString() : ''}
                 </Text>

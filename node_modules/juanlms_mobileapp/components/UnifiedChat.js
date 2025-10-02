@@ -56,7 +56,7 @@ export default function UnifiedChat() {
   const [groupMsgsById, setGroupMsgsById] = useState({}); // per-group messages cache
   const [lastMessages, setLastMessages] = useState({}); // preview text per chat/group
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState('groups'); // 'groups', 'create', 'join'
+  const [activeTab, setActiveTab] = useState('chats'); // 'chats', 'create', 'join'
   const [isLoading, setIsLoading] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
   
@@ -801,25 +801,25 @@ export default function UnifiedChat() {
           setInput('');
           setSelectedFile(null);
         } else {
-          const res = await axios.post(`${API_URL}/group-chats/${selectedGroup._id}/messages`, {
-            senderId: user._id,
-            message: input,
+        const res = await axios.post(`${API_URL}/group-chats/${selectedGroup._id}/messages`, {
+          senderId: user._id,
+          message: input,
             fileUrl: null
           }, { headers: { 'Content-Type': 'application/json' } });
-          const sentMessage = res.data;
-          classSocketService.sendGroupMessage({
-            senderId: user._id,
-            groupId: selectedGroup._id,
-            text: sentMessage.message,
-            fileUrl: sentMessage.fileUrl || null,
-            senderName: `${user.firstname} ${user.lastname}`,
-          });
-          setMessages(prev => [...prev, sentMessage]);
-          setGroupMsgsById(prev => ({ ...prev, [selectedGroup._id]: [ ...(prev[selectedGroup._id] || []), sentMessage ] }));
-          const text = sentMessage.message ? sentMessage.message : (sentMessage.fileUrl ? 'File sent' : '');
-          setLastMessages(prev => ({ ...prev, [selectedGroup._id]: { prefix: 'You: ', text } }));
+        const sentMessage = res.data;
+        classSocketService.sendGroupMessage({
+          senderId: user._id,
+          groupId: selectedGroup._id,
+          text: sentMessage.message,
+          fileUrl: sentMessage.fileUrl || null,
+          senderName: `${user.firstname} ${user.lastname}`,
+        });
+        setMessages(prev => [...prev, sentMessage]);
+        setGroupMsgsById(prev => ({ ...prev, [selectedGroup._id]: [ ...(prev[selectedGroup._id] || []), sentMessage ] }));
+        const text = sentMessage.message ? sentMessage.message : (sentMessage.fileUrl ? 'File sent' : '');
+        setLastMessages(prev => ({ ...prev, [selectedGroup._id]: { prefix: 'You: ', text } }));
           setInput('');
-          setSelectedFile(null);
+        setSelectedFile(null);
         }
       } catch (err) {
         console.log('Error saving group message:', err);
@@ -831,8 +831,8 @@ export default function UnifiedChat() {
     } else {
       try {
         if (selectedFile) {
-          const token = await AsyncStorage.getItem('jwtToken');
-          const headers = { 'Authorization': `Bearer ${token}` };
+        const token = await AsyncStorage.getItem('jwtToken');
+        const headers = { 'Authorization': `Bearer ${token}` };
           const form = new FormData();
           form.append('senderId', user._id);
           form.append('receiverId', selectedUser._id);
@@ -865,36 +865,36 @@ export default function UnifiedChat() {
         } else {
           const token = await AsyncStorage.getItem('jwtToken');
           const headers = { 'Authorization': `Bearer ${token}` };
-          const res = await axios.post(`${API_URL}/messages`, {
-            senderId: user._id,
-            receiverId: selectedUser._id,
-            message: input
-          }, {
-            headers: { 
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json'
-            }
-          });
-          const sentMessage = res.data;
-          classSocketService.sendMessage({
-            chatId: [user._id, selectedUser._id].sort().join('-'),
-            senderId: user._id,
-            receiverId: selectedUser._id,
-            message: sentMessage.message,
-            timestamp: sentMessage.timestamp || new Date(),
-          });
-          setMessages(prev => [...prev, sentMessage]);
+        const res = await axios.post(`${API_URL}/messages`, {
+          senderId: user._id,
+          receiverId: selectedUser._id,
+          message: input
+        }, {
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        const sentMessage = res.data;
+        classSocketService.sendMessage({
+          chatId: [user._id, selectedUser._id].sort().join('-'),
+          senderId: user._id,
+          receiverId: selectedUser._id,
+          message: sentMessage.message,
+          timestamp: sentMessage.timestamp || new Date(),
+        });
+        setMessages(prev => [...prev, sentMessage]);
           setInput('');
-          setSelectedFile(null);
-          const entry = { _id: selectedUser._id, firstname: selectedUser.firstname, lastname: selectedUser.lastname, profilePic: selectedUser.profilePicture || null, lastMessageTime: sentMessage.createdAt || sentMessage.updatedAt || new Date().toISOString() };
-          setRecentChatsList(prev => {
-            const filtered = prev.filter(c => c._id !== entry._id);
-            const updated = [entry, ...filtered];
-            AsyncStorage.setItem(RECENTS_KEY, JSON.stringify(updated)).catch(() => {});
-            return updated;
-          });
-          const text2 = sentMessage.message ? sentMessage.message : (sentMessage.fileUrl ? 'File sent' : '');
-          setLastMessages(prev => ({ ...prev, [entry._id]: { prefix: 'You: ', text: text2 } }));
+        setSelectedFile(null);
+        const entry = { _id: selectedUser._id, firstname: selectedUser.firstname, lastname: selectedUser.lastname, profilePic: selectedUser.profilePicture || null, lastMessageTime: sentMessage.createdAt || sentMessage.updatedAt || new Date().toISOString() };
+        setRecentChatsList(prev => {
+          const filtered = prev.filter(c => c._id !== entry._id);
+          const updated = [entry, ...filtered];
+          AsyncStorage.setItem(RECENTS_KEY, JSON.stringify(updated)).catch(() => {});
+          return updated;
+        });
+        const text2 = sentMessage.message ? sentMessage.message : (sentMessage.fileUrl ? 'File sent' : '');
+        setLastMessages(prev => ({ ...prev, [entry._id]: { prefix: 'You: ', text: text2 } }));
         }
       } catch (err) {
         console.log('Error saving direct message:', err);
@@ -902,7 +902,7 @@ export default function UnifiedChat() {
         console.log('Error status:', err.response?.status);
         Alert.alert('Error', `Failed to send message: ${err.response?.data?.error || err.message}`);
         return;
-      }
+       }
     }
 
     setInput('');
@@ -1303,26 +1303,15 @@ export default function UnifiedChat() {
         </View>
         <View style={{ flexDirection: 'row', paddingHorizontal: 16, marginTop: '22%'   }}>
           <TouchableOpacity 
-            onPress={() => setActiveTab('groups')}
+            onPress={() => setActiveTab('chats')}
             style={{ 
               paddingVertical: 12, 
               paddingHorizontal: 16, 
               borderBottomWidth: 2, 
-              borderBottomColor: activeTab === 'groups' ? '#00418b' : 'transparent'
+              borderBottomColor: activeTab === 'chats' ? '#00418b' : 'transparent'
             }}
           >
-            <Text style={{ color: activeTab === 'groups' ? '#00418b' : '#666', fontWeight: 'bold' }}>Groups</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            onPress={() => setActiveTab('individual')}
-            style={{ 
-              paddingVertical: 12, 
-              paddingHorizontal: 16, 
-              borderBottomWidth: 2, 
-              borderBottomColor: activeTab === 'individual' ? '#00418b' : 'transparent'
-            }}
-          >
-            <Text style={{ color: activeTab === 'individual' ? '#00418b' : '#666', fontWeight: 'bold' }}>Individual</Text>
+            <Text style={{ color: activeTab === 'chats' ? '#00418b' : '#666', fontWeight: 'bold' }}>Chats</Text>
           </TouchableOpacity>
           <TouchableOpacity 
             onPress={() => setActiveTab('create')}
@@ -1353,10 +1342,10 @@ export default function UnifiedChat() {
               <Text>Loading...</Text>
             </View>
           )}
-          {!isLoading && activeTab === 'groups' && (
+          {!isLoading && activeTab === 'chats' && (
             <View style={{ padding:20, }}>
              
-             <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 10 }}>My Groups</Text>
+             <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 10 }}>Recent Chats</Text>
               {/* Groups Tab Search */}
               <View>
               <TextInput
@@ -1551,146 +1540,6 @@ export default function UnifiedChat() {
                   );
                 })()
               )}
-            </View>
-          )}
-
-          {!isLoading && activeTab === 'individual' && (
-            <View style={{padding: 20}}>
-              <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 10 }}>Direct Messages</Text>
-              
-              {/* Individual Tab Search */}
-              <TextInput
-                placeholder="Search direct messages..."
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                style={{
-                  borderWidth: 1,
-                  borderColor: '#ccc',
-                  borderRadius: 20,
-                  paddingHorizontal: 14,
-                  paddingVertical: 10,
-                  backgroundColor: 'white',
-                  marginBottom: 15
-                }}
-              />
-              
-              {((searchQuery || '').trim() === ''
-                ? individualConversations
-                : individualConversations.filter(c => (`${c.firstname} ${c.lastname}`).toLowerCase().includes((searchQuery || '').toLowerCase()))
-              ).map(chat => (
-                <TouchableOpacity
-                  key={chat._id}
-                  onPress={() => {
-                    // Remove highlight when chat is opened
-                    if (isChatHighlighted(chat._id)) {
-                      removeHighlightedChat(chat._id);
-                    }
-                    setSelectedUser({ _id: chat._id, firstname: chat.firstname, lastname: chat.lastname, profilePicture: chat.profilePic, role: 'students' });
-                    setSelectedGroup(null);
-                  }}
-                  style={{ 
-                    backgroundColor: isChatHighlighted(chat._id) ? '#fff3cd' : 'white', 
-                    padding: 15, 
-                    borderRadius: 10, 
-                    marginBottom: 10, 
-                    flexDirection: 'row', 
-                    alignItems: 'center', 
-                    elevation: 2, 
-                    shadowColor: '#000', 
-                    shadowOffset: { width: 0, height: 1 }, 
-                    shadowOpacity: 0.2, 
-                    shadowRadius: 2,
-                    borderLeftWidth: isChatHighlighted(chat._id) ? 4 : 0,
-                    borderLeftColor: isChatHighlighted(chat._id) ? '#ffc107' : 'transparent'
-                  }}
-                >
-                  <Image source={chat.profilePic ? { uri: chat.profilePic } : require('../assets/profile-icon (2).png')} style={{ width: 40, height: 40, borderRadius: 20, marginRight: 12 }} />
-                  <View style={{ flex: 1 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                      <Text style={{ fontWeight: 'bold', fontSize: 16 }}>{chat.firstname} {chat.lastname}</Text>
-                      {isChatHighlighted(chat._id) && (
-                        <View style={{ 
-                          width: 8, 
-                          height: 8, 
-                          borderRadius: 4, 
-                          backgroundColor: '#ffc107', 
-                          marginLeft: 8 
-                        }} />
-                      )}
-                    </View>
-                    {!!lastMessages[chat._id] && (
-                      <Text style={{ color: '#666', fontSize: 12 }} numberOfLines={1}>
-                        {lastMessages[chat._id].prefix}{lastMessages[chat._id].text}
-                      </Text>
-                    )}
-                  </View>
-                </TouchableOpacity>
-              ))}
-              {((searchQuery || '').trim() !== '' && individualConversations.filter(c => (`${c.firstname} ${c.lastname}`).toLowerCase().includes((searchQuery || '').toLowerCase())).length === 0) && (
-                <Text style={{ color: '#888', textAlign: 'center', marginTop: 20 }}>No direct messages found</Text>
-              )}
-              {((searchQuery || '').trim() === '' && (individualConversations || []).length === 0) && (
-                <Text style={{ color: '#888', textAlign: 'center', marginTop: 20 }}>No direct messages yet</Text>
-              )}
-
-              {/* Search Results - Show all users when searching */}
-              {(searchQuery || '').trim() !== '' && (
-                <View style={{ marginTop: 16 }}>
-                  <Text style={{ fontWeight: 'bold', fontSize: 16, marginBottom: 10, color: '#555' }}>Search Results</Text>
-                  {(() => {
-                    const allMatchingUsers = (allUsers || [])
-                      .filter(u => (`${u.firstname} ${u.lastname}`).toLowerCase().includes((searchQuery || '').toLowerCase()));
-                    
-                    if (allMatchingUsers.length === 0) {
-                      return (
-                        <View style={{ padding: 20, alignItems: 'center' }}>
-                          <Text style={{ color: '#666', fontSize: 16 }}>No users found matching "{searchQuery}"</Text>
-                        </View>
-                      );
-                    }
-                    
-                    return allMatchingUsers.map(u => {
-                      const isExistingChat = individualConversations.some(c => c._id === u._id);
-                      return (
-                        <TouchableOpacity
-                          key={u._id}
-                          onPress={() => {
-                            setSelectedUser(u);
-                            setSelectedGroup(null);
-                          }}
-                          style={{ 
-                            backgroundColor: isExistingChat ? '#f0f8ff' : 'white', 
-                            padding: 15, 
-                            borderRadius: 10, 
-                            marginBottom: 10, 
-                            flexDirection: 'row', 
-                            alignItems: 'center', 
-                            elevation: 2, 
-                            shadowColor: '#000', 
-                            shadowOffset: { width: 0, height: 1 }, 
-                            shadowOpacity: 0.2, 
-                            shadowRadius: 2,
-                            borderLeftWidth: 4,
-                            borderLeftColor: isExistingChat ? '#00418b' : 'transparent'
-                          }}
-                        >
-                          <Image source={u.profilePicture ? { uri: u.profilePicture } : require('../assets/profile-icon (2).png')} style={{ width: 40, height: 40, borderRadius: 20, marginRight: 12 }} />
-                          <View style={{ flex: 1 }}>
-                            <Text style={{ fontWeight: 'bold', fontSize: 16 }}>{u.firstname} {u.lastname}</Text>
-                            <Text style={{ color: isExistingChat ? '#00418b' : '#0a7', fontSize: 12 }}>
-                              {isExistingChat ? 'Existing chat' : 'Click to start new chat'}
-                            </Text>
-                          </View>
-                          {isExistingChat && (
-                            <Text style={{ color: '#00418b', fontSize: 12, fontWeight: 'bold' }}>💬</Text>
-                          )}
-                        </TouchableOpacity>
-                      );
-                    });
-                  })()}
-                </View>
-              )}
-
             </View>
           )}
 
@@ -2065,7 +1914,23 @@ export default function UnifiedChat() {
                       {msg.senderName || sender?.firstname || 'Unknown'}
                     </Text>
                   )}
-                  <Text style={{ color: isMe ? '#fff' : '#222' }}>{msg.message}</Text>
+                  {msg.message ? (
+                    <Text style={{ color: isMe ? '#fff' : '#222' }}>{msg.message}</Text>
+                  ) : null}
+                  {msg.fileUrl ? (
+                    <TouchableOpacity onPress={() => {
+                      try {
+                        const url = String(msg.fileUrl).startsWith('http') ? msg.fileUrl : `${API_URL?.replace(/\/$/, '')}/${String(msg.fileUrl).replace(/^\//, '')}`;
+                        // Best effort open using Linking; no import to keep scope small
+                        const Linking = require('react-native').Linking;
+                        Linking.openURL(url);
+                      } catch {}
+                    }}>
+                      <Text style={{ color: isMe ? '#d1eaff' : '#666', fontSize: 12, marginTop: msg.message ? 6 : 0 }}>
+                        📎 {String(msg.fileUrl).split('/').pop()}
+                      </Text>
+                    </TouchableOpacity>
+                  ) : null}
                   <Text style={{ color: isMe ? '#d1eaff' : '#888', fontSize: 10, alignSelf: 'flex-end', marginTop: 4 }}>
                     {(() => { const ts = msg.createdAt || msg.updatedAt || msg.timestamp; return ts ? new Date(ts).toLocaleTimeString() : ''; })()}
                   </Text>
@@ -2105,7 +1970,22 @@ export default function UnifiedChat() {
                   <Text style={{ color: isMe ? '#fff' : '#222', fontWeight: '500', marginBottom: 2 }}>
                     {isMe ? 'You' : selectedUser.firstname}
                   </Text>
-                  <Text style={{ color: isMe ? '#fff' : '#222' }}>{msg.message}</Text>
+                  {msg.message ? (
+                    <Text style={{ color: isMe ? '#fff' : '#222' }}>{msg.message}</Text>
+                  ) : null}
+                  {msg.fileUrl ? (
+                    <TouchableOpacity onPress={() => {
+                      try {
+                        const url = String(msg.fileUrl).startsWith('http') ? msg.fileUrl : `${API_URL?.replace(/\/$/, '')}/${String(msg.fileUrl).replace(/^\//, '')}`;
+                        const Linking = require('react-native').Linking;
+                        Linking.openURL(url);
+                      } catch {}
+                    }}>
+                      <Text style={{ color: isMe ? '#d1eaff' : '#666', fontSize: 12, marginTop: msg.message ? 6 : 0 }}>
+                        📎 {String(msg.fileUrl).split('/').pop()}
+                      </Text>
+                    </TouchableOpacity>
+                  ) : null}
                   <Text style={{ color: isMe ? '#d1eaff' : '#888', fontSize: 10, alignSelf: 'flex-end', marginTop: 4 }}>
                     {(() => { const ts = msg.createdAt || msg.updatedAt || msg.timestamp; return ts ? new Date(ts).toLocaleTimeString() : ''; })()}
                   </Text>

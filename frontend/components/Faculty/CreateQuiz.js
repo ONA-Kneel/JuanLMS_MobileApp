@@ -261,26 +261,33 @@ export default function CreateQuiz() {
         paddingBottom: 20, 
         paddingHorizontal: 20,
         borderBottomLeftRadius: 20,
-        borderBottomRightRadius: 20
+        borderBottomRightRadius: 20,
+        minHeight: 120
       }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <TouchableOpacity onPress={handleBack} style={{ padding: 8, marginRight: 16 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+          <TouchableOpacity onPress={handleBack} style={{ 
+            padding: 8, 
+            marginRight: 16,
+            marginTop: 4
+          }}>
             <Icon name="arrow-left" size={24} color="#fff" />
           </TouchableOpacity>
-          <View style={{ flex: 1 }}>
+          <View style={{ flex: 1, paddingRight: 20 }}>
             <Text style={{ 
-              fontSize: 20, 
+              fontSize: 18, 
               fontWeight: 'bold', 
               color: '#fff', 
-              fontFamily: 'Poppins-Bold'
+              fontFamily: 'Poppins-Bold',
+              lineHeight: 22
             }}>
               Create Quiz
             </Text>
             <Text style={{ 
-              fontSize: 14, 
+              fontSize: 13, 
               color: '#e3eefd', 
               fontFamily: 'Poppins-Regular',
-              marginTop: 4
+              marginTop: 4,
+              lineHeight: 16
             }}>
               {classInfo?.className || 'Class'} - {classInfo?.classCode || 'Code'}
             </Text>
@@ -288,7 +295,7 @@ export default function CreateQuiz() {
         </View>
       </View>
 
-      <ScrollView style={{ flex: 1, padding: 20 }}>
+      <ScrollView style={{ flex: 1, padding: 20, paddingTop: 10 }}>
         {/* Class Selector (when no classId passed) */}
         {!classId && (
           <View style={{ backgroundColor: '#fff', borderRadius: 16, padding: 16, marginBottom: 16 }}>

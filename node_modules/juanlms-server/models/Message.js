@@ -4,6 +4,7 @@ const messageSchema = new mongoose.Schema({
   senderId: String,
   receiverId: String,
   message: String,
+  fileUrl: { type: String, default: null },
   timestamp: { type: Date, default: Date.now },
   read: { type: Boolean, default: false }
 });

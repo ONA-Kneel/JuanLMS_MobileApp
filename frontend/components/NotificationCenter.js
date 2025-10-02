@@ -7,17 +7,27 @@ import { useNotifications } from '../NotificationContext';
 import { useNavigation } from '@react-navigation/native';
 
 export default function NotificationCenter({ visible, onClose }) {
-  const navigation = useNavigation();
-  const { announcements, acknowledgedAnnouncements, loading: loadingAnnouncements, acknowledgeAnnouncement, refreshAnnouncements } = useAnnouncements();
-  const { notifications, loading: loadingNotifications, markAsRead, markAllAsRead, refreshNotifications } = useNotifications();
-  const [refreshing, setRefreshing] = useState(false);
-  const [activeTab, setActiveTab] = useState('updates'); // 'updates' or 'announcements'
+  // Add safety check first
+  if (!visible) {
+    return null;
+  }
+
+  try {
+    const navigation = useNavigation();
+    const { announcements, acknowledgedAnnouncements, loading: loadingAnnouncements, acknowledgeAnnouncement, refreshAnnouncements } = useAnnouncements();
+    const { notifications, loading: loadingNotifications, markAsRead, markAllAsRead, refreshNotifications } = useNotifications();
+    const [refreshing, setRefreshing] = useState(false);
+    const [activeTab, setActiveTab] = useState('updates'); // 'updates' or 'announcements'
 
   React.useEffect(() => {
     if (visible) {
       // Ensure latest data when opening
-      refreshAnnouncements();
-      refreshNotifications();
+      try {
+        refreshAnnouncements();
+        refreshNotifications();
+      } catch (error) {
+        console.error('Error refreshing data in NotificationCenter:', error);
+      }
     }
   }, [visible]);
 
@@ -146,27 +156,32 @@ export default function NotificationCenter({ visible, onClose }) {
 
   // Choose items for the active tab - improved filtering logic
   const getFilteredNotifications = () => {
-    if (activeTab === 'announcements') {
-      // Show acknowledged announcements from Principal/VPE
-      console.log('Filtering announcements - Total acknowledged:', acknowledgedAnnouncements.length);
-      console.log('Acknowledged announcements data:', acknowledgedAnnouncements);
-      
-      const filtered = acknowledgedAnnouncements.filter(announcement => {
-        const role = announcement.createdBy?.role?.toLowerCase();
-        console.log('Checking announcement role:', role, 'for announcement:', announcement.title);
+    try {
+      if (activeTab === 'announcements') {
+        // Show acknowledged announcements from Principal/VPE
+        console.log('Filtering announcements - Total acknowledged:', acknowledgedAnnouncements?.length || 0);
+        console.log('Acknowledged announcements data:', acknowledgedAnnouncements);
         
-        return role === 'principal' || 
-               role === 'vice president of education' ||
-               role === 'vpe';
-      });
-      
-      console.log('Filtered announcements count:', filtered.length);
-      return filtered;
-    } else {
-      // Show all notifications in the Updates tab
-      console.log('Total notifications available:', notifications.length);
-      console.log('Notification types:', notifications.map(n => n.type));
-      return notifications;
+        const filtered = (acknowledgedAnnouncements || []).filter(announcement => {
+          const role = announcement?.createdBy?.role?.toLowerCase();
+          console.log('Checking announcement role:', role, 'for announcement:', announcement?.title);
+          
+          return role === 'principal' || 
+                 role === 'vice president of education' ||
+                 role === 'vpe';
+        });
+        
+        console.log('Filtered announcements count:', filtered.length);
+        return filtered;
+      } else {
+        // Show all notifications in the Updates tab
+        console.log('Total notifications available:', notifications?.length || 0);
+        console.log('Notification types:', notifications?.map(n => n.type) || []);
+        return notifications || [];
+      }
+    } catch (error) {
+      console.error('Error filtering notifications:', error);
+      return [];
     }
   };
 
@@ -186,6 +201,11 @@ export default function NotificationCenter({ visible, onClose }) {
   console.log('- Acknowledged announcements data:', acknowledgedAnnouncements);
   console.log('- Filtered items data:', filteredItems);
   console.log('================================');
+
+  // Add error boundary to prevent white screen
+  if (!visible) {
+    return null;
+  }
 
   return (
     <Modal visible={visible} animationType="slide" transparent={true} onRequestClose={onClose}>
@@ -341,6 +361,32 @@ export default function NotificationCenter({ visible, onClose }) {
       </View>
     </Modal>
   );
+  } catch (error) {
+    console.error('Error in NotificationCenter:', error);
+    return (
+      <Modal visible={visible} animationType="slide" transparent={true} onRequestClose={onClose}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.header}>
+              <Text style={styles.headerTitle}>Notifications</Text>
+              <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+                <Icon name="close" size={24} color="#666" />
+              </TouchableOpacity>
+            </View>
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+              <Icon name="alert-circle" size={48} color="#ff4444" />
+              <Text style={{ fontSize: 16, color: '#666', marginTop: 16, textAlign: 'center', fontFamily: 'Poppins-Regular' }}>
+                Unable to load notifications
+              </Text>
+              <Text style={{ fontSize: 14, color: '#999', marginTop: 8, textAlign: 'center', fontFamily: 'Poppins-Regular' }}>
+                Please try again later
+              </Text>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    );
+  }
 }
 
 const styles = StyleSheet.create({
