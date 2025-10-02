@@ -7,6 +7,9 @@ import { useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import moment from 'moment';
 import adminService from '../../services/adminService';
+import { useNotifications } from '../../NotificationContext';
+import NotificationCenter from '../NotificationCenter';
+import { useAnnouncements } from '../../AnnouncementContext';
 
 const { width } = Dimensions.get('window');
 
@@ -20,6 +23,9 @@ export default function AdminDashboard() {
     return uri;
   };
   const { user } = useUser();
+  const { unreadCount } = useNotifications();
+  const { announcements, loading: loadingAnnouncements } = useAnnouncements();
+  const [showNotificationCenter, setShowNotificationCenter] = useState(false);
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
   const [recentLogs, setRecentLogs] = useState([]);
      const [userStats, setUserStats] = useState({ admin: 0, faculty: 0, student: 0 });
@@ -368,21 +374,50 @@ export default function AdminDashboard() {
             <Text style={AdminDashStyle.headerSubtitle}>{academicContext}</Text>
             <Text style={AdminDashStyle.headerSubtitle2}>{formatDateTime(currentDateTime)}</Text>
           </View>
-          <TouchableOpacity onPress={() => navigateToScreen('AProfile')}>
-            {resolveProfileUri() ? (
-              <Image 
-                source={{ uri: resolveProfileUri() }} 
-                style={{ width: 36, height: 36, borderRadius: 18 }}
-                resizeMode="cover"
-              />
-            ) : (
-              <Image 
-                source={require('../../assets/profile-icon (2).png')} 
-                style={{ width: 36, height: 36, borderRadius: 18 }}
-                resizeMode="cover"
-              />
-            )}
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <TouchableOpacity 
+              onPress={() => setShowNotificationCenter(true)}
+              style={{ marginRight: 12, position: 'relative', opacity: 0 }}
+            >
+              <MaterialIcons name="notifications" size={24} color="#00418b" />
+              {unreadCount > 0 && (
+                <View style={{
+                  position: 'absolute',
+                  top: -5,
+                  right: -5,
+                  backgroundColor: '#ff4444',
+                  borderRadius: 10,
+                  minWidth: 20,
+                  height: 20,
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}>
+                  <Text style={{
+                    color: 'white',
+                    fontSize: 12,
+                    fontFamily: 'Poppins-Bold',
+                  }}>
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => navigateToScreen('AProfile')}>
+              {resolveProfileUri() ? (
+                <Image 
+                  source={{ uri: resolveProfileUri() }} 
+                  style={{ width: 36, height: 36, borderRadius: 18 }}
+                  resizeMode="cover"
+                />
+              ) : (
+                <Image 
+                  source={require('../../assets/profile-icon (2).png')} 
+                  style={{ width: 36, height: 36, borderRadius: 18 }}
+                  resizeMode="cover"
+                />
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
@@ -407,6 +442,106 @@ export default function AdminDashboard() {
           />
         }
       >
+        {/* Announcements Preview Section */}
+        {announcements && announcements.length > 0 && (
+          <View style={{ marginBottom: 20, marginHorizontal: 20 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <Text style={{ fontSize: 18, fontWeight: 'bold', fontFamily: 'Poppins-Bold', color: '#333' }}>Announcements</Text>
+              <TouchableOpacity
+                onPress={() => setShowNotificationCenter(true)}
+                style={{
+                  backgroundColor: '#00418b',
+                  paddingHorizontal: 12,
+                  paddingVertical: 6,
+                  borderRadius: 8
+                }}>
+                <Text style={{ color: '#fff', fontSize: 12, fontFamily: 'Poppins-Bold' }}>View All</Text>
+              </TouchableOpacity>
+            </View>
+            
+            {/* Show latest announcement */}
+            <View style={{
+              backgroundColor: '#fff',
+              borderRadius: 16,
+              padding: 16,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.1,
+              shadowRadius: 4,
+              elevation: 3,
+              borderLeftWidth: 4,
+              borderLeftColor: '#ff6b6b'
+            }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                <MaterialIcons name="notifications" size={16} color="#ff6b6b" />
+                <Text style={{ 
+                  fontSize: 16, 
+                  fontWeight: 'bold', 
+                  color: '#333', 
+                  fontFamily: 'Poppins-Bold',
+                  marginLeft: 8,
+                  flex: 1
+                }}>
+                  {announcements[0].title}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => setShowNotificationCenter(true)}
+                  style={{ padding: 4 }}
+                >
+                  <MaterialIcons name="close" size={16} color="#999" />
+                </TouchableOpacity>
+              </View>
+              
+              <Text style={{ 
+                fontSize: 12, 
+                color: '#666', 
+                fontFamily: 'Poppins-Regular',
+                marginBottom: 8
+              }}>
+                {academicContext}
+              </Text>
+              
+              <Text style={{ 
+                fontSize: 14, 
+                color: '#555', 
+                fontFamily: 'Poppins-Regular',
+                lineHeight: 20
+              }} numberOfLines={3}>
+                {announcements[0].body || announcements[0].content}
+              </Text>
+              
+              {announcements[0].createdBy && (
+                <Text style={{ 
+                  fontSize: 12, 
+                  color: '#888', 
+                  fontFamily: 'Poppins-Regular',
+                  marginTop: 8,
+                  fontStyle: 'italic'
+                }}>
+                  - {announcements[0].createdBy}
+                </Text>
+              )}
+            </View>
+          </View>
+        )}
+
+        {/* Debug: Show announcement count */}
+        {__DEV__ && (
+          <View style={{ backgroundColor: '#f0f0f0', padding: 10, marginBottom: 10, marginHorizontal: 20, borderRadius: 8 }}>
+            <Text style={{ fontSize: 12, color: '#666' }}>
+              Debug: Announcements count: {announcements?.length || 0}
+            </Text>
+            <Text style={{ fontSize: 12, color: '#666' }}>
+              Loading: {loadingAnnouncements ? 'Yes' : 'No'}
+            </Text>
+            {announcements && announcements.length > 0 && (
+              <Text style={{ fontSize: 12, color: '#666' }}>
+                First announcement: {announcements[0]?.title || 'No title'}
+              </Text>
+            )}
+          </View>
+        )}
+
                  {/* Summary Cards */}
          <View style={AdminDashStyle.summaryCardsContainer}>
            {/* First Row - 3 cards */}
@@ -518,6 +653,12 @@ export default function AdminDashboard() {
           </View>
         </View>
       </ScrollView>
+      
+      {/* Notification Center Modal */}
+      <NotificationCenter 
+        visible={showNotificationCenter} 
+        onClose={() => setShowNotificationCenter(false)} 
+      />
     </View>
   );
 }

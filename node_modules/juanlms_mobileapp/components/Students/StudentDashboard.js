@@ -365,7 +365,7 @@ export default function StudentDashboard() {
                 fontFamily: 'Poppins-Regular',
                 lineHeight: 20
               }} numberOfLines={3}>
-                {announcements[0].content}
+                {announcements[0].body || announcements[0].content}
               </Text>
               
               {announcements[0].createdBy && (
@@ -380,6 +380,23 @@ export default function StudentDashboard() {
                 </Text>
               )}
             </View>
+          </View>
+        )}
+
+        {/* Debug: Show announcement count */}
+        {__DEV__ && (
+          <View style={{ backgroundColor: '#f0f0f0', padding: 10, marginBottom: 10, borderRadius: 8 }}>
+            <Text style={{ fontSize: 12, color: '#666' }}>
+              Debug: Announcements count: {announcements?.length || 0}
+            </Text>
+            <Text style={{ fontSize: 12, color: '#666' }}>
+              Loading: {loadingAnnouncements ? 'Yes' : 'No'}
+            </Text>
+            {announcements && announcements.length > 0 && (
+              <Text style={{ fontSize: 12, color: '#666' }}>
+                First announcement: {announcements[0]?.title || 'No title'}
+              </Text>
+            )}
           </View>
         )}
 

@@ -5,12 +5,18 @@ import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../UserContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import moment from 'moment';
+import { useNotifications } from '../../NotificationContext';
+import NotificationCenter from '../NotificationCenter';
+import { useAnnouncements } from '../../AnnouncementContext';
 
 const { width } = Dimensions.get('window');
 
 export default function PrincipalDashboard() {
   const navigation = useNavigation();
   const { user } = useUser();
+  const { unreadCount } = useNotifications();
+  const { announcements, loading: loadingAnnouncements } = useAnnouncements();
+  const [showNotificationCenter, setShowNotificationCenter] = useState(false);
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [calendarDays, setCalendarDays] = useState([]);
@@ -205,25 +211,54 @@ export default function PrincipalDashboard() {
               {formatDateTime(currentDateTime)}
             </Text>
           </View>
-          <TouchableOpacity onPress={() => navigateToScreen('PrincipalProfile')}>
-            {(() => {
-              const API_BASE = 'https://juanlms-webapp-server.onrender.com';
-              const raw = user?.profilePic || user?.profilePicture;
-              const uri = raw && typeof raw === 'string' && raw.startsWith('/uploads/') ? (API_BASE + raw) : raw;
-              return uri ? (
-                <Image 
-                  source={{ uri }} 
-                  style={styles.profileImage}
-                  resizeMode="cover"
-                />
-              ) : (
-                <Image 
-                  source={require('../../assets/profile-icon (2).png')} 
-                  style={styles.profileImage}
-                />
-              );
-            })()}
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <TouchableOpacity 
+              onPress={() => setShowNotificationCenter(true)}
+              style={{ marginRight: 12, position: 'relative', opacity: 0 }}
+            >
+              <Icon name="bell" size={24} color="#00418b" />
+              {unreadCount > 0 && (
+                <View style={{
+                  position: 'absolute',
+                  top: -5,
+                  right: -5,
+                  backgroundColor: '#ff4444',
+                  borderRadius: 10,
+                  minWidth: 20,
+                  height: 20,
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}>
+                  <Text style={{
+                    color: 'white',
+                    fontSize: 12,
+                    fontFamily: 'Poppins-Bold',
+                  }}>
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => navigateToScreen('PrincipalProfile')}>
+              {(() => {
+                const API_BASE = 'https://juanlms-webapp-server.onrender.com';
+                const raw = user?.profilePic || user?.profilePicture;
+                const uri = raw && typeof raw === 'string' && raw.startsWith('/uploads/') ? (API_BASE + raw) : raw;
+                return uri ? (
+                  <Image 
+                    source={{ uri }} 
+                    style={styles.profileImage}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <Image 
+                    source={require('../../assets/profile-icon (2).png')} 
+                    style={styles.profileImage}
+                  />
+                );
+              })()}
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
@@ -247,6 +282,106 @@ export default function PrincipalDashboard() {
         }
         showsVerticalScrollIndicator={false}
       >
+        {/* Announcements Preview Section */}
+        {announcements && announcements.length > 0 && (
+          <View style={{ marginBottom: 20, marginHorizontal: 20 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <Text style={{ fontSize: 18, fontWeight: 'bold', fontFamily: 'Poppins-Bold', color: '#333' }}>Announcements</Text>
+              <TouchableOpacity
+                onPress={() => setShowNotificationCenter(true)}
+                style={{
+                  backgroundColor: '#00418b',
+                  paddingHorizontal: 12,
+                  paddingVertical: 6,
+                  borderRadius: 8
+                }}>
+                <Text style={{ color: '#fff', fontSize: 12, fontFamily: 'Poppins-Bold' }}>View All</Text>
+              </TouchableOpacity>
+            </View>
+            
+            {/* Show latest announcement */}
+            <View style={{
+              backgroundColor: '#fff',
+              borderRadius: 16,
+              padding: 16,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.1,
+              shadowRadius: 4,
+              elevation: 3,
+              borderLeftWidth: 4,
+              borderLeftColor: '#ff6b6b'
+            }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                <Icon name="bell" size={16} color="#ff6b6b" />
+                <Text style={{ 
+                  fontSize: 16, 
+                  fontWeight: 'bold', 
+                  color: '#333', 
+                  fontFamily: 'Poppins-Bold',
+                  marginLeft: 8,
+                  flex: 1
+                }}>
+                  {announcements[0].title}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => setShowNotificationCenter(true)}
+                  style={{ padding: 4 }}
+                >
+                  <Icon name="close" size={16} color="#999" />
+                </TouchableOpacity>
+              </View>
+              
+              <Text style={{ 
+                fontSize: 12, 
+                color: '#666', 
+                fontFamily: 'Poppins-Regular',
+                marginBottom: 8
+              }}>
+                {academicContext}
+              </Text>
+              
+              <Text style={{ 
+                fontSize: 14, 
+                color: '#555', 
+                fontFamily: 'Poppins-Regular',
+                lineHeight: 20
+              }} numberOfLines={3}>
+                {announcements[0].body || announcements[0].content}
+              </Text>
+              
+              {announcements[0].createdBy && (
+                <Text style={{ 
+                  fontSize: 12, 
+                  color: '#888', 
+                  fontFamily: 'Poppins-Regular',
+                  marginTop: 8,
+                  fontStyle: 'italic'
+                }}>
+                  - {announcements[0].createdBy}
+                </Text>
+              )}
+            </View>
+          </View>
+        )}
+
+        {/* Debug: Show announcement count */}
+        {__DEV__ && (
+          <View style={{ backgroundColor: '#f0f0f0', padding: 10, marginBottom: 10, marginHorizontal: 20, borderRadius: 8 }}>
+            <Text style={{ fontSize: 12, color: '#666' }}>
+              Debug: Announcements count: {announcements?.length || 0}
+            </Text>
+            <Text style={{ fontSize: 12, color: '#666' }}>
+              Loading: {loadingAnnouncements ? 'Yes' : 'No'}
+            </Text>
+            {announcements && announcements.length > 0 && (
+              <Text style={{ fontSize: 12, color: '#666' }}>
+                First announcement: {announcements[0]?.title || 'No title'}
+              </Text>
+            )}
+          </View>
+        )}
+
         {/* Academic Calendar Section */}
         <View style={styles.sectionContainer}>
           <Text style={styles.sectionTitle}>Academic Calendar</Text>
@@ -299,6 +434,12 @@ export default function PrincipalDashboard() {
           </View>
         </View>
       </ScrollView>
+      
+      {/* Notification Center Modal */}
+      <NotificationCenter 
+        visible={showNotificationCenter} 
+        onClose={() => setShowNotificationCenter(false)} 
+      />
     </View>
   );
 }

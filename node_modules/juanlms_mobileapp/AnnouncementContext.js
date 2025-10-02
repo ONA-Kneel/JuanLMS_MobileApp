@@ -71,7 +71,51 @@ export const AnnouncementProvider = ({ children }) => {
       if (response.ok) {
         const data = await response.json();
         console.log('Fetched announcements:', data.length);
-        setAnnouncements(data);
+        
+        // Get user role for filtering
+        const userStr = await AsyncStorage.getItem('user');
+        const user = userStr ? JSON.parse(userStr) : null;
+        const userRole = user?.role?.toLowerCase() || '';
+        
+        // Apply role-based filtering like web app
+        const filtered = (data || []).filter((announcement) => {
+          const creatorRole = (announcement?.createdBy?.role || "").toLowerCase();
+          
+          // For students: show announcements from Principal OR VPE
+          if (userRole.includes('student')) {
+            const fromPrincipal = creatorRole.includes("principal");
+            const fromVPE = creatorRole.includes("vice") && creatorRole.includes("education");
+            return fromPrincipal || fromVPE;
+          }
+          
+          // For faculty: show announcements from Principal OR VPE
+          if (userRole.includes('faculty') || userRole.includes('teacher')) {
+            const fromPrincipal = creatorRole.includes("principal");
+            const fromVPE = creatorRole.includes("vice") && creatorRole.includes("education");
+            return fromPrincipal || fromVPE;
+          }
+          
+          // For VPE: show announcements from Principal
+          if (userRole.includes('vpe') || userRole.includes('vice president')) {
+            return creatorRole.includes("principal");
+          }
+          
+          // For Principal: show announcements from VPE
+          if (userRole.includes('principal')) {
+            return creatorRole.includes("vice") && creatorRole.includes("education");
+          }
+          
+          // For Admin: show all announcements
+          if (userRole.includes('admin')) {
+            return true;
+          }
+          
+          // Default: show all
+          return true;
+        });
+        
+        console.log('Filtered announcements for role:', userRole, 'count:', filtered.length);
+        setAnnouncements(filtered);
       } else {
         console.error('Failed to fetch announcements, status:', response.status);
         setAnnouncements([]);
