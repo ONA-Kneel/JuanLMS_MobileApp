@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Image, Alert } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Image, Alert, Platform } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useUser } from './UserContext';
 import io from 'socket.io-client';
@@ -7,6 +7,8 @@ import axios from 'axios';
 import AdminChatStyle from './styles/administrator/AdminChatStyle';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getAuthHeaders, handleApiError } from '../utils/apiUtils';
+import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system';
 
 const API_URL = 'https://juanlms-webapp-server.onrender.com';
 const SOCKET_URL = 'https://juanlms-webapp-server.onrender.com';
@@ -20,6 +22,7 @@ export default function Chat() {
   const { user, setUser } = useUser();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
+  const [selectedFile, setSelectedFile] = useState(null);
   const socketRef = useRef(null);
   const scrollViewRef = useRef();
 
@@ -117,44 +120,73 @@ export default function Chat() {
   }, [selectedUser, user]);
 
   const handleSend = async () => {
-    if (!input.trim() || !selectedUser) return;
+    if (!selectedUser || (!input.trim() && !selectedFile)) return;
     
     // No role validation required before sending
 
-    // 1. Save to database first
+    const buildUploadFile = async (asset) => {
+      if (!asset) return null;
+      let uploadUri = asset.uri;
+      try {
+        if (Platform.OS === 'android' && typeof uploadUri === 'string' && uploadUri.startsWith('content://')) {
+          const targetPath = FileSystem.cacheDirectory + (asset.name || asset.fileName || 'attachment');
+          await FileSystem.copyAsync({ from: uploadUri, to: targetPath });
+          uploadUri = targetPath;
+        }
+      } catch (copyErr) {
+        if (!String(uploadUri || '').startsWith('file://')) {
+          throw new Error('Unable to process file for upload');
+        }
+      }
+      const fileName = asset.name || asset.fileName || 'attachment';
+      const mimeType = asset.mimeType || asset.type || 'application/octet-stream';
+      return { uri: uploadUri, name: fileName, type: mimeType };
+    };
+
     try {
       const token = await AsyncStorage.getItem('jwtToken');
-      console.log('Sending message with token:', token ? 'Token exists' : 'No token');
-      console.log('Token preview:', token ? token.substring(0, 20) + '...' : 'No token');
-      console.log('API URL:', `${API_URL}/messages`);
-      console.log('Payload:', { senderId: user._id, receiverId: selectedUser._id, message: input });
-      
-      const res = await axios.post(`${API_URL}/messages`, {
-        senderId: user._id,
-        receiverId: selectedUser._id,
-        message: input
-      }, {
-        headers: { 
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      console.log('Message sent successfully:', res.data);
-      const sentMessage = res.data;
-
-      // 2. Emit to socket for real-time delivery (matches mobile backend pattern)
-      socketRef.current.emit('sendMessage', {
-        chatId: [user._id, selectedUser._id].sort().join('-'),
-        senderId: user._id,
-        receiverId: selectedUser._id,
-        message: sentMessage.message,
-        timestamp: sentMessage.timestamp || new Date(),
-      });
-
-      // 3. Add to local state for instant UI feedback
-      setMessages(prev => [...prev, sentMessage]);
-      setInput('');
+      if (selectedFile) {
+        const headers = { 'Authorization': `Bearer ${token}` };
+        const form = new FormData();
+        form.append('senderId', user._id);
+        form.append('receiverId', selectedUser._id);
+        form.append('message', input || '');
+        const uploadFile = await buildUploadFile(selectedFile);
+        if (uploadFile) form.append('file', uploadFile);
+        const res = await axios.post(`${API_URL}/messages`, form, { headers: { ...headers, 'Content-Type': 'multipart/form-data' } });
+        const sentMessage = res.data;
+        socketRef.current.emit('sendMessage', {
+          chatId: [user._id, selectedUser._id].sort().join('-'),
+          senderId: user._id,
+          receiverId: selectedUser._id,
+          message: sentMessage.message,
+          timestamp: sentMessage.timestamp || new Date(),
+        });
+        setMessages(prev => [...prev, sentMessage]);
+        setInput('');
+        setSelectedFile(null);
+      } else {
+        const res = await axios.post(`${API_URL}/messages`, {
+          senderId: user._id,
+          receiverId: selectedUser._id,
+          message: input
+        }, {
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        const sentMessage = res.data;
+        socketRef.current.emit('sendMessage', {
+          chatId: [user._id, selectedUser._id].sort().join('-'),
+          senderId: user._id,
+          receiverId: selectedUser._id,
+          message: sentMessage.message,
+          timestamp: sentMessage.timestamp || new Date(),
+        });
+        setMessages(prev => [...prev, sentMessage]);
+        setInput('');
+      }
     } catch (err) {
       console.log('Error saving message:', err);
       console.log('Error response:', err.response?.data);

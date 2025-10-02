@@ -10,7 +10,8 @@ import {
   Modal,
   FlatList,
   ActivityIndicator,
-  TouchableWithoutFeedback
+  TouchableWithoutFeedback,
+  Platform
 } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useUser } from './UserContext';
@@ -20,6 +21,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import AdminChatStyle from './styles/administrator/AdminChatStyle';
 import StudentDashboardStyle from './styles/Stud/StudentDashStyle';
 import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system';
 import { getAuthHeaders, handleApiError } from '../utils/apiUtils';
 
 
@@ -744,41 +746,81 @@ export default function UnifiedChat() {
   };
 
   const handleSend = async () => {
-    if (!input.trim() || !chatTarget) return;
+    if (!chatTarget || (!input.trim() && !selectedFile)) return;
+    
+    const buildUploadFile = async (asset) => {
+      if (!asset) return null;
+      let uploadUri = asset.uri;
+      try {
+        if (Platform.OS === 'android' && typeof uploadUri === 'string' && uploadUri.startsWith('content://')) {
+          const targetPath = FileSystem.cacheDirectory + (asset.name || asset.fileName || 'attachment');
+          await FileSystem.copyAsync({ from: uploadUri, to: targetPath });
+          uploadUri = targetPath;
+        }
+      } catch (copyErr) {
+        if (!String(uploadUri || '').startsWith('file://')) {
+          throw new Error('Unable to process file for upload');
+        }
+      }
+      const fileName = asset.name || asset.fileName || 'attachment';
+      const mimeType = asset.mimeType || asset.type || 'application/octet-stream';
+      return { uri: uploadUri, name: fileName, type: mimeType };
+    };
     
     if (isGroupChat) {
-      // Send group message via mobile backend endpoint
       try {
-        console.log('Sending group message with groupId:', selectedGroup._id);
-        console.log('Payload:', { senderId: user._id, message: input });
-        
-        const res = await axios.post(`${API_URL}/group-chats/${selectedGroup._id}/messages`, {
-          senderId: user._id,
-          message: input,
-          fileUrl: null // TODO: Add file support later
-        }, {
-          headers: { 'Content-Type': 'application/json' }
-        });
-        
-        console.log('Group message sent successfully:', res.data);
-        const sentMessage = res.data;
-        
-        // Emit to socket for real-time delivery
-        classSocketService.sendGroupMessage({
-          senderId: user._id,
-          groupId: selectedGroup._id,
-          text: sentMessage.message,
-          fileUrl: sentMessage.fileUrl || null,
-          senderName: `${user.firstname} ${user.lastname}`,
-        });
-        
-        // Local append
-        setMessages(prev => [...prev, sentMessage]);
-        setGroupMsgsById(prev => ({ ...prev, [selectedGroup._id]: [ ...(prev[selectedGroup._id] || []), sentMessage ] }));
-        const text = sentMessage.message ? sentMessage.message : (sentMessage.fileUrl ? 'File sent' : '');
-        setLastMessages(prev => ({ ...prev, [selectedGroup._id]: { prefix: 'You: ', text } }));
-        setInput(''); // Clear input after sending
-        setSelectedFile(null);
+        if (selectedFile) {
+          const token = await AsyncStorage.getItem('jwtToken');
+          const headers = { 'Authorization': `Bearer ${token}` };
+          const form = new FormData();
+          form.append('groupId', selectedGroup._id);
+          form.append('senderId', user._id);
+          form.append('message', input || '');
+          const uploadFile = await buildUploadFile(selectedFile);
+          if (uploadFile) {
+            form.append('file', uploadFile);
+          }
+          let res;
+          try {
+            res = await axios.post(`${API_URL}/group-messages`, form, { headers: { ...headers, 'Content-Type': 'multipart/form-data' } });
+          } catch (primaryErr) {
+            res = await axios.post(`${API_URL}/group-chats/${selectedGroup._id}/messages`, form, { headers: { ...headers, 'Content-Type': 'multipart/form-data' } });
+          }
+          const sentMessage = res.data;
+          classSocketService.sendGroupMessage({
+            senderId: user._id,
+            groupId: selectedGroup._id,
+            text: sentMessage.message,
+            fileUrl: sentMessage.fileUrl || null,
+            senderName: `${user.firstname} ${user.lastname}`,
+          });
+          setMessages(prev => [...prev, sentMessage]);
+          setGroupMsgsById(prev => ({ ...prev, [selectedGroup._id]: [ ...(prev[selectedGroup._id] || []), sentMessage ] }));
+          const text = sentMessage.message ? sentMessage.message : (sentMessage.fileUrl ? 'File sent' : '');
+          setLastMessages(prev => ({ ...prev, [selectedGroup._id]: { prefix: 'You: ', text } }));
+          setInput('');
+          setSelectedFile(null);
+        } else {
+          const res = await axios.post(`${API_URL}/group-chats/${selectedGroup._id}/messages`, {
+            senderId: user._id,
+            message: input,
+            fileUrl: null
+          }, { headers: { 'Content-Type': 'application/json' } });
+          const sentMessage = res.data;
+          classSocketService.sendGroupMessage({
+            senderId: user._id,
+            groupId: selectedGroup._id,
+            text: sentMessage.message,
+            fileUrl: sentMessage.fileUrl || null,
+            senderName: `${user.firstname} ${user.lastname}`,
+          });
+          setMessages(prev => [...prev, sentMessage]);
+          setGroupMsgsById(prev => ({ ...prev, [selectedGroup._id]: [ ...(prev[selectedGroup._id] || []), sentMessage ] }));
+          const text = sentMessage.message ? sentMessage.message : (sentMessage.fileUrl ? 'File sent' : '');
+          setLastMessages(prev => ({ ...prev, [selectedGroup._id]: { prefix: 'You: ', text } }));
+          setInput('');
+          setSelectedFile(null);
+        }
       } catch (err) {
         console.log('Error saving group message:', err);
         console.log('Error response:', err.response?.data);
@@ -787,49 +829,73 @@ export default function UnifiedChat() {
         return;
       }
     } else {
-      // Send individual message (no role restrictions)
-
       try {
-        const token = await AsyncStorage.getItem('jwtToken');
-        const headers = { 'Authorization': `Bearer ${token}` };
-        console.log('Sending direct message with token:', token ? 'Token exists' : 'No token');
-        console.log('Token preview:', token ? token.substring(0, 20) + '...' : 'No token');
-        console.log('API URL:', `${API_URL}/messages`);
-        console.log('Payload:', { senderId: user._id, receiverId: selectedUser._id, message: input });
-        
-        const res = await axios.post(`${API_URL}/messages`, {
-          senderId: user._id,
-          receiverId: selectedUser._id,
-          message: input
-        }, {
-          headers: { 
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
+        if (selectedFile) {
+          const token = await AsyncStorage.getItem('jwtToken');
+          const headers = { 'Authorization': `Bearer ${token}` };
+          const form = new FormData();
+          form.append('senderId', user._id);
+          form.append('receiverId', selectedUser._id);
+          form.append('message', input || '');
+          const uploadFile = await buildUploadFile(selectedFile);
+          if (uploadFile) {
+            form.append('file', uploadFile);
           }
-        });
-        console.log('Direct message sent successfully:', res.data);
-        const sentMessage = res.data;
-        // Emit to socket for real-time delivery (matches mobile backend pattern)
-        classSocketService.sendMessage({
-          chatId: [user._id, selectedUser._id].sort().join('-'),
-          senderId: user._id,
-          receiverId: selectedUser._id,
-          message: sentMessage.message,
-          timestamp: sentMessage.timestamp || new Date(),
-        });
-        // Local append
-        setMessages(prev => [...prev, sentMessage]);
-        setInput(''); // Clear input after sending
-        setSelectedFile(null);
-        const entry = { _id: selectedUser._id, firstname: selectedUser.firstname, lastname: selectedUser.lastname, profilePic: selectedUser.profilePicture || null, lastMessageTime: sentMessage.createdAt || sentMessage.updatedAt || new Date().toISOString() };
-        setRecentChatsList(prev => {
-          const filtered = prev.filter(c => c._id !== entry._id);
-          const updated = [entry, ...filtered];
-          AsyncStorage.setItem(RECENTS_KEY, JSON.stringify(updated)).catch(() => {});
-          return updated;
-        });
-        const text2 = sentMessage.message ? sentMessage.message : (sentMessage.fileUrl ? 'File sent' : '');
-        setLastMessages(prev => ({ ...prev, [entry._id]: { prefix: 'You: ', text: text2 } }));
+          const res = await axios.post(`${API_URL}/messages`, form, { headers: { ...headers, 'Content-Type': 'multipart/form-data' } });
+          const sentMessage = res.data;
+          classSocketService.sendMessage({
+            chatId: [user._id, selectedUser._id].sort().join('-'),
+            senderId: user._id,
+            receiverId: selectedUser._id,
+            message: sentMessage.message,
+            timestamp: sentMessage.timestamp || new Date(),
+          });
+          setMessages(prev => [...prev, sentMessage]);
+          setInput('');
+          setSelectedFile(null);
+          const entry = { _id: selectedUser._id, firstname: selectedUser.firstname, lastname: selectedUser.lastname, profilePic: selectedUser.profilePicture || null, lastMessageTime: sentMessage.createdAt || sentMessage.updatedAt || new Date().toISOString() };
+          setRecentChatsList(prev => {
+            const filtered = prev.filter(c => c._id !== entry._id);
+            const updated = [entry, ...filtered];
+            AsyncStorage.setItem(RECENTS_KEY, JSON.stringify(updated)).catch(() => {});
+            return updated;
+          });
+          const text2 = sentMessage.message ? sentMessage.message : (sentMessage.fileUrl ? 'File sent' : '');
+          setLastMessages(prev => ({ ...prev, [entry._id]: { prefix: 'You: ', text: text2 } }));
+        } else {
+          const token = await AsyncStorage.getItem('jwtToken');
+          const headers = { 'Authorization': `Bearer ${token}` };
+          const res = await axios.post(`${API_URL}/messages`, {
+            senderId: user._id,
+            receiverId: selectedUser._id,
+            message: input
+          }, {
+            headers: { 
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          const sentMessage = res.data;
+          classSocketService.sendMessage({
+            chatId: [user._id, selectedUser._id].sort().join('-'),
+            senderId: user._id,
+            receiverId: selectedUser._id,
+            message: sentMessage.message,
+            timestamp: sentMessage.timestamp || new Date(),
+          });
+          setMessages(prev => [...prev, sentMessage]);
+          setInput('');
+          setSelectedFile(null);
+          const entry = { _id: selectedUser._id, firstname: selectedUser.firstname, lastname: selectedUser.lastname, profilePic: selectedUser.profilePicture || null, lastMessageTime: sentMessage.createdAt || sentMessage.updatedAt || new Date().toISOString() };
+          setRecentChatsList(prev => {
+            const filtered = prev.filter(c => c._id !== entry._id);
+            const updated = [entry, ...filtered];
+            AsyncStorage.setItem(RECENTS_KEY, JSON.stringify(updated)).catch(() => {});
+            return updated;
+          });
+          const text2 = sentMessage.message ? sentMessage.message : (sentMessage.fileUrl ? 'File sent' : '');
+          setLastMessages(prev => ({ ...prev, [entry._id]: { prefix: 'You: ', text: text2 } }));
+        }
       } catch (err) {
         console.log('Error saving direct message:', err);
         console.log('Error response:', err.response?.data);
@@ -837,28 +903,6 @@ export default function UnifiedChat() {
         Alert.alert('Error', `Failed to send message: ${err.response?.data?.error || err.message}`);
         return;
       }
-
-             // Update unread count in recentChats and move to top
-       if (setRecentChats && typeof setRecentChats === 'function') {
-         setRecentChats(prev => {
-           let found = false;
-           const updated = prev.map(chat => {
-             if (chat.partnerId === selectedUser._id) {
-               found = true;
-               return { ...chat, unreadCount: 0, lastMessage: msg };
-             }
-             return chat;
-           });
-           // If not found, add new chat entry
-           if (!found) {
-             updated.push({ partnerId: selectedUser._id, lastMessage: msg, unreadCount: 0 });
-           }
-           // Sort by most recent lastMessage
-           return updated.sort((a, b) =>
-             new Date(b.lastMessage.timestamp) - new Date(a.lastMessage.timestamp)
-           );
-         });
-       }
     }
 
     setInput('');
