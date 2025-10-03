@@ -84,10 +84,12 @@ export default function FacultyProfile() {
     navigation.navigate('FReq');
   };
 
+  // Add safety check to prevent white screen when user is null (during logout)
+  // This must be placed AFTER all hooks to avoid "Rendered fewer hooks than expected" error
   if (!user) {
     return (
       <View style={FacultyProfileStyle.container}>
-        <Text>Loading...</Text>
+        <Text>Redirecting to login...</Text>
       </View>
     );
   }
