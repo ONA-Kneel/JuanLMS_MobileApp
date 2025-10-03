@@ -346,7 +346,10 @@ export default function NotificationCenter({ visible, onClose }) {
                         {formatAnnouncementDate(announcement.createdAt)}
                       </Text>
                       <Text style={styles.announcementCreator}>
-                        👤 {announcement.createdBy?.firstname} {announcement.createdBy?.lastname} ({announcement.createdBy?.role})
+                        👤 {announcement.createdBy && typeof announcement.createdBy === 'object' 
+                          ? `${announcement.createdBy.firstname || ''} ${announcement.createdBy.lastname || ''} (${announcement.createdBy.role || ''})`
+                          : announcement.createdBy || 'System'
+                        }
                       </Text>
                       <Text style={styles.announcementTerm}>
                         📅 {announcement.termName} - {announcement.schoolYear}

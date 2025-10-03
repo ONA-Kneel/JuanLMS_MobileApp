@@ -425,7 +425,10 @@ export default function FacultyDashboard() {
                   marginTop: 8,
                   fontStyle: 'italic'
                 }}>
-                  - {announcements[0].createdBy}
+                  - {announcements[0].createdBy && typeof announcements[0].createdBy === 'object' 
+                    ? `${announcements[0].createdBy.firstname || ''} ${announcements[0].createdBy.lastname || ''}`
+                    : announcements[0].createdBy
+                  }
                 </Text>
               )}
             </View>
