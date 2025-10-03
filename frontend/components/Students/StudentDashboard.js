@@ -27,18 +27,6 @@ export default function StudentDashboard() {
   const [assignmentsCompletedToday, setAssignmentsCompletedToday] = useState(0);
   const [academicContext, setAcademicContext] = useState('2025-2026 | Term 1');
 
-  // Add safety check to prevent white screen
-  if (!user) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f7f9fa' }}>
-        <ActivityIndicator size="large" color="#00418b" />
-        <Text style={{ marginTop: 16, fontSize: 16, color: '#666', fontFamily: 'Poppins-Regular' }}>
-          Loading user data...
-        </Text>
-      </View>
-    );
-  }
-
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentDateTime(new Date());
@@ -170,6 +158,19 @@ export default function StudentDashboard() {
     
     fetchAssignments();
   }, [user]);
+
+  // Add safety check to prevent white screen when user is null (during logout)
+  // This must be placed AFTER all hooks to avoid "Rendered fewer hooks than expected" error
+  if (!user) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f7f9fa' }}>
+        <ActivityIndicator size="large" color="#00418b" />
+        <Text style={{ marginTop: 16, fontSize: 16, color: '#666', fontFamily: 'Poppins-Regular' }}>
+          Redirecting to login...
+        </Text>
+      </View>
+    );
+  }
 
   const formatDateTime = (date) => {
     return date.toLocaleString('en-US', {

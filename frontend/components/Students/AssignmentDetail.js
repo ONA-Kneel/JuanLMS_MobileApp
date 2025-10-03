@@ -60,6 +60,19 @@ export default function AssignmentDetail() {
     }
   }, [submissionStatus, navigation, viewMode]);
 
+  // Add safety check to prevent white screen when user is null (during logout)
+  // This must be placed AFTER all hooks to avoid "Rendered fewer hooks than expected" error
+  if (!user) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color="#00418b" />
+        <Text style={{ marginTop: 16, fontSize: 16, color: '#666' }}>
+          Redirecting to login...
+        </Text>
+      </View>
+    );
+  }
+
   const fetchAssignment = async () => {
     try {
       setLoading(true);

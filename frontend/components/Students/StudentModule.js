@@ -93,6 +93,19 @@ export default function StudentModule(){
         };
     }, [user?._id, classID]);
 
+    // Add safety check to prevent white screen when user is null (during logout)
+    // This must be placed AFTER all hooks to avoid "Rendered fewer hooks than expected" error
+    if (!user) {
+        return (
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f5f5f5' }}>
+                <ActivityIndicator size="large" color="#00418b" />
+                <Text style={{ marginTop: 16, fontSize: 16, color: '#666', fontFamily: 'Poppins-Regular' }}>
+                    Redirecting to login...
+                </Text>
+            </View>
+        );
+    }
+
     const initializeSocket = async () => {
         try {
             console.log('[StudentModule] Starting socket initialization for classID:', classID);

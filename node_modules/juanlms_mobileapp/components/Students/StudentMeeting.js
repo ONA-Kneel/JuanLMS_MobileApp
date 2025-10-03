@@ -55,6 +55,17 @@ export default function StudentMeeting() {
     fetchClasses();
   }, []);
 
+  // Add safety check to prevent white screen when user is null (during logout)
+  // This must be placed AFTER all hooks to avoid "Rendered fewer hooks than expected" error
+  if (!user) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#00418b" />
+        <Text style={styles.loadingText}>Redirecting to login...</Text>
+      </View>
+    );
+  }
+
   const fetchClasses = async () => {
     if (!user || !user._id) {
       setLoading(false);
