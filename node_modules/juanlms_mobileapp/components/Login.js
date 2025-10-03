@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Text, TouchableOpacity, View, Image, TextInput, ImageBackground, Platform } from 'react-native';
+import { Text, TouchableOpacity, View, Image, TextInput, ImageBackground, Platform, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import LoginStyle from './styles/LoginStyle';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -30,6 +30,7 @@ export default function Login() {
   const [cooldownTimer, setCooldownTimer] = useState(0);
   const [rememberClicks, setRememberClicks] = useState(0);
   const [isDisabledByRememberClicks, setIsDisabledByRememberClicks] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const navigation = useNavigation();
   const { setUserAndToken } = useUser();
   const { registerFCMTokenAfterLogin } = useNotifications();
@@ -169,6 +170,9 @@ export default function Login() {
       return;
     }
 
+    setIsLoading(true);
+    setErrorMessage('');
+
     try {
       const loginUrl = BACKEND_URL;
       const response = await fetchWithTimeout(loginUrl, {
@@ -256,12 +260,14 @@ export default function Login() {
       console.error('Auto-login error:', error);
       showToast('An error occurred while logging in. Please check your connection.', 'error');
       setErrorMessage('An error occurred while logging in. Please check your connection.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const btnLogin = async () => {
-    // Block if already disabled by prior triple-click with Remember Me
-    if (isCooldown || isDisabledByRememberClicks) {
+    // Block if already disabled by prior triple-click with Remember Me or currently loading
+    if (isCooldown || isDisabledByRememberClicks || isLoading) {
       showToast(`Please wait ${cooldownTimer} seconds before trying again.`, 'error');
       setErrorMessage(`Please wait ${cooldownTimer} seconds before trying again.`);
       return;
@@ -283,6 +289,9 @@ export default function Login() {
       setErrorMessage('Please enter both email and password.');
       return;
     }
+
+    setIsLoading(true);
+    setErrorMessage('');
 
     try {
       console.log('Attempting login with:', { 
@@ -442,6 +451,8 @@ export default function Login() {
       console.error('Login error:', error);
       showToast('An error occurred while logging in. Please check your connection.', 'error');
       setErrorMessage('An error occurred while logging in. Please check your connection.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -519,17 +530,24 @@ export default function Login() {
           onPress={btnLogin}
           style={[
             LoginStyle.loginButton,
-            (isCooldown || isDisabledByRememberClicks) && { backgroundColor: 'gray' }
+            (isCooldown || isDisabledByRememberClicks || isLoading) && { backgroundColor: 'gray' }
           ]}
-          disabled={isCooldown || isDisabledByRememberClicks}
+          disabled={isCooldown || isDisabledByRememberClicks || isLoading}
         >
-          <Text style={LoginStyle.loginButtonText}>
-            {isCooldown
-              ? `Locked (${cooldownTimer}s)`
-              : isDisabledByRememberClicks
-                ? 'Disabled'
-                : 'Login'}
-          </Text>
+          {isLoading ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+              <ActivityIndicator size="small" color="#fff" style={{ marginRight: 8 }} />
+              <Text style={LoginStyle.loginButtonText}>Connecting...</Text>
+            </View>
+          ) : (
+            <Text style={LoginStyle.loginButtonText}>
+              {isCooldown
+                ? `Locked (${cooldownTimer}s)`
+                : isDisabledByRememberClicks
+                  ? 'Disabled'
+                  : 'Login'}
+            </Text>
+          )}
         </TouchableOpacity>
       </View>
     </View>
