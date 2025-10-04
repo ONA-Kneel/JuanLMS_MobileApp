@@ -56,6 +56,8 @@ export default function UnifiedChat() {
   const [groupMsgsById, setGroupMsgsById] = useState({}); // per-group messages cache
   const [lastMessages, setLastMessages] = useState({}); // preview text per chat/group
   const [searchQuery, setSearchQuery] = useState('');
+  const [createTabSearchQuery, setCreateTabSearchQuery] = useState('');
+  const [joinTabSearchQuery, setJoinTabSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('chats'); // 'chats', 'create', 'join'
   const [isLoading, setIsLoading] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
@@ -80,6 +82,7 @@ export default function UnifiedChat() {
   const [fetchedGroupPreviewIds, setFetchedGroupPreviewIds] = useState(new Set());
   const [isLoadingGroupPreviews, setIsLoadingGroupPreviews] = useState(false);
   const [isRefreshingChats, setIsRefreshingChats] = useState(false);
+  const [isAutoRefreshing, setIsAutoRefreshing] = useState(false);
 
   const isGroupChat = !!selectedGroup;
   const chatTarget = isGroupChat ? selectedGroup : selectedUser;
@@ -111,13 +114,18 @@ export default function UnifiedChat() {
   // Auto-refresh recent conversations (from web app) - less aggressive to preserve chats
   useEffect(() => {
     if (!currentUserId) return;
-    const id = setInterval(() => {
+    const id = setInterval(async () => {
       try { 
         // Only refresh if not currently in a chat to avoid disrupting user experience
         if (!selectedUser && !selectedGroup) {
-          fetchRecentConversations(true); // preserveExisting = true
+          setIsAutoRefreshing(true);
+          await fetchRecentConversations(true); // preserveExisting = true
+          setIsAutoRefreshing(false);
         }
-      } catch {}
+      } catch (error) {
+        console.error('Auto-refresh error:', error);
+        setIsAutoRefreshing(false);
+      }
     }, 12000); // Set to 12s for balanced refresh rate
     return () => clearInterval(id);
   }, [currentUserId, selectedUser, selectedGroup]);
@@ -746,9 +754,14 @@ export default function UnifiedChat() {
       const token = await AsyncStorage.getItem('jwtToken');
       let allMsgs = [];
       
-      // Get existing chats to preserve them
+      // Get existing chats to preserve them - don't clear the list during refresh
       const existingChats = preserveExisting ? [...recentChatsList] : [];
       const existingChatIds = new Set(existingChats.map(chat => chat._id));
+      
+      // Don't clear the chat list during auto-refresh to prevent flickering
+      if (!preserveExisting) {
+        setRecentChatsList([]);
+      }
       
       try {
         const res = await axios.get(`${API_URL}/messages/user/${user._id}`, { headers: { 'Authorization': `Bearer ${token}` } });
@@ -1469,6 +1482,27 @@ export default function UnifiedChat() {
 
         {/* Search + Tabs */}
         <View style={{ backgroundColor: '#fff', paddingHorizontal: 16, paddingTop: 12 }}>
+          {/* Auto-refresh loading indicator */}
+          {isAutoRefreshing && (
+            <View style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: '#f8f9fa',
+              paddingVertical: 8,
+              paddingHorizontal: 12,
+              borderRadius: 20,
+              marginBottom: 10,
+              borderWidth: 1,
+              borderColor: '#e9ecef'
+            }}>
+              <ActivityIndicator size="small" color="#00418b" style={{ marginRight: 8 }} />
+              <Text style={{ color: '#00418b', fontSize: 12, fontWeight: '500' }}>
+                Auto-refreshing chats...
+              </Text>
+            </View>
+          )}
+          
           <TouchableWithoutFeedback onPress={() => setShowSearchDropdown(false)}>
             <View style={{ position: 'relative' }}>
             <TextInput
@@ -1628,27 +1662,43 @@ export default function UnifiedChat() {
             </View>
           )}
           {!isLoading && activeTab === 'chats' && (
-            <View style={{ padding:20, }}>
+            <View style={{ padding:20, position: 'relative' }}>
              
              <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 10 }}>Recent Chats</Text>
-              {/* Groups Tab Search */}
-              <View>
-              <TextInput
-                placeholder="Search groups and chats..."
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                style={{
-                  borderWidth: 1,
-                  borderColor: '#ccc',
-                  borderRadius: 20,
-                  paddingHorizontal: 14,
-                  paddingVertical: 10,
-                  backgroundColor: 'white',
-                  marginBottom: 15,
-                  width: '90%',
-                }}
-              />
-              </View>
+             
+             {/* Loading overlay for auto-refresh */}
+             {isAutoRefreshing && (
+               <View style={{
+                 position: 'absolute',
+                 top: 0,
+                 left: 0,
+                 right: 0,
+                 bottom: 0,
+                 backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                 zIndex: 10,
+                 justifyContent: 'center',
+                 alignItems: 'center',
+                 borderRadius: 10
+               }}>
+                 <View style={{
+                   backgroundColor: 'white',
+                   padding: 20,
+                   borderRadius: 10,
+                   flexDirection: 'row',
+                   alignItems: 'center',
+                   elevation: 5,
+                   shadowColor: '#000',
+                   shadowOffset: { width: 0, height: 2 },
+                   shadowOpacity: 0.25,
+                   shadowRadius: 3.84
+                 }}>
+                   <ActivityIndicator size="small" color="#00418b" style={{ marginRight: 12 }} />
+                   <Text style={{ color: '#00418b', fontSize: 14, fontWeight: '500' }}>
+                     Updating chat list...
+                   </Text>
+                 </View>
+               </View>
+             )}
               {(searchQuery || '').trim() === '' ? (
                 (individualChats.length > 0 || groupChats.length > 0) ? (
                   <View>
@@ -2045,8 +2095,8 @@ export default function UnifiedChat() {
               {/* Create Tab Search for Members */}
               <TextInput
                 placeholder="Search users to add..."
-                value={searchQuery}
-                onChangeText={setSearchQuery}
+                value={createTabSearchQuery}
+                onChangeText={setCreateTabSearchQuery}
                 style={{
                   borderWidth: 1,
                   borderColor: '#ccc',
@@ -2058,7 +2108,7 @@ export default function UnifiedChat() {
                 }}
               />
               
-              {(searchQuery || '').trim() === '' ? (
+              {(createTabSearchQuery || '').trim() === '' ? (
                 allUsers.map(u => (
                   <TouchableOpacity
                     key={u._id}
@@ -2088,13 +2138,13 @@ export default function UnifiedChat() {
                    // Show filtered users based on search
                    (() => {
                      const filteredUsers = allUsers.filter(u => 
-                       `${u.firstname} ${u.lastname}`.toLowerCase().includes(searchQuery.toLowerCase())
+                       `${u.firstname} ${u.lastname}`.toLowerCase().includes(createTabSearchQuery.toLowerCase())
                      );
                      
                      if (filteredUsers.length === 0) {
                        return (
                          <View style={{ padding: 20, alignItems: 'center' }}>
-                           <Text style={{ color: '#666', fontSize: 16 }}>No users found matching "{searchQuery}"</Text>
+                           <Text style={{ color: '#666', fontSize: 16 }}>No users found matching "{createTabSearchQuery}"</Text>
                          </View>
                        );
                      }
@@ -2161,8 +2211,8 @@ export default function UnifiedChat() {
               {/* Join Tab Search for Users */}
               <TextInput
                 placeholder="Search users to chat with..."
-                value={searchQuery}
-                onChangeText={setSearchQuery}
+                value={joinTabSearchQuery}
+                onChangeText={setJoinTabSearchQuery}
                 style={{
                   borderWidth: 1,
                   borderColor: '#ccc',
@@ -2200,18 +2250,18 @@ export default function UnifiedChat() {
               </TouchableOpacity>
 
               {/* User search results */}
-              {searchQuery.trim() !== '' && (
+              {joinTabSearchQuery.trim() !== '' && (
                 <View style={{ marginTop: 16 }}>
                   <Text style={{ fontWeight: 'bold', fontSize: 16, marginBottom: 10 }}>Users</Text>
                   {(() => {
                     const filteredUsers = (allUsers || []).filter(u => 
-                      `${u.firstname} ${u.lastname}`.toLowerCase().includes(searchQuery.toLowerCase())
+                      `${u.firstname} ${u.lastname}`.toLowerCase().includes(joinTabSearchQuery.toLowerCase())
                     );
                     
                     if (filteredUsers.length === 0) {
                       return (
                         <View style={{ padding: 20, alignItems: 'center' }}>
-                          <Text style={{ color: '#666', fontSize: 16 }}>No users found matching "{searchQuery}"</Text>
+                          <Text style={{ color: '#666', fontSize: 16 }}>No users found matching "{joinTabSearchQuery}"</Text>
                         </View>
                       );
                     }
