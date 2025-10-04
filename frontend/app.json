@@ -85,7 +85,8 @@
         {
           "ios": {
             "useFrameworks": "dynamic",
-            "useModularHeaders": true
+            "useModularHeaders": true,
+            "useStaticFrameworks": false
           }
         }
       ],
@@ -94,7 +95,8 @@
         {
           "ios": {
             "useFrameworks": "dynamic",
-            "useModularHeaders": true
+            "useModularHeaders": true,
+            "useStaticFrameworks": false
           }
         }
       ],

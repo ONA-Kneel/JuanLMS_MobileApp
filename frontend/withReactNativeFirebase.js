@@ -36,7 +36,10 @@ const withReactNativeFirebase = (config) => {
   
   # Set environment variables for Firebase
   $RNFirebaseAsStaticFramework = false
-  $FirebaseSDKVersion = '12.2.0'`;
+  $FirebaseSDKVersion = '12.2.0'
+  
+  # Force GoogleUtilities to be a framework
+  pod 'GoogleUtilities', :modular_headers => true, :inhibit_warnings => true`;
 
       const addCode = generateCode.mergeContents({
         tag: 'withReactNativeFirebase',
@@ -81,6 +84,9 @@ const withReactNativeFirebase = (config) => {
           config.build_settings['BUILD_LIBRARY_FOR_DISTRIBUTION'] = 'YES'
           config.build_settings['SWIFT_INCLUDE_PATHS'] = '$(PODS_ROOT)/GoogleUtilities'
           config.build_settings['HEADER_SEARCH_PATHS'] = '$(PODS_ROOT)/GoogleUtilities'
+          config.build_settings['SWIFT_VERSION'] = '5.0'
+          config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
+          config.build_settings['SWIFT_COMPILATION_MODE'] = 'wholemodule'
         end
         
         # Fix for FirebaseCoreInternal
@@ -111,8 +117,10 @@ const withReactNativeFirebase = (config) => {
         console.log('✅ Applied Firebase Swift pods fix to Podfile (post_install skipped)');
       }
 
-      // Also run the module fix script if it exists
+      // Also run the module fix scripts if they exist
       const moduleFixScript = path.join(config.modRequest.platformProjectRoot, 'firebase-module-fix.sh');
+      const prebuildFixScript = path.join(config.modRequest.platformProjectRoot, 'prebuild-firebase-fix.sh');
+      
       if (fs.existsSync(moduleFixScript)) {
         try {
           const { execSync } = require('child_process');
@@ -120,6 +128,16 @@ const withReactNativeFirebase = (config) => {
           console.log('✅ Applied Firebase module fix script');
         } catch (error) {
           console.log('⚠️ Firebase module fix script failed:', error.message);
+        }
+      }
+      
+      if (fs.existsSync(prebuildFixScript)) {
+        try {
+          const { execSync } = require('child_process');
+          execSync(`chmod +x "${prebuildFixScript}" && "${prebuildFixScript}"`, { cwd: config.modRequest.platformProjectRoot });
+          console.log('✅ Applied prebuild Firebase fix script');
+        } catch (error) {
+          console.log('⚠️ Prebuild Firebase fix script failed:', error.message);
         }
       }
 
