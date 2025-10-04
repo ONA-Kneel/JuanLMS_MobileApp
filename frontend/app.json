@@ -15,7 +15,11 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.kneelpngnbn.juanlms.mobileapp"
+      "bundleIdentifier": "com.kneelpngnbn.juanlms.mobileapp",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "googleServicesFile": "./ios/JuanLMS/GoogleService-Info.plist"
     },
     "android": {
       "adaptiveIcon": {
@@ -63,6 +67,14 @@
         "@react-native-community/datetimepicker",
         {
           "androidMode": "default"
+        }
+      ],
+      [
+        "@react-native-firebase/app",
+        {
+          "ios": {
+            "useFrameworks": "dynamic"
+          }
         }
       ]
     ],
