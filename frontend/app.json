@@ -17,9 +17,19 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.kneelpngnbn.juanlms.mobileapp",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLName": "REVERSED_CLIENT_ID",
+            "CFBundleURLSchemes": ["com.googleusercontent.apps.460357912009-e649f8a5883b6e2914d418"]
+          }
+        ],
+        "GOOGLE_APP_ID": "1:460357912009:ios:e649f8a5883b6e2914d418",
+        "GCM_SENDER_ID": "460357912009",
+        "API_KEY": "AIzaSyA1kTF1kFuVEIM-VP0oVfXwf_CR53s3_P4",
+        "PROJECT_ID": "juanlms-pushnotf",
+        "STORAGE_BUCKET": "juanlms-pushnotf.firebasestorage.app"
       },
-      "googleServicesFile": "./ios/JuanLMS/GoogleService-Info.plist"
     },
     "android": {
       "adaptiveIcon": {

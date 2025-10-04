@@ -36,9 +36,6 @@
       },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://juanlms-webapp-server.onrender.com"
-      },
-      "hooks": {
-        "preInstall": "./eas-build-pre-install.sh"
       }
     }
   },
