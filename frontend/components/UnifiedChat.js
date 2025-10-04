@@ -116,19 +116,30 @@ export default function UnifiedChat() {
     if (!currentUserId) return;
     const id = setInterval(async () => {
       try { 
-        // Only refresh if not currently in a chat to avoid disrupting user experience
-        if (!selectedUser && !selectedGroup) {
+        // Only refresh if not currently in a chat and not actively searching to avoid disrupting user experience
+        if (!selectedUser && !selectedGroup && !isAutoRefreshing && !searchQuery.trim()) {
           setIsAutoRefreshing(true);
-          await fetchRecentConversations(true); // preserveExisting = true
+          
+          // Store current chat list before refresh to prevent flickering
+          const currentChats = [...recentChatsList];
+          
+          try {
+            await fetchRecentConversations(true); // preserveExisting = true
+          } catch (refreshError) {
+            console.error('Auto-refresh error:', refreshError);
+            // Restore previous chat list if refresh fails
+            setRecentChatsList(currentChats);
+          }
+          
           setIsAutoRefreshing(false);
         }
       } catch (error) {
         console.error('Auto-refresh error:', error);
         setIsAutoRefreshing(false);
       }
-    }, 12000); // Set to 12s for balanced refresh rate
+    }, 60000); // Increased to 60s to be much less aggressive
     return () => clearInterval(id);
-  }, [currentUserId, selectedUser, selectedGroup]);
+  }, [currentUserId, selectedUser, selectedGroup, isAutoRefreshing, recentChatsList, searchQuery]);
 
   // Clean up corrupted data in recentChats (similar to web app) - less aggressive
   useEffect(() => {
@@ -862,6 +873,15 @@ export default function UnifiedChat() {
             ...existingChat,
             manuallyAdded: true
           });
+        } else {
+          // Update existing chat with new data while preserving manually added flag
+          const existingIndex = mergedChats.findIndex(chat => chat._id === existingChat._id);
+          if (existingIndex !== -1) {
+            mergedChats[existingIndex] = {
+              ...mergedChats[existingIndex],
+              manuallyAdded: existingChat.manuallyAdded || mergedChats[existingIndex].manuallyAdded
+            };
+          }
         }
       });
       
@@ -1508,7 +1528,10 @@ export default function UnifiedChat() {
             <TextInput
               placeholder="Search users or groups..."
               value={searchQuery}
-              onChangeText={setSearchQuery}
+              onChangeText={(text) => {
+                console.log('Search query changed:', text);
+                setSearchQuery(text);
+              }}
               style={{
                 borderWidth: 1,
                 borderColor: '#ccc',
@@ -1516,7 +1539,8 @@ export default function UnifiedChat() {
                 paddingHorizontal: 14,
                 paddingVertical: 10,
                 backgroundColor: 'white',
-                marginBottom: 10
+                marginBottom: 10,
+                minHeight: 40 // Ensure minimum height
               }}
             />
             
@@ -1525,8 +1549,8 @@ export default function UnifiedChat() {
               <View style={{
                 position: 'absolute',
                 top: 50,
-                left: 16,
-                right: 16,
+                left: 0,
+                right: 0,
                 backgroundColor: 'white',
                 borderRadius: 10,
                 elevation: 5,
@@ -1535,7 +1559,8 @@ export default function UnifiedChat() {
                 shadowOpacity: 0.25,
                 shadowRadius: 3.84,
                 zIndex: 1000,
-                maxHeight: 300
+                maxHeight: 300,
+                marginHorizontal: 16
               }}>
                 {isSearching ? (
                   <View style={{ padding: 20, alignItems: 'center' }}>
