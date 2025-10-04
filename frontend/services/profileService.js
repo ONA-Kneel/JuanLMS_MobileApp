@@ -104,20 +104,6 @@ const profileService = {
       console.log('isWeb:', isWeb);
       console.log('imageAsset:', imageAsset);
       
-      // Test network connectivity first
-      try {
-        const testResponse = await fetch(`${API_URL}/api/health`, {
-          method: 'GET',
-          timeout: 10000, // 10 second timeout
-        });
-        console.log('Network connectivity test:', testResponse.status);
-        if (!testResponse.ok) {
-          throw new Error(`Server health check failed: ${testResponse.status}`);
-        }
-      } catch (networkError) {
-        console.error('Network connectivity test failed:', networkError);
-        throw new Error('Cannot connect to server. Please check your internet connection and try again.');
-      }
       
       const token = await AsyncStorage.getItem('jwtToken');
       console.log('Token exists:', !!token);
