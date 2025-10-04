@@ -84,7 +84,17 @@
         "@react-native-firebase/app",
         {
           "ios": {
-            "useFrameworks": "dynamic"
+            "useFrameworks": "dynamic",
+            "useModularHeaders": true
+          }
+        }
+      ],
+      [
+        "@react-native-firebase/messaging",
+        {
+          "ios": {
+            "useFrameworks": "dynamic",
+            "useModularHeaders": true
           }
         }
       ]

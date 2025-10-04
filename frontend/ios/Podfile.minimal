@@ -6,34 +6,22 @@ install! 'cocoapods', :deterministic_uuids => false
 # Enable modular headers for Swift pods (required for Firebase)
 use_modular_headers!
 
-# Use dynamic frameworks for Firebase compatibility
-use_frameworks! :linkage => :dynamic
-
-# Force all pods to use dynamic frameworks
-def use_frameworks_for_all_pods!
-  use_frameworks! :linkage => :dynamic
-end
-
 target 'JuanLMS' do
   config = use_native_modules!
 
   # Flags change depending on the env values.
   flags = get_default_flags()
-  
-  # Explicitly configure Firebase pods with dynamic frameworks
-  pod 'Firebase', :modular_headers => true
-  pod 'FirebaseCore', :modular_headers => true
-  pod 'FirebaseCoreInternal', :modular_headers => true
-  pod 'FirebaseMessaging', :modular_headers => true
-  pod 'GoogleUtilities', :modular_headers => true
-  pod 'GoogleDataTransport', :modular_headers => true
-  pod 'PromisesObjC', :modular_headers => true
 
   use_react_native!(
     :path => config[:reactNativePath],
     # Hermes is now enabled by default. Disable by setting this flag to false.
     :hermes_enabled => flags[:hermes_enabled],
     :fabric_enabled => flags[:fabric_enabled],
+    # Enables Flipper.
+    #
+    # Note that if you have use_frameworks! enabled, Flipper will not work and
+    # you should disable the next line.
+    :flipper_configuration => FlipperConfiguration.disabled,
     # An absolute path to your application root.
     :app_path => "#{Pod::Config.instance.installation_root}/.."
   )
