@@ -79,6 +79,7 @@ export default function UnifiedChat() {
   // Performance optimization states
   const [fetchedGroupPreviewIds, setFetchedGroupPreviewIds] = useState(new Set());
   const [isLoadingGroupPreviews, setIsLoadingGroupPreviews] = useState(false);
+  const [isRefreshingChats, setIsRefreshingChats] = useState(false);
 
   const isGroupChat = !!selectedGroup;
   const chatTarget = isGroupChat ? selectedGroup : selectedUser;
@@ -107,38 +108,57 @@ export default function UnifiedChat() {
     loadHighlightedChats();
   }, []);
 
-  // Auto-refresh recent conversations (from web app)
+  // Auto-refresh recent conversations (from web app) - less aggressive to preserve chats
   useEffect(() => {
     if (!currentUserId) return;
     const id = setInterval(() => {
-      try { fetchRecentConversations(); } catch {}
-    }, 8000);
+      try { 
+        // Only refresh if not currently in a chat to avoid disrupting user experience
+        if (!selectedUser && !selectedGroup) {
+          fetchRecentConversations(true); // preserveExisting = true
+        }
+      } catch {}
+    }, 12000); // Set to 12s for balanced refresh rate
     return () => clearInterval(id);
-  }, [currentUserId]);
+  }, [currentUserId, selectedUser, selectedGroup]);
 
-  // Clean up corrupted data in recentChats (similar to web app)
+  // Clean up corrupted data in recentChats (similar to web app) - less aggressive
   useEffect(() => {
     const cleanupCorruptedData = async () => {
       try {
         const stored = await AsyncStorage.getItem(RECENTS_KEY);
         if (stored) {
           const parsed = JSON.parse(stored);
+          // More lenient cleaning - only remove entries that are completely invalid
           const cleaned = parsed.filter(chat => 
-            chat && chat._id && chat.firstname && chat.lastname && 
-            chat.firstname !== 'undefined' && chat.lastname !== 'undefined' &&
-            chat.firstname !== undefined && chat.lastname !== undefined
+            chat && 
+            chat._id && 
+            (chat.firstname || chat.lastname) && // At least one name required
+            chat._id !== 'undefined' && 
+            chat._id !== 'null' &&
+            typeof chat._id === 'string' &&
+            chat._id.length > 0
           );
-          if (cleaned.length !== parsed.length) {
+          
+          // Only update if we actually removed something and it's significant
+          if (cleaned.length < parsed.length && (parsed.length - cleaned.length) > 0) {
+            console.log(`Cleaned ${parsed.length - cleaned.length} corrupted chat entries`);
             await AsyncStorage.setItem(RECENTS_KEY, JSON.stringify(cleaned));
             setRecentChatsList(cleaned);
           }
         }
       } catch (error) {
         console.error('Error cleaning corrupted data:', error);
-        // Remove corrupted data
+        // Don't remove all data on error - try to preserve what we can
         try {
-          await AsyncStorage.removeItem(RECENTS_KEY);
-          setRecentChatsList([]);
+          const stored = await AsyncStorage.getItem(RECENTS_KEY);
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              // Keep the data even if it's partially corrupted
+              setRecentChatsList(parsed.filter(chat => chat && chat._id));
+            }
+          }
         } catch {}
       }
     };
@@ -355,18 +375,20 @@ export default function UnifiedChat() {
         let updated;
         
         if (existingIndex === -1) {
-          // Add new chat to the top
-          updated = [chatUser, ...prev];
+          // Add new chat to the top with manuallyAdded flag
+          updated = [{ ...chatUser, manuallyAdded: true }, ...prev];
         } else if (existingIndex > 0) {
-          // Move existing chat to the top
+          // Move existing chat to the top and mark as manually added
           updated = [
-            prev[existingIndex],
+            { ...prev[existingIndex], manuallyAdded: true },
             ...prev.slice(0, existingIndex),
             ...prev.slice(existingIndex + 1)
           ];
         } else {
-          // Already at top
-          return prev;
+          // Already at top, just mark as manually added
+          updated = prev.map((chat, index) => 
+            index === 0 ? { ...chat, manuallyAdded: true } : chat
+          );
         }
         
         AsyncStorage.setItem(RECENTS_KEY, JSON.stringify(updated));
@@ -374,6 +396,23 @@ export default function UnifiedChat() {
       });
     } catch (error) {
       console.error('Error bumping chat to top:', error);
+    }
+  };
+
+  // Manually preserve a chat (prevent it from being auto-removed)
+  const preserveChat = async (chatId) => {
+    if (!chatId) return;
+    
+    try {
+      setRecentChatsList(prev => {
+        const updated = prev.map(chat => 
+          chat._id === chatId ? { ...chat, manuallyAdded: true } : chat
+        );
+        AsyncStorage.setItem(RECENTS_KEY, JSON.stringify(updated));
+        return updated;
+      });
+    } catch (error) {
+      console.error('Error preserving chat:', error);
     }
   };
 
@@ -702,14 +741,20 @@ export default function UnifiedChat() {
     }
   };
 
-  const fetchRecentConversations = async () => {
+  const fetchRecentConversations = async (preserveExisting = true) => {
     try {
       const token = await AsyncStorage.getItem('jwtToken');
       let allMsgs = [];
+      
+      // Get existing chats to preserve them
+      const existingChats = preserveExisting ? [...recentChatsList] : [];
+      const existingChatIds = new Set(existingChats.map(chat => chat._id));
+      
       try {
         const res = await axios.get(`${API_URL}/messages/user/${user._id}`, { headers: { 'Authorization': `Bearer ${token}` } });
         allMsgs = Array.isArray(res.data) ? res.data : [];
       } catch (e) {
+        // Fallback: fetch messages per user
         for (const u of allUsers) {
           if (u._id === user._id) continue;
           try {
@@ -721,26 +766,71 @@ export default function UnifiedChat() {
           } catch {}
         }
       }
-      if (allMsgs.length === 0) {
-        // Try fallback using dmMessages already loaded and any messages fetched per user
-        const list = [];
+      
+      // Build new chat list from API data
+      const newChats = [];
+      if (allMsgs.length > 0) {
+        const map = new Map();
+        allMsgs.forEach(m => {
+          const otherId = m.senderId === user._id ? m.receiverId : m.senderId;
+          if (!map.has(otherId)) map.set(otherId, []);
+          map.get(otherId).push(m);
+        });
+        
+        map.forEach((msgs, otherUserId) => {
+          const u = allUsers.find(x => x._id === otherUserId);
+          if (!u) return;
+          msgs.sort((a,b)=> new Date(a.createdAt||a.updatedAt) - new Date(b.createdAt||b.updatedAt));
+          const last = msgs[msgs.length-1];
+          
+          // Extended time filter: 90 days instead of 30, and always include if user manually added
+          const lastMessageDate = new Date(last.createdAt || last.updatedAt);
+          const ninetyDaysAgo = new Date();
+          ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+          
+          // Include if recent message OR if user manually added this chat
+          const isRecentMessage = lastMessageDate >= ninetyDaysAgo;
+          const isManuallyAdded = existingChatIds.has(otherUserId);
+          
+          if (isRecentMessage || isManuallyAdded) {
+            newChats.push({ 
+              _id: otherUserId, 
+              firstname: u.firstname, 
+              lastname: u.lastname, 
+              profilePic: u.profilePic || u.profilePicture || null, 
+              lastMessageTime: last.createdAt || last.updatedAt,
+              manuallyAdded: isManuallyAdded && !isRecentMessage // Flag for manually added chats
+            });
+            
+            // Update last message preview
+            const text = last.message ? last.message : (last.fileUrl ? 'File sent' : '');
+            const prefix = last.senderId === user._id ? 'You: ' : `${u.firstname || 'Unknown'} ${u.lastname || 'User'}: `;
+            setLastMessages(prev => ({ ...prev, [otherUserId]: { prefix, text } }));
+          }
+        });
+      } else {
+        // Fallback: use cached messages
         (allUsers || []).forEach(u => {
           const msgs = dmMessages[u._id] || [];
           if (msgs.length > 0) {
             const last = msgs[msgs.length - 1];
             
-            // Only include conversations with recent messages (within last 30 days)
+            // Extended time filter: 90 days instead of 30
             const lastMessageDate = new Date(last.createdAt || last.updatedAt);
-            const thirtyDaysAgo = new Date();
-            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+            const ninetyDaysAgo = new Date();
+            ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
             
-            if (lastMessageDate >= thirtyDaysAgo) {
-              list.push({ 
+            const isRecentMessage = lastMessageDate >= ninetyDaysAgo;
+            const isManuallyAdded = existingChatIds.has(u._id);
+            
+            if (isRecentMessage || isManuallyAdded) {
+              newChats.push({ 
                 _id: u._id, 
                 firstname: u.firstname, 
                 lastname: u.lastname, 
                 profilePic: u.profilePic || u.profilePicture || null, 
-                lastMessageTime: last.createdAt || last.updatedAt 
+                lastMessageTime: last.createdAt || last.updatedAt,
+                manuallyAdded: isManuallyAdded && !isRecentMessage
               });
               const text = last.message ? last.message : (last.fileUrl ? 'File sent' : '');
               const prefix = last.senderId === user._id ? 'You: ' : `${u.firstname || 'Unknown'} ${u.lastname || 'User'}: `;
@@ -748,45 +838,40 @@ export default function UnifiedChat() {
             }
           }
         });
-        list.sort((a,b)=> new Date(b.lastMessageTime) - new Date(a.lastMessageTime));
-        setRecentChatsList(list);
-        AsyncStorage.setItem(RECENTS_KEY, JSON.stringify(list)).catch(() => {});
-        return;
       }
-      const map = new Map();
-      allMsgs.forEach(m => {
-        const otherId = m.senderId === user._id ? m.receiverId : m.senderId;
-        if (!map.has(otherId)) map.set(otherId, []);
-        map.get(otherId).push(m);
-      });
-      const list = [];
-      map.forEach((msgs, otherUserId) => {
-        const u = allUsers.find(x => x._id === otherUserId);
-        if (!u) return;
-        msgs.sort((a,b)=> new Date(a.createdAt||a.updatedAt) - new Date(b.createdAt||b.updatedAt));
-        const last = msgs[msgs.length-1];
-        
-        // Only include conversations with recent messages (within last 30 days)
-        const lastMessageDate = new Date(last.createdAt || last.updatedAt);
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-        
-        if (lastMessageDate >= thirtyDaysAgo) {
-          list.push({ 
-            _id: otherUserId, 
-            firstname: u.firstname, 
-            lastname: u.lastname, 
-            profilePic: u.profilePic || u.profilePicture || null, 
-            lastMessageTime: last.createdAt || last.updatedAt 
+      
+      // Merge existing chats with new ones, preserving manually added chats
+      const mergedChats = [...newChats];
+      existingChats.forEach(existingChat => {
+        if (!mergedChats.some(chat => chat._id === existingChat._id)) {
+          // Preserve manually added chats even if no recent messages
+          mergedChats.push({
+            ...existingChat,
+            manuallyAdded: true
           });
         }
       });
-      list.sort((a,b)=> new Date(b.lastMessageTime) - new Date(a.lastMessageTime));
-      setRecentChatsList(list);
-      AsyncStorage.setItem(RECENTS_KEY, JSON.stringify(list)).catch(() => {});
+      
+      // Sort by last message time, but keep manually added chats visible
+      mergedChats.sort((a, b) => {
+        // Manually added chats without recent messages go to bottom but stay visible
+        if (a.manuallyAdded && !a.lastMessageTime) return 1;
+        if (b.manuallyAdded && !b.lastMessageTime) return -1;
+        
+        const aTime = new Date(a.lastMessageTime || 0).getTime();
+        const bTime = new Date(b.lastMessageTime || 0).getTime();
+        return bTime - aTime;
+      });
+      
+      setRecentChatsList(mergedChats);
+      AsyncStorage.setItem(RECENTS_KEY, JSON.stringify(mergedChats)).catch(() => {});
+      
     } catch (e) {
       console.log('Error building recent conversations', e);
-      setRecentChatsList([]);
+      // Don't clear existing chats on error - preserve what we have
+      if (!preserveExisting) {
+        setRecentChatsList([]);
+      }
     }
   };
 
@@ -1603,6 +1688,15 @@ export default function UnifiedChat() {
                                 setSelectedUser({ _id: chat._id, firstname: chat.firstname, lastname: chat.lastname, profilePicture: chat.profilePic, role: 'students' });
                                 setSelectedGroup(null);
                               }}
+                              onLongPress={() => {
+                                // Long press to preserve chat
+                                preserveChat(chat._id);
+                                Alert.alert(
+                                  'Chat Preserved',
+                                  `${chat.firstname} ${chat.lastname} will be kept in your chat list even without recent messages.`,
+                                  [{ text: 'OK' }]
+                                );
+                              }}
                               style={{ 
                                 backgroundColor: isChatHighlighted(chat._id) ? '#fff3cd' : 'white', 
                                 padding: 15, 
@@ -1638,10 +1732,24 @@ export default function UnifiedChat() {
                                       marginLeft: 8 
                                     }} />
                                   )}
+                                  {chat.manuallyAdded && (
+                                    <View style={{ 
+                                      width: 6, 
+                                      height: 6, 
+                                      borderRadius: 3, 
+                                      backgroundColor: '#28a745', 
+                                      marginLeft: 8 
+                                    }} />
+                                  )}
                                 </View>
                                 {!!lastMessages[chat._id] && (
                                   <Text style={{ color: '#666', fontSize: 12 }} numberOfLines={1}>
                                     {lastMessages[chat._id].prefix}{lastMessages[chat._id].text}
+                                  </Text>
+                                )}
+                                {chat.manuallyAdded && !lastMessages[chat._id] && (
+                                  <Text style={{ color: '#28a745', fontSize: 11, fontStyle: 'italic' }}>
+                                    Preserved chat
                                   </Text>
                                 )}
                               </View>
