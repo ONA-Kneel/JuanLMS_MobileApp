@@ -10,6 +10,77 @@ import cloudinary from '../utils/cloudinary.js';
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
+const uploadMultiple = multer({ storage: multer.memoryStorage() });
+
+// Helper function to detect if file is an image
+const isImage = (mimetype) => {
+  return mimetype && mimetype.startsWith('image/');
+};
+
+// Helper function to process single file with image support for groups
+const processGroupFile = async (file, groupId) => {
+  const isImageFile = isImage(file.mimetype);
+  let fileUrl = null;
+  let thumbnailUrl = null;
+  let width = null;
+  let height = null;
+
+  if (!process.env.CLOUDINARY_CLOUD_NAME) {
+    // Local storage
+    const uploadDir = 'uploads/chat-attachments';
+    fs.mkdirSync(uploadDir, { recursive: true });
+    const unique = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    const ext = path.extname(file.originalname || '') || '';
+    const filename = `group-${groupId}-${unique}${ext}`;
+    const filepath = path.join(uploadDir, filename);
+    fs.writeFileSync(filepath, file.buffer);
+    fileUrl = `/uploads/chat-attachments/${filename}`;
+  } else {
+    // Cloudinary storage
+    const result = await new Promise((resolve, reject) => {
+      const opts = { 
+        folder: 'juanlms/chat-attachments', 
+        resource_type: 'auto' 
+      };
+      const stream = cloudinary.uploader.upload_stream(opts, (err, r) => {
+        if (err) return reject(err);
+        resolve(r);
+      });
+      stream.end(file.buffer);
+    });
+    
+    fileUrl = result.secure_url;
+    width = result.width;
+    height = result.height;
+
+    // Generate thumbnail for images
+    if (isImageFile && result.public_id) {
+      try {
+        const thumbnailResult = await cloudinary.uploader.explicit(result.public_id, {
+          type: 'upload',
+          width: 300,
+          height: 300,
+          crop: 'limit',
+          quality: 'auto',
+          format: 'auto'
+        });
+        thumbnailUrl = thumbnailResult.secure_url;
+      } catch (thumbnailErr) {
+        console.log('Thumbnail generation failed:', thumbnailErr);
+      }
+    }
+  }
+
+  return {
+    url: fileUrl,
+    name: file.originalname || 'attachment',
+    fileType: isImageFile ? 'image' : 'document',
+    thumbnailUrl,
+    size: file.size,
+    width,
+    height
+  };
+};
 
 // Create a new group chat
 router.post('/', async (req, res) => {
@@ -306,35 +377,22 @@ router.post('/:groupId/messages', upload.single('file'), async (req, res) => {
     const sender = await User.findById(senderId);
     const senderName = sender ? `${sender.firstname} ${sender.lastname}` : 'Unknown';
 
+    // Process optional file - keep existing functionality for backward compatibility
     let fileUrl = null;
+    let attachments = [];
+    
     if (req.file) {
-      if (!process.env.CLOUDINARY_CLOUD_NAME) {
-        const uploadDir = 'uploads/chat-attachments';
-        fs.mkdirSync(uploadDir, { recursive: true });
-        const unique = Date.now() + '-' + Math.round(Math.random() * 1e9);
-        const ext = path.extname(req.file.originalname || '') || '';
-        const filename = `group-${groupId}-${unique}${ext}`;
-        const filepath = path.join(uploadDir, filename);
-        fs.writeFileSync(filepath, req.file.buffer);
-        fileUrl = `/uploads/chat-attachments/${filename}`;
-      } else {
-        const result = await new Promise((resolve, reject) => {
-          const opts = { folder: 'juanlms/chat-attachments', resource_type: 'auto' };
-          const stream = cloudinary.uploader.upload_stream(opts, (err, r) => {
-            if (err) return reject(err);
-            resolve(r);
-          });
-          stream.end(req.file.buffer);
-        });
-        fileUrl = result.secure_url;
-      }
+      const processedFile = await processGroupFile(req.file, groupId);
+      fileUrl = processedFile.url; // Keep existing field for backward compatibility
+      attachments = [processedFile]; // Add to new attachments array
     }
 
     const newMessage = new GroupMessage({
       senderId,
       groupId,
       message: message || '',
-      fileUrl,
+      fileUrl, // Keep existing for backward compatibility
+      attachments, // Add new field
       senderName
     });
 
@@ -354,6 +412,76 @@ router.post('/:groupId/messages', upload.single('file'), async (req, res) => {
   }
 
   res.status(201).json(newMessage);
+  } catch (error) {
+    console.error('Error sending group message:', error);
+    res.status(500).json({ error: 'Failed to send message' });
+  }
+});
+
+// New route for multiple files in groups - additive only
+router.post('/:groupId/messages/multiple', uploadMultiple.array('files', 10), async (req, res) => {
+  try {
+    const { groupId } = req.params;
+    const { senderId } = req.body;
+    let { message } = req.body;
+
+    if (!senderId) {
+      return res.status(400).json({ error: 'Sender ID is required' });
+    }
+
+    // Allow file-only messages: if no text but has files, set message placeholder
+    if ((!message || String(message).trim() === '') && req.files && req.files.length > 0) {
+      message = '';
+    }
+
+    // Check if user is a member of the group
+    const group = await GroupChat.findById(groupId);
+    if (!group || !group.isActive || !group.participants.includes(senderId)) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    // Get sender name
+    const sender = await User.findById(senderId);
+    const senderName = sender ? `${sender.firstname} ${sender.lastname}` : 'Unknown';
+
+    // Process multiple files
+    let attachments = [];
+    let fileUrl = null; // Keep for backward compatibility - use first file
+
+    if (req.files && req.files.length > 0) {
+      for (const file of req.files) {
+        const processedFile = await processGroupFile(file, groupId);
+        attachments.push(processedFile);
+      }
+      fileUrl = attachments[0].url; // Set first file for backward compatibility
+    }
+
+    const newMessage = new GroupMessage({
+      senderId,
+      groupId,
+      message: message || '',
+      fileUrl, // Keep existing for backward compatibility
+      attachments,
+      senderName
+    });
+
+    await newMessage.save();
+    
+    // Notify all participants except sender
+    try {
+      const recipientIds = group.participants.filter(p => p !== senderId);
+      const title = group.name || 'New group message';
+      const body = `${senderName}: ${message?.slice(0, 90) || (attachments.length > 0 ? `${attachments.length} file(s) sent` : '')}`.trim();
+      await sendNotificationToUsers(recipientIds, { title, body }, {
+        screen: 'UnifiedChat',
+        params: JSON.stringify({ groupId, threadId: groupId }),
+        type: 'chat_group'
+      });
+    } catch (e) {
+      console.log('[GroupChat Multiple] FCM send error:', e);
+    }
+
+    res.status(201).json(newMessage);
   } catch (error) {
     console.error('Error sending group message:', error);
     res.status(500).json({ error: 'Failed to send message' });

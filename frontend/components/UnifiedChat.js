@@ -60,7 +60,10 @@ export default function UnifiedChat() {
   const [joinTabSearchQuery, setJoinTabSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('chats'); // 'chats', 'create', 'join'
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedFile, setSelectedFile] = useState(null);
+  const [selectedFile, setSelectedFile] = useState(null); // Keep for backward compatibility
+  const [selectedFiles, setSelectedFiles] = useState([]); // New for multiple files
+  const [showImageModal, setShowImageModal] = useState(false);
+  const [selectedImageUrl, setSelectedImageUrl] = useState(null);
   
   // Backend search states (similar to web app)
   const [searchedUsers, setSearchedUsers] = useState([]);
@@ -87,6 +90,117 @@ export default function UnifiedChat() {
   const isGroupChat = !!selectedGroup;
   const chatTarget = isGroupChat ? selectedGroup : selectedUser;
   const RECENTS_KEY = 'recentChats_mobile';
+
+  // Helper function to detect if URL is an image
+  const isImageUrl = (url) => {
+    if (!url) return false;
+    const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp'];
+    const lowerUrl = url.toLowerCase();
+    return imageExtensions.some(ext => lowerUrl.includes(ext)) || lowerUrl.includes('image');
+  };
+
+  // Helper function to get full URL
+  const getFullUrl = (url) => {
+    if (!url) return null;
+    return String(url).startsWith('http') ? url : `${API_URL?.replace(/\/$/, '')}/${String(url).replace(/^\//, '')}`;
+  };
+
+  // Helper function to render attachments
+  const renderAttachments = (message, isMe) => {
+    const attachments = message.attachments || [];
+    const hasOldFile = message.fileUrl;
+    
+    // If new attachments exist, use them
+    if (attachments.length > 0) {
+      return (
+        <View style={{ marginTop: message.message ? 6 : 0 }}>
+          {attachments.map((attachment, index) => (
+            <View key={index} style={{ marginBottom: 4 }}>
+              {attachment.fileType === 'image' ? (
+                <TouchableOpacity 
+                  onPress={() => {
+                    setSelectedImageUrl(getFullUrl(attachment.url));
+                    setShowImageModal(true);
+                  }}
+                  style={{ marginBottom: 4 }}
+                >
+                  <Image 
+                    source={{ uri: getFullUrl(attachment.thumbnailUrl || attachment.url) }}
+                    style={{ 
+                      width: 200, 
+                      height: 150, 
+                      borderRadius: 8,
+                      backgroundColor: '#f0f0f0'
+                    }}
+                    resizeMode="cover"
+                  />
+                  <Text style={{ color: isMe ? '#d1eaff' : '#666', fontSize: 10, marginTop: 2 }}>
+                    {attachment.name}
+                  </Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity onPress={() => {
+                  try {
+                    const Linking = require('react-native').Linking;
+                    Linking.openURL(getFullUrl(attachment.url));
+                  } catch {}
+                }}>
+                  <Text style={{ color: isMe ? '#d1eaff' : '#666', fontSize: 12 }}>
+                    📎 {attachment.name}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          ))}
+        </View>
+      );
+    }
+    
+    // Fallback to old fileUrl for backward compatibility
+    if (hasOldFile) {
+      const isImage = isImageUrl(message.fileUrl);
+      if (isImage) {
+        return (
+          <TouchableOpacity 
+            onPress={() => {
+              setSelectedImageUrl(getFullUrl(message.fileUrl));
+              setShowImageModal(true);
+            }}
+            style={{ marginTop: message.message ? 6 : 0 }}
+          >
+            <Image 
+              source={{ uri: getFullUrl(message.fileUrl) }}
+              style={{ 
+                width: 200, 
+                height: 150, 
+                borderRadius: 8,
+                backgroundColor: '#f0f0f0'
+              }}
+              resizeMode="cover"
+            />
+            <Text style={{ color: isMe ? '#d1eaff' : '#666', fontSize: 10, marginTop: 2 }}>
+              {String(message.fileUrl).split('/').pop()}
+            </Text>
+          </TouchableOpacity>
+        );
+      } else {
+        return (
+          <TouchableOpacity onPress={() => {
+            try {
+              const Linking = require('react-native').Linking;
+              Linking.openURL(getFullUrl(message.fileUrl));
+            } catch {}
+          }}>
+            <Text style={{ color: isMe ? '#d1eaff' : '#666', fontSize: 12, marginTop: message.message ? 6 : 0 }}>
+              📎 {String(message.fileUrl).split('/').pop()}
+            </Text>
+          </TouchableOpacity>
+        );
+      }
+    }
+    
+    return null;
+  };
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -1030,7 +1144,7 @@ export default function UnifiedChat() {
   };
 
   const handleSend = async () => {
-    if (!chatTarget || (!input.trim() && !selectedFile)) return;
+    if (!chatTarget || (!input.trim() && !selectedFile && selectedFiles.length === 0)) return;
     
     const buildUploadFile = async (asset) => {
       if (!asset) return null;
@@ -1050,10 +1164,57 @@ export default function UnifiedChat() {
       const mimeType = asset.mimeType || asset.type || 'application/octet-stream';
       return { uri: uploadUri, name: fileName, type: mimeType };
     };
+
+    // New function for multiple files
+    const buildUploadFiles = async (assets) => {
+      const files = [];
+      for (const asset of assets) {
+        const file = await buildUploadFile(asset);
+        if (file) files.push(file);
+      }
+      return files;
+    };
     
     if (isGroupChat) {
       try {
-        if (selectedFile) {
+        // Handle multiple files first (new functionality)
+        if (selectedFiles.length > 0) {
+          const token = await AsyncStorage.getItem('jwtToken');
+          const headers = { 'Authorization': `Bearer ${token}` };
+          const form = new FormData();
+          form.append('groupId', selectedGroup._id);
+          form.append('senderId', user._id);
+          form.append('message', input || '');
+          
+          const uploadFiles = await buildUploadFiles(selectedFiles);
+          uploadFiles.forEach(file => {
+            form.append('files', file);
+          });
+          
+          let res;
+          try {
+            res = await axios.post(`${API_URL}/group-messages/multiple`, form, { headers: { ...headers, 'Content-Type': 'multipart/form-data' } });
+          } catch (primaryErr) {
+            res = await axios.post(`${API_URL}/group-chats/${selectedGroup._id}/messages/multiple`, form, { headers: { ...headers, 'Content-Type': 'multipart/form-data' } });
+          }
+          
+          const sentMessage = res.data;
+          classSocketService.sendGroupMessage({
+            senderId: user._id,
+            groupId: selectedGroup._id,
+            text: sentMessage.message,
+            fileUrl: sentMessage.fileUrl || null,
+            senderName: `${user.firstname} ${user.lastname}`,
+          });
+          setMessages(prev => [...prev, sentMessage]);
+          setGroupMsgsById(prev => ({ ...prev, [selectedGroup._id]: [ ...(prev[selectedGroup._id] || []), sentMessage ] }));
+          const text = sentMessage.message ? sentMessage.message : (sentMessage.attachments?.length > 0 ? `${sentMessage.attachments.length} file(s) sent` : 'File sent');
+          setLastMessages(prev => ({ ...prev, [selectedGroup._id]: { prefix: 'You: ', text } }));
+          setInput('');
+          setSelectedFiles([]);
+        }
+        // Handle single file (existing functionality)
+        else if (selectedFile) {
           const token = await AsyncStorage.getItem('jwtToken');
           const headers = { 'Authorization': `Bearer ${token}` };
           const form = new FormData();
@@ -1114,7 +1275,44 @@ export default function UnifiedChat() {
       }
     } else {
       try {
-        if (selectedFile) {
+        // Handle multiple files first (new functionality)
+        if (selectedFiles.length > 0) {
+          const token = await AsyncStorage.getItem('jwtToken');
+          const headers = { 'Authorization': `Bearer ${token}` };
+          const form = new FormData();
+          form.append('senderId', user._id);
+          form.append('receiverId', selectedUser._id);
+          form.append('message', input || '');
+          
+          const uploadFiles = await buildUploadFiles(selectedFiles);
+          uploadFiles.forEach(file => {
+            form.append('files', file);
+          });
+          
+          const res = await axios.post(`${API_URL}/messages/multiple`, form, { headers: { ...headers, 'Content-Type': 'multipart/form-data' } });
+          const sentMessage = res.data;
+          classSocketService.sendMessage({
+            chatId: [user._id, selectedUser._id].sort().join('-'),
+            senderId: user._id,
+            receiverId: selectedUser._id,
+            message: sentMessage.message,
+            timestamp: sentMessage.timestamp || new Date(),
+          });
+          setMessages(prev => [...prev, sentMessage]);
+          setInput('');
+          setSelectedFiles([]);
+          const entry = { _id: selectedUser._id, firstname: selectedUser.firstname, lastname: selectedUser.lastname, profilePic: selectedUser.profilePicture || null, lastMessageTime: sentMessage.createdAt || sentMessage.updatedAt || new Date().toISOString() };
+          setRecentChatsList(prev => {
+            const filtered = prev.filter(c => c._id !== entry._id);
+            const updated = [entry, ...filtered];
+            AsyncStorage.setItem(RECENTS_KEY, JSON.stringify(updated)).catch(() => {});
+            return updated;
+          });
+          const text = sentMessage.message ? sentMessage.message : (sentMessage.attachments?.length > 0 ? `${sentMessage.attachments.length} file(s) sent` : 'File sent');
+          setLastMessages(prev => ({ ...prev, [entry._id]: { prefix: 'You: ', text } }));
+        }
+        // Handle single file (existing functionality)
+        else if (selectedFile) {
         const token = await AsyncStorage.getItem('jwtToken');
         const headers = { 'Authorization': `Bearer ${token}` };
           const form = new FormData();
@@ -1370,6 +1568,23 @@ export default function UnifiedChat() {
   // Unified chat list with individual chats at top and group chats at bottom
   const individualChats = (recentChatsList || []).map(chat => ({ ...chat, type: 'individual' }));
   const groupChats = (userGroups || []).map(group => ({ ...group, type: 'group' }));
+
+  // Filter chats based on search query
+  const filteredIndividualChats = individualChats.filter(chat => {
+    if (!searchQuery.trim()) return true;
+    const query = searchQuery.toLowerCase();
+    const fullName = `${chat.firstname || ''} ${chat.lastname || ''}`.toLowerCase();
+    return fullName.includes(query) || 
+           (chat.firstname || '').toLowerCase().includes(query) ||
+           (chat.lastname || '').toLowerCase().includes(query);
+  });
+
+  const filteredGroupChats = groupChats.filter(group => {
+    if (!searchQuery.trim()) return true;
+    const query = searchQuery.toLowerCase();
+    return (group.name || '').toLowerCase().includes(query) ||
+           (group.description || '').toLowerCase().includes(query);
+  });
   
   // Sort individual chats by last message time
   individualChats.sort((a, b) => {
@@ -1691,6 +1906,37 @@ export default function UnifiedChat() {
              
              <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 10 }}>Recent Chats</Text>
              
+             {/* Search Bar */}
+             <View style={{ 
+               flexDirection: 'row', 
+               alignItems: 'center', 
+               backgroundColor: '#f5f5f5', 
+               borderRadius: 20, 
+               paddingHorizontal: 15, 
+               marginBottom: 15,
+               borderWidth: 1,
+               borderColor: '#e0e0e0'
+             }}>
+               <Text style={{ fontSize: 16, marginRight: 8 }}>🔍</Text>
+               <TextInput
+                 value={searchQuery}
+                 onChangeText={setSearchQuery}
+                 placeholder="Search chats..."
+                 style={{ 
+                   flex: 1, 
+                   paddingVertical: 10, 
+                   fontSize: 14,
+                   color: '#333'
+                 }}
+                 placeholderTextColor="#999"
+               />
+               {searchQuery.length > 0 && (
+                 <TouchableOpacity onPress={() => setSearchQuery('')}>
+                   <Text style={{ fontSize: 16, color: '#666' }}>✕</Text>
+                 </TouchableOpacity>
+               )}
+             </View>
+             
              {/* Loading overlay for auto-refresh */}
              {isAutoRefreshing && (
                <View style={{
@@ -1751,7 +1997,7 @@ export default function UnifiedChat() {
                             marginLeft: 10 
                           }} />
                         </View>
-                        {individualChats.map(chat => (
+                        {filteredIndividualChats.map(chat => (
                           <View key={chat._id} style={{ position: 'relative' }}>
                             <TouchableOpacity
                               onPress={() => {
@@ -1876,7 +2122,7 @@ export default function UnifiedChat() {
                             marginLeft: 10 
                           }} />
                         </View>
-                        {groupChats.map(chat => (
+                        {filteredGroupChats.map(chat => (
                           <TouchableOpacity
                             key={chat._id}
                             onPress={() => {
@@ -2456,20 +2702,7 @@ export default function UnifiedChat() {
                   {msg.message ? (
                     <Text style={{ color: isMe ? '#fff' : '#222' }}>{msg.message}</Text>
                   ) : null}
-                  {msg.fileUrl ? (
-                    <TouchableOpacity onPress={() => {
-                      try {
-                        const url = String(msg.fileUrl).startsWith('http') ? msg.fileUrl : `${API_URL?.replace(/\/$/, '')}/${String(msg.fileUrl).replace(/^\//, '')}`;
-                        // Best effort open using Linking; no import to keep scope small
-                        const Linking = require('react-native').Linking;
-                        Linking.openURL(url);
-                      } catch {}
-                    }}>
-                      <Text style={{ color: isMe ? '#d1eaff' : '#666', fontSize: 12, marginTop: msg.message ? 6 : 0 }}>
-                        📎 {String(msg.fileUrl).split('/').pop()}
-                      </Text>
-                    </TouchableOpacity>
-                  ) : null}
+                  {renderAttachments(msg, isMe)}
                   <Text style={{ color: isMe ? '#d1eaff' : '#888', fontSize: 10, alignSelf: 'flex-end', marginTop: 4 }}>
                     {(() => { const ts = msg.createdAt || msg.updatedAt || msg.timestamp; return ts ? new Date(ts).toLocaleTimeString() : ''; })()}
                   </Text>
@@ -2512,19 +2745,7 @@ export default function UnifiedChat() {
                   {msg.message ? (
                     <Text style={{ color: isMe ? '#fff' : '#222' }}>{msg.message}</Text>
                   ) : null}
-                  {msg.fileUrl ? (
-                    <TouchableOpacity onPress={() => {
-                      try {
-                        const url = String(msg.fileUrl).startsWith('http') ? msg.fileUrl : `${API_URL?.replace(/\/$/, '')}/${String(msg.fileUrl).replace(/^\//, '')}`;
-                        const Linking = require('react-native').Linking;
-                        Linking.openURL(url);
-                      } catch {}
-                    }}>
-                      <Text style={{ color: isMe ? '#d1eaff' : '#666', fontSize: 12, marginTop: msg.message ? 6 : 0 }}>
-                        📎 {String(msg.fileUrl).split('/').pop()}
-                      </Text>
-                    </TouchableOpacity>
-                  ) : null}
+                  {renderAttachments(msg, isMe)}
                   <Text style={{ color: isMe ? '#d1eaff' : '#888', fontSize: 10, alignSelf: 'flex-end', marginTop: 4 }}>
                     {(() => { const ts = msg.createdAt || msg.updatedAt || msg.timestamp; return ts ? new Date(ts).toLocaleTimeString() : ''; })()}
                   </Text>
@@ -2548,10 +2769,18 @@ export default function UnifiedChat() {
       }}>
         <TouchableOpacity onPress={async () => {
           try {
-            const result = await DocumentPicker.getDocumentAsync({ copyToCacheDirectory: true, multiple: false });
-            if (!result.canceled) {
-              const file = result.assets?.[0];
-              if (file) setSelectedFile(file);
+            const result = await DocumentPicker.getDocumentAsync({ copyToCacheDirectory: true, multiple: true });
+            if (!result.canceled && result.assets) {
+              const files = result.assets;
+              if (files.length === 1) {
+                // Single file - use existing logic for backward compatibility
+                setSelectedFile(files[0]);
+                setSelectedFiles([]);
+              } else if (files.length > 1) {
+                // Multiple files - use new logic
+                setSelectedFiles(files);
+                setSelectedFile(null);
+              }
             }
           } catch {}
         }} style={{ marginRight: 8 }}>
@@ -2581,9 +2810,37 @@ export default function UnifiedChat() {
           <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>➤</Text>
         </TouchableOpacity>
       </View>
+      {/* Show selected files */}
       {selectedFile && (
         <View style={{ paddingHorizontal: 12, paddingBottom: 8 }}>
           <Text style={{ fontSize: 12, color: '#666' }}>Attached: {selectedFile.name || 'file'}</Text>
+        </View>
+      )}
+      {selectedFiles.length > 0 && (
+        <View style={{ paddingHorizontal: 12, paddingBottom: 8 }}>
+          <Text style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>
+            Attached ({selectedFiles.length} files):
+          </Text>
+          {selectedFiles.map((file, index) => (
+            <View key={index} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
+              <Text style={{ fontSize: 11, color: '#888', flex: 1 }}>
+                • {file.name || 'file'}
+              </Text>
+              <TouchableOpacity 
+                onPress={() => {
+                  const newFiles = selectedFiles.filter((_, i) => i !== index);
+                  if (newFiles.length === 0) {
+                    setSelectedFiles([]);
+                  } else {
+                    setSelectedFiles(newFiles);
+                  }
+                }}
+                style={{ marginLeft: 8 }}
+              >
+                <Text style={{ color: '#ff4444', fontSize: 12 }}>✕</Text>
+              </TouchableOpacity>
+            </View>
+          ))}
         </View>
       )}
 
@@ -2685,6 +2942,49 @@ export default function UnifiedChat() {
           </View>
         </Modal>
       )}
+
+      {/* Full Screen Image Modal */}
+      <Modal
+        visible={showImageModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowImageModal(false)}
+      >
+        <TouchableOpacity 
+          style={{ 
+            flex: 1, 
+            backgroundColor: 'rgba(0,0,0,0.9)', 
+            justifyContent: 'center', 
+            alignItems: 'center' 
+          }}
+          activeOpacity={1}
+          onPress={() => setShowImageModal(false)}
+        >
+          <TouchableOpacity activeOpacity={1} onPress={() => {}}>
+            <Image 
+              source={{ uri: selectedImageUrl }}
+              style={{ 
+                width: '90%', 
+                height: '80%',
+                resizeMode: 'contain'
+              }}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity 
+            onPress={() => setShowImageModal(false)}
+            style={{ 
+              position: 'absolute', 
+              top: 50, 
+              right: 20,
+              backgroundColor: 'rgba(255,255,255,0.3)',
+              borderRadius: 20,
+              padding: 10
+            }}
+          >
+            <Text style={{ color: 'white', fontSize: 18, fontWeight: 'bold' }}>✕</Text>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 } 

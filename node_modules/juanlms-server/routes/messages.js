@@ -9,6 +9,77 @@ import cloudinary from '../utils/cloudinary.js';
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
+const uploadMultiple = multer({ storage: multer.memoryStorage() });
+
+// Helper function to detect if file is an image
+const isImage = (mimetype) => {
+  return mimetype && mimetype.startsWith('image/');
+};
+
+// Helper function to process single file with image support
+const processFile = async (file) => {
+  const isImageFile = isImage(file.mimetype);
+  let fileUrl = null;
+  let thumbnailUrl = null;
+  let width = null;
+  let height = null;
+
+  if (!process.env.CLOUDINARY_CLOUD_NAME) {
+    // Local storage
+    const uploadDir = 'uploads/chat-attachments';
+    fs.mkdirSync(uploadDir, { recursive: true });
+    const unique = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    const ext = path.extname(file.originalname || '') || '';
+    const filename = `dm-${unique}${ext}`;
+    const filepath = path.join(uploadDir, filename);
+    fs.writeFileSync(filepath, file.buffer);
+    fileUrl = `/uploads/chat-attachments/${filename}`;
+  } else {
+    // Cloudinary storage
+    const result = await new Promise((resolve, reject) => {
+      const opts = { 
+        folder: 'juanlms/chat-attachments', 
+        resource_type: 'auto' 
+      };
+      const stream = cloudinary.uploader.upload_stream(opts, (err, r) => {
+        if (err) return reject(err);
+        resolve(r);
+      });
+      stream.end(file.buffer);
+    });
+    
+    fileUrl = result.secure_url;
+    width = result.width;
+    height = result.height;
+
+    // Generate thumbnail for images
+    if (isImageFile && result.public_id) {
+      try {
+        const thumbnailResult = await cloudinary.uploader.explicit(result.public_id, {
+          type: 'upload',
+          width: 300,
+          height: 300,
+          crop: 'limit',
+          quality: 'auto',
+          format: 'auto'
+        });
+        thumbnailUrl = thumbnailResult.secure_url;
+      } catch (thumbnailErr) {
+        console.log('Thumbnail generation failed:', thumbnailErr);
+      }
+    }
+  }
+
+  return {
+    url: fileUrl,
+    name: file.originalname || 'attachment',
+    fileType: isImageFile ? 'image' : 'document',
+    thumbnailUrl,
+    size: file.size,
+    width,
+    height
+  };
+};
 
 // Accept both JSON and multipart. For multipart, expect field name 'file'
 router.post('/', upload.single('file'), async (req, res) => {
@@ -25,32 +96,23 @@ router.post('/', upload.single('file'), async (req, res) => {
       message = '';
     }
 
-    // Process optional file
+    // Process optional file - keep existing functionality for backward compatibility
     let fileUrl = null;
+    let attachments = [];
+    
     if (req.file) {
-      if (!process.env.CLOUDINARY_CLOUD_NAME) {
-        const uploadDir = 'uploads/chat-attachments';
-        fs.mkdirSync(uploadDir, { recursive: true });
-        const unique = Date.now() + '-' + Math.round(Math.random() * 1e9);
-        const ext = path.extname(req.file.originalname || '') || '';
-        const filename = `dm-${unique}${ext}`;
-        const filepath = path.join(uploadDir, filename);
-        fs.writeFileSync(filepath, req.file.buffer);
-        fileUrl = `/uploads/chat-attachments/${filename}`;
-      } else {
-        const result = await new Promise((resolve, reject) => {
-          const opts = { folder: 'juanlms/chat-attachments', resource_type: 'auto' };
-          const stream = cloudinary.uploader.upload_stream(opts, (err, r) => {
-            if (err) return reject(err);
-            resolve(r);
-          });
-          stream.end(req.file.buffer);
-        });
-        fileUrl = result.secure_url;
-      }
+      const processedFile = await processFile(req.file);
+      fileUrl = processedFile.url; // Keep existing field for backward compatibility
+      attachments = [processedFile]; // Add to new attachments array
     }
 
-    const newMessage = new Message({ senderId, receiverId, message: message || '', fileUrl });
+    const newMessage = new Message({ 
+      senderId, 
+      receiverId, 
+      message: message || '', 
+      fileUrl, // Keep existing for backward compatibility
+      attachments // Add new field
+    });
     await newMessage.save();
 
   // Fire-and-forget FCM notification to receiver
@@ -71,6 +133,64 @@ router.post('/', upload.single('file'), async (req, res) => {
     res.status(201).json(newMessage);
   } catch (error) {
     console.error('[DM] send error:', error);
+    res.status(500).json({ error: 'Failed to send message' });
+  }
+});
+
+// New route for multiple files - additive only
+router.post('/multiple', uploadMultiple.array('files', 10), async (req, res) => {
+  try {
+    const { senderId, receiverId } = req.body;
+    let { message } = req.body;
+
+    if (!senderId || !receiverId) {
+      return res.status(400).json({ error: 'senderId and receiverId are required' });
+    }
+
+    // Allow file-only messages: if no text but has files, set message placeholder
+    if ((!message || String(message).trim() === '') && req.files && req.files.length > 0) {
+      message = '';
+    }
+
+    // Process multiple files
+    let attachments = [];
+    let fileUrl = null; // Keep for backward compatibility - use first file
+
+    if (req.files && req.files.length > 0) {
+      for (const file of req.files) {
+        const processedFile = await processFile(file);
+        attachments.push(processedFile);
+      }
+      fileUrl = attachments[0].url; // Set first file for backward compatibility
+    }
+
+    const newMessage = new Message({ 
+      senderId, 
+      receiverId, 
+      message: message || '', 
+      fileUrl, // Keep existing for backward compatibility
+      attachments 
+    });
+    await newMessage.save();
+
+    // Fire-and-forget FCM notification to receiver
+    try {
+      const sender = await User.findById(senderId, 'firstname lastname');
+      const senderName = sender ? `${sender.firstname || ''} ${sender.lastname || ''}`.trim() || 'New message' : 'New message';
+      const title = senderName;
+      const body = message?.slice(0, 120) || (attachments.length > 0 ? `${attachments.length} file(s) sent` : 'You have a new message');
+      sendNotificationToUser(receiverId, { title, body }, {
+        screen: 'UnifiedChat',
+        params: JSON.stringify({ chatId: senderId, threadId: senderId }),
+        type: 'chat_direct'
+      });
+    } catch (e) {
+      console.log('[DM Multiple] FCM send error:', e);
+    }
+
+    res.status(201).json(newMessage);
+  } catch (error) {
+    console.error('[DM Multiple] send error:', error);
     res.status(500).json({ error: 'Failed to send message' });
   }
 });
