@@ -1,12 +1,19 @@
 #!/bin/bash
 
-# EAS Build pre-install hook to restore GoogleService-Info.plist
-echo "🔧 Restoring GoogleService-Info.plist for Firebase..."
+# Add use_modular_headers! to the generated Podfile
+echo "Modifying Podfile to fix Firebase Swift pods integration..."
 
-# Create the iOS directory structure
-mkdir -p ios/JuanLMS
+# Find the Podfile in the ios directory
+PODFILE_PATH="./ios/Podfile"
 
-# Copy the GoogleService-Info.plist file from the root to the iOS directory
-cp ios/JuanLMS/GoogleService-Info.plist ios/JuanLMS/GoogleService-Info.plist
-
-echo "✅ GoogleService-Info.plist restored successfully"
+if [ -f "$PODFILE_PATH" ]; then
+    # Add use_modular_headers! after the platform declaration
+    sed -i '' '/platform :ios/a\
+\
+# Enable modular headers globally to fix Firebase Swift pods integration\
+use_modular_headers!' "$PODFILE_PATH"
+    
+    echo "Successfully modified Podfile"
+else
+    echo "Podfile not found at $PODFILE_PATH"
+fi

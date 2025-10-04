@@ -21,23 +21,32 @@
         "buildType": "apk",
         "gradleCommand": ":app:assembleRelease"
       },
+      "ios": {
+        "buildConfiguration": "Release"
+      },
+      "hooks": {
+        "preInstall": "./eas-build-pre-install.sh"
+      },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://juanlms-webapp-server.onrender.com"
       }
     },
     "production": {
-      "distribution": "store",
-      "android": {
-        "buildType": "apk",
-        "gradleCommand": ":app:assembleRelease"
-      },
-      "ios": {
-        "buildConfiguration": "Release"
-      },
-      "env": {
-        "EXPO_PUBLIC_API_URL": "https://juanlms-webapp-server.onrender.com"
-      }
-    }
+          "distribution": "store",
+          "android": {
+            "buildType": "apk",
+            "gradleCommand": ":app:assembleRelease"
+          },
+          "ios": {
+            "buildConfiguration": "Release"
+          },
+          "hooks": {
+            "preInstall": "./eas-build-pre-install.sh"
+          },
+          "env": {
+            "EXPO_PUBLIC_API_URL": "https://juanlms-webapp-server.onrender.com"
+          }
+        }
   },
   "submit": {
     "production": {}
