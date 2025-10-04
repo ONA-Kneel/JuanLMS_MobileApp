@@ -96,7 +96,7 @@ const profileService = {
     }
   },
 
-  async uploadProfilePicture(userId, imageAsset, isWeb = false) {
+  async uploadProfilePicture(userId, imageAsset, isWeb = false, onLoadingChange = null) {
     try {
       console.log('=== ProfileService Upload Debug Start ===');
       console.log('API_URL:', API_URL);
@@ -104,6 +104,10 @@ const profileService = {
       console.log('isWeb:', isWeb);
       console.log('imageAsset:', imageAsset);
       
+      // Notify UI that upload is starting
+      if (onLoadingChange) {
+        onLoadingChange(true);
+      }
       
       const token = await AsyncStorage.getItem('jwtToken');
       console.log('Token exists:', !!token);
@@ -192,6 +196,12 @@ const profileService = {
           throw new Error(text || `Upload failed with status ${fetchResp.status}`);
         }
         const json = await fetchResp.json();
+        
+        // Notify UI that upload is complete
+        if (onLoadingChange) {
+          onLoadingChange(false);
+        }
+        
         if (json?.profile_picture || json?.url) {
           const pic = json.profile_picture || json.url;
           return { user: { profilePic: pic } };
@@ -206,6 +216,12 @@ const profileService = {
             Accept: 'application/json',
           },
         });
+        
+        // Notify UI that upload is complete
+        if (onLoadingChange) {
+          onLoadingChange(false);
+        }
+        
         // Normalize response to expected shape used by callers
         if (response?.data?.profile_picture || response?.data?.url) {
           const pic = response.data.profile_picture || response.data.url;
@@ -214,6 +230,11 @@ const profileService = {
         return response.data;
       }
     } catch (error) {
+      // Notify UI that upload failed and loading should stop
+      if (onLoadingChange) {
+        onLoadingChange(false);
+      }
+      
       console.error('=== ProfileService Upload Debug End - Error ===');
       console.error('Error uploading profile picture:', error);
       console.error('Error message:', error.message);
