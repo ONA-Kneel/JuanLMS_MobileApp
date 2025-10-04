@@ -35,7 +35,8 @@
             "gradleCommand": ":app:assembleRelease"
           },
           "ios": {
-            "buildConfiguration": "Release"
+            "buildConfiguration": "Release",
+            "useFrameworks": "dynamic"
           },
           "env": {
             "EXPO_PUBLIC_API_URL": "https://juanlms-webapp-server.onrender.com"

@@ -97,7 +97,8 @@
             "useModularHeaders": true
           }
         }
-      ]
+      ],
+      "./withReactNativeFirebase"
     ],
     "notification": {
       "icon": "./assets/SanJuan.png",
