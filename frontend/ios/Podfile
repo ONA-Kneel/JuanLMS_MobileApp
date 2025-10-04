@@ -5,7 +5,7 @@ platform :ios, '13.4'
 install! 'cocoapods', :deterministic_uuids => false
 
 # Use dynamic frameworks to avoid Firebase Swift pods issues
-use_frameworks! :linkage => :static
+use_frameworks!
 
 target 'JuanLMS' do
   config = use_native_modules!
