@@ -4,8 +4,8 @@ require_relative '../node_modules/@react-native-community/cli-platform-ios/nativ
 platform :ios, '13.4'
 install! 'cocoapods', :deterministic_uuids => false
 
-# Enable modular headers globally to fix Firebase Swift pods integration
-use_modular_headers!
+# Use dynamic frameworks to avoid Firebase Swift pods issues
+use_frameworks! :linkage => :static
 
 target 'JuanLMS' do
   config = use_native_modules!
@@ -26,13 +26,6 @@ target 'JuanLMS' do
     # An absolute path to your application root.
     :app_path => "#{Pod::Config.instance.installation_root}/.."
   )
-
-  # Explicitly configure Firebase pods with modular headers
-  pod 'Firebase/Core', :modular_headers => true
-  pod 'Firebase/Messaging', :modular_headers => true
-  pod 'FirebaseCore', :modular_headers => true
-  pod 'FirebaseCoreInternal', :modular_headers => true
-  pod 'GoogleUtilities', :modular_headers => true
 
   target 'JuanLMSTests' do
     inherit! :complete
