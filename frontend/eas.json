@@ -24,9 +24,6 @@
       "ios": {
         "buildConfiguration": "Release"
       },
-      "hooks": {
-        "preInstall": "./eas-build-pre-install.sh"
-      },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://juanlms-webapp-server.onrender.com"
       }
@@ -39,9 +36,6 @@
           },
           "ios": {
             "buildConfiguration": "Release"
-          },
-          "hooks": {
-            "preInstall": "./eas-build-pre-install.sh"
           },
           "env": {
             "EXPO_PUBLIC_API_URL": "https://juanlms-webapp-server.onrender.com"

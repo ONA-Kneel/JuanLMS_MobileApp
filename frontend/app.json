@@ -84,8 +84,7 @@
         "@react-native-firebase/app",
         {
           "ios": {
-            "useFrameworks": "dynamic",
-            "useModularHeaders": true
+            "useFrameworks": "dynamic"
           }
         }
       ]
