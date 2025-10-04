@@ -96,13 +96,17 @@ const profileService = {
     }
   },
 
-  async uploadProfilePicture(userId, imageAsset, isWeb = false, onLoadingChange = null) {
+  async uploadProfilePicture(userId, imageAsset, isWeb = false, onLoadingChange = null, retryCount = 0) {
+    const maxRetries = 2;
+    const retryDelay = 1000; // 1 second
+    
     try {
       console.log('=== ProfileService Upload Debug Start ===');
       console.log('API_URL:', API_URL);
       console.log('userId:', userId);
       console.log('isWeb:', isWeb);
       console.log('imageAsset:', imageAsset);
+      console.log('Retry attempt:', retryCount + 1);
       
       // Notify UI that upload is starting
       if (onLoadingChange) {
@@ -112,6 +116,18 @@ const profileService = {
       const token = await AsyncStorage.getItem('jwtToken');
       console.log('Token exists:', !!token);
       console.log('Token length:', token ? token.length : 0);
+      
+      // Quick network connectivity check
+      try {
+        const testResponse = await fetch(`${API_URL}/health`, { 
+          method: 'GET',
+          timeout: 5000 
+        });
+        console.log('Network connectivity check passed:', testResponse.status);
+      } catch (connectivityError) {
+        console.warn('Network connectivity check failed:', connectivityError.message);
+        // Continue with upload attempt anyway, as the health endpoint might not exist
+      }
       // Enforce same constraints as WebApp: image types only, max 5MB
       const MAX_BYTES = 5 * 1024 * 1024;
       const formData = new FormData();
@@ -181,19 +197,57 @@ const profileService = {
           // Do NOT set Content-Type; RN fetch will add correct multipart boundary
         };
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+        const timeoutId = setTimeout(() => controller.abort(), 45000); // 45 second timeout for large uploads
         
-        const fetchResp = await fetch(`${API_URL}/users/${userId}/upload-profile`, {
-          method: 'POST',
-          headers: fetchHeaders,
-          body: formData,
-          signal: controller.signal,
-        });
+        console.log('=== Network Request Debug ===');
+        console.log('Request URL:', `${API_URL}/users/${userId}/upload-profile`);
+        console.log('Request method: POST');
+        console.log('Headers:', fetchHeaders);
+        console.log('FormData keys:', Array.from(formData._parts ? formData._parts.keys() : []));
+        
+        let fetchResp;
+        try {
+          fetchResp = await fetch(`${API_URL}/users/${userId}/upload-profile`, {
+            method: 'POST',
+            headers: fetchHeaders,
+            body: formData,
+            signal: controller.signal,
+          });
+        } catch (fetchError) {
+          clearTimeout(timeoutId);
+          console.error('Fetch error details:', {
+            name: fetchError.name,
+            message: fetchError.message,
+            code: fetchError.code,
+            stack: fetchError.stack
+          });
+          
+          // Enhanced error handling for different types of fetch errors
+          if (fetchError.name === 'AbortError') {
+            throw new Error('Upload timeout. Please check your connection and try again.');
+          } else if (fetchError.message.includes('Network request failed')) {
+            throw new Error('Network connection failed. Please check your internet connection and try again.');
+          } else if (fetchError.message.includes('fetch')) {
+            throw new Error('Unable to reach server. Please check your internet connection.');
+          } else {
+            throw new Error(`Network error: ${fetchError.message}`);
+          }
+        }
         
         clearTimeout(timeoutId);
+        console.log('Response status:', fetchResp.status);
+        console.log('Response headers:', fetchResp.headers);
+        
         if (!fetchResp.ok) {
-          const text = await fetchResp.text();
-          throw new Error(text || `Upload failed with status ${fetchResp.status}`);
+          let errorText;
+          try {
+            errorText = await fetchResp.text();
+            console.log('Error response text:', errorText);
+          } catch (textError) {
+            console.error('Failed to read error response:', textError);
+            errorText = `Upload failed with status ${fetchResp.status}`;
+          }
+          throw new Error(errorText || `Upload failed with status ${fetchResp.status}`);
         }
         const json = await fetchResp.json();
         
@@ -230,11 +284,6 @@ const profileService = {
         return response.data;
       }
     } catch (error) {
-      // Notify UI that upload failed and loading should stop
-      if (onLoadingChange) {
-        onLoadingChange(false);
-      }
-      
       console.error('=== ProfileService Upload Debug End - Error ===');
       console.error('Error uploading profile picture:', error);
       console.error('Error message:', error.message);
@@ -242,6 +291,34 @@ const profileService = {
       console.error('Error response:', error.response);
       console.error('Error response data:', error.response?.data);
       console.error('Error response status:', error.response?.status);
+      
+      // Check if we should retry
+      const shouldRetry = retryCount < maxRetries && (
+        error.message.includes('Network request failed') ||
+        error.message.includes('Network connection failed') ||
+        error.message.includes('timeout') ||
+        error.message.includes('fetch')
+      );
+      
+      if (shouldRetry) {
+        console.log(`Retrying upload in ${retryDelay}ms... (attempt ${retryCount + 2}/${maxRetries + 1})`);
+        
+        // Notify UI that we're retrying
+        if (onLoadingChange) {
+          onLoadingChange(false);
+        }
+        
+        // Wait before retrying
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+        
+        // Retry the upload
+        return this.uploadProfilePicture(userId, imageAsset, isWeb, onLoadingChange, retryCount + 1);
+      }
+      
+      // Notify UI that upload failed and loading should stop
+      if (onLoadingChange) {
+        onLoadingChange(false);
+      }
       
       // Handle different types of errors
       if (error.message && error.message.includes('Cannot connect to server')) {
