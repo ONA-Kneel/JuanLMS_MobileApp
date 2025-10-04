@@ -30,6 +30,7 @@
         "PROJECT_ID": "juanlms-pushnotf",
         "STORAGE_BUCKET": "juanlms-pushnotf.firebasestorage.app"
       },
+      "googleServicesFile": "./GoogleService-Info.plist"
     },
     "android": {
       "adaptiveIcon": {
