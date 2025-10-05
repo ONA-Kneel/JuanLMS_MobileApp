@@ -67,8 +67,15 @@ export default function SplashScreen() {
         }
 
         // If cache was cleared but remember me is still enabled, go to login for auto-login
-        if (cacheResult.wasCleared && remember) {
+        if (cacheResult.wasCleared && remember && !cacheResult.credentialsLost) {
           console.log('⚠️ Cache clearing detected but remember me enabled - going to login for auto-login');
+          navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+          return;
+        }
+        
+        // If cache was cleared and credentials were lost, go to login without auto-login
+        if (cacheResult.wasCleared && cacheResult.credentialsLost) {
+          console.log('⚠️ Cache clearing detected and credentials lost - going to login');
           navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
           return;
         }

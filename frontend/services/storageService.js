@@ -17,7 +17,7 @@ class StorageService {
   static async getCredentials() {
     try {
       const credentials = await Keychain.getInternetCredentials('juanlms_credentials');
-      if (credentials) {
+      if (credentials && credentials.username && credentials.password) {
         console.log('✅ Credentials retrieved from Keychain');
         return {
           success: true,
@@ -25,10 +25,11 @@ class StorageService {
           password: credentials.password
         };
       }
+      console.log('⚠️ No valid credentials found in Keychain');
       return { success: true, email: null, password: null };
     } catch (error) {
       console.error('❌ Error retrieving credentials from Keychain:', error);
-      return { success: false, error: error.message };
+      return { success: false, error: error.message, email: null, password: null };
     }
   }
   
@@ -148,9 +149,10 @@ class StorageService {
   // Cache clearing detection
   static async detectCacheClearing() {
     try {
-      const [rememberResult, authResult] = await Promise.all([
+      const [rememberResult, authResult, credentialsResult] = await Promise.all([
         this.getRememberMe(),
-        this.getAuthData()
+        this.getAuthData(),
+        this.getCredentials()
       ]);
       
       // If remember me was enabled but auth data is missing, cache was likely cleared
@@ -160,17 +162,58 @@ class StorageService {
       
       if (wasCacheCleared) {
         console.log('⚠️ Cache clearing detected - remember me enabled but auth data missing');
-        // Don't reset remember me preference - credentials are still in keychain
-        // The user can still auto-login with saved credentials
+        
+        // Check if credentials are still available in Keychain
+        const hasValidCredentials = credentialsResult.success && 
+                                   credentialsResult.email && 
+                                   credentialsResult.password;
+        
+        if (!hasValidCredentials) {
+          console.log('⚠️ Credentials also missing from Keychain - resetting remember me');
+          // If both auth data and credentials are missing, reset remember me preference
+          await this.setRememberMe(false);
+          return { success: true, wasCleared: true, credentialsLost: true };
+        } else {
+          console.log('✅ Credentials still available in Keychain - can auto-login');
+          // Credentials are still available, user can auto-login
+          return { success: true, wasCleared: true, credentialsLost: false };
+        }
       }
       
-      return { success: true, wasCleared: wasCacheCleared };
+      return { success: true, wasCleared: false, credentialsLost: false };
     } catch (error) {
       console.error('❌ Error detecting cache clearing:', error);
-      return { success: false, error: error.message, wasCleared: false };
+      return { success: false, error: error.message, wasCleared: false, credentialsLost: false };
     }
   }
   
+  // Validate credential persistence across cache clears
+  static async validateCredentialPersistence() {
+    try {
+      const [rememberResult, credentialsResult] = await Promise.all([
+        this.getRememberMe(),
+        this.getCredentials()
+      ]);
+      
+      const isValid = rememberResult.success && 
+                     rememberResult.enabled && 
+                     credentialsResult.success && 
+                     credentialsResult.email && 
+                     credentialsResult.password;
+      
+      console.log('🔍 Credential persistence validation:', {
+        rememberEnabled: rememberResult.enabled,
+        hasCredentials: !!(credentialsResult.email && credentialsResult.password),
+        isValid
+      });
+      
+      return { success: true, isValid };
+    } catch (error) {
+      console.error('❌ Error validating credential persistence:', error);
+      return { success: false, error: error.message, isValid: false };
+    }
+  }
+
   // Complete logout - clears both auth data and credentials
   static async logout() {
     try {
