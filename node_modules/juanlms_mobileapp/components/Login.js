@@ -8,14 +8,10 @@ import Toast from 'react-native-root-toast';
 import { useUser } from './UserContext';
 import { useNotifications } from '../NotificationContext';
 import { addAuditLog } from './Admin/auditTrailUtils';
+import StorageService from '../services/storageService';
 
 // Set your public backend URL here (replace with your actual deployed backend URL)
 const BACKEND_URL = 'https://juanlms-webapp-server.onrender.com/login'; // Update this to your actual backend URL
-const STORAGE_KEYS = {
-  remember: 'rememberMeEnabled',
-  email: 'savedEmail',
-  password: 'savedPassword',
-};
 
 export default function Login() {
   console.log('🔐 Login component rendering...');
@@ -38,6 +34,7 @@ export default function Login() {
   useEffect(() => {
     console.log('🔐 Login useEffect running...');
     const loadLockoutState = async () => {
+      // Load lockout state from AsyncStorage (not affected by cache clearing)
       const attempts = await AsyncStorage.getItem('failedAttempts');
       const cooldownEnd = await AsyncStorage.getItem('cooldownEndTime');
       const currentTime = Date.now();
@@ -51,20 +48,26 @@ export default function Login() {
         setFailedAttempts(parseInt(attempts));
       }
 
-      // Load Remember Me preference and optionally credentials
-      const savedRemember = await AsyncStorage.getItem(STORAGE_KEYS.remember);
-      const isRememberEnabled = savedRemember === 'true';
+      // Check for cache clearing and load remember me preference
+      const cacheResult = await StorageService.detectCacheClearing();
+      if (cacheResult.wasCleared) {
+        showToast('App data was cleared. Please log in again.', 'info');
+      }
+
+      // Load Remember Me preference
+      const rememberResult = await StorageService.getRememberMe();
+      const isRememberEnabled = rememberResult.enabled;
       setRememberMe(isRememberEnabled);
 
       if (isRememberEnabled) {
-        const savedEmail = await AsyncStorage.getItem(STORAGE_KEYS.email);
-        const savedPassword = await AsyncStorage.getItem(STORAGE_KEYS.password);
-        if (savedEmail) setEmail(savedEmail);
-        if (savedPassword) setPassword(savedPassword);
-
-        // Auto-login if both credentials exist (no artificial delay)
-        if (savedEmail && savedPassword) {
-          loginWithCredentials(savedEmail, savedPassword);
+        // Load credentials from secure storage
+        const credentialsResult = await StorageService.getCredentials();
+        if (credentialsResult.success && credentialsResult.email && credentialsResult.password) {
+          setEmail(credentialsResult.email);
+          setPassword(credentialsResult.password);
+          
+          // Auto-login if credentials exist
+          loginWithCredentials(credentialsResult.email, credentialsResult.password);
         }
       }
     };
@@ -110,13 +113,13 @@ export default function Login() {
 
   const persistRememberPreference = async (enabled) => {
     try {
-      await AsyncStorage.setItem(STORAGE_KEYS.remember, enabled ? 'true' : 'false');
-      if (enabled) {
-        if (email) await AsyncStorage.setItem(STORAGE_KEYS.email, email);
-        if (password) await AsyncStorage.setItem(STORAGE_KEYS.password, password);
-      } else {
-        await AsyncStorage.removeItem(STORAGE_KEYS.email);
-        await AsyncStorage.removeItem(STORAGE_KEYS.password);
+      await StorageService.setRememberMe(enabled);
+      if (enabled && email && password) {
+        // Save current credentials to secure storage
+        await StorageService.saveCredentials(email, password);
+      } else if (!enabled) {
+        // Clear credentials from secure storage
+        await StorageService.clearCredentials();
       }
     } catch (err) {
       console.error('Persist remember preference error:', err);
@@ -132,13 +135,13 @@ export default function Login() {
   const saveCredentialsIfRemembered = async (currentEmail, currentPassword) => {
     try {
       if (rememberMe) {
-        await AsyncStorage.setItem(STORAGE_KEYS.remember, 'true');
-        await AsyncStorage.setItem(STORAGE_KEYS.email, currentEmail);
-        await AsyncStorage.setItem(STORAGE_KEYS.password, currentPassword);
+        // Save remember me preference and credentials securely
+        await StorageService.setRememberMe(true);
+        await StorageService.saveCredentials(currentEmail, currentPassword);
       } else {
-        await AsyncStorage.setItem(STORAGE_KEYS.remember, 'false');
-        await AsyncStorage.removeItem(STORAGE_KEYS.email);
-        await AsyncStorage.removeItem(STORAGE_KEYS.password);
+        // Clear remember me preference and credentials
+        await StorageService.setRememberMe(false);
+        await StorageService.clearCredentials();
       }
     } catch (err) {
       console.error('Saving credentials error:', err);

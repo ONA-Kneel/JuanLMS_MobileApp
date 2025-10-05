@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import StorageService from '../services/storageService';
 
 let ExpoConstants = null;
 try {
@@ -139,22 +140,22 @@ export const logout = async () => {
   try {
     // Attempt to unregister device token on backend
     try {
-      const userJson = await AsyncStorage.getItem('user');
-      const token = await AsyncStorage.getItem('fcmToken');
-      if (userJson && token) {
-        const user = JSON.parse(userJson);
+      const authResult = await StorageService.getAuthData();
+      const fcmResult = await StorageService.getFCMToken();
+      
+      if (authResult.success && authResult.user && fcmResult.success && fcmResult.token) {
+        const user = authResult.user;
         const userId = user?._id || user?.userID;
         if (userId) {
-          await apiRequest('DELETE', `/api/users/${userId}/device-token`, { token });
+          await apiRequest('DELETE', `/api/users/${userId}/device-token`, { token: fcmResult.token });
         }
       }
     } catch (cleanupErr) {
       console.log('Logout token cleanup error:', cleanupErr);
     }
-    await AsyncStorage.removeItem('jwtToken');
-    await AsyncStorage.removeItem('fcmToken');
-    await AsyncStorage.removeItem('userData');
-    // Add any other cleanup needed
+    
+    // Use StorageService for logout (handles remember me logic)
+    await StorageService.logout();
   } catch (error) {
     console.error('Error during logout:', error);
   }
