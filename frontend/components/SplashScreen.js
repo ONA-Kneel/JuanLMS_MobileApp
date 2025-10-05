@@ -4,6 +4,7 @@ import { StyleSheet, Text, View, Image, Alert, Platform } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import MyStyles from './styles/MyStyles';
+import StorageService from '../services/storageService';
 
 export default function SplashScreen() {
   const navigation = useNavigation();
@@ -32,11 +33,14 @@ export default function SplashScreen() {
           throw new Error('Navigation object is null');
         }
 
-        // Decide destination based on persisted auth and remember-me
-        const remember = await AsyncStorage.getItem('rememberMeEnabled');
-        const token = await AsyncStorage.getItem('jwtToken');
-        const storedUser = await AsyncStorage.getItem('user');
-        const user = storedUser ? JSON.parse(storedUser) : null;
+        // Check for cache clearing and get auth data
+        const cacheResult = await StorageService.detectCacheClearing();
+        const authResult = await StorageService.getAuthData();
+        const rememberResult = await StorageService.getRememberMe();
+        
+        const user = authResult.user;
+        const token = authResult.token;
+        const remember = rememberResult.enabled;
 
         const roleNavigationMap = {
           'students': 'SDash',
@@ -51,7 +55,8 @@ export default function SplashScreen() {
           'principal': 'PrincipalDash'
         };
 
-        const canAutoEnter = remember === 'true' && !!token && !!user && !!user.role;
+        // Auto-enter if remember me is enabled and we have valid auth data
+        const canAutoEnter = remember && !!token && !!user && !!user.role;
         if (canAutoEnter) {
           const target = roleNavigationMap[user.role];
           if (target) {
@@ -59,6 +64,13 @@ export default function SplashScreen() {
             navigation.reset({ index: 0, routes: [{ name: target }] });
             return;
           }
+        }
+
+        // If cache was cleared but remember me is still enabled, go to login for auto-login
+        if (cacheResult.wasCleared && remember) {
+          console.log('⚠️ Cache clearing detected but remember me enabled - going to login for auto-login');
+          navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+          return;
         }
 
         console.log('🎯 Fallback to Login');

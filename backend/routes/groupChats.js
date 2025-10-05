@@ -11,6 +11,76 @@ import cloudinary from '../utils/cloudinary.js';
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
+// Helper function to detect if file is an image
+const isImage = (mimetype) => {
+  return mimetype && mimetype.startsWith('image/');
+};
+
+// Helper function to process single file with image support for groups
+const processGroupFile = async (file, groupId) => {
+  const isImageFile = isImage(file.mimetype);
+  let fileUrl = null;
+  let thumbnailUrl = null;
+  let width = null;
+  let height = null;
+
+  if (!process.env.CLOUDINARY_CLOUD_NAME) {
+    // Local storage
+    const uploadDir = 'uploads/chat-attachments';
+    fs.mkdirSync(uploadDir, { recursive: true });
+    const unique = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    const ext = path.extname(file.originalname || '') || '';
+    const filename = `group-${groupId}-${unique}${ext}`;
+    const filepath = path.join(uploadDir, filename);
+    fs.writeFileSync(filepath, file.buffer);
+    fileUrl = `/uploads/chat-attachments/${filename}`;
+  } else {
+    // Cloudinary storage
+    const result = await new Promise((resolve, reject) => {
+      const opts = { 
+        folder: 'juanlms/chat-attachments', 
+        resource_type: 'auto' 
+      };
+      const stream = cloudinary.uploader.upload_stream(opts, (err, r) => {
+        if (err) return reject(err);
+        resolve(r);
+      });
+      stream.end(file.buffer);
+    });
+    
+    fileUrl = result.secure_url;
+    width = result.width;
+    height = result.height;
+
+    // Generate thumbnail for images
+    if (isImageFile && result.public_id) {
+      try {
+        const thumbnailResult = await cloudinary.uploader.explicit(result.public_id, {
+          type: 'upload',
+          width: 300,
+          height: 300,
+          crop: 'limit',
+          quality: 'auto',
+          format: 'auto'
+        });
+        thumbnailUrl = thumbnailResult.secure_url;
+      } catch (thumbnailErr) {
+        console.log('Thumbnail generation failed:', thumbnailErr);
+      }
+    }
+  }
+
+  return {
+    url: fileUrl,
+    name: file.originalname || 'attachment',
+    fileType: isImageFile ? 'image' : 'document',
+    thumbnailUrl,
+    size: file.size,
+    width,
+    height
+  };
+};
+
 // Create a new group chat
 router.post('/', async (req, res) => {
   try {
@@ -306,35 +376,22 @@ router.post('/:groupId/messages', upload.single('file'), async (req, res) => {
     const sender = await User.findById(senderId);
     const senderName = sender ? `${sender.firstname} ${sender.lastname}` : 'Unknown';
 
+    // Process optional file - keep existing functionality for backward compatibility
     let fileUrl = null;
+    let attachments = [];
+    
     if (req.file) {
-      if (!process.env.CLOUDINARY_CLOUD_NAME) {
-        const uploadDir = 'uploads/chat-attachments';
-        fs.mkdirSync(uploadDir, { recursive: true });
-        const unique = Date.now() + '-' + Math.round(Math.random() * 1e9);
-        const ext = path.extname(req.file.originalname || '') || '';
-        const filename = `group-${groupId}-${unique}${ext}`;
-        const filepath = path.join(uploadDir, filename);
-        fs.writeFileSync(filepath, req.file.buffer);
-        fileUrl = `/uploads/chat-attachments/${filename}`;
-      } else {
-        const result = await new Promise((resolve, reject) => {
-          const opts = { folder: 'juanlms/chat-attachments', resource_type: 'auto' };
-          const stream = cloudinary.uploader.upload_stream(opts, (err, r) => {
-            if (err) return reject(err);
-            resolve(r);
-          });
-          stream.end(req.file.buffer);
-        });
-        fileUrl = result.secure_url;
-      }
+      const processedFile = await processGroupFile(req.file, groupId);
+      fileUrl = processedFile.url; // Keep existing field for backward compatibility
+      attachments = [processedFile]; // Add to new attachments array
     }
 
     const newMessage = new GroupMessage({
       senderId,
       groupId,
       message: message || '',
-      fileUrl,
+      fileUrl, // Keep existing for backward compatibility
+      attachments, // Add new field
       senderName
     });
 
