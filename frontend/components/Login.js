@@ -483,6 +483,7 @@ export default function Login() {
           autoCapitalize="none"
           keyboardType="email-address"
           placeholderTextColor="#999"
+          editable={!isLoading}
         />
         <Text style={LoginStyle.label}>Password</Text>
         <View style={LoginStyle.passwordContainerUnderline}>
@@ -493,11 +494,13 @@ export default function Login() {
             secureTextEntry={!showPassword}
             onChangeText={setPassword}
             placeholderTextColor="#999"
+            editable={!isLoading}
           />
           <TouchableOpacity
             onPress={() => setShowPassword(!showPassword)}
             style={LoginStyle.eyeIcon}
             activeOpacity={0.7}
+            disabled={isLoading}
           >
             <MaterialCommunityIcons
               name={showPassword ? 'eye-off' : 'eye'}
@@ -511,6 +514,7 @@ export default function Login() {
             style={LoginStyle.rememberRow}
             onPress={onToggleRememberMe}
             activeOpacity={0.7}
+            disabled={isLoading}
           >
             <TouchableOpacity
               onPress={onToggleRememberMe}
@@ -522,7 +526,10 @@ export default function Login() {
             </TouchableOpacity>
             <Text style={LoginStyle.rememberText}>Remember Me</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')}>
+          <TouchableOpacity 
+            onPress={() => navigation.navigate('ForgotPassword')}
+            disabled={isLoading}
+          >
             <Text style={LoginStyle.forgotPassword}>Forgot Password?</Text>
           </TouchableOpacity>
         </View>
