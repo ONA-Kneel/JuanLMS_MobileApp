@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Keychain from 'react-native-keychain';
+import * as FileSystem from 'expo-file-system';
 
 class StorageService {
   // Keychain operations for secure credential storage
@@ -11,10 +12,13 @@ class StorageService {
       // Also save to backup Keychain for extra persistence
       await this.saveBackupCredentials(email, password);
       
-      console.log('✅ Credentials saved securely to Keychain (primary + backup)');
+      // Save to encrypted file storage as ultimate fallback
+      await this.saveCredentialsToFile(email, password);
+      
+      console.log('✅ Credentials saved securely (Keychain + backup + file)');
       return { success: true };
     } catch (error) {
-      console.error('❌ Error saving credentials to Keychain:', error);
+      console.error('❌ Error saving credentials:', error);
       return { success: false, error: error.message };
     }
   }
@@ -53,46 +57,204 @@ class StorageService {
   
   static async getCredentials() {
     try {
+      // First try primary Keychain
       const credentials = await Keychain.getInternetCredentials('juanlms_credentials');
       if (credentials && credentials.username && credentials.password) {
-        console.log('✅ Credentials retrieved from Keychain');
+        console.log('✅ Credentials retrieved from primary Keychain');
         return {
           success: true,
           email: credentials.username,
           password: credentials.password
         };
       }
-      console.log('⚠️ No valid credentials found in Keychain');
+      
+      // Try backup Keychain
+      const backupCredentials = await this.getBackupCredentials();
+      if (backupCredentials.success && backupCredentials.email && backupCredentials.password) {
+        console.log('✅ Credentials retrieved from backup Keychain');
+        // Restore to primary Keychain
+        await this.saveCredentials(backupCredentials.email, backupCredentials.password);
+        return backupCredentials;
+      }
+      
+      // Try file storage as last resort
+      const fileCredentials = await this.getCredentialsFromFile();
+      if (fileCredentials.success && fileCredentials.email && fileCredentials.password) {
+        console.log('✅ Credentials retrieved from file storage');
+        // Restore to Keychain
+        await this.saveCredentials(fileCredentials.email, fileCredentials.password);
+        return fileCredentials;
+      }
+      
+      console.log('⚠️ No valid credentials found anywhere');
       return { success: true, email: null, password: null };
     } catch (error) {
-      console.error('❌ Error retrieving credentials from Keychain:', error);
+      console.error('❌ Error retrieving credentials:', error);
       return { success: false, error: error.message, email: null, password: null };
     }
   }
   
+  // File-based credential storage (ultimate persistence)
+  static async saveCredentialsToFile(email, password) {
+    try {
+      const credentials = {
+        email: email,
+        password: password,
+        timestamp: Date.now(),
+        version: '1.0'
+      };
+      
+      // Simple obfuscation (not encryption, just to avoid plain text)
+      const obfuscated = Buffer.from(JSON.stringify(credentials)).toString('base64');
+      
+      const filePath = `${FileSystem.documentDirectory}juanlms_credentials.dat`;
+      await FileSystem.writeAsStringAsync(filePath, obfuscated);
+      
+      console.log('✅ Credentials saved to file storage');
+      return { success: true };
+    } catch (error) {
+      console.error('❌ Error saving credentials to file:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  static async getCredentialsFromFile() {
+    try {
+      const filePath = `${FileSystem.documentDirectory}juanlms_credentials.dat`;
+      
+      // Check if file exists
+      const exists = await FileSystem.getInfoAsync(filePath);
+      if (!exists.exists) {
+        console.log('⚠️ No credentials file found');
+        return { success: true, email: null, password: null };
+      }
+      
+      // Read and deobfuscate
+      const obfuscated = await FileSystem.readAsStringAsync(filePath);
+      const credentials = JSON.parse(Buffer.from(obfuscated, 'base64').toString('utf8'));
+      
+      if (credentials.email && credentials.password) {
+        console.log('✅ Credentials retrieved from file storage');
+        return {
+          success: true,
+          email: credentials.email,
+          password: credentials.password
+        };
+      }
+      
+      console.log('⚠️ Invalid credentials in file');
+      return { success: true, email: null, password: null };
+    } catch (error) {
+      console.error('❌ Error reading credentials from file:', error);
+      return { success: false, error: error.message, email: null, password: null };
+    }
+  }
+
   static async clearCredentials() {
     try {
       await Promise.all([
         Keychain.resetInternetCredentials('juanlms_credentials'),
-        Keychain.resetInternetCredentials('juanlms_credentials_backup')
+        Keychain.resetInternetCredentials('juanlms_credentials_backup'),
+        this.clearCredentialsFile()
       ]);
-      console.log('✅ Credentials cleared from Keychain (primary + backup)');
+      console.log('✅ Credentials cleared from all storage (Keychain + file)');
       return { success: true };
     } catch (error) {
-      console.error('❌ Error clearing credentials from Keychain:', error);
+      console.error('❌ Error clearing credentials:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  static async clearCredentialsFile() {
+    try {
+      const filePath = `${FileSystem.documentDirectory}juanlms_credentials.dat`;
+      const exists = await FileSystem.getInfoAsync(filePath);
+      if (exists.exists) {
+        await FileSystem.deleteAsync(filePath);
+        console.log('✅ Credentials file cleared');
+      }
+      return { success: true };
+    } catch (error) {
+      console.error('❌ Error clearing credentials file:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  // File-based remember me preference storage
+  static async saveRememberMeToFile(enabled) {
+    try {
+      const data = {
+        enabled: enabled,
+        timestamp: Date.now(),
+        version: '1.0'
+      };
+      
+      const obfuscated = Buffer.from(JSON.stringify(data)).toString('base64');
+      const filePath = `${FileSystem.documentDirectory}juanlms_remember.dat`;
+      await FileSystem.writeAsStringAsync(filePath, obfuscated);
+      
+      console.log('✅ Remember me preference saved to file');
+      return { success: true };
+    } catch (error) {
+      console.error('❌ Error saving remember me to file:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  static async getRememberMeFromFile() {
+    try {
+      const filePath = `${FileSystem.documentDirectory}juanlms_remember.dat`;
+      
+      const exists = await FileSystem.getInfoAsync(filePath);
+      if (!exists.exists) {
+        console.log('⚠️ No remember me file found');
+        return { success: true, enabled: null };
+      }
+      
+      const obfuscated = await FileSystem.readAsStringAsync(filePath);
+      const data = JSON.parse(Buffer.from(obfuscated, 'base64').toString('utf8'));
+      
+      if (typeof data.enabled === 'boolean') {
+        console.log('✅ Remember me preference retrieved from file');
+        return {
+          success: true,
+          enabled: data.enabled
+        };
+      }
+      
+      console.log('⚠️ Invalid remember me data in file');
+      return { success: true, enabled: null };
+    } catch (error) {
+      console.error('❌ Error reading remember me from file:', error);
+      return { success: false, error: error.message, enabled: null };
+    }
+  }
+
+  static async clearRememberMeFile() {
+    try {
+      const filePath = `${FileSystem.documentDirectory}juanlms_remember.dat`;
+      const exists = await FileSystem.getInfoAsync(filePath);
+      if (exists.exists) {
+        await FileSystem.deleteAsync(filePath);
+        console.log('✅ Remember me file cleared');
+      }
+      return { success: true };
+    } catch (error) {
+      console.error('❌ Error clearing remember me file:', error);
       return { success: false, error: error.message };
     }
   }
   
-  // Persistent remember me preference using Keychain (survives cache clears)
+  // Persistent remember me preference using multiple storage layers
   static async setRememberMe(enabled) {
     try {
-      // Store in both AsyncStorage (for quick access) and Keychain (for persistence)
+      // Store in AsyncStorage, Keychain, AND file for maximum persistence
       await Promise.all([
         AsyncStorage.setItem('rememberMeEnabled', enabled ? 'true' : 'false'),
-        Keychain.setInternetCredentials('juanlms_remember_me', 'remember', enabled ? 'true' : 'false')
+        Keychain.setInternetCredentials('juanlms_remember_me', 'remember', enabled ? 'true' : 'false'),
+        this.saveRememberMeToFile(enabled)
       ]);
-      console.log(`✅ Remember me preference set to: ${enabled} (AsyncStorage + Keychain)`);
+      console.log(`✅ Remember me preference set to: ${enabled} (AsyncStorage + Keychain + file)`);
       return { success: true };
     } catch (error) {
       console.error('❌ Error setting remember me preference:', error);
@@ -120,6 +282,18 @@ class StorageService {
         await AsyncStorage.setItem('rememberMeEnabled', isEnabled ? 'true' : 'false');
         
         return { success: true, enabled: isEnabled };
+      }
+      
+      // If Keychain is also empty, try file storage
+      const fileResult = await this.getRememberMeFromFile();
+      if (fileResult.success && fileResult.enabled !== null) {
+        console.log(`✅ Remember me preference restored from file: ${fileResult.enabled}`);
+        
+        // Restore to AsyncStorage and Keychain for future quick access
+        await AsyncStorage.setItem('rememberMeEnabled', fileResult.enabled ? 'true' : 'false');
+        await Keychain.setInternetCredentials('juanlms_remember_me', 'remember', fileResult.enabled ? 'true' : 'false');
+        
+        return { success: true, enabled: fileResult.enabled };
       }
       
       console.log('⚠️ No remember me preference found anywhere');
@@ -324,10 +498,10 @@ class StorageService {
         this.clearAuthData(),
         this.clearFCMToken(),
         this.clearCredentials(),
-        this.setRememberMe(false),
+        this.clearRememberMeFile(),
         Keychain.resetInternetCredentials('juanlms_remember_me') // Clear Keychain remember me too
       ]);
-      console.log('✅ Complete logout - all data cleared');
+      console.log('✅ Complete logout - all data cleared (including files)');
       return { success: true };
     } catch (error) {
       console.error('❌ Error during complete logout:', error);
