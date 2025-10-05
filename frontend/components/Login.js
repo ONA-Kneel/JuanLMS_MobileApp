@@ -54,7 +54,7 @@ export default function Login() {
       const isRememberEnabled = rememberResult.enabled;
       setRememberMe(isRememberEnabled);
 
-      if (isRememberEnabled && !cacheResult.credentialsLost) {
+      if (isRememberEnabled) {
         // Load credentials from secure storage
         const credentialsResult = await StorageService.getCredentials();
         if (credentialsResult.success && credentialsResult.email && credentialsResult.password) {
@@ -63,13 +63,13 @@ export default function Login() {
           
           // Auto-login if credentials exist (even after cache clearing)
           loginWithCredentials(credentialsResult.email, credentialsResult.password);
-        } else if (cacheResult.wasCleared && !cacheResult.credentialsLost) {
-          // If cache was cleared but credentials should still be available, show message
+        } else if (cacheResult.wasCleared && cacheResult.restored) {
+          // Credentials were restored from backup, try auto-login
+          showToast('Credentials restored. Logging in...', 'success');
+        } else if (cacheResult.wasCleared) {
+          // If cache was cleared but remember me is still enabled, show message but don't reset
           showToast('App data was cleared. Please log in again.', 'info');
         }
-      } else if (cacheResult.credentialsLost) {
-        // If credentials were lost during cache clearing, show appropriate message
-        showToast('App data was cleared and login credentials were lost. Please log in again.', 'info');
       }
     };
 

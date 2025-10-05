@@ -5,12 +5,49 @@ class StorageService {
   // Keychain operations for secure credential storage
   static async saveCredentials(email, password) {
     try {
+      // Save to primary Keychain
       await Keychain.setInternetCredentials('juanlms_credentials', email, password);
-      console.log('✅ Credentials saved securely to Keychain');
+      
+      // Also save to backup Keychain for extra persistence
+      await this.saveBackupCredentials(email, password);
+      
+      console.log('✅ Credentials saved securely to Keychain (primary + backup)');
       return { success: true };
     } catch (error) {
       console.error('❌ Error saving credentials to Keychain:', error);
       return { success: false, error: error.message };
+    }
+  }
+
+  // Backup credential storage - more persistent than regular Keychain
+  static async saveBackupCredentials(email, password) {
+    try {
+      // Use a different service name for backup
+      await Keychain.setInternetCredentials('juanlms_credentials_backup', email, password);
+      console.log('✅ Backup credentials saved to Keychain');
+      return { success: true };
+    } catch (error) {
+      console.error('❌ Error saving backup credentials:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  static async getBackupCredentials() {
+    try {
+      const credentials = await Keychain.getInternetCredentials('juanlms_credentials_backup');
+      if (credentials && credentials.username && credentials.password) {
+        console.log('✅ Backup credentials retrieved from Keychain');
+        return {
+          success: true,
+          email: credentials.username,
+          password: credentials.password
+        };
+      }
+      console.log('⚠️ No backup credentials found in Keychain');
+      return { success: true, email: null, password: null };
+    } catch (error) {
+      console.error('❌ Error retrieving backup credentials from Keychain:', error);
+      return { success: false, error: error.message, email: null, password: null };
     }
   }
   
@@ -35,8 +72,11 @@ class StorageService {
   
   static async clearCredentials() {
     try {
-      await Keychain.resetInternetCredentials('juanlms_credentials');
-      console.log('✅ Credentials cleared from Keychain');
+      await Promise.all([
+        Keychain.resetInternetCredentials('juanlms_credentials'),
+        Keychain.resetInternetCredentials('juanlms_credentials_backup')
+      ]);
+      console.log('✅ Credentials cleared from Keychain (primary + backup)');
       return { success: true };
     } catch (error) {
       console.error('❌ Error clearing credentials from Keychain:', error);
@@ -44,11 +84,15 @@ class StorageService {
     }
   }
   
-  // AsyncStorage operations for app preferences
+  // Persistent remember me preference using Keychain (survives cache clears)
   static async setRememberMe(enabled) {
     try {
-      await AsyncStorage.setItem('rememberMeEnabled', enabled ? 'true' : 'false');
-      console.log(`✅ Remember me preference set to: ${enabled}`);
+      // Store in both AsyncStorage (for quick access) and Keychain (for persistence)
+      await Promise.all([
+        AsyncStorage.setItem('rememberMeEnabled', enabled ? 'true' : 'false'),
+        Keychain.setInternetCredentials('juanlms_remember_me', 'remember', enabled ? 'true' : 'false')
+      ]);
+      console.log(`✅ Remember me preference set to: ${enabled} (AsyncStorage + Keychain)`);
       return { success: true };
     } catch (error) {
       console.error('❌ Error setting remember me preference:', error);
@@ -58,10 +102,28 @@ class StorageService {
   
   static async getRememberMe() {
     try {
-      const value = await AsyncStorage.getItem('rememberMeEnabled');
-      const isEnabled = value === 'true';
-      console.log(`✅ Remember me preference retrieved: ${isEnabled}`);
-      return { success: true, enabled: isEnabled };
+      // First try AsyncStorage (faster)
+      const asyncValue = await AsyncStorage.getItem('rememberMeEnabled');
+      if (asyncValue !== null) {
+        const isEnabled = asyncValue === 'true';
+        console.log(`✅ Remember me preference retrieved from AsyncStorage: ${isEnabled}`);
+        return { success: true, enabled: isEnabled };
+      }
+      
+      // If AsyncStorage is empty (cache cleared), try Keychain
+      const keychainResult = await Keychain.getInternetCredentials('juanlms_remember_me');
+      if (keychainResult && keychainResult.password) {
+        const isEnabled = keychainResult.password === 'true';
+        console.log(`✅ Remember me preference restored from Keychain: ${isEnabled}`);
+        
+        // Restore to AsyncStorage for future quick access
+        await AsyncStorage.setItem('rememberMeEnabled', isEnabled ? 'true' : 'false');
+        
+        return { success: true, enabled: isEnabled };
+      }
+      
+      console.log('⚠️ No remember me preference found anywhere');
+      return { success: true, enabled: false };
     } catch (error) {
       console.error('❌ Error getting remember me preference:', error);
       return { success: false, error: error.message, enabled: false };
@@ -146,7 +208,7 @@ class StorageService {
     }
   }
   
-  // Cache clearing detection
+  // Cache clearing detection - Messenger-style persistence
   static async detectCacheClearing() {
     try {
       const [rememberResult, authResult, credentialsResult] = await Promise.all([
@@ -169,10 +231,19 @@ class StorageService {
                                    credentialsResult.password;
         
         if (!hasValidCredentials) {
-          console.log('⚠️ Credentials also missing from Keychain - resetting remember me');
-          // If both auth data and credentials are missing, reset remember me preference
-          await this.setRememberMe(false);
-          return { success: true, wasCleared: true, credentialsLost: true };
+          console.log('⚠️ Credentials missing from Keychain - attempting to restore from backup');
+          // Try to restore credentials from backup storage (more persistent)
+          const backupResult = await this.getBackupCredentials();
+          if (backupResult.success && backupResult.email && backupResult.password) {
+            console.log('✅ Credentials restored from backup storage');
+            // Restore credentials to primary Keychain
+            await this.saveCredentials(backupResult.email, backupResult.password);
+            return { success: true, wasCleared: true, credentialsLost: false, restored: true };
+          } else {
+            console.log('⚠️ No backup credentials found - this is unusual for persistent remember me');
+            // Only reset remember me if we're absolutely sure there are no credentials anywhere
+            return { success: true, wasCleared: true, credentialsLost: true };
+          }
         } else {
           console.log('✅ Credentials still available in Keychain - can auto-login');
           // Credentials are still available, user can auto-login
@@ -214,6 +285,38 @@ class StorageService {
     }
   }
 
+  // Force restore credentials from backup (Messenger-style recovery)
+  static async forceRestoreCredentials() {
+    try {
+      console.log('🔄 Force restoring credentials from backup...');
+      
+      const [rememberResult, backupResult] = await Promise.all([
+        this.getRememberMe(),
+        this.getBackupCredentials()
+      ]);
+      
+      if (rememberResult.success && rememberResult.enabled && 
+          backupResult.success && backupResult.email && backupResult.password) {
+        
+        // Restore credentials to primary storage
+        await this.saveCredentials(backupResult.email, backupResult.password);
+        
+        console.log('✅ Credentials force restored successfully');
+        return { 
+          success: true, 
+          email: backupResult.email, 
+          password: backupResult.password 
+        };
+      }
+      
+      console.log('⚠️ Cannot restore credentials - missing data');
+      return { success: false, error: 'No backup credentials available' };
+    } catch (error) {
+      console.error('❌ Error force restoring credentials:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
   // Complete logout - clears both auth data and credentials
   static async logout() {
     try {
@@ -221,7 +324,8 @@ class StorageService {
         this.clearAuthData(),
         this.clearFCMToken(),
         this.clearCredentials(),
-        this.setRememberMe(false)
+        this.setRememberMe(false),
+        Keychain.resetInternetCredentials('juanlms_remember_me') // Clear Keychain remember me too
       ]);
       console.log('✅ Complete logout - all data cleared');
       return { success: true };
