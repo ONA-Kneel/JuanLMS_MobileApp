@@ -18,19 +18,11 @@
       "bundleIdentifier": "com.kneelpngnbn.juanlms.mobileapp",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "CFBundleURLTypes": [
-          {
-            "CFBundleURLName": "REVERSED_CLIENT_ID",
-            "CFBundleURLSchemes": ["com.googleusercontent.apps.460357912009-e649f8a5883b6e2914d418"]
-          }
-        ],
-        "GOOGLE_APP_ID": "1:460357912009:ios:e649f8a5883b6e2914d418",
-        "GCM_SENDER_ID": "460357912009",
-        "API_KEY": "AIzaSyA1kTF1kFuVEIM-VP0oVfXwf_CR53s3_P4",
-        "PROJECT_ID": "juanlms-pushnotf",
-        "STORAGE_BUCKET": "juanlms-pushnotf.firebasestorage.app"
-      },
-      "googleServicesFile": "./GoogleService-Info.plist"
+        "NSCameraUsageDescription": "This app needs access to camera to take profile pictures.",
+        "NSPhotoLibraryUsageDescription": "This app needs access to photos to let you share them with your friends.",
+        "NSMicrophoneUsageDescription": "This app needs access to microphone for audio features.",
+        "NSUserNotificationsUsageDescription": "This app sends notifications for important updates."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -80,27 +72,7 @@
           "androidMode": "default"
         }
       ],
-      [
-        "@react-native-firebase/app",
-        {
-          "ios": {
-            "useFrameworks": "dynamic",
-            "useModularHeaders": true,
-            "useStaticFrameworks": false
-          }
-        }
-      ],
-      [
-        "@react-native-firebase/messaging",
-        {
-          "ios": {
-            "useFrameworks": "dynamic",
-            "useModularHeaders": true,
-            "useStaticFrameworks": false
-          }
-        }
-      ],
-      "./withReactNativeFirebase"
+    
     ],
     "notification": {
       "icon": "./assets/SanJuan.png",
