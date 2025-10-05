@@ -64,6 +64,7 @@ export default function UnifiedChat() {
   const [selectedFiles, setSelectedFiles] = useState([]); // New for multiple files
   const [showImageModal, setShowImageModal] = useState(false);
   const [selectedImageUrl, setSelectedImageUrl] = useState(null);
+  const [isUploadingFiles, setIsUploadingFiles] = useState(false); // Loading state for multiple files
   
   // Backend search states (similar to web app)
   const [searchedUsers, setSearchedUsers] = useState([]);
@@ -1165,53 +1166,107 @@ export default function UnifiedChat() {
       return { uri: uploadUri, name: fileName, type: mimeType };
     };
 
-    // New function for multiple files
-    const buildUploadFiles = async (assets) => {
-      const files = [];
-      for (const asset of assets) {
-        const file = await buildUploadFile(asset);
-        if (file) files.push(file);
+    // New function for multiple files - sequential upload approach
+    const sendMultipleFilesSequentially = async (files, isGroup = false) => {
+      const token = await AsyncStorage.getItem('jwtToken');
+      const headers = { 'Authorization': `Bearer ${token}` };
+      const uploadedMessages = [];
+      
+      setIsUploadingFiles(true);
+      
+      try {
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i];
+          const uploadFile = await buildUploadFile(file);
+          
+          if (!uploadFile) continue;
+          
+          const form = new FormData();
+          
+          if (isGroup) {
+            form.append('groupId', selectedGroup._id);
+            form.append('senderId', user._id);
+            form.append('message', i === 0 ? (input || '') : ''); // Only first message gets text
+            form.append('file', uploadFile);
+            
+            // Try both endpoints for group messages
+            let res;
+            try {
+              res = await axios.post(`${API_URL}/group-messages`, form, { 
+                headers: { ...headers, 'Content-Type': 'multipart/form-data' } 
+              });
+            } catch (primaryErr) {
+              res = await axios.post(`${API_URL}/group-chats/${selectedGroup._id}/messages`, form, { 
+                headers: { ...headers, 'Content-Type': 'multipart/form-data' } 
+              });
+            }
+            
+            const sentMessage = res.data;
+            classSocketService.sendGroupMessage({
+              senderId: user._id,
+              groupId: selectedGroup._id,
+              text: sentMessage.message,
+              fileUrl: sentMessage.fileUrl || null,
+              senderName: `${user.firstname} ${user.lastname}`,
+            });
+            uploadedMessages.push(sentMessage);
+            
+          } else {
+            form.append('senderId', user._id);
+            form.append('receiverId', selectedUser._id);
+            form.append('message', i === 0 ? (input || '') : ''); // Only first message gets text
+            form.append('file', uploadFile);
+            
+            const res = await axios.post(`${API_URL}/messages`, form, { 
+              headers: { ...headers, 'Content-Type': 'multipart/form-data' } 
+            });
+            
+            const sentMessage = res.data;
+            classSocketService.sendMessage({
+              chatId: [user._id, selectedUser._id].sort().join('-'),
+              senderId: user._id,
+              receiverId: selectedUser._id,
+              message: sentMessage.message,
+              timestamp: sentMessage.timestamp || new Date(),
+            });
+            uploadedMessages.push(sentMessage);
+          }
+        }
+        
+        return uploadedMessages;
+      } catch (error) {
+        console.error('Error in sequential upload:', error);
+        throw error;
+      } finally {
+        setIsUploadingFiles(false);
       }
-      return files;
     };
     
     if (isGroupChat) {
       try {
-        // Handle multiple files first (new functionality)
+        // Handle multiple files first (new functionality) - Sequential upload approach
         if (selectedFiles.length > 0) {
-          const token = await AsyncStorage.getItem('jwtToken');
-          const headers = { 'Authorization': `Bearer ${token}` };
-          const form = new FormData();
-          form.append('groupId', selectedGroup._id);
-          form.append('senderId', user._id);
-          form.append('message', input || '');
-          
-          const uploadFiles = await buildUploadFiles(selectedFiles);
-          uploadFiles.forEach(file => {
-            form.append('files', file);
-          });
-          
-          let res;
           try {
-            res = await axios.post(`${API_URL}/group-messages/multiple`, form, { headers: { ...headers, 'Content-Type': 'multipart/form-data' } });
-          } catch (primaryErr) {
-            res = await axios.post(`${API_URL}/group-chats/${selectedGroup._id}/messages/multiple`, form, { headers: { ...headers, 'Content-Type': 'multipart/form-data' } });
+            const uploadedMessages = await sendMultipleFilesSequentially(selectedFiles, true);
+            
+            // Add all uploaded messages to the chat
+            setMessages(prev => [...prev, ...uploadedMessages]);
+            setGroupMsgsById(prev => ({ 
+              ...prev, 
+              [selectedGroup._id]: [ ...(prev[selectedGroup._id] || []), ...uploadedMessages ] 
+            }));
+            
+            // Update last message with file count
+            const text = input || `${selectedFiles.length} file(s) sent`;
+            setLastMessages(prev => ({ ...prev, [selectedGroup._id]: { prefix: 'You: ', text } }));
+            setInput('');
+            setSelectedFiles([]);
+          } catch (error) {
+            console.error('Error uploading multiple files:', error);
+            Alert.alert('Error', `Failed to upload files: ${error.message || 'Unknown error'}`);
+            setSelectedFiles([]);
+            return;
           }
-          
-          const sentMessage = res.data;
-          classSocketService.sendGroupMessage({
-            senderId: user._id,
-            groupId: selectedGroup._id,
-            text: sentMessage.message,
-            fileUrl: sentMessage.fileUrl || null,
-            senderName: `${user.firstname} ${user.lastname}`,
-          });
-          setMessages(prev => [...prev, sentMessage]);
-          setGroupMsgsById(prev => ({ ...prev, [selectedGroup._id]: [ ...(prev[selectedGroup._id] || []), sentMessage ] }));
-          const text = sentMessage.message ? sentMessage.message : (sentMessage.attachments?.length > 0 ? `${sentMessage.attachments.length} file(s) sent` : 'File sent');
-          setLastMessages(prev => ({ ...prev, [selectedGroup._id]: { prefix: 'You: ', text } }));
-          setInput('');
-          setSelectedFiles([]);
         }
         // Handle single file (existing functionality)
         else if (selectedFile) {
@@ -1275,41 +1330,41 @@ export default function UnifiedChat() {
       }
     } else {
       try {
-        // Handle multiple files first (new functionality)
+        // Handle multiple files first (new functionality) - Sequential upload approach
         if (selectedFiles.length > 0) {
-          const token = await AsyncStorage.getItem('jwtToken');
-          const headers = { 'Authorization': `Bearer ${token}` };
-          const form = new FormData();
-          form.append('senderId', user._id);
-          form.append('receiverId', selectedUser._id);
-          form.append('message', input || '');
-          
-          const uploadFiles = await buildUploadFiles(selectedFiles);
-          uploadFiles.forEach(file => {
-            form.append('files', file);
-          });
-          
-          const res = await axios.post(`${API_URL}/messages/multiple`, form, { headers: { ...headers, 'Content-Type': 'multipart/form-data' } });
-          const sentMessage = res.data;
-          classSocketService.sendMessage({
-            chatId: [user._id, selectedUser._id].sort().join('-'),
-            senderId: user._id,
-            receiverId: selectedUser._id,
-            message: sentMessage.message,
-            timestamp: sentMessage.timestamp || new Date(),
-          });
-          setMessages(prev => [...prev, sentMessage]);
-          setInput('');
-          setSelectedFiles([]);
-          const entry = { _id: selectedUser._id, firstname: selectedUser.firstname, lastname: selectedUser.lastname, profilePic: selectedUser.profilePicture || null, lastMessageTime: sentMessage.createdAt || sentMessage.updatedAt || new Date().toISOString() };
-          setRecentChatsList(prev => {
-            const filtered = prev.filter(c => c._id !== entry._id);
-            const updated = [entry, ...filtered];
-            AsyncStorage.setItem(RECENTS_KEY, JSON.stringify(updated)).catch(() => {});
-            return updated;
-          });
-          const text = sentMessage.message ? sentMessage.message : (sentMessage.attachments?.length > 0 ? `${sentMessage.attachments.length} file(s) sent` : 'File sent');
-          setLastMessages(prev => ({ ...prev, [entry._id]: { prefix: 'You: ', text } }));
+          try {
+            const uploadedMessages = await sendMultipleFilesSequentially(selectedFiles, false);
+            
+            // Add all uploaded messages to the chat
+            setMessages(prev => [...prev, ...uploadedMessages]);
+            setInput('');
+            setSelectedFiles([]);
+            
+            // Update recent chats with the last message
+            const lastMessage = uploadedMessages[uploadedMessages.length - 1];
+            const entry = { 
+              _id: selectedUser._id, 
+              firstname: selectedUser.firstname, 
+              lastname: selectedUser.lastname, 
+              profilePic: selectedUser.profilePicture || null, 
+              lastMessageTime: lastMessage.createdAt || lastMessage.updatedAt || new Date().toISOString() 
+            };
+            setRecentChatsList(prev => {
+              const filtered = prev.filter(c => c._id !== entry._id);
+              const updated = [entry, ...filtered];
+              AsyncStorage.setItem(RECENTS_KEY, JSON.stringify(updated)).catch(() => {});
+              return updated;
+            });
+            
+            // Update last message with file count
+            const text = input || `${selectedFiles.length} file(s) sent`;
+            setLastMessages(prev => ({ ...prev, [entry._id]: { prefix: 'You: ', text } }));
+          } catch (error) {
+            console.error('Error uploading multiple files:', error);
+            Alert.alert('Error', `Failed to upload files: ${error.message || 'Unknown error'}`);
+            setSelectedFiles([]);
+            return;
+          }
         }
         // Handle single file (existing functionality)
         else if (selectedFile) {
@@ -2704,12 +2759,19 @@ export default function UnifiedChat() {
             fontSize: 15,
           }}
         />
-        <TouchableOpacity onPress={handleSend} style={{
-          backgroundColor: '#00418b',
-          borderRadius: 20,
-          padding: 12,
-        }}>
-          <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>➤</Text>
+        <TouchableOpacity 
+          onPress={handleSend} 
+          disabled={isUploadingFiles}
+          style={{
+            backgroundColor: isUploadingFiles ? '#ccc' : '#00418b',
+            borderRadius: 20,
+            padding: 12,
+          }}>
+          {isUploadingFiles ? (
+            <ActivityIndicator size="small" color="white" />
+          ) : (
+            <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>➤</Text>
+          )}
         </TouchableOpacity>
       </View>
       {/* Show selected files */}
@@ -2720,27 +2782,37 @@ export default function UnifiedChat() {
       )}
       {selectedFiles.length > 0 && (
         <View style={{ paddingHorizontal: 12, paddingBottom: 8 }}>
-          <Text style={{ fontSize: 12, color: '#666', marginBottom: 4 }}>
-            Attached ({selectedFiles.length} files):
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+            <Text style={{ fontSize: 12, color: '#666' }}>
+              Attached ({selectedFiles.length} files):
+            </Text>
+            {isUploadingFiles && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 8 }}>
+                <ActivityIndicator size="small" color="#00418b" />
+                <Text style={{ fontSize: 10, color: '#666', marginLeft: 4 }}>Uploading...</Text>
+              </View>
+            )}
+          </View>
           {selectedFiles.map((file, index) => (
             <View key={index} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
               <Text style={{ fontSize: 11, color: '#888', flex: 1 }}>
                 • {file.name || 'file'}
               </Text>
-              <TouchableOpacity 
-                onPress={() => {
-                  const newFiles = selectedFiles.filter((_, i) => i !== index);
-                  if (newFiles.length === 0) {
-                    setSelectedFiles([]);
-                  } else {
-                    setSelectedFiles(newFiles);
-                  }
-                }}
-                style={{ marginLeft: 8 }}
-              >
-                <Text style={{ color: '#ff4444', fontSize: 12 }}>✕</Text>
-              </TouchableOpacity>
+              {!isUploadingFiles && (
+                <TouchableOpacity 
+                  onPress={() => {
+                    const newFiles = selectedFiles.filter((_, i) => i !== index);
+                    if (newFiles.length === 0) {
+                      setSelectedFiles([]);
+                    } else {
+                      setSelectedFiles(newFiles);
+                    }
+                  }}
+                  style={{ marginLeft: 8 }}
+                >
+                  <Text style={{ color: '#ff4444', fontSize: 12 }}>✕</Text>
+                </TouchableOpacity>
+              )}
             </View>
           ))}
         </View>

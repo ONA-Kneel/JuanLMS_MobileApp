@@ -10,7 +10,6 @@ import cloudinary from '../utils/cloudinary.js';
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
-const uploadMultiple = multer({ storage: multer.memoryStorage() });
 
 // Helper function to detect if file is an image
 const isImage = (mimetype) => {
@@ -412,76 +411,6 @@ router.post('/:groupId/messages', upload.single('file'), async (req, res) => {
   }
 
   res.status(201).json(newMessage);
-  } catch (error) {
-    console.error('Error sending group message:', error);
-    res.status(500).json({ error: 'Failed to send message' });
-  }
-});
-
-// New route for multiple files in groups - additive only
-router.post('/:groupId/messages/multiple', uploadMultiple.array('files', 10), async (req, res) => {
-  try {
-    const { groupId } = req.params;
-    const { senderId } = req.body;
-    let { message } = req.body;
-
-    if (!senderId) {
-      return res.status(400).json({ error: 'Sender ID is required' });
-    }
-
-    // Allow file-only messages: if no text but has files, set message placeholder
-    if ((!message || String(message).trim() === '') && req.files && req.files.length > 0) {
-      message = '';
-    }
-
-    // Check if user is a member of the group
-    const group = await GroupChat.findById(groupId);
-    if (!group || !group.isActive || !group.participants.includes(senderId)) {
-      return res.status(403).json({ error: 'Access denied' });
-    }
-
-    // Get sender name
-    const sender = await User.findById(senderId);
-    const senderName = sender ? `${sender.firstname} ${sender.lastname}` : 'Unknown';
-
-    // Process multiple files
-    let attachments = [];
-    let fileUrl = null; // Keep for backward compatibility - use first file
-
-    if (req.files && req.files.length > 0) {
-      for (const file of req.files) {
-        const processedFile = await processGroupFile(file, groupId);
-        attachments.push(processedFile);
-      }
-      fileUrl = attachments[0].url; // Set first file for backward compatibility
-    }
-
-    const newMessage = new GroupMessage({
-      senderId,
-      groupId,
-      message: message || '',
-      fileUrl, // Keep existing for backward compatibility
-      attachments,
-      senderName
-    });
-
-    await newMessage.save();
-    
-    // Notify all participants except sender
-    try {
-      const recipientIds = group.participants.filter(p => p !== senderId);
-      const title = group.name || 'New group message';
-      const body = `${senderName}: ${message?.slice(0, 90) || (attachments.length > 0 ? `${attachments.length} file(s) sent` : '')}`.trim();
-      await sendNotificationToUsers(recipientIds, { title, body }, {
-        screen: 'UnifiedChat',
-        params: JSON.stringify({ groupId, threadId: groupId }),
-        type: 'chat_group'
-      });
-    } catch (e) {
-      console.log('[GroupChat Multiple] FCM send error:', e);
-    }
-
-    res.status(201).json(newMessage);
   } catch (error) {
     console.error('Error sending group message:', error);
     res.status(500).json({ error: 'Failed to send message' });

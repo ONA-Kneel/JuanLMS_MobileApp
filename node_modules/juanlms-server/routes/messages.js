@@ -9,7 +9,6 @@ import cloudinary from '../utils/cloudinary.js';
 
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
-const uploadMultiple = multer({ storage: multer.memoryStorage() });
 
 // Helper function to detect if file is an image
 const isImage = (mimetype) => {
@@ -133,64 +132,6 @@ router.post('/', upload.single('file'), async (req, res) => {
     res.status(201).json(newMessage);
   } catch (error) {
     console.error('[DM] send error:', error);
-    res.status(500).json({ error: 'Failed to send message' });
-  }
-});
-
-// New route for multiple files - additive only
-router.post('/multiple', uploadMultiple.array('files', 10), async (req, res) => {
-  try {
-    const { senderId, receiverId } = req.body;
-    let { message } = req.body;
-
-    if (!senderId || !receiverId) {
-      return res.status(400).json({ error: 'senderId and receiverId are required' });
-    }
-
-    // Allow file-only messages: if no text but has files, set message placeholder
-    if ((!message || String(message).trim() === '') && req.files && req.files.length > 0) {
-      message = '';
-    }
-
-    // Process multiple files
-    let attachments = [];
-    let fileUrl = null; // Keep for backward compatibility - use first file
-
-    if (req.files && req.files.length > 0) {
-      for (const file of req.files) {
-        const processedFile = await processFile(file);
-        attachments.push(processedFile);
-      }
-      fileUrl = attachments[0].url; // Set first file for backward compatibility
-    }
-
-    const newMessage = new Message({ 
-      senderId, 
-      receiverId, 
-      message: message || '', 
-      fileUrl, // Keep existing for backward compatibility
-      attachments 
-    });
-    await newMessage.save();
-
-    // Fire-and-forget FCM notification to receiver
-    try {
-      const sender = await User.findById(senderId, 'firstname lastname');
-      const senderName = sender ? `${sender.firstname || ''} ${sender.lastname || ''}`.trim() || 'New message' : 'New message';
-      const title = senderName;
-      const body = message?.slice(0, 120) || (attachments.length > 0 ? `${attachments.length} file(s) sent` : 'You have a new message');
-      sendNotificationToUser(receiverId, { title, body }, {
-        screen: 'UnifiedChat',
-        params: JSON.stringify({ chatId: senderId, threadId: senderId }),
-        type: 'chat_direct'
-      });
-    } catch (e) {
-      console.log('[DM Multiple] FCM send error:', e);
-    }
-
-    res.status(201).json(newMessage);
-  } catch (error) {
-    console.error('[DM Multiple] send error:', error);
     res.status(500).json({ error: 'Failed to send message' });
   }
 });
