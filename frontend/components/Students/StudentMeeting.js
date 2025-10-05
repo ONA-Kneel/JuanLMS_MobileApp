@@ -493,13 +493,13 @@ export default function StudentMeeting() {
         meetingData={activeMeeting}
         currentUser={{ name: user?.name || user?.username || 'Student' }}
         credentials={{
-            apiKey: 'mmhfdzb5evj2',
-            token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL3Byb250by5nZXRzdHJlYW0uaW8iLCJzdWIiOiJ1c2VyL01lbHRlZF9FbmdsaXNoIiwidXNlcl9pZCI6Ik1lbHRlZF9FbmdsaXNoIiwidmFsaWRpdHlfaW5fc2Vjb25kcyI6NjA0ODAwLCJpYXQiOjE3NTkzNzA5ODMsImV4cCI6MTc1OTk3NTc4M30.w8oy3j79AxgfSBV_RmpFadH8X4f9m0Jiz36dHEYXQ7k',
-            userId: 'Melted_English',
-            callId: '7P2FSQRYpAji9w5keTAVD',
+          apiKey: 'mmhfdzb5evj2',
+          token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL3Byb250by5nZXRzdHJlYW0uaW8iLCJzdWIiOiJ1c2VyL1B1cnBsZV9NZXJjdXJ5IiwidXNlcl9pZCI6IlB1cnBsZV9NZXJjdXJ5IiwidmFsaWRpdHlfaW5fc2Vjb25kcyI6NjA0ODAwLCJpYXQiOjE3NTk2NTE4NjQsImV4cCI6MTc2MDI1NjY2NH0.IKuWpIS41aryq8sgxpTEgXMP3Upqn7xPjY6LdF3dJBo',
+          userId: 'Purple_Mercury',
+          callId: 'kTE5BNNcs080Jp4MA5UhA',
         }}
         isHost={false}
-        hostUserId={'Melted_English'}
+        hostUserId={'Purple_Mercury'}
       />
     )}
     
