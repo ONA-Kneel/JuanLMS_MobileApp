@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import SecureStorage from '../services/secureStorage';
 
 const UserContext = createContext();
 
@@ -7,10 +8,14 @@ export function UserProvider({ children }) {
   const [user, setUser] = useState(null);
 
   useEffect(() => {
-    // Load user from AsyncStorage on mount
-    AsyncStorage.getItem('user').then(storedUser => {
-      if (storedUser) setUser(JSON.parse(storedUser));
-    });
+    // Load user from secure storage on mount
+    const loadUser = async () => {
+      const authResult = await SecureStorage.getAuthData();
+      if (authResult.success && authResult.user) {
+        setUser(authResult.user);
+      }
+    };
+    loadUser();
     console.log('UserProvider rendered');
   }, []);
 
@@ -19,7 +24,11 @@ export function UserProvider({ children }) {
     try {
       const updatedUser = { ...user, ...newUserData };
       setUser(updatedUser);
-      await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
+      // Get current token to preserve it
+      const authResult = await SecureStorage.getAuthData();
+      if (authResult.success && authResult.token) {
+        await SecureStorage.saveAuthData(updatedUser, authResult.token);
+      }
       return { success: true };
     } catch (error) {
       console.error('Error updating user:', error);
@@ -31,8 +40,7 @@ export function UserProvider({ children }) {
   const setUserAndToken = async (userData, token) => {
     try {
       setUser(userData);
-      await AsyncStorage.setItem('user', JSON.stringify(userData));
-      await AsyncStorage.setItem('jwtToken', token);
+      await SecureStorage.saveAuthData(userData, token);
       return { success: true };
     } catch (error) {
       console.error('Error setting user and token:', error);
@@ -44,8 +52,15 @@ export function UserProvider({ children }) {
   const logout = async () => {
     try {
       setUser(null);
-      await AsyncStorage.removeItem('user');
-      await AsyncStorage.removeItem('jwtToken');
+      // Use SecureStorage for complete logout (clears auth data but preserves remember me if enabled)
+      const rememberResult = await SecureStorage.getRememberMe();
+      if (rememberResult.success && rememberResult.enabled) {
+        // Only clear auth data, keep remember me and credentials
+        await SecureStorage.clearAuthData();
+      } else {
+        // Complete logout - clear everything
+        await SecureStorage.logout();
+      }
     } catch (error) {
       console.error('Error during logout:', error);
     }
