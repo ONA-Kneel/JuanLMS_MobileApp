@@ -55,13 +55,6 @@ export default function SplashScreen() {
           'principal': 'PrincipalDash'
         };
 
-        // If cache was cleared, always go to login
-        if (cacheResult.wasCleared) {
-          console.log('⚠️ Cache clearing detected - redirecting to login');
-          navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
-          return;
-        }
-
         // Auto-enter if remember me is enabled and we have valid auth data
         const canAutoEnter = remember && !!token && !!user && !!user.role;
         if (canAutoEnter) {
@@ -71,6 +64,13 @@ export default function SplashScreen() {
             navigation.reset({ index: 0, routes: [{ name: target }] });
             return;
           }
+        }
+
+        // If cache was cleared but remember me is still enabled, go to login for auto-login
+        if (cacheResult.wasCleared && remember) {
+          console.log('⚠️ Cache clearing detected but remember me enabled - going to login for auto-login');
+          navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+          return;
         }
 
         console.log('🎯 Fallback to Login');

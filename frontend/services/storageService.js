@@ -160,8 +160,8 @@ class StorageService {
       
       if (wasCacheCleared) {
         console.log('⚠️ Cache clearing detected - remember me enabled but auth data missing');
-        // Reset remember me preference since credentials are gone
-        await this.setRememberMe(false);
+        // Don't reset remember me preference - credentials are still in keychain
+        // The user can still auto-login with saved credentials
       }
       
       return { success: true, wasCleared: wasCacheCleared };

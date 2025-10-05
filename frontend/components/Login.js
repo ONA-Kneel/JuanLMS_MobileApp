@@ -50,11 +50,6 @@ export default function Login() {
 
       // Check for cache clearing and load remember me preference
       const cacheResult = await StorageService.detectCacheClearing();
-      if (cacheResult.wasCleared) {
-        showToast('App data was cleared. Please log in again.', 'info');
-      }
-
-      // Load Remember Me preference
       const rememberResult = await StorageService.getRememberMe();
       const isRememberEnabled = rememberResult.enabled;
       setRememberMe(isRememberEnabled);
@@ -66,8 +61,11 @@ export default function Login() {
           setEmail(credentialsResult.email);
           setPassword(credentialsResult.password);
           
-          // Auto-login if credentials exist
+          // Auto-login if credentials exist (even after cache clearing)
           loginWithCredentials(credentialsResult.email, credentialsResult.password);
+        } else if (cacheResult.wasCleared) {
+          // If cache was cleared but no credentials found, show message
+          showToast('App data was cleared. Please log in again.', 'info');
         }
       }
     };
