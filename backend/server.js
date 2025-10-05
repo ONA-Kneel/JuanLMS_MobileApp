@@ -57,6 +57,16 @@ app.get('/', (req, res) => {
   res.json({ message: 'JuanLMS Backend Server is running!', timestamp: new Date().toISOString() });
 });
 
+// Health check endpoint for general server status
+app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'OK', 
+    message: 'Server is running', 
+    timestamp: new Date().toISOString(),
+    version: '1.0.0'
+  });
+});
+
 // Health check route for grades
 app.get('/api/grades/health', (req, res) => {
   res.json({ 
@@ -91,6 +101,7 @@ registerCronEndpoints(app);
 app.use('/uploads', express.static('uploads'));
 
 // Mobile app compatibility routes (direct routes without /api prefix)
+app.use('/users', users); // Add direct users routes for profile uploads
 app.use('/quizzes', quizRoutes);
 app.use('/assignments', assignmentRoutes);
 app.use('/group-chats', groupChatsRouter);

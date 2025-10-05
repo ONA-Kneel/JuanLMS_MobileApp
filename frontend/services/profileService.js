@@ -119,14 +119,23 @@ const profileService = {
       
       // Quick network connectivity check
       try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        
         const testResponse = await fetch(`${API_URL}/health`, { 
           method: 'GET',
-          timeout: 5000 
+          signal: controller.signal
         });
-        console.log('Network connectivity check passed:', testResponse.status);
+        clearTimeout(timeoutId);
+        
+        if (testResponse.ok) {
+          console.log('Network connectivity check passed:', testResponse.status);
+        } else {
+          console.warn('Network connectivity check returned non-OK status:', testResponse.status);
+        }
       } catch (connectivityError) {
         console.warn('Network connectivity check failed:', connectivityError.message);
-        // Continue with upload attempt anyway, as the health endpoint might not exist
+        // Continue with upload attempt anyway, as this is just a pre-check
       }
       // Enforce same constraints as WebApp: image types only, max 5MB
       const MAX_BYTES = 5 * 1024 * 1024;
@@ -204,6 +213,8 @@ const profileService = {
         console.log('Request method: POST');
         console.log('Headers:', fetchHeaders);
         console.log('FormData keys:', Array.from(formData._parts ? formData._parts.keys() : []));
+        console.log('Token present:', !!token);
+        console.log('Token prefix:', token ? token.substring(0, 10) + '...' : 'None');
         
         let fetchResp;
         try {
@@ -213,14 +224,18 @@ const profileService = {
             body: formData,
             signal: controller.signal,
           });
+          
+          console.log('Fetch request completed successfully');
         } catch (fetchError) {
           clearTimeout(timeoutId);
-          console.error('Fetch error details:', {
-            name: fetchError.name,
-            message: fetchError.message,
-            code: fetchError.code,
-            stack: fetchError.stack
-          });
+          console.error('=== Fetch Error Details ===');
+          console.error('Error name:', fetchError.name);
+          console.error('Error message:', fetchError.message);
+          console.error('Error code:', fetchError.code);
+          console.error('Error stack:', fetchError.stack);
+          console.error('API_URL:', API_URL);
+          console.error('Request URL:', `${API_URL}/users/${userId}/upload-profile`);
+          console.error('=== End Fetch Error Details ===');
           
           // Enhanced error handling for different types of fetch errors
           if (fetchError.name === 'AbortError') {
@@ -236,20 +251,32 @@ const profileService = {
         
         clearTimeout(timeoutId);
         console.log('Response status:', fetchResp.status);
-        console.log('Response headers:', fetchResp.headers);
+        console.log('Response status text:', fetchResp.statusText);
+        console.log('Response headers:', Object.fromEntries(fetchResp.headers.entries()));
         
         if (!fetchResp.ok) {
           let errorText;
           try {
             errorText = await fetchResp.text();
-            console.log('Error response text:', errorText);
+            console.error('Error response text:', errorText);
+            
+            // Try to parse as JSON for better error handling
+            try {
+              const errorJson = JSON.parse(errorText);
+              console.error('Parsed error response:', errorJson);
+              throw new Error(errorJson.message || errorJson.error || `Upload failed with status ${fetchResp.status}`);
+            } catch (parseError) {
+              // If not JSON, use the text as is
+              throw new Error(errorText || `Upload failed with status ${fetchResp.status}`);
+            }
           } catch (textError) {
             console.error('Failed to read error response:', textError);
-            errorText = `Upload failed with status ${fetchResp.status}`;
+            throw new Error(`Upload failed with status ${fetchResp.status}: ${textError.message}`);
           }
-          throw new Error(errorText || `Upload failed with status ${fetchResp.status}`);
         }
+        
         const json = await fetchResp.json();
+        console.log('Upload response JSON:', json);
         
         // Notify UI that upload is complete
         if (onLoadingChange) {
