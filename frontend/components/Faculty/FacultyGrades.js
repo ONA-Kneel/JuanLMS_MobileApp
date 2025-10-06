@@ -92,55 +92,8 @@ const FacultyGrades = () => {
 
       const facultyId = user.userID || user._id;
       
-      // First, try to get all faculty classes (even without grades)
-      let allClasses = [];
-      try {
-        // Use the correct endpoint for faculty classes
-        const classesRes = await fetch(`${API_BASE}/api/classes/faculty-classes`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (classesRes.ok) {
-          allClasses = await classesRes.json();
-          console.log('All faculty classes found:', allClasses.length);
-        } else {
-          // Fallback to my-classes endpoint
-          console.log('faculty-classes endpoint failed, trying my-classes endpoint');
-          const myClassesRes = await fetch(`${API_BASE}/api/classes/my-classes`, {
-            headers: { Authorization: `Bearer ${token}` }
-          });
-          if (myClassesRes.ok) {
-            allClasses = await myClassesRes.json();
-            console.log('All faculty classes found via my-classes:', allClasses.length);
-          } else {
-            // Final fallback to faculty-assignments endpoint
-            console.log('my-classes endpoint failed, trying faculty-assignments endpoint');
-            try {
-              const assignmentsRes = await fetch(`${API_BASE}/api/faculty-assignments`, {
-                headers: { Authorization: `Bearer ${token}` }
-              });
-              if (assignmentsRes.ok) {
-                const assignments = await assignmentsRes.json();
-                // Convert faculty assignments to class-like objects
-                allClasses = assignments.map(assignment => ({
-                  classID: `${assignment.subjectName}-${assignment.sectionName}`,
-                  className: assignment.subjectName,
-                  section: assignment.sectionName,
-                  trackName: assignment.trackName,
-                  strandName: assignment.strandName,
-                  gradeLevel: assignment.gradeLevel,
-                  academicYear: assignment.schoolYear,
-                  termName: assignment.termName
-                }));
-                console.log('All faculty classes found via faculty-assignments:', allClasses.length);
-              }
-            } catch (assignmentError) {
-              console.log('faculty-assignments endpoint also failed:', assignmentError.message);
-            }
-          }
-        }
-      } catch (error) {
-        console.log('Could not fetch faculty classes, will use grades data instead');
-      }
+      // Only use grade data to determine available classes
+      // No fetching of faculty classes or assignments to avoid preset classes
 
       // Then get grades data
       const res = await fetch(`${API_BASE}/api/semestral-grades/faculty/${facultyId}`, {
@@ -188,42 +141,11 @@ const FacultyGrades = () => {
         }
       });
 
-      // Add classes from faculty classes API that don't have grades yet
-      allClasses.forEach(cls => {
-        const key = cls.classID || cls._id;
-        if (!byClass.has(key)) {
-          byClass.set(key, {
-            id: key,
-            classID: key,
-            title: cls.className || cls.subjectName || cls.subjectCode || 'Class',
-            section: cls.section || cls.sectionName || '',
-            hasGrades: false,
-            // Additional metadata from faculty assignments
-            trackName: cls.trackName,
-            strandName: cls.strandName,
-            gradeLevel: cls.gradeLevel,
-            academicYear: cls.academicYear,
-            termName: cls.termName
-          });
-        }
-      });
+      // Only add classes that have actual grades - no preset classes
+      // This ensures we only show classes with real grade data
 
-      // If still no classes found, try to create from all grades
-      if (byClass.size === 0 && allGrades.length > 0) {
-        console.log('No classes found, creating from all grades');
-        allGrades.forEach(g => {
-          const key = g.classID || `${g.subjectCode}-${g.section || ''}`;
-          if (!byClass.has(key)) {
-            byClass.set(key, {
-              id: key,
-              classID: g.classID || key,
-              title: g.subjectName || g.subjectCode || 'Class',
-              section: g.section || '',
-              hasGrades: true
-            });
-          }
-        });
-      }
+      // Only show classes that have actual grade data
+      // No fallback to create classes from faculty assignments
       
       const options = Array.from(byClass.values());
       console.log('Final class options:', options.length, options);
@@ -234,16 +156,11 @@ const FacultyGrades = () => {
         setSelectedClassId(options[0].id);
       }
 
-      // Students for chosen class
+      // Students for chosen class - only show if grades exist
       const currentSelectedClassId = selectedClassId || options[0]?.id;
       if (currentSelectedClassId) {
-        // Try to get students from term-filtered grades first
+        // Only get students from term-filtered grades (no fallback to all grades)
         let selectedGrades = byTerm.filter(g => (g.classID || `${g.subjectCode}-${g.section || ''}`) === currentSelectedClassId);
-        
-        // If no students found, try from all grades
-        if (selectedGrades.length === 0) {
-          selectedGrades = allGrades.filter(g => (g.classID || `${g.subjectCode}-${g.section || ''}`) === currentSelectedClassId);
-        }
         
         const students = selectedGrades.map(g => ({
           studentId: g.studentId,
