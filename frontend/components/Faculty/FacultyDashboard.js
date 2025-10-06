@@ -226,28 +226,6 @@ export default function FacultyDashboard() {
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <TouchableOpacity 
-              onPress={() => navigation.navigate('ConfirmClasses')}
-              style={{ 
-                marginRight: 12, 
-                backgroundColor: '#e3f2fd',
-                paddingHorizontal: 12,
-                paddingVertical: 6,
-                borderRadius: 20,
-                flexDirection: 'row',
-                alignItems: 'center'
-              }}
-            >
-              <Icon name="check-circle" size={16} color="#00418b" />
-              <Text style={{ 
-                color: '#00418b', 
-                fontSize: 12, 
-                fontFamily: 'Poppins-Bold',
-                marginLeft: 4
-              }}>
-                Confirm Classes
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
               onPress={() => setShowNotificationCenter(true)}
               style={{ marginRight: 12, position: 'relative', opacity: 0 }}
             >

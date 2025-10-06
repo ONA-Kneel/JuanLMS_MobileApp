@@ -54,10 +54,9 @@ const FilterDropdown = ({ title, options, selected, onSelect, placeholder, disab
                              <TouchableOpacity
                  key={index}
                  style={styles.dropdownOption}
-                 onPress={() => {
-                   onSelect(option);
-                   closeAllDropdowns();
-                 }}
+                onPress={() => {
+                  onSelect(option);
+                }}
                >
                 <Text style={[
                   styles.dropdownOptionText,
@@ -881,21 +880,23 @@ export default function PrincipalGrades() {
               
               {showGradeLevelDropdown && (
                 <View style={styles.selectionDropdown}>
-                  {gradeLevels.map((level, index) => (
-                                         <TouchableOpacity
-                       key={index}
-                       style={styles.selectionOption}
-                       onPress={() => {
-                         setSelectedGradeLevel(level);
-                         closeAllDropdowns();
-                         setSelectedStrand('');
-                         setSelectedSection('');
-                         setSelectedSubject('');
-                       }}
-                     >
-                      <Text style={styles.selectionOptionText}>{level}</Text>
-                    </TouchableOpacity>
-                  ))}
+                  <ScrollView style={styles.optionsScroll} showsVerticalScrollIndicator={false}>
+                    {gradeLevels.map((level, index) => (
+                                           <TouchableOpacity
+                         key={index}
+                         style={styles.selectionOption}
+                         onPress={() => {
+                           setSelectedGradeLevel(level);
+                           closeAllDropdowns();
+                           setSelectedStrand('');
+                           setSelectedSection('');
+                           setSelectedSubject('');
+                         }}
+                       >
+                        <Text style={styles.selectionOptionText}>{level}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
                 </View>
               )}
             </View>
@@ -927,20 +928,22 @@ export default function PrincipalGrades() {
               
               {showStrandDropdown && selectedGradeLevel && (
                 <View style={styles.selectionDropdown}>
-                  {strands.map((strand, index) => (
-                                         <TouchableOpacity
-                       key={index}
-                       style={styles.selectionOption}
-                       onPress={() => {
-                         setSelectedStrand(strand);
-                         closeAllDropdowns();
-                         setSelectedSection('');
-                         setSelectedSubject('');
-                       }}
-                     >
-                      <Text style={styles.selectionOptionText}>{strand}</Text>
-                    </TouchableOpacity>
-                  ))}
+                  <ScrollView style={styles.optionsScroll} showsVerticalScrollIndicator={false}>
+                    {strands.map((strand, index) => (
+                                           <TouchableOpacity
+                         key={index}
+                         style={styles.selectionOption}
+                         onPress={() => {
+                           setSelectedStrand(strand);
+                           closeAllDropdowns();
+                           setSelectedSection('');
+                           setSelectedSubject('');
+                         }}
+                       >
+                        <Text style={styles.selectionOptionText}>{strand}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
                 </View>
               )}
             </View>
@@ -1311,19 +1314,19 @@ export default function PrincipalGrades() {
      borderColor: '#ddd',
      borderRadius: 8,
      maxHeight: 200,
-     elevation: 5,
+     elevation: 10,
      shadowColor: '#000',
      shadowOffset: { width: 0, height: 2 },
-     shadowOpacity: 0.1,
-     shadowRadius: 4,
-     zIndex: 9999,
+     shadowOpacity: 0.15,
+     shadowRadius: 6,
+     zIndex: 10000,
    },
      selectionOption: {
      paddingVertical: 12,
      paddingHorizontal: 16,
      borderBottomWidth: 1,
      borderBottomColor: '#f0f0f0',
-     zIndex: 9999,
+     zIndex: 10000,
    },
   selectionOptionText: {
     fontSize: 14,
