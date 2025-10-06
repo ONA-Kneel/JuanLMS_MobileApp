@@ -286,6 +286,19 @@ class ClassSocketService {
       }
     });
 
+    this.socket.on('quizCompleted', (data) => {
+      try {
+        socketLog('info', 'CLASS_SOCKET_SERVICE', 'Quiz completed', {
+          quizId: data?.quizId,
+          studentId: data?.studentId,
+          classID: data?.classID
+        });
+        this.emitToListeners('quizCompleted', data);
+      } catch (error) {
+        socketLog('error', 'CLASS_SOCKET_SERVICE', 'Error handling quizCompleted event', { error: error.message, data });
+      }
+    });
+
     // Lesson events with enhanced error handling
     this.socket.on('newLesson', (data) => {
       try {
