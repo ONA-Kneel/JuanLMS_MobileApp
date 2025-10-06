@@ -4,6 +4,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../UserContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { fetchActiveQuarter } from '../../utils/academicContext';
 
 const BASE_URL = 'https://juanlms-webapp-server.onrender.com';
 function getImageUrl(imagePath) {
@@ -20,6 +21,7 @@ export default function FacultyClasses() {
   const [error, setError] = useState(null);
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
   const [academicContext, setAcademicContext] = useState('2025-2026 | Term 1');
+  const [activeQuarter, setActiveQuarter] = useState(null);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -27,8 +29,32 @@ export default function FacultyClasses() {
     }, 1000);
 
     fetchAcademicContext();
+    fetchActiveQuarterInfo();
     return () => clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    if (activeQuarter) {
+      fetchClasses();
+    }
+  }, [activeQuarter, user]);
+
+  const fetchActiveQuarterInfo = async () => {
+    try {
+      const quarterInfo = await fetchActiveQuarter();
+      console.log('Faculty - Active quarter info:', quarterInfo);
+      setActiveQuarter(quarterInfo);
+    } catch (error) {
+      console.error('Faculty - Error fetching active quarter info:', error);
+      // Set default quarter info if fetch fails
+      setActiveQuarter({
+        quarterName: 'Quarter 1',
+        termName: 'Term 1',
+        schoolYear: '2025-2026',
+        isActive: false
+      });
+    }
+  };
 
   // Fetch active academic year and term for header
   const fetchAcademicContext = async () => {
@@ -46,56 +72,95 @@ export default function FacultyClasses() {
     } catch (_) {}
   };
 
-  useEffect(() => {
-    const fetchClasses = async () => {
-      if (!user || !user._id) {
-        console.log('No user ID available');
-        setLoading(false);
+  const fetchClasses = async () => {
+    if (!user || !user._id) {
+      console.log('No user ID available');
+      setLoading(false);
+      return;
+    }
+
+    if (!activeQuarter) {
+      console.log('No active quarter info available yet');
+      return;
+    }
+    
+    setLoading(true);
+    setError(null);
+    
+    try {
+      console.log('Fetching classes for faculty:', user._id);
+      console.log('Filtering by active quarter:', activeQuarter);
+      const token = await AsyncStorage.getItem('jwtToken');
+      const response = await fetch(`https://juanlms-webapp-server.onrender.com/api/classes/my-classes?facultyID=${user._id}`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log('API Response:', data);
+      
+      let userClasses = [];
+      if (Array.isArray(data)) {
+        userClasses = data;
+      } else if (data.success && Array.isArray(data.classes)) {
+        userClasses = data.classes;
+      } else {
+        setClasses([]);
+        setError(data.error || 'Failed to fetch classes');
         return;
       }
+
+      console.log('Faculty classes before quarter filtering:', userClasses);
       
-      setLoading(true);
+      // Apply quarter filtering logic similar to web app
+      const filteredClasses = userClasses.filter(cls => {
+        // Filter out archived classes
+        if (cls.isArchived === true) {
+          console.log(`Faculty - Filtering out archived class: ${cls.className || cls.classCode}`);
+          return false;
+        }
+        
+        // Filter by academic year (tolerate missing academicYear)
+        if (cls.academicYear && cls.academicYear !== activeQuarter.schoolYear) {
+          console.log(`Faculty - Filtering out class with wrong year: ${cls.className || cls.classCode} (${cls.academicYear})`);
+          return false;
+        }
+        
+        // Filter by term (tolerate missing termName)
+        if (cls.termName && cls.termName !== activeQuarter.termName) {
+          console.log(`Faculty - Filtering out class with wrong term: ${cls.className || cls.classCode} (${cls.termName})`);
+          return false;
+        }
+        
+        // Filter by quarter (tolerate missing quarterName)
+        if (cls.quarterName && cls.quarterName !== activeQuarter.quarterName) {
+          console.log(`Faculty - Filtering out class with wrong quarter: ${cls.className || cls.classCode} (${cls.quarterName})`);
+          return false;
+        }
+        
+        console.log(`Faculty - Including class: ${cls.className || cls.classCode}`);
+        return true;
+      });
+      
+      console.log('Faculty classes after quarter filtering:', filteredClasses);
+      setClasses(filteredClasses);
       setError(null);
-      
-      try {
-        console.log('Fetching classes for faculty:', user._id);
-        const token = await AsyncStorage.getItem('jwtToken');
-        const response = await fetch(`https://juanlms-webapp-server.onrender.com/api/classes/my-classes?facultyID=${user._id}`, {
-          method: 'GET',
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-        });
-        
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        console.log('API Response:', data);
-        if (Array.isArray(data)) {
-          setClasses(data);
-          setError(null);
-        } else if (data.success && Array.isArray(data.classes)) {
-          setClasses(data.classes);
-          setError(null);
-        } else {
-          setClasses([]);
-          setError(data.error || 'Failed to fetch classes');
-        }
-      } catch (error) {
-        console.error('Network error fetching classes:', error);
-        setClasses([]);
-        setError('Network error occurred: ' + error.message);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    fetchClasses();
-  }, [user]);
+    } catch (error) {
+      console.error('Network error fetching classes:', error);
+      setClasses([]);
+      setError('Network error occurred: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleClassPress = (course) => {
     // Find the exact class by classID to avoid wrong navigation
@@ -150,6 +215,11 @@ export default function FacultyClasses() {
               </Text>
               <Text style={styles.headerSubtitle}>{academicContext}</Text>
               <Text style={styles.headerSubtitle2}>{formatDateTime(currentDateTime)}</Text>
+              {activeQuarter && (
+                <Text style={styles.quarterInfo}>
+                  Active Quarter: {activeQuarter.quarterName} of {activeQuarter.termName}
+                </Text>
+              )}
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               
@@ -423,6 +493,12 @@ const styles = {
     fontSize: 12,
     fontFamily: 'Poppins-Regular',
     marginTop: 2,
+  },
+  quarterInfo: {
+    color: '#00418b',
+    fontSize: 12,
+    fontFamily: 'Poppins-Bold',
+    marginTop: 4,
   },
   backButton: {
     backgroundColor: '#f0f8ff',
