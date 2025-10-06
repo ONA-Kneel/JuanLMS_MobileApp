@@ -42,6 +42,7 @@ import CustomBottomNav from './components/CustomBottomNav';
 //Faculty
 import FacultyDashboard from './components/Faculty/FacultyDashboard';
 import FacultyClasses from './components/Faculty/FacultyClasses';
+import ConfirmClasses from './components/Faculty/ConfirmClasses';
 import CreateClasses from './components/Faculty/CreateClasses';
 import FacultyStudentProgress from './components/Faculty/FacultyStudentProgress';
 import FacultyModule from './components/Faculty/FacultyModule';
@@ -295,6 +296,7 @@ export default function App() {
                 {/*Need tangalin ang "add a lesson" na naeedit, need daw upload lang and title lang ang editable*/}
                 <Screens.Screen name='FDash' component={FacultyTabs} options={{ headerShown: false }}/>
                 <Screens.Screen name='FClasses' component={FacultyClasses} options={{ headerShown: false }}/>
+                <Screens.Screen name='ConfirmClasses' component={ConfirmClasses} options={{ headerShown: false }}/>
                 <Screens.Screen name ='CClass' component={CreateClasses} options={{ headerShown: false }}/>
                 <Screens.Screen name ='FSProg' component={FacultyStudentProgress} options={{ headerShown: false }}/>
                 <Screens.Screen name ='FMod' component={FacultyModule} options={{ headerShown: false }}/>

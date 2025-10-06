@@ -420,16 +420,6 @@ export default function PrincipalCalendar() {
           )}
         </View>
 
-        {/* Quick Actions */}
-        <View style={styles.quickActions}>
-          <TouchableOpacity
-            style={styles.addEventButton}
-            onPress={() => Alert.alert('Add Event', 'Event creation feature coming soon!')}
-          >
-            <Icon name="plus" size={24} color="#fff" />
-            <Text style={styles.addEventButtonText}>Add New Event</Text>
-          </TouchableOpacity>
-        </View>
       </ScrollView>
     </View>
   );
@@ -702,24 +692,6 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
 
-  // Quick Actions
-  quickActions: {
-    margin: 20,
-  },
-  addEventButton: {
-    backgroundColor: '#00418b',
-    borderRadius: 12,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  addEventButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontFamily: 'Poppins-SemiBold',
-  },
 
   // Legacy styles (keeping for compatibility)
   header: {

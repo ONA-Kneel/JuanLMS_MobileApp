@@ -60,7 +60,7 @@ export default function FacultyClasses() {
       try {
         console.log('Fetching classes for faculty:', user._id);
         const token = await AsyncStorage.getItem('jwtToken');
-        const response = await fetch(`https://juanlms-webapp-server.onrender.com/classes/faculty-classes`, {
+        const response = await fetch(`https://juanlms-webapp-server.onrender.com/api/classes/my-classes?facultyID=${user._id}`, {
           method: 'GET',
           headers: {
             'Accept': 'application/json',
@@ -230,8 +230,35 @@ export default function FacultyClasses() {
           </View>
         )} */}
 
-        {/* Create Class Button */}
-        <View style={{ marginBottom: 24 }}>
+        {/* Action Buttons */}
+        <View style={{ marginBottom: 24, gap: 12 }}>
+          <TouchableOpacity 
+            onPress={() => navigation.navigate('ConfirmClasses')}
+            style={{
+              backgroundColor: '#1976D2',
+              borderRadius: 12,
+              padding: 16,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              elevation: 3,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.1,
+              shadowRadius: 4,
+            }}
+          >
+            <Icon name="check-circle" size={24} color="#fff" style={{ marginRight: 8 }} />
+            <Text style={{ 
+              color: '#fff', 
+              fontSize: 16, 
+              fontWeight: 'bold',
+              fontFamily: 'Poppins-Bold'
+            }}>
+              Confirm Classes
+            </Text>
+          </TouchableOpacity>
+          
           <TouchableOpacity 
             onPress={createClass}
             style={{

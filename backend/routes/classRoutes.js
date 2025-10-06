@@ -1,8 +1,25 @@
 import express from 'express';
 import database from '../connect.cjs';
 import { ObjectId } from 'mongodb';
+import multer from 'multer';
+import path from 'path';
+import { fileURLToPath } from 'url';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const router = express.Router();
+
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        cb(null, path.join(__dirname, '..', 'uploads'));
+    },
+    filename: function (req, file, cb) {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, uniqueSuffix + '-class-' + file.originalname.replace(/\s+/g, ''));
+    }
+});
+const upload = multer({ storage: storage });
 
 function generateClassID() {
     return "C" + Math.floor(100 + Math.random() * 900); // e.g. C213
@@ -512,6 +529,144 @@ router.get('/debug/user/:userId', async (req, res) => {
         });
     } catch (err) {
         console.error('Error fetching user:', err);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// Get classes that need confirmation (auto-created classes)
+router.get('/classes/pending-confirmation', async (req, res) => {
+    try {
+        const db = database.getDb();
+        const { facultyID } = req.query;
+        
+        console.log('Fetching pending confirmation classes for faculty:', facultyID);
+        
+        if (!facultyID) {
+            return res.status(400).json({ success: false, error: 'facultyID is required' });
+        }
+
+        // Get auto-created classes that need confirmation for this faculty
+        const classes = await db.collection('Classes').find({
+            facultyID: facultyID,
+            isAutoCreated: true,
+            needsConfirmation: true,
+            isArchived: { $ne: true }
+        }).toArray();
+        
+        console.log(`Found ${classes.length} pending classes for faculty ${facultyID}`);
+        
+        res.json({ 
+            success: true, 
+            classes: classes.map(c => ({
+                ...c,
+                className: c.className || c.name,
+                classCode: c.classCode || c.code
+            }))
+        });
+    } catch (err) {
+        console.error('Error fetching pending confirmation classes:', err);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// Confirm/update an auto-created class
+router.patch('/classes/:classID/confirm', upload.single('image'), async (req, res) => {
+    try {
+        const db = database.getDb();
+        const { classID } = req.params;
+        const { classDesc, facultyID } = req.body;
+        
+        console.log('Confirming class:', classID, 'for faculty:', facultyID);
+        
+        // Find the class and verify faculty ownership
+        const classDoc = await db.collection('Classes').findOne({
+            classID: classID,
+            facultyID: facultyID,
+            isAutoCreated: true,
+            needsConfirmation: true
+        });
+        
+        if (!classDoc) {
+            return res.status(404).json({ success: false, error: 'Class not found or not available for confirmation' });
+        }
+        
+        // Update the class
+        const updateData = {
+            needsConfirmation: false,
+            isAutoCreated: false // Mark as confirmed
+        };
+        
+        if (classDesc) {
+            updateData.classDesc = classDesc;
+        }
+        
+        // Handle image upload
+        if (req.file) {
+            updateData.image = `/uploads/${req.file.filename}`;
+        }
+        
+        const updatedClass = await db.collection('Classes').findOneAndUpdate(
+            { classID: classID },
+            { $set: updateData },
+            { returnDocument: 'after' }
+        );
+        
+        console.log('Class confirmed successfully:', classID);
+        
+        res.json({ 
+            success: true, 
+            class: updatedClass.value
+        });
+    } catch (err) {
+        console.error('Error confirming class:', err);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// Get confirmed classes for faculty (excludes pending confirmation)
+router.get('/classes/my-classes', async (req, res) => {
+    try {
+        const db = database.getDb();
+        const { facultyID } = req.query;
+        
+        console.log('Fetching confirmed classes for faculty:', facultyID);
+        
+        if (!facultyID) {
+            return res.status(400).json({ success: false, error: 'facultyID is required' });
+        }
+
+        // Get classes where faculty is assigned AND are confirmed (not pending)
+        const classes = await db.collection('Classes').find({
+            facultyID: facultyID,
+            isArchived: { $ne: true },
+            $and: [
+                {
+                    $or: [
+                        { needsConfirmation: { $ne: true } },
+                        { needsConfirmation: { $exists: false } }
+                    ]
+                },
+                {
+                    $or: [
+                        { isAutoCreated: { $ne: true } },
+                        { isAutoCreated: { $exists: false } }
+                    ]
+                }
+            ]
+        }).toArray();
+        
+        console.log(`Found ${classes.length} confirmed classes for faculty ${facultyID}`);
+        
+        res.json({ 
+            success: true, 
+            classes: classes.map(c => ({
+                ...c,
+                className: c.className || c.name,
+                classCode: c.classCode || c.code
+            }))
+        });
+    } catch (err) {
+        console.error('Error fetching confirmed classes:', err);
         res.status(500).json({ success: false, error: err.message });
     }
 });

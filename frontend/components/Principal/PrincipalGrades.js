@@ -1155,24 +1155,6 @@ export default function PrincipalGrades() {
         )}
       </View>
 
-      {/* Quick Actions */}
-      <View style={styles.quickActions}>
-        <TouchableOpacity
-          style={styles.actionButton}
-          onPress={() => Alert.alert('Generate Report', 'Report generation feature coming soon!')}
-        >
-          <Icon name="file-pdf-box" size={24} color="#fff" />
-          <Text style={styles.actionButtonText}>Generate Report</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity
-          style={styles.actionButton}
-          onPress={() => Alert.alert('Export Data', 'Data export feature coming soon!')}
-        >
-          <Icon name="download" size={24} color="#fff" />
-          <Text style={styles.actionButtonText}>Export Data</Text>
-                 </TouchableOpacity>
-       </View>
        </ScrollView>
      </View>
    );
@@ -1639,33 +1621,6 @@ export default function PrincipalGrades() {
     fontSize: 14,
     fontWeight: 'bold',
     color: '#333',
-  },
-  quickActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    padding: 20,
-    gap: 12,
-  },
-  actionButton: {
-    flex: 1,
-    backgroundColor: '#00418b',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-    borderRadius: 12,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  actionButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-    marginLeft: 8,
-    fontFamily: 'Poppins-SemiBold',
   },
   loadingContainer: {
     flex: 1,
