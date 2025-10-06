@@ -3,11 +3,11 @@
     "name": "JuanLMS",
     "slug": "juanlms-mobile-app",
     "owner": "kneelpngnbn",
-    "version": "1.0.0",
+    "version": "1.1.1", 
     "orientation": "portrait",
     "icon": "./assets/SanJuan.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "splash": {
       "image": "./assets/JuanLMS-LogoV1.png",
       "resizeMode": "contain",
@@ -16,13 +16,17 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.kneelpngnbn.juanlms.mobileapp",
-      "buildNumber": "2",
+      "buildNumber": "3",
+      "deploymentTarget": "13.4",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSCameraUsageDescription": "This app needs access to camera to take profile pictures.",
         "NSPhotoLibraryUsageDescription": "This app needs access to photos to let you share them with your friends.",
         "NSMicrophoneUsageDescription": "This app needs access to microphone for audio features.",
-        "NSUserNotificationsUsageDescription": "This app sends notifications for important updates."
+        "NSUserNotificationsUsageDescription": "This app sends notifications for important updates.",
+        "NSLocationWhenInUseUsageDescription": "This app needs location access for enhanced features.",
+        "UIRequiredDeviceCapabilities": ["armv7"],
+        "UIBackgroundModes": ["audio", "background-fetch"]
       }
     },
     "android": {
