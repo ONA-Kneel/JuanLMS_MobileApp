@@ -63,8 +63,11 @@ export default function Login() {
           
           // Auto-login if credentials exist (even after cache clearing)
           loginWithCredentials(credentialsResult.email, credentialsResult.password);
+        } else if (cacheResult.wasCleared && cacheResult.restored) {
+          // Credentials were restored from backup, try auto-login
+          showToast('Credentials restored. Logging in...', 'success');
         } else if (cacheResult.wasCleared) {
-          // If cache was cleared but no credentials found, show message
+          // If cache was cleared but remember me is still enabled, show message but don't reset
           showToast('App data was cleared. Please log in again.', 'info');
         }
       }
