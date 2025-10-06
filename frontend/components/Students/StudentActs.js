@@ -408,6 +408,11 @@ export default function StudentActs() {
   const navigation = useNavigation();
   const { user } = useUser();
   const { unreadCount } = useNotifications();
+  
+  // Debug logging
+  console.log('StudentActs: Component rendered, user state:', user ? 'User available' : 'No user');
+  console.log('StudentActs: User object:', user);
+  console.log('StudentActs: Loading state:', loading);
   const [showNotificationCenter, setShowNotificationCenter] = useState(false);
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -454,10 +459,45 @@ export default function StudentActs() {
 
   useEffect(() => {
     if (user && user._id) {
+      console.log('StudentActs: User available, fetching activities');
       fetchActivities();
       initializeSocketForActivities();
+    } else if (user === null) {
+      // User context is loaded but no user data (not logged in)
+      console.log('StudentActs: No user data, setting error');
+      setLoading(false);
+      setError('Please log in to view activities');
+    } else if (user === undefined) {
+      // User context is still loading
+      console.log('StudentActs: User context still loading...');
     }
   }, [user]);
+
+  // Add a timeout to prevent infinite loading
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (loading) {
+        console.warn('StudentActs: Loading timeout reached, setting loading to false');
+        setLoading(false);
+        setError('Loading timeout. Please try refreshing.');
+      }
+    }, 10000); // 10 second timeout
+
+    return () => clearTimeout(timeout);
+  }, [loading]);
+
+  // Additional safety check: if user context is still loading after 5 seconds, show error
+  useEffect(() => {
+    const userTimeout = setTimeout(() => {
+      if (user === undefined && loading) {
+        console.warn('StudentActs: User context loading timeout, showing error');
+        setLoading(false);
+        setError('Unable to load user data. Please restart the app.');
+      }
+    }, 5000); // 5 second timeout for user context
+
+    return () => clearTimeout(userTimeout);
+  }, [user, loading]);
 
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
