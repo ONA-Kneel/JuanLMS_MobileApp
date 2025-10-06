@@ -880,7 +880,12 @@ export default function PrincipalGrades() {
               
               {showGradeLevelDropdown && (
                 <View style={styles.selectionDropdown}>
-                  <ScrollView style={styles.optionsScroll} showsVerticalScrollIndicator={false}>
+                  <ScrollView 
+                    style={styles.optionsScroll} 
+                    showsVerticalScrollIndicator={true}
+                    nestedScrollEnabled={true}
+                    scrollEnabled={true}
+                  >
                     {gradeLevels.map((level, index) => (
                                            <TouchableOpacity
                          key={index}
@@ -928,7 +933,12 @@ export default function PrincipalGrades() {
               
               {showStrandDropdown && selectedGradeLevel && (
                 <View style={styles.selectionDropdown}>
-                  <ScrollView style={styles.optionsScroll} showsVerticalScrollIndicator={false}>
+                  <ScrollView 
+                    style={styles.optionsScroll} 
+                    showsVerticalScrollIndicator={true}
+                    nestedScrollEnabled={true}
+                    scrollEnabled={true}
+                  >
                     {strands.map((strand, index) => (
                                            <TouchableOpacity
                          key={index}
@@ -1313,7 +1323,7 @@ export default function PrincipalGrades() {
      borderWidth: 1,
      borderColor: '#ddd',
      borderRadius: 8,
-     maxHeight: 200,
+     height: 200,
      elevation: 10,
      shadowColor: '#000',
      shadowOffset: { width: 0, height: 2 },
@@ -1471,6 +1481,7 @@ export default function PrincipalGrades() {
           zIndex: 9999,
         },
   optionsScroll: {
+    flex: 1,
     maxHeight: 200,
   },
   dropdownOption: {
