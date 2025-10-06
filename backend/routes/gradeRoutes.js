@@ -6,6 +6,7 @@ import Class from '../models/Class.js';
 import Assignment from '../models/Assignment.js';
 import Quiz from '../models/Quiz.js';
 import User from '../models/User.js';
+import { authenticateToken } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
@@ -500,6 +501,441 @@ router.get('/semestral-grades/student/:studentId', async (req, res) => {
     console.error('Error fetching semestral grades:', err);
     console.error('Error stack:', err.stack);
     res.status(500).json({ success: false, error: 'Failed to fetch semestral grades.' });
+  }
+});
+
+// Get comprehensive student data for a section (for principal grades management)
+// This endpoint matches the web app's proven implementation
+router.get('/class/all/section/:sectionName/comprehensive', authenticateToken, async (req, res) => {
+  try {
+    console.log('=== COMPREHENSIVE SECTION ENDPOINT CALLED ===');
+    const { sectionName } = req.params;
+    const { trackName, strandName, gradeLevel, schoolYear, termName } = req.query;
+    
+    console.log('Section:', sectionName);
+    console.log('Track:', trackName);
+    console.log('Strand:', strandName);
+    console.log('Grade Level:', gradeLevel);
+    console.log('School Year:', schoolYear);
+    console.log('Term:', termName);
+    
+    // Use the same approach as web app - try multiple data sources
+    let students = [];
+    
+    // Method 1: Try to get students from sections API (like web app)
+    try {
+      const sectionsResponse = await fetch(`${process.env.API_BASE_URL || 'http://localhost:3000'}/api/sections?schoolYear=${encodeURIComponent(schoolYear)}&termName=${encodeURIComponent(termName)}`, {
+        headers: { Authorization: req.headers.authorization }
+      });
+      
+      if (sectionsResponse.ok) {
+        const sectionsData = await sectionsResponse.json();
+        const matchingSections = Array.isArray(sectionsData) ? sectionsData.filter(s => 
+          s.sectionName === sectionName && 
+          s.gradeLevel === gradeLevel
+        ) : [];
+        
+        if (matchingSections.length > 0) {
+          // Get students from the matching section
+          const studentsResponse = await fetch(`${process.env.API_BASE_URL || 'http://localhost:3000'}/users/students/by-section?sectionName=${encodeURIComponent(sectionName)}&termName=${encodeURIComponent(termName)}&schoolYear=${encodeURIComponent(schoolYear)}`, {
+            headers: { Authorization: req.headers.authorization }
+          });
+          
+          if (studentsResponse.ok) {
+            const studentsData = await studentsResponse.json();
+            students = Array.isArray(studentsData) ? studentsData : [];
+          }
+        }
+      }
+    } catch (error) {
+      console.log('Sections API approach failed:', error.message);
+    }
+    
+    // Method 2: Try to get students from semestral grades (like web app)
+    if (students.length === 0) {
+      try {
+        const gradesResponse = await fetch(`${process.env.API_BASE_URL || 'http://localhost:3000'}/api/semestral-grades/principal-view?gradeLevel=${encodeURIComponent(gradeLevel)}&strand=${encodeURIComponent(strandName)}&section=${encodeURIComponent(sectionName)}&termName=${encodeURIComponent(termName)}&academicYear=${encodeURIComponent(schoolYear)}`, {
+          headers: { Authorization: req.headers.authorization }
+        });
+        
+        if (gradesResponse.ok) {
+          const gradesData = await gradesResponse.json();
+          if (gradesData.success && gradesData.students) {
+            students = gradesData.students;
+          }
+        }
+      } catch (error) {
+        console.log('Semestral grades approach failed:', error.message);
+      }
+    }
+    
+    // Method 3: Fallback to direct database query (like web app)
+    if (students.length === 0) {
+      try {
+        // Find classes that match the criteria
+        const classQuery = {
+          section: sectionName,
+          academicYear: schoolYear,
+          termName: termName
+        };
+        
+        if (gradeLevel) classQuery.gradeLevel = gradeLevel;
+        if (strandName) classQuery.strand = strandName;
+        
+        const classes = await Class.find(classQuery);
+        console.log('Found classes:', classes.length);
+        
+        if (classes.length > 0) {
+          // Get all unique students from these classes
+          const allStudents = new Map();
+          
+          for (const classInfo of classes) {
+            if (classInfo.students && Array.isArray(classInfo.students)) {
+              for (const student of classInfo.students) {
+                let studentId, studentName, userID;
+                
+                if (typeof student === 'string') {
+                  studentId = student;
+                  userID = student;
+                } else if (student._id) {
+                  studentId = student._id;
+                  userID = student.userID || student.studentID || student._id;
+                  studentName = student.name || student.studentName || 
+                               `${student.firstname || ''} ${student.lastname || ''}`.trim();
+                } else {
+                  studentId = student.studentID || student.userID || student.id;
+                  userID = student.userID || student.studentID || student.id;
+                  studentName = student.name || student.studentName || 
+                               `${student.firstname || ''} ${student.lastname || ''}`.trim();
+                }
+                
+                if (studentId && !allStudents.has(studentId)) {
+                  allStudents.set(studentId, {
+                    _id: studentId,
+                    userID: userID,
+                    studentID: userID,
+                    name: studentName,
+                    studentName: studentName,
+                    firstname: student.firstname || '',
+                    lastname: student.lastname || '',
+                    section: sectionName,
+                    gradeLevel: gradeLevel,
+                    strand: strandName
+                  });
+                }
+              }
+            }
+          }
+          
+          students = Array.from(allStudents.values());
+          
+          // Fetch names from User collection if needed
+          const studentsNeedingNames = students.filter(s => !s.name && !s.studentName);
+          if (studentsNeedingNames.length > 0) {
+            for (const student of studentsNeedingNames) {
+              try {
+                const userDoc = await User.findById(student._id).select('firstname lastname userID schoolID');
+                if (userDoc) {
+                  student.name = `${userDoc.firstname || ''} ${userDoc.lastname || ''}`.trim();
+                  student.studentName = student.name;
+                  student.firstname = userDoc.firstname || '';
+                  student.lastname = userDoc.lastname || '';
+                  student.userID = userDoc.userID || student.userID;
+                  student.studentID = userDoc.schoolID || userDoc.userID || student.studentID;
+                }
+              } catch (error) {
+                console.log('Error fetching user details for', student._id, ':', error.message);
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.log('Direct database query failed:', error.message);
+      }
+    }
+    
+    console.log('Total students found:', students.length);
+    
+    res.json({
+      success: true,
+      data: {
+        students: students,
+        classes: [] // Not needed for mobile app
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error in comprehensive section endpoint:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch section data'
+    });
+  }
+});
+
+// Get principal view of semestral grades
+// This endpoint matches the web app's proven implementation
+router.get('/semestral-grades/principal-view', authenticateToken, async (req, res) => {
+  try {
+    console.log('=== PRINCIPAL VIEW ENDPOINT CALLED ===');
+    const { gradeLevel, strand, section, subject, termName, academicYear } = req.query;
+    
+    console.log('Query params:', { gradeLevel, strand, section, subject, termName, academicYear });
+    
+    // Only principals can access this endpoint
+    if (req.user.role !== 'principal') {
+      return res.status(403).json({
+        success: false,
+        message: 'Access denied. Principals only.'
+      });
+    }
+
+    // Validate required parameters
+    if (!gradeLevel || !strand || !section || !subject || !termName || !academicYear) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required parameters: gradeLevel, strand, section, subject, termName, academicYear'
+      });
+    }
+
+    // Use the same approach as web app - try to get from SemestralGrade collection first
+    let grades = [];
+    let students = [];
+    
+    try {
+      // Try to get grades from SemestralGrade collection (like web app)
+      const SemestralGrade = require('../models/SemestralGrade.js');
+      
+      // Build query to find grades matching the criteria
+      const query = {
+        termName: termName,
+        academicYear: academicYear
+      };
+
+      // Try to find grades by subject name or code
+      grades = await SemestralGrade.find({
+        ...query,
+        $or: [
+          { subjectName: { $regex: subject, $options: 'i' } },
+          { subjectCode: { $regex: subject, $options: 'i' } }
+        ]
+      }).sort({ studentName: 1 });
+
+      if (grades.length > 0) {
+        // Filter grades by section if available in the grade data
+        const filteredGrades = grades.filter(grade => 
+          !grade.section || grade.section === section
+        );
+
+        // Extract unique students
+        students = [...new Set(filteredGrades.map(grade => ({
+          _id: grade.studentId,
+          name: grade.studentName,
+          schoolID: grade.schoolID
+        })))];
+
+        // Transform grades to match mobile app format
+        const transformedGrades = filteredGrades.map(grade => ({
+          _id: grade.studentId,
+          studentName: grade.studentName,
+          schoolID: grade.schoolID,
+          grades: {
+            quarter1: grade.grades?.quarter1 || '-',
+            quarter2: grade.grades?.quarter2 || '-',
+            quarter3: grade.grades?.quarter3 || '-',
+            quarter4: grade.grades?.quarter4 || '-',
+            semesterFinal: grade.grades?.semesterFinal || '-',
+            remarks: grade.grades?.remarks || 'No Grades'
+          },
+          subjectName: grade.subjectName,
+          subjectCode: grade.subjectCode,
+          section: grade.section || section
+        }));
+
+        console.log('Found', transformedGrades.length, 'grades from SemestralGrade collection');
+        
+        res.json({
+          success: true,
+          message: `Found ${transformedGrades.length} grade records`,
+          grades: transformedGrades,
+          students: students,
+          filters: {
+            gradeLevel,
+            strand,
+            section,
+            subject,
+            termName,
+            academicYear
+          }
+        });
+        return;
+      }
+    } catch (error) {
+      console.log('SemestralGrade collection approach failed:', error.message);
+    }
+    
+    // Fallback: Try to get from Class collection and calculate grades (like web app)
+    try {
+      const classQuery = {
+        section: section,
+        academicYear: academicYear,
+        termName: termName
+      };
+      
+      if (gradeLevel) classQuery.gradeLevel = gradeLevel;
+      if (strand) classQuery.strand = strand;
+      if (subject) {
+        classQuery.$or = [
+          { subjectName: { $regex: subject, $options: 'i' } },
+          { className: { $regex: subject, $options: 'i' } },
+          { subjectCode: { $regex: subject, $options: 'i' } }
+        ];
+      }
+      
+      const classes = await Class.find(classQuery);
+      console.log('Found classes:', classes.length);
+      
+      const allStudentGrades = [];
+      
+      for (const classInfo of classes) {
+        // Get all students in this class
+        const classStudents = classInfo.students || [];
+        
+        for (const student of classStudents) {
+          let studentId, studentName, userID;
+          
+          if (typeof student === 'string') {
+            studentId = student;
+            userID = student;
+          } else {
+            studentId = student._id || student.studentID || student.userID;
+            userID = student.userID || student.studentID || student._id;
+            studentName = student.name || student.studentName || 
+                         `${student.firstname || ''} ${student.lastname || ''}`.trim();
+          }
+          
+          if (studentId) {
+            // Try to get student details from User collection
+            try {
+              const userDoc = await User.findById(studentId).select('firstname lastname userID schoolID');
+              if (userDoc) {
+                studentName = `${userDoc.firstname || ''} ${userDoc.lastname || ''}`.trim();
+                userID = userDoc.userID || userDoc.schoolID || userID;
+              }
+            } catch (error) {
+              console.log('Error fetching user details for', studentId);
+            }
+            
+            // Get grades for this student in this class
+            const studentObjectId = await resolveStudentObjectId(studentId);
+            if (studentObjectId) {
+              // Get assignments and submissions
+              const assignments = await Assignment.find({ classID: classInfo.classID });
+              const assignmentIds = assignments.map(a => a._id);
+              const submissions = await Submission.find({ 
+                student: studentObjectId, 
+                assignment: { $in: assignmentIds } 
+              });
+              
+              // Get quizzes and responses
+              const quizzes = await Quiz.find({ 
+                $or: [
+                  { classID: classInfo.classID },
+                  { classIDs: classInfo.classID }
+                ]
+              });
+              const quizIds = quizzes.map(q => q._id);
+              const quizResponses = await QuizResponse.find({ 
+                studentId: studentObjectId, 
+                quizId: { $in: quizIds } 
+              });
+              
+              // Calculate grades
+              let totalPoints = 0;
+              let earnedPoints = 0;
+              let hasGrades = false;
+              
+              submissions.forEach(submission => {
+                if (submission.grade !== undefined) {
+                  const assignment = assignments.find(a => a._id.toString() === submission.assignment.toString());
+                  if (assignment) {
+                    totalPoints += assignment.points || 0;
+                    earnedPoints += submission.grade || 0;
+                    hasGrades = true;
+                  }
+                }
+              });
+              
+              quizResponses.forEach(response => {
+                if (response.score !== undefined) {
+                  const quiz = quizzes.find(q => q._id.toString() === response.quizId.toString());
+                  if (quiz) {
+                    const quizTotal = quiz.questions.reduce((sum, q) => sum + (q.points || 1), 0);
+                    totalPoints += quizTotal;
+                    earnedPoints += response.score || 0;
+                    hasGrades = true;
+                  }
+                }
+              });
+              
+              const averageGrade = totalPoints > 0 ? (earnedPoints / totalPoints) * 100 : 0;
+              let remarks = 'No Grades';
+              
+              if (hasGrades) {
+                if (averageGrade >= 80) {
+                  remarks = 'PASSED';
+                } else if (averageGrade >= 75) {
+                  remarks = 'Conditional';
+                } else {
+                  remarks = 'FAILED';
+                }
+              }
+              
+              allStudentGrades.push({
+                _id: studentId,
+                studentName: studentName || 'Unknown Student',
+                schoolID: userID,
+                grades: {
+                  quarter1: hasGrades ? Math.round(averageGrade) : '-',
+                  quarter2: hasGrades ? Math.round(averageGrade) : '-',
+                  quarter3: '-',
+                  quarter4: '-',
+                  semesterFinal: hasGrades ? Math.round(averageGrade) : '-',
+                  remarks: remarks
+                },
+                subjectName: classInfo.subjectName || classInfo.className,
+                subjectCode: classInfo.subjectCode || classInfo.classCode,
+                section: section
+              });
+            }
+          }
+        }
+      }
+      
+      console.log('Returning', allStudentGrades.length, 'student grades from Class collection');
+      res.json({
+        success: true,
+        data: allStudentGrades
+      });
+      
+    } catch (error) {
+      console.log('Class collection approach failed:', error.message);
+      
+      // If all approaches fail, return empty result
+      res.json({
+        success: true,
+        message: 'No grades found for the specified criteria',
+        grades: [],
+        students: []
+      });
+    }
+    
+  } catch (error) {
+    console.error('Error in principal view endpoint:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch principal view data'
+    });
   }
 });
 

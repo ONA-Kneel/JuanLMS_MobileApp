@@ -428,10 +428,10 @@ export default function PrincipalGrades() {
         let grades = [];
         let allStudents = [];
         
+        // Method 1: Try the comprehensive endpoint (like web app)
         try {
           console.log('🔍 Using comprehensive endpoint to fetch students and grades...');
           
-          // Step 1: Get all students from the comprehensive endpoint
           const comprehensiveResponse = await fetch(
             `${API_BASE_URL}/api/grading/class/all/section/${selectedSection}/comprehensive?` +
             `trackName=${selectedStrand}&` +
@@ -452,7 +452,7 @@ export default function PrincipalGrades() {
               allStudents = comprehensiveData.data.students;
               console.log(`🔍 Found ${allStudents.length} students from comprehensive endpoint`);
               
-              // Step 2: For each student, fetch their grades using the student endpoint
+              // For each student, fetch their grades using the student endpoint
               for (const student of allStudents.slice(0, 50)) { // Limit to first 50 for performance
                 try {
                   const studentID = student.userID || student.studentID || student._id || student.id;
@@ -511,7 +511,7 @@ export default function PrincipalGrades() {
           console.log('🔍 Comprehensive approach failed:', error);
         }
         
-        // If no grades found, try the principal-view endpoint
+        // Method 2: Try the principal-view endpoint (like web app)
         if (grades.length === 0) {
           try {
             console.log('🔍 Trying principal-view endpoint as fallback...');
@@ -527,14 +527,16 @@ export default function PrincipalGrades() {
             
             if (pvRes && pvRes.ok) {
               const pvData = await pvRes.json();
-              if (pvData.success && pvData.grades) {
-                console.log('🔍 Found grades from principal-view endpoint:', pvData.grades.length);
+              console.log('🔍 Principal-view response:', pvData);
+              
+              if (pvData.success && pvData.grades && pvData.grades.length > 0) {
+                console.log(`🔍 Found ${pvData.grades.length} grades from principal-view endpoint`);
                 
-                // Transform principal-view data to match our format
+                // Transform the data to match our expected format
                 const transformedGrades = pvData.grades.map(grade => ({
                   _id: grade._id || grade.studentId,
-                  studentName: grade.studentName || `${grade.firstname || ''} ${grade.lastname || ''}`.trim(),
-                  schoolID: grade.schoolID || grade.studentId,
+                  studentName: grade.studentName,
+                  schoolID: grade.schoolID,
                   grades: {
                     quarter1: grade.grades?.quarter1 || grade.quarter1 || '-',
                     quarter2: grade.grades?.quarter2 || grade.quarter2 || '-',
@@ -549,10 +551,46 @@ export default function PrincipalGrades() {
                 }));
                 
                 grades = transformedGrades;
+                
+                // Extract students from grades
+                allStudents = [...new Set(transformedGrades.map(grade => ({
+                  _id: grade._id,
+                  name: grade.studentName,
+                  schoolID: grade.schoolID
+                })))];
+              } else if (pvData.success && pvData.data && pvData.data.length > 0) {
+                // Handle alternative response format
+                console.log(`🔍 Found ${pvData.data.length} grades from principal-view endpoint (alternative format)`);
+                
+                const transformedGrades = pvData.data.map(grade => ({
+                  _id: grade._id || grade.studentId,
+                  studentName: grade.studentName,
+                  schoolID: grade.schoolID,
+                  grades: {
+                    quarter1: grade.grades?.quarter1 || grade.quarter1 || '-',
+                    quarter2: grade.grades?.quarter2 || grade.quarter2 || '-',
+                    quarter3: grade.grades?.quarter3 || grade.quarter3 || '-',
+                    quarter4: grade.grades?.quarter4 || grade.quarter4 || '-',
+                    semesterFinal: grade.grades?.semesterFinal || grade.semesterFinal || '-',
+                    remarks: grade.grades?.remarks || grade.remarks || '-'
+                  },
+                  subjectName: grade.subjectName,
+                  subjectCode: grade.subjectCode,
+                  section: grade.section || selectedSection
+                }));
+                
+                grades = transformedGrades;
+                
+                // Extract students from grades
+                allStudents = [...new Set(transformedGrades.map(grade => ({
+                  _id: grade._id,
+                  name: grade.studentName,
+                  schoolID: grade.schoolID
+                })))];
               }
             }
           } catch (error) {
-            console.log('🔍 Principal-view endpoint failed:', error);
+            console.log('🔍 Principal-view approach failed:', error);
           }
         }
         
@@ -656,44 +694,10 @@ export default function PrincipalGrades() {
            });
          }
          
-         // If no students found from comprehensive endpoint, create a basic student list
+         // If no students found, show empty state instead of sample data
          if (finalStudentList.length === 0) {
-           // Create sample students for demonstration
-           const sampleStudents = [
-             {
-               _id: 'sample1',
-               studentName: 'Sample Student 1',
-               schoolID: 'ST001',
-               grades: {
-                 quarter1: '-',
-                 quarter2: '-',
-                 quarter3: '-',
-                 quarter4: '-',
-                 semesterFinal: '-',
-                 remarks: 'No Grades'
-               },
-               subjectName: selectedSubject,
-               subjectCode: '',
-               section: selectedSection
-             },
-             {
-               _id: 'sample2',
-               studentName: 'Sample Student 2',
-               schoolID: 'ST002',
-               grades: {
-                 quarter1: '-',
-                 quarter2: '-',
-                 quarter3: '-',
-                 quarter4: '-',
-                 semesterFinal: '-',
-                 remarks: 'No Grades'
-               },
-               subjectName: selectedSubject,
-               subjectCode: '',
-               section: selectedSection
-             }
-           ];
-           finalStudentList.push(...sampleStudents);
+           console.log('🔍 No students found for the selected criteria');
+           // Show proper empty state - no sample data
          }
         
         setStudentGrades(finalStudentList);
