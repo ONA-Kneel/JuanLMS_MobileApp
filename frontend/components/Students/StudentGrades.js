@@ -16,6 +16,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import StudentGradesStyle from '../styles/Stud/StudentGradesStyle';
 import StudentDashboardStyle from '../styles/Stud/StudentDashStyle';
+import { fetchActiveQuarter } from '../../utils/academicContext';
 
 const { width } = Dimensions.get('window');
 
@@ -34,6 +35,7 @@ const StudentGrades = () => {
   const [profilePicError, setProfilePicError] = useState(false);
   const [gradesUnavailable, setGradesUnavailable] = useState(false);
   const [studentClasses, setStudentClasses] = useState([]);
+  const [activeQuarter, setActiveQuarter] = useState(null);
 
   const API_BASE = 'https://juanlms-webapp-server.onrender.com';
 
@@ -42,10 +44,33 @@ const StudentGrades = () => {
       setCurrentDateTime(new Date());
     }, 1000);
 
-    fetchGrades();
+    fetchActiveQuarterInfo();
     fetchAcademicContext();
     return () => clearInterval(timer);
-  }, [selectedTerm]);
+  }, []);
+
+  useEffect(() => {
+    if (activeQuarter) {
+      fetchGrades();
+    }
+  }, [selectedTerm, activeQuarter]);
+
+  const fetchActiveQuarterInfo = async () => {
+    try {
+      const quarterInfo = await fetchActiveQuarter();
+      console.log('StudentGrades - Active quarter info:', quarterInfo);
+      setActiveQuarter(quarterInfo);
+    } catch (error) {
+      console.error('StudentGrades - Error fetching active quarter info:', error);
+      // Set default quarter info if fetch fails
+      setActiveQuarter({
+        quarterName: 'Quarter 1',
+        termName: 'Term 1',
+        schoolYear: '2025-2026',
+        isActive: false
+      });
+    }
+  };
 
   // Fetch active academic year and term for header
   const fetchAcademicContext = async () => {
@@ -71,6 +96,11 @@ const StudentGrades = () => {
 
       if (!user || !user._id) return;
 
+      if (!activeQuarter) {
+        console.log('No active quarter info available yet');
+        return;
+      }
+
       const response = await fetch(`${API_BASE}/classes/my-classes`, {
         method: 'GET',
         headers: {
@@ -83,7 +113,42 @@ const StudentGrades = () => {
       if (response.ok) {
         const data = await response.json();
         console.log('✅ Student classes loaded:', data);
-        setStudentClasses(Array.isArray(data) ? data : []);
+        
+        let userClasses = Array.isArray(data) ? data : [];
+        console.log('StudentGrades - Classes before quarter filtering:', userClasses);
+        
+        // Apply quarter filtering logic similar to classes component
+        const filteredClasses = userClasses.filter(cls => {
+          // Filter out archived classes
+          if (cls.isArchived === true) {
+            console.log(`StudentGrades - Filtering out archived class: ${cls.className || cls.classCode}`);
+            return false;
+          }
+          
+          // Filter by academic year (tolerate missing academicYear)
+          if (cls.academicYear && cls.academicYear !== activeQuarter.schoolYear) {
+            console.log(`StudentGrades - Filtering out class with wrong year: ${cls.className || cls.classCode} (${cls.academicYear})`);
+            return false;
+          }
+          
+          // Filter by term (tolerate missing termName)
+          if (cls.termName && cls.termName !== activeQuarter.termName) {
+            console.log(`StudentGrades - Filtering out class with wrong term: ${cls.className || cls.classCode} (${cls.termName})`);
+            return false;
+          }
+          
+          // Filter by quarter (tolerate missing quarterName)
+          if (cls.quarterName && cls.quarterName !== activeQuarter.quarterName) {
+            console.log(`StudentGrades - Filtering out class with wrong quarter: ${cls.className || cls.classCode} (${cls.quarterName})`);
+            return false;
+          }
+          
+          console.log(`StudentGrades - Including class: ${cls.className || cls.classCode}`);
+          return true;
+        });
+        
+        console.log('StudentGrades - Classes after quarter filtering:', filteredClasses);
+        setStudentClasses(filteredClasses);
       } else {
         console.log('Failed to fetch student classes:', response.status);
         setStudentClasses([]);
@@ -180,11 +245,35 @@ const StudentGrades = () => {
           const classesData = await classesResponse.json();
           console.log('📚 Student classes:', classesData);
           
-          // Filter classes for current term and year
-          const currentTermClasses = classesData.filter(cls => 
-            cls.termName === activeTermName && 
-            cls.academicYear === activeYearName
-          );
+          // Filter classes for current term, year, and quarter
+          const currentTermClasses = classesData.filter(cls => {
+            // Filter out archived classes
+            if (cls.isArchived === true) {
+              console.log(`StudentGrades - Filtering out archived class: ${cls.className || cls.classCode}`);
+              return false;
+            }
+            
+            // Filter by academic year
+            if (cls.academicYear && cls.academicYear !== activeYearName) {
+              console.log(`StudentGrades - Filtering out class with wrong year: ${cls.className || cls.classCode} (${cls.academicYear})`);
+              return false;
+            }
+            
+            // Filter by term
+            if (cls.termName && cls.termName !== activeTermName) {
+              console.log(`StudentGrades - Filtering out class with wrong term: ${cls.className || cls.classCode} (${cls.termName})`);
+              return false;
+            }
+            
+            // Filter by quarter if activeQuarter is available
+            if (activeQuarter && cls.quarterName && cls.quarterName !== activeQuarter.quarterName) {
+              console.log(`StudentGrades - Filtering out class with wrong quarter: ${cls.className || cls.classCode} (${cls.quarterName})`);
+              return false;
+            }
+            
+            console.log(`StudentGrades - Including class: ${cls.className || cls.classCode}`);
+            return true;
+          });
           
           console.log('📚 Current term classes:', currentTermClasses);
           
@@ -391,7 +480,9 @@ const StudentGrades = () => {
 
   const onRefresh = () => {
     setRefreshing(true);
-    fetchGrades();
+    fetchActiveQuarterInfo().then(() => {
+      // fetchGrades will be called automatically when activeQuarter state updates
+    });
   };
 
   const formatDateTime = (date) => {
@@ -660,7 +751,9 @@ const StudentGrades = () => {
       <Text style={styles.emptyText}>
         {gradesUnavailable 
           ? 'Grades service is currently unavailable. Please ask your faculty about your grades.'
-          : 'Grades are not available yet. Please ask your faculty about that.'}
+          : activeQuarter 
+            ? `No grades available for ${activeQuarter.quarterName} of ${activeQuarter.termName}. Please ask your faculty about your grades.`
+            : 'Grades are not available yet. Please ask your faculty about that.'}
       </Text>
     </View>
   );
@@ -696,6 +789,11 @@ const StudentGrades = () => {
             </Text>
                          <Text style={StudentDashboardStyle.headerSubtitle}>{academicContext}</Text>
              <Text style={StudentDashboardStyle.headerSubtitle2}>{formatDateTime(currentDateTime)}</Text>
+             {activeQuarter && (
+               <Text style={styles.quarterInfo}>
+                 Active Quarter: {activeQuarter.quarterName} of {activeQuarter.termName}
+               </Text>
+             )}
           </View>
           <TouchableOpacity onPress={() => navigation.navigate('SProfile')}>
             {resolveProfileUri() ? (
@@ -1072,6 +1170,12 @@ const styles = {
   },
   tableContent: {
     minWidth: 600, // Ensure table has minimum width for proper display
+  },
+  quarterInfo: {
+    color: '#00418b',
+    fontSize: 12,
+    fontFamily: 'Poppins-Bold',
+    marginTop: 4,
   },
 };
 
