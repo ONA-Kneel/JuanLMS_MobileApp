@@ -832,6 +832,10 @@ export default function PrincipalGrades() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
         onScrollBeginDrag={closeAllDropdowns}
+        showsVerticalScrollIndicator={true}
+        indicatorStyle="black"
+        scrollIndicatorInsets={{ right: 1 }}
+        persistentScrollbar={true}
       >
       {/* Blue background */}
       <View style={styles.blueHeaderBackground} />
@@ -885,6 +889,8 @@ export default function PrincipalGrades() {
                     showsVerticalScrollIndicator={true}
                     nestedScrollEnabled={true}
                     scrollEnabled={true}
+                    indicatorStyle="default"
+                    scrollIndicatorInsets={{ right: 2 }}
                   >
                     {gradeLevels.map((level, index) => (
                                            <TouchableOpacity
@@ -938,6 +944,8 @@ export default function PrincipalGrades() {
                     showsVerticalScrollIndicator={true}
                     nestedScrollEnabled={true}
                     scrollEnabled={true}
+                    indicatorStyle="default"
+                    scrollIndicatorInsets={{ right: 2 }}
                   >
                     {strands.map((strand, index) => (
                                            <TouchableOpacity
@@ -1108,7 +1116,10 @@ export default function PrincipalGrades() {
           </View>
         ) : studentGrades.length > 0 ? (
           <ScrollView
-            showsVerticalScrollIndicator={false}
+            showsVerticalScrollIndicator={true}
+            indicatorStyle="black"
+            scrollIndicatorInsets={{ right: 1 }}
+            persistentScrollbar={true}
             refreshControl={
               <RefreshControl
                 refreshing={refreshing}
@@ -1483,6 +1494,11 @@ export default function PrincipalGrades() {
   optionsScroll: {
     flex: 1,
     maxHeight: 200,
+  },
+  // Custom scrollbar styling
+  customScrollView: {
+    // This helps make the scrollbar more visible
+    scrollbarWidth: 'thick',
   },
   dropdownOption: {
     flexDirection: 'row',
