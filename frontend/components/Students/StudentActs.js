@@ -409,10 +409,8 @@ export default function StudentActs() {
   const { user } = useUser();
   const { unreadCount } = useNotifications();
   
-  // Debug logging
-  console.log('StudentActs: Component rendered, user state:', user ? 'User available' : 'No user');
-  console.log('StudentActs: User object:', user);
-  console.log('StudentActs: Loading state:', loading);
+  // Debug logging (can be removed in production)
+  // console.log('StudentActs: Component rendered, user state:', user ? 'User available' : 'No user');
   const [showNotificationCenter, setShowNotificationCenter] = useState(false);
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -459,17 +457,15 @@ export default function StudentActs() {
 
   useEffect(() => {
     if (user && user._id) {
-      console.log('StudentActs: User available, fetching activities');
       fetchActivities();
       initializeSocketForActivities();
     } else if (user === null) {
       // User context is loaded but no user data (not logged in)
-      console.log('StudentActs: No user data, setting error');
       setLoading(false);
       setError('Please log in to view activities');
     } else if (user === undefined) {
       // User context is still loading
-      console.log('StudentActs: User context still loading...');
+      // Component will remain in loading state until user context resolves
     }
   }, [user]);
 
