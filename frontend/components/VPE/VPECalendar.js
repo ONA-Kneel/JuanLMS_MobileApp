@@ -7,6 +7,8 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import moment from 'moment';
 import { getAuthHeaders, handleApiError } from '../../utils/apiUtils';
+import { useNotifications } from '../../NotificationContext';
+import NotificationCenter from '../NotificationCenter';
 
 const API_BASE_URL = 'https://juanlms-webapp-server.onrender.com';
 const { width } = Dimensions.get('window');
@@ -24,6 +26,16 @@ export default function VPECalendar() {
   const [currentTerm, setCurrentTerm] = useState(null);
   const [classDates, setClassDates] = useState([]);
   const [holidays, setHolidays] = useState([]);
+  
+  // Notification state
+  const [showNotificationCenter, setShowNotificationCenter] = useState(false);
+  let unreadCount = 0;
+  try {
+    const { unreadCount: count } = useNotifications();
+    unreadCount = count;
+  } catch (error) {
+    console.error('Error getting notification count:', error);
+  }
 
   // Ensure selectedDate is always set to today when component mounts
   useEffect(() => {
@@ -271,25 +283,61 @@ export default function VPECalendar() {
               {moment(new Date()).format('dddd, MMMM D, YYYY')}
             </Text>
           </View>
-          <TouchableOpacity onPress={() => navigation.navigate('VPEProfile')}>
-            {(() => {
-              const API_BASE = 'https://juanlms-webapp-server.onrender.com';
-              const raw = user?.profilePic || user?.profilePicture;
-              const uri = raw && typeof raw === 'string' && raw.startsWith('/uploads/') ? (API_BASE + raw) : raw;
-              return uri ? (
-                <Image 
-                  source={{ uri }} 
-                  style={styles.profileImage}
-                  resizeMode="cover"
-                />
-              ) : (
-                <Image 
-                  source={require('../../assets/profile-icon (2).png')} 
-                  style={styles.profileImage}
-                />
-              );
-            })()}
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <TouchableOpacity 
+              onPress={() => {
+                try {
+                  setShowNotificationCenter(true);
+                } catch (error) {
+                  console.error('Error opening notification center:', error);
+                  Alert.alert('Notifications', 'Unable to open notifications. Please try again.');
+                }
+              }}
+              style={{ marginRight: 12, position: 'relative' }}
+            >
+              <Icon name="bell" size={24} color="#fff" />
+              {unreadCount > 0 && (
+                <View style={{
+                  position: 'absolute',
+                  top: -5,
+                  right: -5,
+                  backgroundColor: '#ff4444',
+                  borderRadius: 10,
+                  minWidth: 20,
+                  height: 20,
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}>
+                  <Text style={{
+                    color: 'white',
+                    fontSize: 12,
+                    fontFamily: 'Poppins-Bold',
+                  }}>
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.navigate('VPEProfile')}>
+              {(() => {
+                const API_BASE = 'https://juanlms-webapp-server.onrender.com';
+                const raw = user?.profilePic || user?.profilePicture;
+                const uri = raw && typeof raw === 'string' && raw.startsWith('/uploads/') ? (API_BASE + raw) : raw;
+                return uri ? (
+                  <Image 
+                    source={{ uri }} 
+                    style={styles.profileImage}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <Image 
+                    source={require('../../assets/profile-icon (2).png')} 
+                    style={styles.profileImage}
+                  />
+                );
+              })()}
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
@@ -412,6 +460,11 @@ export default function VPECalendar() {
           )}
         </View>
       </ScrollView>
+      
+      <NotificationCenter 
+        visible={showNotificationCenter} 
+        onClose={() => setShowNotificationCenter(false)}
+      />
     </View>
   );
 }

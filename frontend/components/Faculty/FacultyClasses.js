@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Text, TouchableOpacity, View, ScrollView, Image, ActivityIndicator } from 'react-native';
+import { Text, TouchableOpacity, View, ScrollView, Image, ActivityIndicator, Alert } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../UserContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { fetchActiveQuarter } from '../../utils/academicContext';
+import { useNotifications } from '../../NotificationContext';
+import NotificationCenter from '../NotificationCenter';
 
 const BASE_URL = 'https://juanlms-webapp-server.onrender.com';
 function getImageUrl(imagePath) {
@@ -22,6 +24,16 @@ export default function FacultyClasses() {
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
   const [academicContext, setAcademicContext] = useState('2025-2026 | Term 1');
   const [activeQuarter, setActiveQuarter] = useState(null);
+  
+  // Notification state
+  const [showNotificationCenter, setShowNotificationCenter] = useState(false);
+  let unreadCount = 0;
+  try {
+    const { unreadCount: count } = useNotifications();
+    unreadCount = count;
+  } catch (error) {
+    console.error('Error getting notification count:', error);
+  }
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -222,25 +234,55 @@ export default function FacultyClasses() {
               )}
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              
-              {/* <TouchableOpacity onPress={createClass} style={styles.createButton}>
-                <Icon name="plus" size={20} color="#00418b" />
-              </TouchableOpacity> */}
-              {/* <TouchableOpacity onPress={() => navigation.navigate('FProfile')}>
+              <TouchableOpacity 
+                onPress={() => {
+                  try {
+                    setShowNotificationCenter(true);
+                  } catch (error) {
+                    console.error('Error opening notification center:', error);
+                    Alert.alert('Notifications', 'Unable to open notifications. Please try again.');
+                  }
+                }}
+                style={{ marginRight: 12, position: 'relative' }}
+              >
+                <Icon name="bell" size={24} color="#00418b" />
+                {unreadCount > 0 && (
+                  <View style={{
+                    position: 'absolute',
+                    top: -5,
+                    right: -5,
+                    backgroundColor: '#ff4444',
+                    borderRadius: 10,
+                    minWidth: 20,
+                    height: 20,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                  }}>
+                    <Text style={{
+                      color: 'white',
+                      fontSize: 12,
+                      fontFamily: 'Poppins-Bold',
+                    }}>
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => navigation.navigate('FProfile')}>
                 {resolveProfileUri() ? (
                   <Image 
                     source={{ uri: resolveProfileUri() }} 
-                    style={{ width: 36, height: 36, borderRadius: 18, marginLeft: 8 }}
+                    style={{ width: 36, height: 36, borderRadius: 18 }}
                     resizeMode="cover"
                   />
                 ) : (
                   <Image 
                     source={require('../../assets/profile-icon (2).png')} 
-                    style={{ width: 36, height: 36, borderRadius: 18, marginLeft: 8 }}
+                    style={{ width: 36, height: 36, borderRadius: 18 }}
                     resizeMode="cover"
                   />
                 )}
-              </TouchableOpacity> */}
+              </TouchableOpacity>
             </View>
           </View>
         </View>
@@ -454,6 +496,11 @@ export default function FacultyClasses() {
 
         </View>
       </ScrollView>
+      
+      <NotificationCenter 
+        visible={showNotificationCenter} 
+        onClose={() => setShowNotificationCenter(false)}
+      />
     </View>
   );
 }

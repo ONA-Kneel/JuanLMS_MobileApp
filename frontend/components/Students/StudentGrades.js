@@ -14,14 +14,31 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import StudentGradesStyle from '../styles/Stud/StudentGradesStyle';
 import StudentDashboardStyle from '../styles/Stud/StudentDashStyle';
 import { fetchActiveQuarter } from '../../utils/academicContext';
+import { useUser } from '../UserContext';
+import { useNotifications } from '../../NotificationContext';
+import NotificationCenter from '../NotificationCenter';
 
 const { width } = Dimensions.get('window');
 
 const StudentGrades = () => {
   const navigation = useNavigation();
+  const { user } = useUser();
+  
+  // Add safety checks for context providers
+  let unreadCount = 0;
+  try {
+    const notificationContext = useNotifications();
+    unreadCount = notificationContext.unreadCount || 0;
+  } catch (error) {
+    console.error('NotificationContext error in StudentGrades:', error);
+    unreadCount = 0;
+  }
+  
+  const [showNotificationCenter, setShowNotificationCenter] = useState(false);
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
   const [academicContext, setAcademicContext] = useState('2025-2026 | Term 1');
   const [grades, setGrades] = useState([]);
@@ -31,7 +48,6 @@ const StudentGrades = () => {
   const [selectedTerm, setSelectedTerm] = useState('current');
   const [academicYear, setAcademicYear] = useState('');
   const [currentTerm, setCurrentTerm] = useState('');
-  const [user, setUser] = useState(null);
   const [profilePicError, setProfilePicError] = useState(false);
   const [gradesUnavailable, setGradesUnavailable] = useState(false);
   const [studentClasses, setStudentClasses] = useState([]);
@@ -92,9 +108,9 @@ const StudentGrades = () => {
     try {
       const token = await AsyncStorage.getItem('jwtToken');
       const userStr = await AsyncStorage.getItem('user');
-      const user = userStr ? JSON.parse(userStr) : null;
+      const userData = userStr ? JSON.parse(userStr) : null;
 
-      if (!user || !user._id) return;
+      if (!userData || !userData._id) return;
 
       if (!activeQuarter) {
         console.log('No active quarter info available yet');
@@ -164,14 +180,12 @@ const StudentGrades = () => {
       setLoading(true);
       const token = await AsyncStorage.getItem('jwtToken');
       const userStr = await AsyncStorage.getItem('user');
-      const user = userStr ? JSON.parse(userStr) : null;
+      const userData = userStr ? JSON.parse(userStr) : null;
 
-      if (!user) {
+      if (!userData) {
         throw new Error('User data not found');
       }
 
-      // Set user state for use in render function
-      setUser(user);
       setProfilePicError(false);
 
       // Fetch academic year and term
@@ -202,7 +216,7 @@ const StudentGrades = () => {
       }
 
       // Determine student identifier (prefer schoolID like web app)
-      let schoolID = user.schoolID || user.userID || user._id;
+      let schoolID = userData.schoolID || userData.userID || userData._id;
       
       // Try to get schoolID from JWT token like web app
       try {
@@ -221,7 +235,7 @@ const StudentGrades = () => {
       }
       
       if (!schoolID || schoolID === 'null' || schoolID === 'undefined') {
-        schoolID = user.userID || user._id;
+        schoolID = userData.userID || userData._id;
       }
       
       if (!schoolID) {
@@ -795,21 +809,57 @@ const StudentGrades = () => {
                </Text>
              )}
           </View>
-          <TouchableOpacity onPress={() => navigation.navigate('SProfile')}>
-            {resolveProfileUri() ? (
-              <Image 
-                source={{ uri: resolveProfileUri() }} 
-                style={{ width: 36, height: 36, borderRadius: 18 }}
-                resizeMode="cover"
-              />
-            ) : (
-              <Image 
-                source={require('../../assets/profile-icon (2).png')} 
-                style={{ width: 36, height: 36, borderRadius: 18 }}
-                resizeMode="cover"
-              />
-            )}
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <TouchableOpacity 
+              onPress={() => {
+                try {
+                  setShowNotificationCenter(true);
+                } catch (error) {
+                  console.error('Error opening notification center:', error);
+                  Alert.alert('Notifications', 'Unable to open notifications. Please try again.');
+                }
+              }}
+              style={{ marginRight: 12, position: 'relative' }}
+            >
+              <Icon name="bell" size={24} color="#00418b" />
+              {unreadCount > 0 && (
+                <View style={{
+                  position: 'absolute',
+                  top: -5,
+                  right: -5,
+                  backgroundColor: '#ff4444',
+                  borderRadius: 10,
+                  minWidth: 20,
+                  height: 20,
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}>
+                  <Text style={{
+                    color: 'white',
+                    fontSize: 12,
+                    fontFamily: 'Poppins-Bold',
+                  }}>
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.navigate('SProfile')}>
+              {resolveProfileUri() ? (
+                <Image 
+                  source={{ uri: resolveProfileUri() }} 
+                  style={{ width: 36, height: 36, borderRadius: 18 }}
+                  resizeMode="cover"
+                />
+              ) : (
+                <Image 
+                  source={require('../../assets/profile-icon (2).png')} 
+                  style={{ width: 36, height: 36, borderRadius: 18 }}
+                  resizeMode="cover"
+                />
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
@@ -927,6 +977,12 @@ const StudentGrades = () => {
         )}
                 </View>
                 </ScrollView>
+                
+                {/* Notification Center */}
+                <NotificationCenter 
+                  visible={showNotificationCenter} 
+                  onClose={() => setShowNotificationCenter(false)} 
+                />
             </View>
   );
 };

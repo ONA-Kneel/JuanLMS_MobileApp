@@ -18,6 +18,8 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../UserContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useNotifications } from '../../NotificationContext';
+import NotificationCenter from '../NotificationCenter';
 let StreamMeetingRoomNative = null;
 let SimpleStreamMeetingRoom = null;
 if (Platform.OS !== 'web') {
@@ -39,6 +41,17 @@ export default function FacultyMeeting() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [academicContext, setAcademicContext] = useState('2025-2026 | Term 1');
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
+  
+  // Notification state
+  const [showNotificationCenter, setShowNotificationCenter] = useState(false);
+  let unreadCount = 0;
+  try {
+    const { unreadCount: count } = useNotifications();
+    unreadCount = count;
+  } catch (error) {
+    console.error('Error getting notification count:', error);
+  }
+  
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -389,21 +402,57 @@ export default function FacultyMeeting() {
               <Text style={styles.headerSubtitle}>{academicContext}</Text>
               <Text style={styles.headerSubtitle2}>{formatDateTime(currentDateTime)}</Text>
             </View>
-            <TouchableOpacity onPress={() => navigation.navigate('FProfile')}>
-              {resolveProfileUri() ? (
-                <Image 
-                  source={{ uri: resolveProfileUri() }} 
-                  style={{ width: 36, height: 36, borderRadius: 18 }}
-                  resizeMode="cover"
-                />
-              ) : (
-                <Image 
-                  source={require('../../assets/profile-icon (2).png')} 
-                  style={{ width: 36, height: 36, borderRadius: 18 }}
-                  resizeMode="cover"
-                />
-              )}
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <TouchableOpacity 
+                onPress={() => {
+                  try {
+                    setShowNotificationCenter(true);
+                  } catch (error) {
+                    console.error('Error opening notification center:', error);
+                    Alert.alert('Notifications', 'Unable to open notifications. Please try again.');
+                  }
+                }}
+                style={{ marginRight: 12, position: 'relative' }}
+              >
+                <Icon name="bell" size={24} color="#00418b" />
+                {unreadCount > 0 && (
+                  <View style={{
+                    position: 'absolute',
+                    top: -5,
+                    right: -5,
+                    backgroundColor: '#ff4444',
+                    borderRadius: 10,
+                    minWidth: 20,
+                    height: 20,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                  }}>
+                    <Text style={{
+                      color: 'white',
+                      fontSize: 12,
+                      fontFamily: 'Poppins-Bold',
+                    }}>
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => navigation.navigate('FProfile')}>
+                {resolveProfileUri() ? (
+                  <Image 
+                    source={{ uri: resolveProfileUri() }} 
+                    style={{ width: 36, height: 36, borderRadius: 18 }}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <Image 
+                    source={require('../../assets/profile-icon (2).png')} 
+                    style={{ width: 36, height: 36, borderRadius: 18 }}
+                    resizeMode="cover"
+                  />
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
 
@@ -677,6 +726,11 @@ export default function FacultyMeeting() {
         />
       )}
     </ScrollView>
+    
+    <NotificationCenter 
+      visible={showNotificationCenter} 
+      onClose={() => setShowNotificationCenter(false)}
+    />
     </View>
   );
 }

@@ -53,8 +53,26 @@ const buildImageUri = (pathOrUrl) => {
 export default function StudentsProfile() {
   const { user, loading, updateUser, logout: logoutFromContext } = useUser();
   const navigation = useNavigation();
-  const { unreadCount } = useNotifications();
-  const { announcements } = useAnnouncements();
+  
+  // Add safety checks for context providers
+  let unreadCount = 0;
+  let announcements = [];
+  
+  try {
+    const notificationContext = useNotifications();
+    unreadCount = notificationContext.unreadCount || 0;
+  } catch (error) {
+    console.error('NotificationContext error in StudentsProfile:', error);
+    unreadCount = 0;
+  }
+  
+  try {
+    const announcementContext = useAnnouncements();
+    announcements = announcementContext.announcements || [];
+  } catch (error) {
+    console.error('AnnouncementContext error in StudentsProfile:', error);
+    announcements = [];
+  }
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [showNotificationCenter, setShowNotificationCenter] = useState(false);
   const [editedUser, setEditedUser] = useState(null);
@@ -285,34 +303,6 @@ export default function StudentsProfile() {
           <TouchableOpacity style={StudentsProfileStyle.actionBtn} onPress={() => setShowPasswordModal(true)}>
             <Feather name="lock" size={20} color="#00418b" />
             <Text style={[StudentsProfileStyle.actionText, { fontFamily: 'Poppins-Regular' }]}>Password</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={StudentsProfileStyle.actionBtn}
-            onPress={() => setShowNotificationCenter(true)}
-          >
-            <Feather name="bell" size={20} color="#00418b" />
-            <Text style={[StudentsProfileStyle.actionText, { fontFamily: 'Poppins-Regular' }]}>Notifications</Text>
-            {unreadCount > 0 && (
-              <View style={{
-                position: 'absolute',
-                top: -5,
-                right: -5,
-                backgroundColor: '#ff4444',
-                borderRadius: 10,
-                minWidth: 20,
-                height: 20,
-                justifyContent: 'center',
-                alignItems: 'center',
-              }}>
-                <Text style={{
-                  color: 'white',
-                  fontSize: 12,
-                  fontFamily: 'Poppins-Bold',
-                }}>
-                  {unreadCount > 99 ? '99+' : unreadCount}
-                </Text>
-              </View>
-            )}
           </TouchableOpacity>
           <TouchableOpacity style={StudentsProfileStyle.actionBtn} onPress={goToSupportCenter}>
             <Feather name="help-circle" size={20} color="#00418b" />

@@ -31,6 +31,7 @@ const QuizView = React.memo(function QuizView() {
   const [timeRemaining, setTimeRemaining] = useState(0);
   const [quizStarted, setQuizStarted] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
+  const [startTime, setStartTime] = useState(null);
   
   const [quiz, setQuiz] = useState(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -96,13 +97,15 @@ const QuizView = React.memo(function QuizView() {
   }, [quizId, review]);
 
   useEffect(() => {
-    if (quiz && !review && quiz.timing?.duration) {
-      const duration = quiz.timing.duration;
-      setTimeRemaining(duration);
-      
-      // Start timer when quiz begins
-      if (quizStarted) {
-        startTimer(quizId, duration, handleTimeUp);
+    if (quiz && !review) {
+      const duration = (quiz.timing?.timeLimit ? quiz.timing.timeLimit * 60 : 0) || (quiz.timeLimit ? quiz.timeLimit * 60 : 0);
+      if (duration > 0) {
+        setTimeRemaining(duration);
+        
+        // Start timer when quiz begins
+        if (quizStarted) {
+          startTimer(quizId, duration, handleTimeUp);
+        }
       }
     }
     
@@ -132,20 +135,23 @@ const QuizView = React.memo(function QuizView() {
   const startQuiz = () => {
     setQuizStarted(true);
     setStartTime(new Date());
-    if (quiz.timing?.duration) {
-      startTimer(quizId, quiz.timing.duration, handleTimeUp);
+    const duration = (quiz.timing?.timeLimit ? quiz.timing.timeLimit * 60 : 0) || (quiz.timeLimit ? quiz.timeLimit * 60 : 0);
+    if (duration > 0) {
+      startTimer(quizId, duration, handleTimeUp);
     }
   };
 
   const pauseQuiz = () => {
-    if (quiz.timing?.duration) {
+    const hasTimer = (quiz.timing?.timeLimit && quiz.timing.timeLimit > 0) || (quiz.timeLimit && quiz.timeLimit > 0);
+    if (hasTimer) {
       pauseTimer(quizId);
       setIsPaused(true);
     }
   };
 
   const resumeQuiz = () => {
-    if (quiz.timing?.duration) {
+    const hasTimer = (quiz.timing?.timeLimit && quiz.timing.timeLimit > 0) || (quiz.timeLimit && quiz.timeLimit > 0);
+    if (hasTimer) {
       const remaining = getRemainingTime(quizId);
       if (remaining > 0) {
         resumeTimer(quizId, remaining, handleTimeUp);
@@ -155,7 +161,8 @@ const QuizView = React.memo(function QuizView() {
   };
 
   const renderTimer = () => {
-    if (review || !quiz.timing?.duration || !quizStarted) return null;
+    const hasTimer = (quiz.timing?.timeLimit && quiz.timing.timeLimit > 0) || (quiz.timeLimit && quiz.timeLimit > 0);
+    if (review || !hasTimer || !quizStarted) return null;
     
     const remaining = getRemainingTime(quizId);
     const isLowTime = remaining <= 60; // Show warning when less than 1 minute
@@ -373,6 +380,15 @@ const QuizView = React.memo(function QuizView() {
       // Batch all state updates together for better performance
       setQuiz(quizData);
       setAnswers(initialAnswers);
+      
+      // Auto-start quiz if it has a timer and is not in review mode
+      const quizDuration = (quizData.timing?.timeLimit ? quizData.timing.timeLimit * 60 : 0) || (quizData.timeLimit ? quizData.timeLimit * 60 : 0);
+      if (!review && quizDuration > 0) {
+        console.log('Auto-starting quiz with timer:', quizDuration, 'seconds');
+        setQuizStarted(true);
+        setStartTime(new Date());
+        startTimer(quizId, quizDuration, handleTimeUp);
+      }
       
       // Debug: Log the initial state
       console.log('=== STATE UPDATE DEBUG ===');

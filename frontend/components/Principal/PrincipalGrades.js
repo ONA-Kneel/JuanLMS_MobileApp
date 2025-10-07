@@ -948,8 +948,10 @@ export default function PrincipalGrades() {
                     showsVerticalScrollIndicator={true}
                     nestedScrollEnabled={true}
                     scrollEnabled={true}
-                    indicatorStyle="default"
+                    indicatorStyle="black"
                     scrollIndicatorInsets={{ right: 2 }}
+                    persistentScrollbar={true}
+                    keyboardShouldPersistTaps="handled"
                   >
                     {strands.map((strand, index) => (
                                            <TouchableOpacity
@@ -962,7 +964,7 @@ export default function PrincipalGrades() {
                            setSelectedSubject('');
                          }}
                        >
-                        <Text style={styles.selectionOptionText}>{strand}</Text>
+                        <Text style={styles.selectionOptionTextSmall}>{strand}</Text>
                       </TouchableOpacity>
                     ))}
                   </ScrollView>
@@ -1338,7 +1340,7 @@ export default function PrincipalGrades() {
      borderWidth: 1,
      borderColor: '#ddd',
      borderRadius: 8,
-     height: 200,
+     maxHeight: 180,
      elevation: 10,
      shadowColor: '#000',
      shadowOffset: { width: 0, height: 2 },
@@ -1347,7 +1349,7 @@ export default function PrincipalGrades() {
      zIndex: 10000,
    },
      selectionOption: {
-     paddingVertical: 12,
+     paddingVertical: 10,
      paddingHorizontal: 16,
      borderBottomWidth: 1,
      borderBottomColor: '#f0f0f0',
@@ -1357,6 +1359,12 @@ export default function PrincipalGrades() {
     fontSize: 14,
     color: '#333',
     fontFamily: 'Poppins-Regular',
+  },
+  selectionOptionTextSmall: {
+    fontSize: 12,
+    color: '#333',
+    fontFamily: 'Poppins-Regular',
+    lineHeight: 16,
   },
   summaryStatsContainer: {
     backgroundColor: '#f8f9fa',
@@ -1497,7 +1505,7 @@ export default function PrincipalGrades() {
         },
   optionsScroll: {
     flex: 1,
-    maxHeight: 200,
+    maxHeight: 180,
   },
   // Custom scrollbar styling
   customScrollView: {

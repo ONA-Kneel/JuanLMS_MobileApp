@@ -9,15 +9,33 @@ import {
   RefreshControl,
   Dimensions,
   Modal,
+  Alert,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { useUser } from '../UserContext';
+import { useNotifications } from '../../NotificationContext';
+import NotificationCenter from '../NotificationCenter';
 
 const { width } = Dimensions.get('window');
 
 const FacultyGrades = () => {
   const navigation = useNavigation();
+  const { user } = useUser();
+  
+  // Add safety checks for context providers
+  let unreadCount = 0;
+  try {
+    const notificationContext = useNotifications();
+    unreadCount = notificationContext.unreadCount || 0;
+  } catch (error) {
+    console.error('NotificationContext error in FacultyGrades:', error);
+    unreadCount = 0;
+  }
+  
+  const [showNotificationCenter, setShowNotificationCenter] = useState(false);
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
   const [classOptions, setClassOptions] = useState([]);
   const [selectedClassId, setSelectedClassId] = useState(null);
@@ -28,7 +46,7 @@ const FacultyGrades = () => {
   const [selectedTerm, setSelectedTerm] = useState('current');
   const [academicYear, setAcademicYear] = useState('');
   const [currentTerm, setCurrentTerm] = useState('');
-  const [user, setUser] = useState(null);
+  const [academicInfoLoaded, setAcademicInfoLoaded] = useState(false);
   const [profilePicError, setProfilePicError] = useState(false);
   const [showClassDropdown, setShowClassDropdown] = useState(false);
   const [academicContext, setAcademicContext] = useState('2025-2026 | Term 1');
@@ -41,9 +59,15 @@ const FacultyGrades = () => {
     }, 1000);
 
     fetchAcademicInfo();
-    fetchFacultyGrades();
     return () => clearInterval(timer);
   }, [selectedTerm]);
+
+  // Separate useEffect that triggers when academic info is available
+  useEffect(() => {
+    if (academicInfoLoaded) {
+      fetchFacultyGrades();
+    }
+  }, [academicInfoLoaded, selectedTerm]);
 
   const fetchAcademicInfo = async () => {
     try {
@@ -75,6 +99,9 @@ const FacultyGrades = () => {
       }
     } catch (error) {
       console.error('Error fetching academic info:', error);
+    } finally {
+      // Always set academicInfoLoaded to true, even if there was an error
+      setAcademicInfoLoaded(true);
     }
   };
 
@@ -86,8 +113,6 @@ const FacultyGrades = () => {
       const user = userStr ? JSON.parse(userStr) : null;
       if (!user) throw new Error('User data not found');
 
-      // Set user state for use in render function
-      setUser(user);
       setProfilePicError(false);
 
       const facultyId = user.userID || user._id;
@@ -160,7 +185,8 @@ const FacultyGrades = () => {
 
       // Filter by current/previous term like student view
       const byTerm = allGrades.filter(g => {
-        if (!academicYear || !currentTerm) return true;
+        // Don't show any grades if academic info isn't loaded yet to prevent placeholder data
+        if (!academicYear || !currentTerm) return false;
         if (selectedTerm === 'current') {
           return g.academicYear === academicYear && g.termName === currentTerm;
         }
@@ -270,13 +296,17 @@ const FacultyGrades = () => {
 
   const onRefresh = () => {
     setRefreshing(true);
-    Promise.all([fetchAcademicInfo(), fetchFacultyGrades()]).finally(() => setRefreshing(false));
+    setAcademicInfoLoaded(false);
+    fetchAcademicInfo().finally(() => setRefreshing(false));
   };
 
   const handleClassSelect = (opt) => {
     setSelectedClassId(opt.id);
     setShowClassDropdown(false);
-    fetchFacultyGrades();
+    // Only fetch grades if academic info is loaded
+    if (academicInfoLoaded) {
+      fetchFacultyGrades();
+    }
   };
 
   const getSelectedClassName = () => {
@@ -404,11 +434,13 @@ const FacultyGrades = () => {
     );
   };
 
-  if (loading) {
+  if (loading || !academicInfoLoaded) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#00418b" />
-        <Text style={styles.loadingText}>Loading grades...</Text>
+        <Text style={styles.loadingText}>
+          {!academicInfoLoaded ? 'Loading academic information...' : 'Loading grades...'}
+        </Text>
       </View>
     );
   }
@@ -429,6 +461,40 @@ const FacultyGrades = () => {
             <Text style={styles.headerSubtitle2}>{formatDateTime(currentDateTime)}</Text>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <TouchableOpacity 
+              onPress={() => {
+                try {
+                  setShowNotificationCenter(true);
+                } catch (error) {
+                  console.error('Error opening notification center:', error);
+                  Alert.alert('Notifications', 'Unable to open notifications. Please try again.');
+                }
+              }}
+              style={{ marginRight: 12, position: 'relative' }}
+            >
+              <Icon name="bell" size={24} color="#00418b" />
+              {unreadCount > 0 && (
+                <View style={{
+                  position: 'absolute',
+                  top: -5,
+                  right: -5,
+                  backgroundColor: '#ff4444',
+                  borderRadius: 10,
+                  minWidth: 20,
+                  height: 20,
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}>
+                  <Text style={{
+                    color: 'white',
+                    fontSize: 12,
+                    fontFamily: 'Poppins-Bold',
+                  }}>
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
             <TouchableOpacity onPress={() => navigation.navigate('FProfile')}>
               {resolveProfileUri() ? (
                 <Image 
@@ -629,6 +695,12 @@ const FacultyGrades = () => {
           renderEmptyState()
         )}
       </View>
+      
+      {/* Notification Center */}
+      <NotificationCenter 
+        visible={showNotificationCenter} 
+        onClose={() => setShowNotificationCenter(false)} 
+      />
     </View>
   );
 };

@@ -14,6 +14,8 @@ import {
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useIsFocused, useNavigation } from '@react-navigation/native';
 import { useUser } from '../UserContext';
+import { useNotifications } from '../../NotificationContext';
+import NotificationCenter from '../NotificationCenter';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { formatDate, getCurrentDate, addDays, isSameDay, isSameMonth, isBefore, clone } from '../../utils/dateUtils';
@@ -68,6 +70,18 @@ export default function PrincipalCalendar() {
   const isFocused = useIsFocused();
   const navigation = useNavigation();
   const { user } = useUser();
+  
+  // Add safety checks for context providers
+  let unreadCount = 0;
+  try {
+    const notificationContext = useNotifications();
+    unreadCount = notificationContext.unreadCount || 0;
+  } catch (error) {
+    console.error('NotificationContext error in PrincipalCalendar:', error);
+    unreadCount = 0;
+  }
+  
+  const [showNotificationCenter, setShowNotificationCenter] = useState(false);
   const [currentDate, setCurrentDate] = useState(getCurrentDate());
   const [selectedDate, setSelectedDate] = useState(getCurrentDate());
   const [events, setEvents] = useState([]);
@@ -324,20 +338,56 @@ export default function PrincipalCalendar() {
               {moment(new Date()).format('dddd, MMMM D, YYYY')}
             </Text>
           </View>
-          <TouchableOpacity onPress={() => navigation.navigate('PrincipalProfile')}>
-            {user?.profilePicture ? (
-              <Image 
-                source={{ uri: user.profilePicture }} 
-                style={styles.profileImage}
-                resizeMode="cover"
-              />
-            ) : (
-              <Image 
-                source={require('../../assets/profile-icon (2).png')} 
-                style={styles.profileImage}
-              />
-            )}
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <TouchableOpacity 
+              onPress={() => {
+                try {
+                  setShowNotificationCenter(true);
+                } catch (error) {
+                  console.error('Error opening notification center:', error);
+                  Alert.alert('Notifications', 'Unable to open notifications. Please try again.');
+                }
+              }}
+              style={{ marginRight: 12, position: 'relative' }}
+            >
+              <Icon name="bell" size={24} color="#00418b" />
+              {unreadCount > 0 && (
+                <View style={{
+                  position: 'absolute',
+                  top: -5,
+                  right: -5,
+                  backgroundColor: '#ff4444',
+                  borderRadius: 10,
+                  minWidth: 20,
+                  height: 20,
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}>
+                  <Text style={{
+                    color: 'white',
+                    fontSize: 12,
+                    fontFamily: 'Poppins-Bold',
+                  }}>
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.navigate('PrincipalProfile')}>
+              {user?.profilePicture ? (
+                <Image 
+                  source={{ uri: user.profilePicture }} 
+                  style={styles.profileImage}
+                  resizeMode="cover"
+                />
+              ) : (
+                <Image 
+                  source={require('../../assets/profile-icon (2).png')} 
+                  style={styles.profileImage}
+                />
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
@@ -421,6 +471,12 @@ export default function PrincipalCalendar() {
         </View>
 
       </ScrollView>
+      
+      {/* Notification Center */}
+      <NotificationCenter 
+        visible={showNotificationCenter} 
+        onClose={() => setShowNotificationCenter(false)} 
+      />
     </View>
   );
 }

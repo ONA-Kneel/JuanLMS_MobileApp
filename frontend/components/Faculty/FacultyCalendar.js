@@ -6,6 +6,9 @@ import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../UserContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import moment from 'moment';
+import { useNotifications } from '../../NotificationContext';
+import NotificationCenter from '../NotificationCenter';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 const { width } = Dimensions.get('window');
 
@@ -37,6 +40,16 @@ export default function FacultyCalendar() {
   const [currentMonth, setCurrentMonth] = useState(() => getMonthYearString(timeToString(new Date())));
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
   const [academicContext, setAcademicContext] = useState('2025-2026 | Term 1');
+  
+  // Notification state
+  const [showNotificationCenter, setShowNotificationCenter] = useState(false);
+  let unreadCount = 0;
+  try {
+    const { unreadCount: count } = useNotifications();
+    unreadCount = count;
+  } catch (error) {
+    console.error('Error getting notification count:', error);
+  }
   
   // New state variables for enhanced functionality
   const [academicYear, setAcademicYear] = useState(null);
@@ -424,7 +437,42 @@ export default function FacultyCalendar() {
               <Text style={styles.headerSubtitle}>{academicContext}</Text>
               <Text style={styles.headerSubtitle2}>{formatDateTime(currentDateTime)}</Text>
           </View>
-          <TouchableOpacity onPress={() => navigation.navigate('FProfile')}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <TouchableOpacity 
+              onPress={() => {
+                try {
+                  setShowNotificationCenter(true);
+                } catch (error) {
+                  console.error('Error opening notification center:', error);
+                  Alert.alert('Notifications', 'Unable to open notifications. Please try again.');
+                }
+              }}
+              style={{ marginRight: 12, position: 'relative' }}
+            >
+              <Icon name="bell" size={24} color="#00418b" />
+              {unreadCount > 0 && (
+                <View style={{
+                  position: 'absolute',
+                  top: -5,
+                  right: -5,
+                  backgroundColor: '#ff4444',
+                  borderRadius: 10,
+                  minWidth: 20,
+                  height: 20,
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}>
+                  <Text style={{
+                    color: 'white',
+                    fontSize: 12,
+                    fontFamily: 'Poppins-Bold',
+                  }}>
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.navigate('FProfile')}>
               {resolveProfileUri() ? (
                 <Image 
                   source={{ uri: resolveProfileUri() }} 
@@ -438,7 +486,8 @@ export default function FacultyCalendar() {
                   resizeMode="cover"
                 />
               )}
-          </TouchableOpacity>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
@@ -545,6 +594,11 @@ export default function FacultyCalendar() {
           )}
         </View>
       </ScrollView>
+      
+      <NotificationCenter 
+        visible={showNotificationCenter} 
+        onClose={() => setShowNotificationCenter(false)}
+      />
     </View>
   );
 }

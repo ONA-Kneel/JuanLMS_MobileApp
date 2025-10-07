@@ -1500,8 +1500,15 @@ export default function StudentActs() {
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <TouchableOpacity 
-              onPress={() => setShowNotificationCenter(true)}
-              style={{ marginRight: 12, position: 'relative', opacity: 0 }}
+              onPress={() => {
+                try {
+                  setShowNotificationCenter(true);
+                } catch (error) {
+                  console.error('Error opening notification center:', error);
+                  Alert.alert('Notifications', 'Unable to open notifications. Please try again.');
+                }
+              }}
+              style={{ marginRight: 12, position: 'relative' }}
             >
               <Icon name="bell" size={24} color="#00418b" />
               {unreadCount > 0 && (
