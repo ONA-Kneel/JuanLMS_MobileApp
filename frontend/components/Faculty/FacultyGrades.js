@@ -9,13 +9,10 @@ import {
   RefreshControl,
   Dimensions,
   Modal,
-  Alert,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { useUser } from '../UserContext';
 import { useNotifications } from '../../NotificationContext';
 import NotificationCenter from '../NotificationCenter';
 
@@ -23,19 +20,6 @@ const { width } = Dimensions.get('window');
 
 const FacultyGrades = () => {
   const navigation = useNavigation();
-  const { user } = useUser();
-  
-  // Add safety checks for context providers
-  let unreadCount = 0;
-  try {
-    const notificationContext = useNotifications();
-    unreadCount = notificationContext.unreadCount || 0;
-  } catch (error) {
-    console.error('NotificationContext error in FacultyGrades:', error);
-    unreadCount = 0;
-  }
-  
-  const [showNotificationCenter, setShowNotificationCenter] = useState(false);
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
   const [classOptions, setClassOptions] = useState([]);
   const [selectedClassId, setSelectedClassId] = useState(null);
@@ -47,9 +31,20 @@ const FacultyGrades = () => {
   const [academicYear, setAcademicYear] = useState('');
   const [currentTerm, setCurrentTerm] = useState('');
   const [academicInfoLoaded, setAcademicInfoLoaded] = useState(false);
+  const [user, setUser] = useState(null);
   const [profilePicError, setProfilePicError] = useState(false);
   const [showClassDropdown, setShowClassDropdown] = useState(false);
   const [academicContext, setAcademicContext] = useState('2025-2026 | Term 1');
+  
+  // Notification state
+  const [showNotificationCenter, setShowNotificationCenter] = useState(false);
+  let unreadCount = 0;
+  try {
+    const { unreadCount: count } = useNotifications();
+    unreadCount = count;
+  } catch (error) {
+    console.error('Error getting notification count:', error);
+  }
 
   const API_BASE = 'https://juanlms-webapp-server.onrender.com';
 
@@ -113,6 +108,8 @@ const FacultyGrades = () => {
       const user = userStr ? JSON.parse(userStr) : null;
       if (!user) throw new Error('User data not found');
 
+      // Set user state for use in render function
+      setUser(user);
       setProfilePicError(false);
 
       const facultyId = user.userID || user._id;
@@ -143,21 +140,30 @@ const FacultyGrades = () => {
               const assignmentsRes = await fetch(`${API_BASE}/api/faculty-assignments`, {
                 headers: { Authorization: `Bearer ${token}` }
               });
-              if (assignmentsRes.ok) {
-                const assignments = await assignmentsRes.json();
-                // Convert faculty assignments to class-like objects
-                allClasses = assignments.map(assignment => ({
-                  classID: `${assignment.subjectName}-${assignment.sectionName}`,
-                  className: assignment.subjectName,
-                  section: assignment.sectionName,
-                  trackName: assignment.trackName,
-                  strandName: assignment.strandName,
-                  gradeLevel: assignment.gradeLevel,
-                  academicYear: assignment.schoolYear,
-                  termName: assignment.termName
-                }));
-                console.log('All faculty classes found via faculty-assignments:', allClasses.length);
-              }
+               if (assignmentsRes.ok) {
+                 const assignments = await assignmentsRes.json();
+                 // Convert faculty assignments to class-like objects with validation
+                 allClasses = assignments
+                   .filter(assignment => {
+                     // Only include valid assignments with required fields
+                     return assignment && 
+                            assignment.subjectName && 
+                            assignment.sectionName &&
+                            assignment.schoolYear &&
+                            assignment.termName;
+                   })
+                   .map(assignment => ({
+                     classID: `${assignment.subjectName}-${assignment.sectionName}`,
+                     className: assignment.subjectName,
+                     section: assignment.sectionName,
+                     trackName: assignment.trackName,
+                     strandName: assignment.strandName,
+                     gradeLevel: assignment.gradeLevel,
+                     academicYear: assignment.schoolYear,
+                     termName: assignment.termName
+                   }));
+                 console.log('All faculty classes found via faculty-assignments:', allClasses.length);
+               }
             } catch (assignmentError) {
               console.log('faculty-assignments endpoint also failed:', assignmentError.message);
             }
@@ -185,8 +191,7 @@ const FacultyGrades = () => {
 
       // Filter by current/previous term like student view
       const byTerm = allGrades.filter(g => {
-        // Don't show any grades if academic info isn't loaded yet to prevent placeholder data
-        if (!academicYear || !currentTerm) return false;
+        if (!academicYear || !currentTerm) return true;
         if (selectedTerm === 'current') {
           return g.academicYear === academicYear && g.termName === currentTerm;
         }
@@ -215,7 +220,32 @@ const FacultyGrades = () => {
       });
 
       // Add classes from faculty classes API that don't have grades yet
+      // Only add classes that match current academic year and term
       allClasses.forEach(cls => {
+        // Validate class data before adding
+        if (!cls || !cls.className && !cls.subjectName && !cls.subjectCode) {
+          console.log('Skipping invalid class:', cls);
+          return;
+        }
+
+        // Filter by academic year and term if available
+        if (academicYear && currentTerm) {
+          if (cls.academicYear && cls.academicYear !== academicYear) {
+            console.log(`Skipping class with wrong academic year: ${cls.className || cls.subjectName} (${cls.academicYear})`);
+            return;
+          }
+          if (cls.termName && cls.termName !== currentTerm) {
+            console.log(`Skipping class with wrong term: ${cls.className || cls.subjectName} (${cls.termName})`);
+            return;
+          }
+        }
+
+        // Skip archived or inactive classes
+        if (cls.isArchived === true || cls.status === 'archived' || cls.isCompleted === true) {
+          console.log(`Skipping archived/completed class: ${cls.className || cls.subjectName}`);
+          return;
+        }
+
         const key = cls.classID || cls._id;
         if (!byClass.has(key)) {
           byClass.set(key, {
@@ -235,18 +265,22 @@ const FacultyGrades = () => {
       });
 
       // If still no classes found, try to create from all grades
-      if (byClass.size === 0 && allGrades.length > 0) {
-        console.log('No classes found, creating from all grades');
+      // Only do this if we have proper academic info to filter correctly
+      if (byClass.size === 0 && allGrades.length > 0 && academicYear && currentTerm) {
+        console.log('No classes found, creating from all grades with proper filtering');
         allGrades.forEach(g => {
-          const key = g.classID || `${g.subjectCode}-${g.section || ''}`;
-          if (!byClass.has(key)) {
-            byClass.set(key, {
-              id: key,
-              classID: g.classID || key,
-              title: g.subjectName || g.subjectCode || 'Class',
-              section: g.section || '',
-              hasGrades: true
-            });
+          // Only create classes from grades that match current term
+          if (g.academicYear === academicYear && g.termName === currentTerm) {
+            const key = g.classID || `${g.subjectCode}-${g.section || ''}`;
+            if (!byClass.has(key)) {
+              byClass.set(key, {
+                id: key,
+                classID: g.classID || key,
+                title: g.subjectName || g.subjectCode || 'Class',
+                section: g.section || '',
+                hasGrades: true
+              });
+            }
           }
         });
       }
@@ -255,20 +289,19 @@ const FacultyGrades = () => {
       console.log('Final class options:', options.length, options);
       setClassOptions(options);
       
-      // Only set selectedClassId if none is currently selected
+      // Only set selectedClassId if none is currently selected AND there are options
       if (!selectedClassId && options.length > 0) {
         setSelectedClassId(options[0].id);
       }
 
-      // Students for chosen class
-      const currentSelectedClassId = selectedClassId || options[0]?.id;
-      if (currentSelectedClassId) {
+      // Only show students if a class is actually selected
+      if (selectedClassId) {
         // Try to get students from term-filtered grades first
-        let selectedGrades = byTerm.filter(g => (g.classID || `${g.subjectCode}-${g.section || ''}`) === currentSelectedClassId);
+        let selectedGrades = byTerm.filter(g => (g.classID || `${g.subjectCode}-${g.section || ''}`) === selectedClassId);
         
         // If no students found, try from all grades
         if (selectedGrades.length === 0) {
-          selectedGrades = allGrades.filter(g => (g.classID || `${g.subjectCode}-${g.section || ''}`) === currentSelectedClassId);
+          selectedGrades = allGrades.filter(g => (g.classID || `${g.subjectCode}-${g.section || ''}`) === selectedClassId);
         }
         
         const students = selectedGrades.map(g => ({
@@ -281,6 +314,7 @@ const FacultyGrades = () => {
         console.log('Students found for class:', students.length);
         setStudentsForClass(students);
       } else {
+        // No class selected, clear students
         setStudentsForClass([]);
       }
       setError('');
@@ -331,7 +365,6 @@ const FacultyGrades = () => {
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
-      second: '2-digit',
       hour12: true
     });
   };
@@ -413,6 +446,20 @@ const FacultyGrades = () => {
   );
 
   const renderEmptyState = () => {
+    // If no class is selected, show class selection message
+    if (!selectedClassId) {
+      return (
+        <View style={styles.emptyState}>
+          <MaterialCommunityIcons name="school-outline" size={64} color="#ccc" />
+          <Text style={styles.emptyTitle}>Select a Class</Text>
+          <Text style={styles.emptyText}>
+            Please select a class from the dropdown above to view student grades.
+          </Text>
+        </View>
+      );
+    }
+
+    // If class is selected but no students/grades found
     const selectedClass = classOptions.find(opt => opt.id === selectedClassId);
     const hasGrades = selectedClass?.hasGrades;
     
@@ -420,14 +467,14 @@ const FacultyGrades = () => {
       <View style={styles.emptyState}>
         <MaterialCommunityIcons name="school-outline" size={64} color="#ccc" />
         <Text style={styles.emptyTitle}>
-          {hasGrades === false ? 'No Grades Found Yet' : 'No Classes Found'}
+          {hasGrades === false ? 'No Grades Available Yet' : 'No Students Found'}
         </Text>
         <Text style={styles.emptyText}>
           {hasGrades === false 
             ? 'This class has no grades recorded yet. Grades will appear here once they are entered.'
             : selectedTerm === 'current' 
-              ? 'No grades available for the current term yet.'
-              : 'No previous grades found.'
+              ? 'No students found for this class in the current term.'
+              : 'No students found for this class in previous terms.'
           }
         </Text>
       </View>
@@ -467,12 +514,11 @@ const FacultyGrades = () => {
                   setShowNotificationCenter(true);
                 } catch (error) {
                   console.error('Error opening notification center:', error);
-                  Alert.alert('Notifications', 'Unable to open notifications. Please try again.');
                 }
               }}
               style={{ marginRight: 12, position: 'relative' }}
             >
-              <Icon name="bell" size={24} color="#00418b" />
+              <MaterialIcons name="notifications" size={24} color="#00418b" />
               {unreadCount > 0 && (
                 <View style={{
                   position: 'absolute',
@@ -515,9 +561,9 @@ const FacultyGrades = () => {
       </View>
 
       {/* Class Selection Dropdown */}
-      {classOptions.length > 0 && (
-        <View style={styles.classSelector}>
-          <Text style={styles.selectorLabel}>Select Class:</Text>
+      <View style={styles.classSelector}>
+        <Text style={styles.selectorLabel}>Select Class:</Text>
+        {classOptions.length > 0 ? (
           <TouchableOpacity
             style={styles.dropdownButton}
             onPress={() => setShowClassDropdown(true)}
@@ -527,8 +573,15 @@ const FacultyGrades = () => {
             </Text>
             <MaterialIcons name="keyboard-arrow-down" size={24} color="#666" />
           </TouchableOpacity>
-        </View>
-      )}
+        ) : (
+          <View style={[styles.dropdownButton, { backgroundColor: '#f5f5f5' }]}>
+            <Text style={[styles.dropdownButtonText, { color: '#999' }]}>
+              No classes available
+            </Text>
+            <MaterialIcons name="block" size={24} color="#999" />
+          </View>
+        )}
+      </View>
 
       {/* Term Selector */}
       <View style={styles.termSelector}>
@@ -696,10 +749,9 @@ const FacultyGrades = () => {
         )}
       </View>
       
-      {/* Notification Center */}
       <NotificationCenter 
         visible={showNotificationCenter} 
-        onClose={() => setShowNotificationCenter(false)} 
+        onClose={() => setShowNotificationCenter(false)}
       />
     </View>
   );

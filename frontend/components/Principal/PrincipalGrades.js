@@ -10,11 +10,15 @@ import {
   Alert,
   ActivityIndicator,
   Dimensions,
+  Image,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { useIsFocused } from '@react-navigation/native';
+import { useIsFocused, useNavigation } from '@react-navigation/native';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useUser } from '../UserContext';
+import { useNotifications } from '../../NotificationContext';
+import NotificationCenter from '../NotificationCenter';
 
 const { width } = Dimensions.get('window');
 
@@ -78,8 +82,21 @@ const FilterDropdown = ({ title, options, selected, onSelect, placeholder, disab
 
 export default function PrincipalGrades() {
   const isFocused = useIsFocused();
+  const navigation = useNavigation();
   const [isLoading, setIsLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  
+  // User and notification states
+  const { user } = useUser();
+  const [showNotificationCenter, setShowNotificationCenter] = useState(false);
+  let unreadCount = 0;
+  try {
+    const { unreadCount: count } = useNotifications();
+    unreadCount = count || 0;
+  } catch (error) {
+    console.error('Error accessing notifications:', error);
+    unreadCount = 0;
+  }
 
   // Principal grade view states
   const [academicYear, setAcademicYear] = useState(null);
@@ -720,7 +737,6 @@ export default function PrincipalGrades() {
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
-      second: '2-digit',
       hour12: true
     });
   };
@@ -848,15 +864,75 @@ export default function PrincipalGrades() {
       <View style={styles.whiteHeaderCard}>
         <View style={styles.headerContent}>
           <View>
-                         <Text style={styles.headerTitle}>Student Grades Management</Text>
-            <Text style={styles.headerSubtitle}>
-              {formatDateTime(new Date())}
-            </Text>
+            <Text style={styles.headerTitle}>Student Grades Management</Text>
             {academicYear && currentTerm && (
-              <Text style={styles.academicInfo}>
-                {academicYear.schoolYearStart}-{academicYear.schoolYearEnd} - {currentTerm.termName}
+              <Text style={styles.headerSubtitle}>
+                {academicYear.schoolYearStart}-{academicYear.schoolYearEnd} | {currentTerm.termName}
               </Text>
             )}
+            <Text style={styles.academicInfo}>
+              {new Date().toLocaleDateString("en-US", {
+                weekday: "long",
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+              })} | {new Date().toLocaleTimeString("en-US", {
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: true
+              })}
+            </Text>
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <TouchableOpacity 
+              onPress={() => {
+                try {
+                  setShowNotificationCenter(true);
+                } catch (error) {
+                  console.error('Error opening notification center:', error);
+                  Alert.alert('Notifications', 'Unable to open notifications. Please try again.');
+                }
+              }}
+              style={{ marginRight: 12, position: 'relative' }}
+            >
+              <Icon name="bell" size={24} color="#00418b" />
+              {unreadCount > 0 && (
+                <View style={{
+                  position: 'absolute',
+                  top: -5,
+                  right: -5,
+                  backgroundColor: '#ff4444',
+                  borderRadius: 10,
+                  minWidth: 20,
+                  height: 20,
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}>
+                  <Text style={{
+                    color: 'white',
+                    fontSize: 12,
+                    fontFamily: 'Poppins-Bold',
+                  }}>
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.navigate('PrincipalProfile')}>
+              {user?.profilePicture ? (
+                <Image 
+                  source={{ uri: user.profilePicture }} 
+                  style={{ width: 36, height: 36, borderRadius: 18 }}
+                  resizeMode="cover"
+                />
+              ) : (
+                <Image 
+                  source={require('../../assets/profile-icon (2).png')} 
+                  style={{ width: 36, height: 36, borderRadius: 18 }}
+                  resizeMode="cover"
+                />
+              )}
+            </TouchableOpacity>
           </View>
         </View>
       </View>
@@ -1186,6 +1262,12 @@ export default function PrincipalGrades() {
       </View>
 
        </ScrollView>
+       
+       {/* Notification Center */}
+       <NotificationCenter 
+         visible={showNotificationCenter} 
+         onClose={() => setShowNotificationCenter(false)} 
+       />
      </View>
    );
  }

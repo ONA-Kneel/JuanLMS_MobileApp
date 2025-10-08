@@ -400,7 +400,15 @@ export default function FacultyMeeting() {
                 Meeting
               </Text>
               <Text style={styles.headerSubtitle}>{academicContext}</Text>
-              <Text style={styles.headerSubtitle2}>{formatDateTime(currentDateTime)}</Text>
+              <Text style={styles.headerSubtitle2}>{currentDateTime.toLocaleString('en-US', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: true
+              })}</Text>
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <TouchableOpacity 

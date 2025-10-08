@@ -268,80 +268,113 @@ export default function VPECalendar() {
 
   return (
     <View style={styles.container}>
-      {/* Profile Header */}
-      <View style={styles.profileHeader}>
-        <View style={styles.profileHeaderContent}>
-          <View style={styles.profileInfo}>
-            <Text style={styles.greetingText}>
-              Hello, <Text style={styles.userName}>{user?.firstname || 'VPE'}!</Text>
-            </Text>
-            <Text style={styles.academicContext}>
-              {academicYear ? `${academicYear.schoolYearStart}-${academicYear.schoolYearEnd}` : "Loading..."} | 
-              {currentTerm ? ` ${currentTerm.termName}` : " Loading..."}
-            </Text>
-            <Text style={styles.dateText}>
-              {moment(new Date()).format('dddd, MMMM D, YYYY')}
-            </Text>
-          </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <TouchableOpacity 
-              onPress={() => {
-                try {
-                  setShowNotificationCenter(true);
-                } catch (error) {
-                  console.error('Error opening notification center:', error);
-                  Alert.alert('Notifications', 'Unable to open notifications. Please try again.');
-                }
-              }}
-              style={{ marginRight: 12, position: 'relative' }}
-            >
-              <Icon name="bell" size={24} color="#fff" />
-              {unreadCount > 0 && (
-                <View style={{
-                  position: 'absolute',
-                  top: -5,
-                  right: -5,
-                  backgroundColor: '#ff4444',
-                  borderRadius: 10,
-                  minWidth: 20,
-                  height: 20,
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                }}>
-                  <Text style={{
-                    color: 'white',
-                    fontSize: 12,
-                    fontFamily: 'Poppins-Bold',
+      <ScrollView showsVerticalScrollIndicator={false}>
+        {/* Blue background */}
+        <View style={{
+          backgroundColor: '#00418b',
+          height: 90,
+          borderBottomLeftRadius: 20,
+          borderBottomRightRadius: 20,
+        }} />
+        {/* White card header */}
+        <View style={{
+          backgroundColor: '#fff',
+          borderRadius: 16,
+          marginHorizontal: 16,
+          marginTop: -40,
+          padding: 20,
+          elevation: 4,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.08,
+          shadowRadius: 8,
+          zIndex: 2,
+          marginBottom: 16,
+        }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <View>
+              <Text style={{
+                fontSize: 22,
+                color: '#222',
+                fontFamily: 'Poppins-Bold',
+              }}>
+                Calendar
+              </Text>
+              <Text style={{
+                color: '#888',
+                fontSize: 14,
+                fontFamily: 'Poppins-Regular',
+              }}>
+                {academicYear ? `${academicYear.schoolYearStart}-${academicYear.schoolYearEnd}` : "Loading..."} | 
+                {currentTerm ? ` ${currentTerm.termName}` : " Loading..."}
+              </Text>
+              <Text style={{
+                color: '#666',
+                fontSize: 12,
+                fontFamily: 'Poppins-Regular',
+                marginTop: 2,
+              }}>
+                {moment(new Date()).format('dddd, MMMM D, YYYY | h:mm A')}
+              </Text>
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <TouchableOpacity 
+                onPress={() => {
+                  try {
+                    setShowNotificationCenter(true);
+                  } catch (error) {
+                    console.error('Error opening notification center:', error);
+                    Alert.alert('Notifications', 'Unable to open notifications. Please try again.');
+                  }
+                }}
+                style={{ marginRight: 12, position: 'relative' }}
+              >
+                <Icon name="bell" size={24} color="#00418b" />
+                {unreadCount > 0 && (
+                  <View style={{
+                    position: 'absolute',
+                    top: -5,
+                    right: -5,
+                    backgroundColor: '#ff4444',
+                    borderRadius: 10,
+                    minWidth: 20,
+                    height: 20,
+                    justifyContent: 'center',
+                    alignItems: 'center',
                   }}>
-                    {unreadCount > 99 ? '99+' : unreadCount}
-                  </Text>
-                </View>
-              )}
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => navigation.navigate('VPEProfile')}>
-              {(() => {
-                const API_BASE = 'https://juanlms-webapp-server.onrender.com';
-                const raw = user?.profilePic || user?.profilePicture;
-                const uri = raw && typeof raw === 'string' && raw.startsWith('/uploads/') ? (API_BASE + raw) : raw;
-                return uri ? (
-                  <Image 
-                    source={{ uri }} 
-                    style={styles.profileImage}
-                    resizeMode="cover"
-                  />
-                ) : (
-                  <Image 
-                    source={require('../../assets/profile-icon (2).png')} 
-                    style={styles.profileImage}
-                  />
-                );
-              })()}
-            </TouchableOpacity>
+                    <Text style={{
+                      color: 'white',
+                      fontSize: 12,
+                      fontFamily: 'Poppins-Bold',
+                    }}>
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => navigation.navigate('VPEProfile')}>
+                {(() => {
+                  const API_BASE = 'https://juanlms-webapp-server.onrender.com';
+                  const raw = user?.profilePic || user?.profilePicture;
+                  const uri = raw && typeof raw === 'string' && raw.startsWith('/uploads/') ? (API_BASE + raw) : raw;
+                  return uri ? (
+                    <Image 
+                      source={{ uri }} 
+                      style={{ width: 36, height: 36, borderRadius: 18 }}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <Image 
+                      source={require('../../assets/profile-icon (2).png')} 
+                      style={{ width: 36, height: 36, borderRadius: 18 }}
+                      resizeMode="cover"
+                    />
+                  );
+                })()}
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
-      </View>
-
-      <ScrollView style={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Calendar Title */}
         <View style={styles.calendarTitleContainer}>
           <Text style={styles.calendarTitle}>Academic Calendar</Text>
@@ -531,7 +564,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 24,
+    marginBottom: 20,
+    marginHorizontal: 20,
+    paddingTop: 10,
   },
   calendarTitle: {
     fontSize: 24,
@@ -544,7 +579,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 20,
+    marginBottom: 16,
+    marginHorizontal: 20,
     paddingHorizontal: 20,
   },
   navButton: {
@@ -561,7 +597,8 @@ const styles = StyleSheet.create({
   // Today Button
   todayButtonContainer: {
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
+    marginHorizontal: 20,
   },
   todayButton: {
     flexDirection: 'row',
@@ -586,6 +623,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 20,
     marginBottom: 24,
+    marginHorizontal: 20,
     shadowColor: '#000',
     shadowOpacity: 0.08,
     shadowRadius: 8,
@@ -593,7 +631,8 @@ const styles = StyleSheet.create({
   },
   dayHeaders: {
     flexDirection: 'row',
-    marginBottom: 20,
+    marginBottom: 16,
+    paddingHorizontal: 4,
   },
   dayHeader: {
     flex: 1,
@@ -601,19 +640,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: 'Poppins-SemiBold',
     color: '#666',
+    paddingVertical: 8,
   },
   calendarGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    paddingHorizontal: 4,
   },
   dayCell: {
-    width: (width - 80) / 7,
-    aspectRatio: 1,
+    width: (width - 120) / 7,
+    height: (width - 120) / 7,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: '#f0f0f0',
     position: 'relative',
+    marginHorizontal: 1,
+    marginVertical: 1,
   },
   selectedDay: {
     backgroundColor: '#00418b',
@@ -656,6 +699,8 @@ const styles = StyleSheet.create({
   // Events Container
   eventsContainer: {
     flex: 1,
+    marginHorizontal: 20,
+    paddingTop: 10,
   },
   eventsTitle: {
     fontSize: 18,

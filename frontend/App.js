@@ -267,11 +267,11 @@ export default function App() {
   }
 
   return (
-    <AnnouncementProvider>
-      <UserProvider>
-        <NotificationProvider>
-          <TimerProvider>
-            <NavigationContainer ref={navigationRef}>
+      <AnnouncementProvider>
+        <UserProvider>
+          <NotificationProvider>
+            <TimerProvider>
+              <NavigationContainer ref={navigationRef}>
           <Screens.Navigator initialRouteName='Login'>
         <Screens.Screen name='Login' component={Login} options={{ headerShown: false }}/>
         <Screens.Screen name='SplashScreen' component={SplashScreen} options={{ headerShown: false }}/>
@@ -336,9 +336,9 @@ export default function App() {
 
           </Screens.Navigator>
         </NavigationContainer>
-          </TimerProvider>
-        </NotificationProvider>
-      </UserProvider>
-    </AnnouncementProvider>
-  );
+              </TimerProvider>
+            </NotificationProvider>
+          </UserProvider>
+        </AnnouncementProvider>
+    );
 }

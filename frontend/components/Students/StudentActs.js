@@ -407,6 +407,7 @@ function ActivityCard({ activity, onActivityPress }) {
 export default function StudentActs() {
   const navigation = useNavigation();
   const { user } = useUser();
+  const [uploading, setUploading] = useState(false);
   const { unreadCount } = useNotifications();
   
   // Debug logging (can be removed in production)
@@ -1242,8 +1243,13 @@ export default function StudentActs() {
       return;
     }
 
+    const uploadKey = `replacement-upload-${Date.now()}`;
+
     try {
       setUploadingReplacement(true);
+      
+      // Show loading screen
+      setUploading(true);
       const token = await AsyncStorage.getItem('jwtToken');
       
       console.log('=== uploadReplacementFile START ===');
@@ -1335,6 +1341,10 @@ export default function StudentActs() {
 
       if (response.ok) {
         const result = await response.json();
+        
+        // Show success
+        setUploading(false);
+        
         Alert.alert(
           'Success', 
           `File replacement uploaded successfully! ${isLate ? 'Note: This is a late submission.' : 'Submitted on time.'}`,
@@ -1357,10 +1367,19 @@ export default function StudentActs() {
           errorData = { message: `Server returned HTML instead of JSON. Status: ${response.status}` };
         }
         
+        // Show error with retry option
+        setUploading(false);
+        Alert.alert('Upload Failed', 'Failed to upload replacement file. Please try again.');
+        
         Alert.alert('Error', errorData.message || 'Failed to upload replacement file.');
       }
     } catch (error) {
       console.error('Error uploading replacement file:', error);
+      
+      // Show error with retry option
+      setUploading(false);
+      Alert.alert('Upload Failed', 'Failed to upload replacement file. Please try again.');
+      
       Alert.alert('Error', `Failed to upload replacement file: ${error.message}`);
     } finally {
       setUploadingReplacement(false);
@@ -1412,7 +1431,6 @@ export default function StudentActs() {
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
-      second: '2-digit',
       hour12: true
     });
   };

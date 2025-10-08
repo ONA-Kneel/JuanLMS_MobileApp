@@ -108,9 +108,9 @@ const StudentGrades = () => {
     try {
       const token = await AsyncStorage.getItem('jwtToken');
       const userStr = await AsyncStorage.getItem('user');
-      const userData = userStr ? JSON.parse(userStr) : null;
+      const user = userStr ? JSON.parse(userStr) : null;
 
-      if (!userData || !userData._id) return;
+      if (!user || !user._id) return;
 
       if (!activeQuarter) {
         console.log('No active quarter info available yet');
@@ -180,9 +180,9 @@ const StudentGrades = () => {
       setLoading(true);
       const token = await AsyncStorage.getItem('jwtToken');
       const userStr = await AsyncStorage.getItem('user');
-      const userData = userStr ? JSON.parse(userStr) : null;
+      const user = userStr ? JSON.parse(userStr) : null;
 
-      if (!userData) {
+      if (!user) {
         throw new Error('User data not found');
       }
 
@@ -216,7 +216,7 @@ const StudentGrades = () => {
       }
 
       // Determine student identifier (prefer schoolID like web app)
-      let schoolID = userData.schoolID || userData.userID || userData._id;
+      let schoolID = user.schoolID || user.userID || user._id;
       
       // Try to get schoolID from JWT token like web app
       try {
@@ -235,7 +235,7 @@ const StudentGrades = () => {
       }
       
       if (!schoolID || schoolID === 'null' || schoolID === 'undefined') {
-        schoolID = userData.userID || userData._id;
+        schoolID = user.userID || user._id;
       }
       
       if (!schoolID) {
@@ -507,10 +507,9 @@ const StudentGrades = () => {
             day: 'numeric',
             hour: '2-digit',
             minute: '2-digit',
-            second: '2-digit',
             hour12: true
         });
-  };
+    };
 
   const resolveProfileUri = () => {
     const API_BASE = 'https://juanlms-webapp-server.onrender.com';
@@ -803,11 +802,6 @@ const StudentGrades = () => {
             </Text>
                          <Text style={StudentDashboardStyle.headerSubtitle}>{academicContext}</Text>
              <Text style={StudentDashboardStyle.headerSubtitle2}>{formatDateTime(currentDateTime)}</Text>
-             {activeQuarter && (
-               <Text style={styles.quarterInfo}>
-                 Active Quarter: {activeQuarter.quarterName} of {activeQuarter.termName}
-               </Text>
-             )}
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <TouchableOpacity 

@@ -1,4 +1,4 @@
-import { Text, TouchableOpacity, View, ScrollView, Image, Dimensions, ActivityIndicator, RefreshControl } from 'react-native';
+import { Text, TouchableOpacity, View, ScrollView, Image, Dimensions, ActivityIndicator, RefreshControl, Alert } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../UserContext';
@@ -109,7 +109,7 @@ export default function VPEDashboard() {
   };
 
   const formatDateTime = (date) => {
-    return moment(date).format('dddd, MMMM D, YYYY | h:mm:ss A');
+    return moment(date).format('dddd, MMMM D, YYYY | h:mm A');
   };
 
   const isToday = (date) => {
@@ -175,8 +175,15 @@ export default function VPEDashboard() {
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <TouchableOpacity 
-              onPress={() => setShowNotificationCenter(true)}
-              style={{ marginRight: 12, position: 'relative', opacity: 0 }}
+              onPress={() => {
+                try {
+                  setShowNotificationCenter(true);
+                } catch (error) {
+                  console.error('Error opening notification center:', error);
+                  Alert.alert('Notifications', 'Unable to open notifications. Please try again.');
+                }
+              }}
+              style={{ marginRight: 12, position: 'relative' }}
             >
               <Icon name="bell" size={24} color="#00418b" />
               {unreadCount > 0 && (
@@ -454,13 +461,13 @@ const styles = {
     fontFamily: 'Poppins-Regular',
     color: '#888',
     fontSize: 13,
-    marginTop: 2,
+    marginTop: 4,
   },
   academicContext: {
     fontFamily: 'Poppins-Regular',
     color: '#666',
     fontSize: 14,
-    marginTop: 4,
+    marginTop: 6,
   },
   profileImage: {
     width: 36,

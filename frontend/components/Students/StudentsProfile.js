@@ -4,7 +4,7 @@ import { MaterialIcons, Feather } from '@expo/vector-icons';
 import StudentsProfileStyle from '../styles/Stud/StudentsProfileStyle';
 import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../UserContext';
-import ConfirmLogoutModal from '../Shared/ConfirmLogoutModal';
+import ConfirmLogoutModal from '../Shared/ConfirmLogoutModal.js';
 import { useNotifications } from '../../NotificationContext';
 import { useAnnouncements } from '../../AnnouncementContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -15,7 +15,7 @@ import { updateUser } from '../UserContext';
 import * as FileSystem from 'expo-file-system';
 import { Platform } from 'react-native';
 import NotificationCenter from '../NotificationCenter';
-import PasswordChangeModal from '../Shared/PasswordChangeModal';
+import PasswordChangeModal from '../Shared/PasswordChangeModal.js';
 import Constants from 'expo-constants';
 
 // Helper to capitalize first letter of each word
@@ -53,6 +53,7 @@ const buildImageUri = (pathOrUrl) => {
 export default function StudentsProfile() {
   const { user, loading, updateUser, logout: logoutFromContext } = useUser();
   const navigation = useNavigation();
+  const [updatingProfile, setUpdatingProfile] = useState(false);
   
   // Add safety checks for context providers
   let unreadCount = 0;
@@ -167,7 +168,11 @@ export default function StudentsProfile() {
   };
 
   const handleSaveProfile = async () => {
+    const profileKey = `profile-update-${Date.now()}`;
+    
     setIsLoading(true);
+    setUpdatingProfile(true);
+    
     try {
       let profilePicPath = editedUser?.profilePic;
       let data;
@@ -208,9 +213,18 @@ export default function StudentsProfile() {
         profilePicture: profilePicPath,
       });
       setIsEditModalVisible(false);
+      
+      // Show success
+      setUpdatingProfile(false);
+      
       Alert.alert('Profile Updated', 'Your profile picture has been changed successfully.');
     } catch (error) {
       console.error('Profile upload error:', error);
+      
+      // Show error with retry option
+      setUpdatingProfile(false);
+      Alert.alert('Update Failed', 'Failed to update profile picture. Please try again.');
+      
       Alert.alert('Error', `Failed to update profile picture: ${error.message || 'Please try again.'}`);
     } finally {
       setIsLoading(false);

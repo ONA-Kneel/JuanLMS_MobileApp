@@ -37,7 +37,7 @@ const QuizView = React.memo(function QuizView() {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState({});
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [quizError, setQuizError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [timeLeft, setTimeLeft] = useState(null);
   const [showSubmitModal, setShowSubmitModal] = useState(false);
@@ -280,7 +280,7 @@ const QuizView = React.memo(function QuizView() {
   const fetchQuiz = async () => {
     try {
       setLoading(true);
-      setError(null);
+      setQuizError(null);
       
       const token = await AsyncStorage.getItem('jwtToken');
       console.log('Fetching quiz data for ID:', quizId);
@@ -469,7 +469,7 @@ const QuizView = React.memo(function QuizView() {
       
     } catch (error) {
       console.error('Error fetching quiz:', error);
-      setError(error.message);
+      setQuizError(error.message);
       setQuiz(null);
       setAnswers({});
     } finally {
@@ -611,6 +611,11 @@ const QuizView = React.memo(function QuizView() {
 
   // Common submission logic
   const submitQuiz = async () => {
+    const quizKey = `quiz-submission-${Date.now()}`;
+    
+    // Set submitting state
+    setSubmitting(true);
+    
     // Record time for current question before submitting
     const currentTime = Date.now();
     const timeSpent = Math.floor((currentTime - questionStartTime) / 1000);
@@ -757,6 +762,8 @@ const QuizView = React.memo(function QuizView() {
         feedback: result.feedback || null,
       });
 
+      // Quiz submitted successfully
+      
       // Per requirement: no results/reveal dialogs. Show simple message and return.
       Alert.alert(
         'Quiz Submitted',
@@ -775,6 +782,7 @@ const QuizView = React.memo(function QuizView() {
       console.error('Error submitting quiz:', error);
       console.error('Error message:', error.message);
       console.error('Error stack:', error.stack);
+      // Show error
       Alert.alert('Error', `Failed to submit quiz: ${error.message}`);
     } finally {
       setSubmitting(false);
@@ -1093,7 +1101,7 @@ const QuizView = React.memo(function QuizView() {
     );
   };
 
-  if (loading && !error) {
+  if (loading && !quizError) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#00418b" />
@@ -1104,16 +1112,16 @@ const QuizView = React.memo(function QuizView() {
     );
   }
 
-  if (error) {
+  if (quizError) {
     return (
       <View style={styles.errorContainer}>
         <MaterialIcons name="error-outline" size={64} color="#f44336" />
         <Text style={styles.errorTitle}>Failed to Load Quiz</Text>
-        <Text style={styles.errorText}>{error}</Text>
+        <Text style={styles.errorText}>{quizError}</Text>
         <TouchableOpacity
           style={styles.retryButton}
           onPress={() => {
-            setError(null);
+            setQuizError(null);
             setLoading(true);
             fetchQuiz();
           }}
@@ -1223,7 +1231,7 @@ const QuizView = React.memo(function QuizView() {
         <TouchableOpacity
           style={styles.retryButton}
           onPress={() => {
-            setError(null);
+            setQuizError(null);
             setLoading(true);
             fetchQuiz();
           }}

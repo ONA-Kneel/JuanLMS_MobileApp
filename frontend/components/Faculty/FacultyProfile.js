@@ -4,7 +4,7 @@ import { MaterialIcons, Feather } from '@expo/vector-icons';
 import FacultyProfileStyle from '../styles/faculty/FacultyProfileStyle';
 import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../UserContext';
-import ConfirmLogoutModal from '../Shared/ConfirmLogoutModal';
+import ConfirmLogoutModal from '../Shared/ConfirmLogoutModal.js';
 import { useNotifications } from '../../NotificationContext';
 import { useAnnouncements } from '../../AnnouncementContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -14,7 +14,7 @@ import { updateUser } from '../UserContext';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
 import NotificationCenter from '../NotificationCenter';
-import PasswordChangeModal from '../Shared/PasswordChangeModal';
+import PasswordChangeModal from '../Shared/PasswordChangeModal.js';
 import Constants from 'expo-constants';
 
 // Get API URL from environment variables or fallback to default

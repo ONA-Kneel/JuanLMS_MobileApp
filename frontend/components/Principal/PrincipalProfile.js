@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, Image, ScrollView, Alert, ActivityIndicat
 import { MaterialIcons, Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../UserContext';
-import ConfirmLogoutModal from '../Shared/ConfirmLogoutModal';
+import ConfirmLogoutModal from '../Shared/ConfirmLogoutModal.js';
 import { useNotifications } from '../../NotificationContext';
 import { useAnnouncements } from '../../AnnouncementContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -12,7 +12,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Platform } from 'react-native';
 import NotificationCenter from '../NotificationCenter';
 import profileService from '../../services/profileService';
-import PasswordChangeModal from '../Shared/PasswordChangeModal';
+import PasswordChangeModal from '../Shared/PasswordChangeModal.js';
 
 // Helper to capitalize first letter of each word
 function capitalizeWords(str) {
