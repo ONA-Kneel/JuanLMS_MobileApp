@@ -12,10 +12,49 @@ export default function NotificationCenter({ visible, onClose }) {
     return null;
   }
 
+  // Add error state
+  const [hasError, setHasError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+
   try {
     const navigation = useNavigation();
-    const { announcements, acknowledgedAnnouncements, loading: loadingAnnouncements, acknowledgeAnnouncement, refreshAnnouncements } = useAnnouncements();
-    const { notifications, loading: loadingNotifications, markAsRead, markAllAsRead, refreshNotifications } = useNotifications();
+    
+    // Add safety checks for context providers
+    let announcements, acknowledgedAnnouncements, loadingAnnouncements, acknowledgeAnnouncement, refreshAnnouncements;
+    let notifications, loadingNotifications, markAsRead, markAllAsRead, refreshNotifications;
+    
+    try {
+      const announcementContext = useAnnouncements();
+      announcements = announcementContext.announcements || [];
+      acknowledgedAnnouncements = announcementContext.acknowledgedAnnouncements || [];
+      loadingAnnouncements = announcementContext.loading || false;
+      acknowledgeAnnouncement = announcementContext.acknowledgeAnnouncement || (() => {});
+      refreshAnnouncements = announcementContext.refreshAnnouncements || (() => {});
+    } catch (announcementError) {
+      console.error('AnnouncementContext error:', announcementError);
+      announcements = [];
+      acknowledgedAnnouncements = [];
+      loadingAnnouncements = false;
+      acknowledgeAnnouncement = () => {};
+      refreshAnnouncements = () => {};
+    }
+    
+    try {
+      const notificationContext = useNotifications();
+      notifications = notificationContext.notifications || [];
+      loadingNotifications = notificationContext.loading || false;
+      markAsRead = notificationContext.markAsRead || (() => {});
+      markAllAsRead = notificationContext.markAllAsRead || (() => {});
+      refreshNotifications = notificationContext.refreshNotifications || (() => {});
+    } catch (notificationError) {
+      console.error('NotificationContext error:', notificationError);
+      notifications = [];
+      loadingNotifications = false;
+      markAsRead = () => {};
+      markAllAsRead = () => {};
+      refreshNotifications = () => {};
+    }
+    
     const [refreshing, setRefreshing] = useState(false);
     const [activeTab, setActiveTab] = useState('updates'); // 'updates' or 'announcements'
 
@@ -25,8 +64,12 @@ export default function NotificationCenter({ visible, onClose }) {
       try {
         refreshAnnouncements();
         refreshNotifications();
+        setHasError(false);
+        setErrorMessage('');
       } catch (error) {
         console.error('Error refreshing data in NotificationCenter:', error);
+        setHasError(true);
+        setErrorMessage('Failed to load notifications. Please try again.');
       }
     }
   }, [visible]);
@@ -205,6 +248,51 @@ export default function NotificationCenter({ visible, onClose }) {
   // Add error boundary to prevent white screen
   if (!visible) {
     return null;
+  }
+
+  // Show error state if there's an error
+  if (hasError) {
+    return (
+      <Modal visible={visible} animationType="slide" transparent={true} onRequestClose={onClose}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.header}>
+              <Text style={styles.headerTitle}>Notifications</Text>
+              <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+                <Icon name="close" size={24} color="#666" />
+              </TouchableOpacity>
+            </View>
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+              <Icon name="alert-circle" size={48} color="#ff4444" />
+              <Text style={{ fontSize: 16, color: '#666', marginTop: 16, textAlign: 'center', fontFamily: 'Poppins-Regular' }}>
+                {errorMessage || 'Unable to load notifications'}
+              </Text>
+              <TouchableOpacity 
+                onPress={() => {
+                  setHasError(false);
+                  setErrorMessage('');
+                  try {
+                    refreshAnnouncements();
+                    refreshNotifications();
+                  } catch (error) {
+                    console.error('Error retrying:', error);
+                  }
+                }}
+                style={{ 
+                  backgroundColor: '#00418b', 
+                  paddingHorizontal: 20, 
+                  paddingVertical: 10, 
+                  borderRadius: 8, 
+                  marginTop: 16 
+                }}
+              >
+                <Text style={{ color: 'white', fontFamily: 'Poppins-Regular' }}>Retry</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    );
   }
 
   return (

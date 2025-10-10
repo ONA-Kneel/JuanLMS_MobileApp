@@ -16,6 +16,8 @@ import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../UserContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useNotifications } from '../../NotificationContext';
+import NotificationCenter from '../NotificationCenter';
 
 const API_BASE = 'https://juanlms-webapp-server.onrender.com';
 
@@ -144,6 +146,17 @@ const FacultyActs = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [selectedActivity, setSelectedActivity] = useState(null);
+  
+  // Notification state
+  const [showNotificationCenter, setShowNotificationCenter] = useState(false);
+  let unreadCount = 0;
+  try {
+    const { unreadCount: count } = useNotifications();
+    unreadCount = count;
+  } catch (error) {
+    console.error('Error getting notification count:', error);
+  }
+  
   const [editForm, setEditForm] = useState({
     title: '',
     description: '',
@@ -645,9 +658,51 @@ const FacultyActs = () => {
               My Activities
             </Text>
             <Text style={styles.headerSubtitle}>{academicContext}</Text>
-            <Text style={styles.headerSubtitle2}>{formatDateTime(currentDateTime)}</Text>
+            <Text style={styles.headerSubtitle2}>{currentDateTime.toLocaleString('en-US', {
+              weekday: 'long',
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: true
+            })}</Text>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <TouchableOpacity 
+              onPress={() => {
+                try {
+                  setShowNotificationCenter(true);
+                } catch (error) {
+                  console.error('Error opening notification center:', error);
+                  Alert.alert('Notifications', 'Unable to open notifications. Please try again.');
+                }
+              }}
+              style={{ marginRight: 12, position: 'relative' }}
+            >
+              <MaterialCommunityIcons name="bell" size={24} color="#00418b" />
+              {unreadCount > 0 && (
+                <View style={{
+                  position: 'absolute',
+                  top: -5,
+                  right: -5,
+                  backgroundColor: '#ff4444',
+                  borderRadius: 10,
+                  minWidth: 20,
+                  height: 20,
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}>
+                  <Text style={{
+                    color: 'white',
+                    fontSize: 12,
+                    fontFamily: 'Poppins-Bold',
+                  }}>
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
             <TouchableOpacity onPress={() => navigation.navigate('FProfile')}>
               {resolveProfileUri(user) ? (
                 <Image 
@@ -871,6 +926,11 @@ const FacultyActs = () => {
           </View>
         </View>
       </Modal>
+      
+      <NotificationCenter 
+        visible={showNotificationCenter} 
+        onClose={() => setShowNotificationCenter(false)}
+      />
     </View>
   );
 };

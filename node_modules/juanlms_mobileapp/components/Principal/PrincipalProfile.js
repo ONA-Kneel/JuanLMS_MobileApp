@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, Image, ScrollView, Alert, ActivityIndicat
 import { MaterialIcons, Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../UserContext';
-import ConfirmLogoutModal from '../Shared/ConfirmLogoutModal';
+import ConfirmLogoutModal from '../Shared/ConfirmLogoutModal.js';
 import { useNotifications } from '../../NotificationContext';
 import { useAnnouncements } from '../../AnnouncementContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -12,7 +12,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Platform } from 'react-native';
 import NotificationCenter from '../NotificationCenter';
 import profileService from '../../services/profileService';
-import PasswordChangeModal from '../Shared/PasswordChangeModal';
+import PasswordChangeModal from '../Shared/PasswordChangeModal.js';
 
 // Helper to capitalize first letter of each word
 function capitalizeWords(str) {
@@ -33,8 +33,26 @@ const buildImageUri = (pathOrUrl) => {
 export default function PrincipalProfile() {
   const { user, loading, updateUser, logout: logoutFromContext } = useUser();
   const navigation = useNavigation();
-  const { unreadCount } = useNotifications();
-  const { announcements } = useAnnouncements();
+  
+  // Add safety checks for context providers
+  let unreadCount = 0;
+  let announcements = [];
+  
+  try {
+    const notificationContext = useNotifications();
+    unreadCount = notificationContext.unreadCount || 0;
+  } catch (error) {
+    console.error('NotificationContext error in PrincipalProfile:', error);
+    unreadCount = 0;
+  }
+  
+  try {
+    const announcementContext = useAnnouncements();
+    announcements = announcementContext.announcements || [];
+  } catch (error) {
+    console.error('AnnouncementContext error in PrincipalProfile:', error);
+    announcements = [];
+  }
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [showNotificationCenter, setShowNotificationCenter] = useState(false);
   const [editedUser, setEditedUser] = useState(null);
@@ -230,34 +248,6 @@ export default function PrincipalProfile() {
           <TouchableOpacity style={styles.actionBtn} onPress={() => setShowPasswordModal(true)}>
             <Feather name="lock" size={20} color="#00418b" />
             <Text style={styles.actionText}>Password</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={styles.actionBtn}
-            onPress={() => setShowNotificationCenter(true)}
-          >
-            <Feather name="bell" size={20} color="#00418b" />
-            <Text style={styles.actionText}>Notifications</Text>
-            {unreadCount > 0 && (
-              <View style={{
-                position: 'absolute',
-                top: -5,
-                right: -5,
-                backgroundColor: '#ff4444',
-                borderRadius: 10,
-                minWidth: 20,
-                height: 20,
-                justifyContent: 'center',
-                alignItems: 'center',
-              }}>
-                <Text style={{
-                  color: 'white',
-                  fontSize: 12,
-                  fontFamily: 'Poppins-Bold',
-                }}>
-                  {unreadCount > 99 ? '99+' : unreadCount}
-                </Text>
-              </View>
-            )}
           </TouchableOpacity>
           <TouchableOpacity style={styles.actionBtn} onPress={goToSupportCenter}>
             <Feather name="help-circle" size={20} color="#00418b" />

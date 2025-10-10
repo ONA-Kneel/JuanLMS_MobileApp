@@ -4,7 +4,7 @@ import { MaterialIcons, Feather } from '@expo/vector-icons';
 import FacultyProfileStyle from '../styles/faculty/FacultyProfileStyle';
 import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../UserContext';
-import ConfirmLogoutModal from '../Shared/ConfirmLogoutModal';
+import ConfirmLogoutModal from '../Shared/ConfirmLogoutModal.js';
 import { useNotifications } from '../../NotificationContext';
 import { useAnnouncements } from '../../AnnouncementContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -14,7 +14,7 @@ import { updateUser } from '../UserContext';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
 import NotificationCenter from '../NotificationCenter';
-import PasswordChangeModal from '../Shared/PasswordChangeModal';
+import PasswordChangeModal from '../Shared/PasswordChangeModal.js';
 import Constants from 'expo-constants';
 
 // Get API URL from environment variables or fallback to default
@@ -47,8 +47,26 @@ const buildImageUri = (pathOrUrl) => {
 export default function FacultyProfile() {
   const { user, updateUser, logout: logoutFromContext } = useUser();
   const navigation = useNavigation();
-  const { unreadCount } = useNotifications();
-  const { announcements } = useAnnouncements();
+  
+  // Add safety checks for context providers
+  let unreadCount = 0;
+  let announcements = [];
+  
+  try {
+    const notificationContext = useNotifications();
+    unreadCount = notificationContext.unreadCount || 0;
+  } catch (error) {
+    console.error('NotificationContext error in FacultyProfile:', error);
+    unreadCount = 0;
+  }
+  
+  try {
+    const announcementContext = useAnnouncements();
+    announcements = announcementContext.announcements || [];
+  } catch (error) {
+    console.error('AnnouncementContext error in FacultyProfile:', error);
+    announcements = [];
+  }
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [showNotificationCenter, setShowNotificationCenter] = useState(false);
   const [editedUser, setEditedUser] = useState(null);
@@ -404,34 +422,6 @@ export default function FacultyProfile() {
           <TouchableOpacity style={FacultyProfileStyle.actionBtn} onPress={() => setShowPasswordModal(true)}>
             <Feather name="lock" size={20} color="#00418b" />
             <Text style={[FacultyProfileStyle.actionText, { fontFamily: 'Poppins-Regular' }]}>Password</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={FacultyProfileStyle.actionBtn}
-            onPress={() => setShowNotificationCenter(true)}
-          >
-            <Feather name="bell" size={20} color="#00418b" />
-            <Text style={[FacultyProfileStyle.actionText, { fontFamily: 'Poppins-Regular' }]}>Notifications</Text>
-            {unreadCount > 0 && (
-              <View style={{
-                position: 'absolute',
-                top: -5,
-                right: -5,
-                backgroundColor: '#ff4444',
-                borderRadius: 10,
-                minWidth: 20,
-                height: 20,
-                justifyContent: 'center',
-                alignItems: 'center',
-              }}>
-                <Text style={{
-                  color: 'white',
-                  fontSize: 12,
-                  fontFamily: 'Poppins-Bold',
-                }}>
-                  {unreadCount > 99 ? '99+' : unreadCount}
-                </Text>
-              </View>
-            )}
           </TouchableOpacity>
           <TouchableOpacity style={FacultyProfileStyle.actionBtn} onPress={goToSupportCenter}>
             <Feather name="help-circle" size={20} color="#00418b" />
