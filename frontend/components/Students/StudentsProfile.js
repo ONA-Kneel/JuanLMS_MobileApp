@@ -4,7 +4,7 @@ import { MaterialIcons, Feather } from '@expo/vector-icons';
 import StudentsProfileStyle from '../styles/Stud/StudentsProfileStyle';
 import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../UserContext';
-import ConfirmLogoutModal from '../Shared/ConfirmLogoutModal';
+import ConfirmLogoutModal from '../Shared/ConfirmLogoutModal.js';
 import { useNotifications } from '../../NotificationContext';
 import { useAnnouncements } from '../../AnnouncementContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -15,7 +15,7 @@ import { updateUser } from '../UserContext';
 import * as FileSystem from 'expo-file-system';
 import { Platform } from 'react-native';
 import NotificationCenter from '../NotificationCenter';
-import PasswordChangeModal from '../Shared/PasswordChangeModal';
+import PasswordChangeModal from '../Shared/PasswordChangeModal.js';
 import Constants from 'expo-constants';
 
 // Helper to capitalize first letter of each word
@@ -53,8 +53,27 @@ const buildImageUri = (pathOrUrl) => {
 export default function StudentsProfile() {
   const { user, loading, updateUser, logout: logoutFromContext } = useUser();
   const navigation = useNavigation();
-  const { unreadCount } = useNotifications();
-  const { announcements } = useAnnouncements();
+  const [updatingProfile, setUpdatingProfile] = useState(false);
+  
+  // Add safety checks for context providers
+  let unreadCount = 0;
+  let announcements = [];
+  
+  try {
+    const notificationContext = useNotifications();
+    unreadCount = notificationContext.unreadCount || 0;
+  } catch (error) {
+    console.error('NotificationContext error in StudentsProfile:', error);
+    unreadCount = 0;
+  }
+  
+  try {
+    const announcementContext = useAnnouncements();
+    announcements = announcementContext.announcements || [];
+  } catch (error) {
+    console.error('AnnouncementContext error in StudentsProfile:', error);
+    announcements = [];
+  }
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [showNotificationCenter, setShowNotificationCenter] = useState(false);
   const [editedUser, setEditedUser] = useState(null);
@@ -149,7 +168,11 @@ export default function StudentsProfile() {
   };
 
   const handleSaveProfile = async () => {
+    const profileKey = `profile-update-${Date.now()}`;
+    
     setIsLoading(true);
+    setUpdatingProfile(true);
+    
     try {
       let profilePicPath = editedUser?.profilePic;
       let data;
@@ -190,9 +213,18 @@ export default function StudentsProfile() {
         profilePicture: profilePicPath,
       });
       setIsEditModalVisible(false);
+      
+      // Show success
+      setUpdatingProfile(false);
+      
       Alert.alert('Profile Updated', 'Your profile picture has been changed successfully.');
     } catch (error) {
       console.error('Profile upload error:', error);
+      
+      // Show error with retry option
+      setUpdatingProfile(false);
+      Alert.alert('Update Failed', 'Failed to update profile picture. Please try again.');
+      
       Alert.alert('Error', `Failed to update profile picture: ${error.message || 'Please try again.'}`);
     } finally {
       setIsLoading(false);
@@ -285,34 +317,6 @@ export default function StudentsProfile() {
           <TouchableOpacity style={StudentsProfileStyle.actionBtn} onPress={() => setShowPasswordModal(true)}>
             <Feather name="lock" size={20} color="#00418b" />
             <Text style={[StudentsProfileStyle.actionText, { fontFamily: 'Poppins-Regular' }]}>Password</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={StudentsProfileStyle.actionBtn}
-            onPress={() => setShowNotificationCenter(true)}
-          >
-            <Feather name="bell" size={20} color="#00418b" />
-            <Text style={[StudentsProfileStyle.actionText, { fontFamily: 'Poppins-Regular' }]}>Notifications</Text>
-            {unreadCount > 0 && (
-              <View style={{
-                position: 'absolute',
-                top: -5,
-                right: -5,
-                backgroundColor: '#ff4444',
-                borderRadius: 10,
-                minWidth: 20,
-                height: 20,
-                justifyContent: 'center',
-                alignItems: 'center',
-              }}>
-                <Text style={{
-                  color: 'white',
-                  fontSize: 12,
-                  fontFamily: 'Poppins-Bold',
-                }}>
-                  {unreadCount > 99 ? '99+' : unreadCount}
-                </Text>
-              </View>
-            )}
           </TouchableOpacity>
           <TouchableOpacity style={StudentsProfileStyle.actionBtn} onPress={goToSupportCenter}>
             <Feather name="help-circle" size={20} color="#00418b" />

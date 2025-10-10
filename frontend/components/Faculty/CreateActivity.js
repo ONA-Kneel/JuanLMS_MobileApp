@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Text, View, TextInput, TouchableOpacity, Alert, ScrollView } from "react-native";
-import CustomDropdown from "../Shared/CustomDropdown";
+import CustomDropdown from "../Shared/CustomDropdown.js";
 import FacultyModuleStyle from "../styles/faculty/FacultyModuleStyle";
 import Icon from "react-native-vector-icons/MaterialCommunityIcons";
 import { useNavigation } from "@react-navigation/native";

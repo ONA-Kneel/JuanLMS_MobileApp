@@ -137,12 +137,14 @@ const AdminDashStyle = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Poppins-Regular',
     color: '#666',
-    marginBottom: 2,
+    marginTop: 4,
+    marginBottom: 6,
   },
   headerSubtitle2: {
     fontSize: 14,
     fontFamily: 'Poppins-Regular',
     color: '#888',
+    marginTop: 2,
   },
 
   // Header styles

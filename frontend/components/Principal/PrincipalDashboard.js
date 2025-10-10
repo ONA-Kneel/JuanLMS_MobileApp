@@ -178,7 +178,6 @@ export default function PrincipalDashboard() {
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
-      second: '2-digit',
       hour12: true
     });
   };
@@ -213,8 +212,15 @@ export default function PrincipalDashboard() {
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <TouchableOpacity 
-              onPress={() => setShowNotificationCenter(true)}
-              style={{ marginRight: 12, position: 'relative', opacity: 0 }}
+              onPress={() => {
+                try {
+                  setShowNotificationCenter(true);
+                } catch (error) {
+                  console.error('Error opening notification center:', error);
+                  Alert.alert('Notifications', 'Unable to open notifications. Please try again.');
+                }
+              }}
+              style={{ marginRight: 12, position: 'relative' }}
             >
               <Icon name="bell" size={24} color="#00418b" />
               {unreadCount > 0 && (
@@ -497,13 +503,13 @@ const styles = {
     fontFamily: 'Poppins-Regular',
     color: '#888',
     fontSize: 13,
-    marginTop: 2,
+    marginTop: 4,
   },
   academicContext: {
     fontFamily: 'Poppins-Regular',
     color: '#666',
     fontSize: 14,
-    marginTop: 4,
+    marginTop: 6,
   },
   profileImage: {
     width: 36,

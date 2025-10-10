@@ -10,12 +10,16 @@ import {
   Alert,
   RefreshControl,
   ScrollView,
+  Image,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { useIsFocused } from '@react-navigation/native';
+import { useIsFocused, useNavigation } from '@react-navigation/native';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { formatDate } from '../../utils/dateUtils';
+import { useUser } from '../UserContext';
+import { useNotifications } from '../../NotificationContext';
+import NotificationCenter from '../NotificationCenter';
 
 const API_BASE_URL = 'https://juanlms-webapp-server.onrender.com';
 
@@ -99,6 +103,7 @@ const formatRecipientRoles = (roles) => {
 
 export default function PrincipalAnnouncements() {
   const isFocused = useIsFocused();
+  const navigation = useNavigation();
   const [activeTab, setActiveTab] = useState('all');
   const [announcements, setAnnouncements] = useState([]);
   const [filteredAnnouncements, setFilteredAnnouncements] = useState([]);
@@ -108,6 +113,18 @@ export default function PrincipalAnnouncements() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingAnnouncement, setEditingAnnouncement] = useState(null);
+  
+  // User and notification states
+  const { user } = useUser();
+  const [showNotificationCenter, setShowNotificationCenter] = useState(false);
+  let unreadCount = 0;
+  try {
+    const { unreadCount: count } = useNotifications();
+    unreadCount = count || 0;
+  } catch (error) {
+    console.error('Error accessing notifications:', error);
+    unreadCount = 0;
+  }
   
   // Academic year and term state
   const [academicYear, setAcademicYear] = useState(null);
@@ -889,19 +906,118 @@ export default function PrincipalAnnouncements() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Announcements</Text>
-        <Text style={styles.headerSubtitle}>
-          {academicYear ? `${academicYear.schoolYearStart}-${academicYear.schoolYearEnd}` : "Loading..."} | 
-          {currentTerm ? `${currentTerm.termName}` : "Loading..."} | 
-          {new Date().toLocaleDateString("en-US", {
-            weekday: "long",
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-          })}
-        </Text>
-      </View>
+      <ScrollView showsVerticalScrollIndicator={false}>
+        {/* Blue background */}
+        <View style={{
+          backgroundColor: '#00418b',
+          height: 90,
+          borderBottomLeftRadius: 20,
+          borderBottomRightRadius: 20,
+        }} />
+        {/* White card header */}
+        <View style={{
+          backgroundColor: '#fff',
+          borderRadius: 16,
+          marginHorizontal: 16,
+          marginTop: -40,
+          padding: 20,
+          elevation: 4,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.08,
+          shadowRadius: 8,
+          zIndex: 2,
+          marginBottom: 16,
+        }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <View>
+              <Text style={{
+                fontSize: 22,
+                color: '#222',
+                fontFamily: 'Poppins-Bold',
+              }}>
+                Announcements
+              </Text>
+              <Text style={{
+                color: '#888',
+                fontSize: 14,
+                fontFamily: 'Poppins-Regular',
+                marginTop: 4,
+              }}>
+                {academicYear ? `${academicYear.schoolYearStart}-${academicYear.schoolYearEnd}` : "Loading..."} | 
+                {currentTerm ? `${currentTerm.termName}` : "Loading..."}
+              </Text>
+              <Text style={{
+                color: '#666',
+                fontSize: 12,
+                fontFamily: 'Poppins-Regular',
+                marginTop: 6,
+              }}>
+                {new Date().toLocaleDateString("en-US", {
+                  weekday: "long",
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                })} | {new Date().toLocaleTimeString("en-US", {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  hour12: true
+                })}
+              </Text>
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <TouchableOpacity 
+                onPress={() => {
+                  try {
+                    setShowNotificationCenter(true);
+                  } catch (error) {
+                    console.error('Error opening notification center:', error);
+                    Alert.alert('Notifications', 'Unable to open notifications. Please try again.');
+                  }
+                }}
+                style={{ marginRight: 12, position: 'relative' }}
+              >
+                <Icon name="bell" size={24} color="#00418b" />
+                {unreadCount > 0 && (
+                  <View style={{
+                    position: 'absolute',
+                    top: -5,
+                    right: -5,
+                    backgroundColor: '#ff4444',
+                    borderRadius: 10,
+                    minWidth: 20,
+                    height: 20,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                  }}>
+                    <Text style={{
+                      color: 'white',
+                      fontSize: 12,
+                      fontFamily: 'Poppins-Bold',
+                    }}>
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => navigation.navigate('PrincipalProfile')}>
+                {user?.profilePicture ? (
+                  <Image 
+                    source={{ uri: user.profilePicture }} 
+                    style={{ width: 36, height: 36, borderRadius: 18 }}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <Image 
+                    source={require('../../assets/profile-icon (2).png')} 
+                    style={{ width: 36, height: 36, borderRadius: 18 }}
+                    resizeMode="cover"
+                  />
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
 
       {/* Search Bar */}
       <View style={styles.searchContainer}>
@@ -1135,6 +1251,13 @@ export default function PrincipalAnnouncements() {
 
       {renderCreateModal()}
       {renderEditModal()}
+      
+      {/* Notification Center */}
+      <NotificationCenter 
+        visible={showNotificationCenter} 
+        onClose={() => setShowNotificationCenter(false)} 
+      />
+      </ScrollView>
     </View>
   );
 }
@@ -1144,25 +1267,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f5f5f5',
     zIndex: 0,
-  },
-  header: {
-    backgroundColor: '#00418b',
-    padding: 20,
-    paddingTop: 40,
-    zIndex: 400,
-    position: 'relative',
-  },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#fff',
-    fontFamily: 'Poppins-Bold',
-  },
-  headerSubtitle: {
-    fontSize: 16,
-    color: '#e3f2fd',
-    marginTop: 4,
-    fontFamily: 'Poppins-Regular',
   },
   searchContainer: {
     padding: 20,

@@ -14,13 +14,31 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import StudentGradesStyle from '../styles/Stud/StudentGradesStyle';
 import StudentDashboardStyle from '../styles/Stud/StudentDashStyle';
+import { fetchActiveQuarter } from '../../utils/academicContext';
+import { useUser } from '../UserContext';
+import { useNotifications } from '../../NotificationContext';
+import NotificationCenter from '../NotificationCenter';
 
 const { width } = Dimensions.get('window');
 
 const StudentGrades = () => {
   const navigation = useNavigation();
+  const { user } = useUser();
+  
+  // Add safety checks for context providers
+  let unreadCount = 0;
+  try {
+    const notificationContext = useNotifications();
+    unreadCount = notificationContext.unreadCount || 0;
+  } catch (error) {
+    console.error('NotificationContext error in StudentGrades:', error);
+    unreadCount = 0;
+  }
+  
+  const [showNotificationCenter, setShowNotificationCenter] = useState(false);
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
   const [academicContext, setAcademicContext] = useState('2025-2026 | Term 1');
   const [grades, setGrades] = useState([]);
@@ -30,10 +48,10 @@ const StudentGrades = () => {
   const [selectedTerm, setSelectedTerm] = useState('current');
   const [academicYear, setAcademicYear] = useState('');
   const [currentTerm, setCurrentTerm] = useState('');
-  const [user, setUser] = useState(null);
   const [profilePicError, setProfilePicError] = useState(false);
   const [gradesUnavailable, setGradesUnavailable] = useState(false);
   const [studentClasses, setStudentClasses] = useState([]);
+  const [activeQuarter, setActiveQuarter] = useState(null);
 
   const API_BASE = 'https://juanlms-webapp-server.onrender.com';
 
@@ -42,10 +60,33 @@ const StudentGrades = () => {
       setCurrentDateTime(new Date());
     }, 1000);
 
-    fetchGrades();
+    fetchActiveQuarterInfo();
     fetchAcademicContext();
     return () => clearInterval(timer);
-  }, [selectedTerm]);
+  }, []);
+
+  useEffect(() => {
+    if (activeQuarter) {
+      fetchGrades();
+    }
+  }, [selectedTerm, activeQuarter]);
+
+  const fetchActiveQuarterInfo = async () => {
+    try {
+      const quarterInfo = await fetchActiveQuarter();
+      console.log('StudentGrades - Active quarter info:', quarterInfo);
+      setActiveQuarter(quarterInfo);
+    } catch (error) {
+      console.error('StudentGrades - Error fetching active quarter info:', error);
+      // Set default quarter info if fetch fails
+      setActiveQuarter({
+        quarterName: 'Quarter 1',
+        termName: 'Term 1',
+        schoolYear: '2025-2026',
+        isActive: false
+      });
+    }
+  };
 
   // Fetch active academic year and term for header
   const fetchAcademicContext = async () => {
@@ -71,6 +112,11 @@ const StudentGrades = () => {
 
       if (!user || !user._id) return;
 
+      if (!activeQuarter) {
+        console.log('No active quarter info available yet');
+        return;
+      }
+
       const response = await fetch(`${API_BASE}/classes/my-classes`, {
         method: 'GET',
         headers: {
@@ -83,7 +129,42 @@ const StudentGrades = () => {
       if (response.ok) {
         const data = await response.json();
         console.log('✅ Student classes loaded:', data);
-        setStudentClasses(Array.isArray(data) ? data : []);
+        
+        let userClasses = Array.isArray(data) ? data : [];
+        console.log('StudentGrades - Classes before quarter filtering:', userClasses);
+        
+        // Apply quarter filtering logic similar to classes component
+        const filteredClasses = userClasses.filter(cls => {
+          // Filter out archived classes
+          if (cls.isArchived === true) {
+            console.log(`StudentGrades - Filtering out archived class: ${cls.className || cls.classCode}`);
+            return false;
+          }
+          
+          // Filter by academic year (tolerate missing academicYear)
+          if (cls.academicYear && cls.academicYear !== activeQuarter.schoolYear) {
+            console.log(`StudentGrades - Filtering out class with wrong year: ${cls.className || cls.classCode} (${cls.academicYear})`);
+            return false;
+          }
+          
+          // Filter by term (tolerate missing termName)
+          if (cls.termName && cls.termName !== activeQuarter.termName) {
+            console.log(`StudentGrades - Filtering out class with wrong term: ${cls.className || cls.classCode} (${cls.termName})`);
+            return false;
+          }
+          
+          // Filter by quarter (tolerate missing quarterName)
+          if (cls.quarterName && cls.quarterName !== activeQuarter.quarterName) {
+            console.log(`StudentGrades - Filtering out class with wrong quarter: ${cls.className || cls.classCode} (${cls.quarterName})`);
+            return false;
+          }
+          
+          console.log(`StudentGrades - Including class: ${cls.className || cls.classCode}`);
+          return true;
+        });
+        
+        console.log('StudentGrades - Classes after quarter filtering:', filteredClasses);
+        setStudentClasses(filteredClasses);
       } else {
         console.log('Failed to fetch student classes:', response.status);
         setStudentClasses([]);
@@ -105,8 +186,6 @@ const StudentGrades = () => {
         throw new Error('User data not found');
       }
 
-      // Set user state for use in render function
-      setUser(user);
       setProfilePicError(false);
 
       // Fetch academic year and term
@@ -180,11 +259,35 @@ const StudentGrades = () => {
           const classesData = await classesResponse.json();
           console.log('📚 Student classes:', classesData);
           
-          // Filter classes for current term and year
-          const currentTermClasses = classesData.filter(cls => 
-            cls.termName === activeTermName && 
-            cls.academicYear === activeYearName
-          );
+          // Filter classes for current term, year, and quarter
+          const currentTermClasses = classesData.filter(cls => {
+            // Filter out archived classes
+            if (cls.isArchived === true) {
+              console.log(`StudentGrades - Filtering out archived class: ${cls.className || cls.classCode}`);
+              return false;
+            }
+            
+            // Filter by academic year
+            if (cls.academicYear && cls.academicYear !== activeYearName) {
+              console.log(`StudentGrades - Filtering out class with wrong year: ${cls.className || cls.classCode} (${cls.academicYear})`);
+              return false;
+            }
+            
+            // Filter by term
+            if (cls.termName && cls.termName !== activeTermName) {
+              console.log(`StudentGrades - Filtering out class with wrong term: ${cls.className || cls.classCode} (${cls.termName})`);
+              return false;
+            }
+            
+            // Filter by quarter if activeQuarter is available
+            if (activeQuarter && cls.quarterName && cls.quarterName !== activeQuarter.quarterName) {
+              console.log(`StudentGrades - Filtering out class with wrong quarter: ${cls.className || cls.classCode} (${cls.quarterName})`);
+              return false;
+            }
+            
+            console.log(`StudentGrades - Including class: ${cls.className || cls.classCode}`);
+            return true;
+          });
           
           console.log('📚 Current term classes:', currentTermClasses);
           
@@ -391,7 +494,9 @@ const StudentGrades = () => {
 
   const onRefresh = () => {
     setRefreshing(true);
-    fetchGrades();
+    fetchActiveQuarterInfo().then(() => {
+      // fetchGrades will be called automatically when activeQuarter state updates
+    });
   };
 
   const formatDateTime = (date) => {
@@ -402,10 +507,9 @@ const StudentGrades = () => {
             day: 'numeric',
             hour: '2-digit',
             minute: '2-digit',
-            second: '2-digit',
             hour12: true
         });
-  };
+    };
 
   const resolveProfileUri = () => {
     const API_BASE = 'https://juanlms-webapp-server.onrender.com';
@@ -660,7 +764,9 @@ const StudentGrades = () => {
       <Text style={styles.emptyText}>
         {gradesUnavailable 
           ? 'Grades service is currently unavailable. Please ask your faculty about your grades.'
-          : 'Grades are not available yet. Please ask your faculty about that.'}
+          : activeQuarter 
+            ? `No grades available for ${activeQuarter.quarterName} of ${activeQuarter.termName}. Please ask your faculty about your grades.`
+            : 'Grades are not available yet. Please ask your faculty about that.'}
       </Text>
     </View>
   );
@@ -697,21 +803,57 @@ const StudentGrades = () => {
                          <Text style={StudentDashboardStyle.headerSubtitle}>{academicContext}</Text>
              <Text style={StudentDashboardStyle.headerSubtitle2}>{formatDateTime(currentDateTime)}</Text>
           </View>
-          <TouchableOpacity onPress={() => navigation.navigate('SProfile')}>
-            {resolveProfileUri() ? (
-              <Image 
-                source={{ uri: resolveProfileUri() }} 
-                style={{ width: 36, height: 36, borderRadius: 18 }}
-                resizeMode="cover"
-              />
-            ) : (
-              <Image 
-                source={require('../../assets/profile-icon (2).png')} 
-                style={{ width: 36, height: 36, borderRadius: 18 }}
-                resizeMode="cover"
-              />
-            )}
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <TouchableOpacity 
+              onPress={() => {
+                try {
+                  setShowNotificationCenter(true);
+                } catch (error) {
+                  console.error('Error opening notification center:', error);
+                  Alert.alert('Notifications', 'Unable to open notifications. Please try again.');
+                }
+              }}
+              style={{ marginRight: 12, position: 'relative' }}
+            >
+              <Icon name="bell" size={24} color="#00418b" />
+              {unreadCount > 0 && (
+                <View style={{
+                  position: 'absolute',
+                  top: -5,
+                  right: -5,
+                  backgroundColor: '#ff4444',
+                  borderRadius: 10,
+                  minWidth: 20,
+                  height: 20,
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}>
+                  <Text style={{
+                    color: 'white',
+                    fontSize: 12,
+                    fontFamily: 'Poppins-Bold',
+                  }}>
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.navigate('SProfile')}>
+              {resolveProfileUri() ? (
+                <Image 
+                  source={{ uri: resolveProfileUri() }} 
+                  style={{ width: 36, height: 36, borderRadius: 18 }}
+                  resizeMode="cover"
+                />
+              ) : (
+                <Image 
+                  source={require('../../assets/profile-icon (2).png')} 
+                  style={{ width: 36, height: 36, borderRadius: 18 }}
+                  resizeMode="cover"
+                />
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
@@ -829,6 +971,12 @@ const StudentGrades = () => {
         )}
                 </View>
                 </ScrollView>
+                
+                {/* Notification Center */}
+                <NotificationCenter 
+                  visible={showNotificationCenter} 
+                  onClose={() => setShowNotificationCenter(false)} 
+                />
             </View>
   );
 };
@@ -1072,6 +1220,12 @@ const styles = {
   },
   tableContent: {
     minWidth: 600, // Ensure table has minimum width for proper display
+  },
+  quarterInfo: {
+    color: '#00418b',
+    fontSize: 12,
+    fontFamily: 'Poppins-Bold',
+    marginTop: 4,
   },
 };
 
