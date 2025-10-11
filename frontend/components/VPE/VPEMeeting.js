@@ -41,6 +41,7 @@ export default function VPEMeeting() {
   const [allUsers, setAllUsers] = useState([]);
   const [selectedUsers, setSelectedUsers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [expandedRoles, setExpandedRoles] = useState({});
   const [creating, setCreating] = useState(false);
   const [meetingTitle, setMeetingTitle] = useState('');
   const [meetingDescription, setMeetingDescription] = useState('');
@@ -130,6 +131,18 @@ export default function VPEMeeting() {
       if (exists) return prev.filter(p => p._id !== u._id);
       return [...prev, u];
     });
+  };
+
+  const toggleRoleExpansion = (role) => {
+    setExpandedRoles(prev => ({
+      ...prev,
+      [role]: !prev[role]
+    }));
+  };
+
+  const clearSelection = () => {
+    setSelectedUsers([]);
+    setSearchTerm('');
   };
 
   const usersByRole = allUsers
@@ -599,43 +612,86 @@ export default function VPEMeeting() {
           </TouchableOpacity>
         </View>
 
-        {/* Selected chips */}
+        {/* Selected Users */}
         {selectedUsers.length > 0 && (
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
-            {selectedUsers.map(u => (
-              <TouchableOpacity key={u._id} onPress={() => toggleUserSelection(u)} style={styles.chip}>
-                <Text style={styles.chipText}>{(u.firstName || u.firstname || '?')[0]}{(u.lastName || u.lastname || '?')[0]} · {u.firstName || u.firstname} {u.lastName || u.lastname}</Text>
-                <Text style={styles.chipRemove}>×</Text>
+          <View style={{ marginBottom: 16 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <Text style={styles.selectedTitle}>Selected Participants ({selectedUsers.length})</Text>
+              <TouchableOpacity onPress={clearSelection}>
+                <Text style={styles.clearAllText}>Clear All</Text>
               </TouchableOpacity>
-            ))}
+            </View>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+              {selectedUsers.map(u => (
+                <TouchableOpacity key={u._id} onPress={() => toggleUserSelection(u)} style={styles.chip}>
+                  <Text style={styles.chipText}>{(u.firstName || u.firstname || '?')[0]}{(u.lastName || u.lastname || '?')[0]} · {u.firstName || u.firstname} {u.lastName || u.lastname}</Text>
+                  <Text style={styles.chipRemove}>×</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
         )}
 
-        {/* Users grouped by role */}
-        <View style={{ gap: 8 }}>
-          {Object.entries(usersByRole).map(([role, list]) => (
-            <View key={role} style={{ marginBottom: 8 }}>
-              <Text style={styles.roleHeader}>{role} ({list.length})</Text>
-              <View style={{ gap: 6 }}>
-                {list.map(u => {
-                  const isSelected = selectedUsers.some(s => s._id === u._id);
-                  return (
-                    <TouchableOpacity key={u._id} onPress={() => toggleUserSelection(u)} style={[styles.userRow, isSelected && styles.userRowSelected]}>
-                      <View style={styles.avatar}>
-                        <Text style={styles.avatarText}>{(u.firstName || u.firstname || '?')[0]}{(u.lastName || u.lastname || '?')[0]}</Text>
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.userName}>{u.firstName || u.firstname} {u.lastName || u.lastname}</Text>
-                        <Text style={styles.userEmail}>{u.email}</Text>
-                        <Text style={styles.userRole}>{u.role}</Text>
-                      </View>
-                      {isSelected && <Icon name="check-circle" size={20} color="#2563EB" />}
-                    </TouchableOpacity>
-                  );
-                })}
+        {/* User List by Role with Collapsible Dropdowns */}
+        <View style={{ gap: 12 }}>
+          {Object.entries(usersByRole).map(([role, list]) => {
+            const isExpanded = expandedRoles[role];
+            const selectedInRole = list.filter(u => selectedUsers.some(s => s._id === u._id)).length;
+            
+            return (
+              <View key={role} style={styles.roleDropdown}>
+                <TouchableOpacity
+                  onPress={() => toggleRoleExpansion(role)}
+                  style={styles.roleDropdownHeader}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                    <Icon 
+                      name={isExpanded ? "chevron-down" : "chevron-right"} 
+                      size={20} 
+                      color="#6B7280" 
+                      style={{ marginRight: 8 }}
+                    />
+                    <Text style={styles.roleHeader}>
+                      {role.charAt(0).toUpperCase() + role.slice(1)}
+                    </Text>
+                    <Text style={styles.roleSelectionCount}>
+                      ({selectedInRole}/{list.length} selected)
+                    </Text>
+                  </View>
+                  <Text style={styles.roleUserCount}>{list.length} users</Text>
+                </TouchableOpacity>
+                
+                {isExpanded && (
+                  <View style={styles.roleContent}>
+                    <View style={{ gap: 8 }}>
+                      {list.map(u => {
+                        const isSelected = selectedUsers.some(s => s._id === u._id);
+                        return (
+                          <TouchableOpacity 
+                            key={u._id} 
+                            onPress={() => toggleUserSelection(u)} 
+                            style={[styles.userRow, isSelected && styles.userRowSelected]}
+                          >
+                            <View style={[styles.avatar, isSelected && styles.avatarSelected]}>
+                              <Text style={[styles.avatarText, isSelected && styles.avatarTextSelected]}>
+                                {(u.firstName || u.firstname || '?')[0]}{(u.lastName || u.lastname || '?')[0]}
+                              </Text>
+                            </View>
+                            <View style={{ flex: 1 }}>
+                              <Text style={styles.userName}>{u.firstName || u.firstname} {u.lastName || u.lastname}</Text>
+                              <Text style={styles.userEmail}>{u.email}</Text>
+                              <Text style={styles.userRole}>{u.role}</Text>
+                            </View>
+                            {isSelected && <Icon name="check-circle" size={20} color="#2563EB" />}
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </View>
+                )}
               </View>
-            </View>
-          ))}
+            );
+          })}
         </View>
       </View>
 
@@ -872,12 +928,50 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
   },
+  selectedTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  clearAllText: {
+    fontSize: 12,
+    color: '#EF4444',
+    fontWeight: '500',
+  },
+  roleDropdown: {
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    backgroundColor: 'white',
+  },
+  roleDropdownHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    backgroundColor: '#F9FAFB',
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+  },
   roleHeader: {
     fontSize: 14,
     fontWeight: '600',
     color: '#374151',
-    marginBottom: 6,
     textTransform: 'capitalize',
+  },
+  roleSelectionCount: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginLeft: 8,
+  },
+  roleUserCount: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  roleContent: {
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
   },
   userRow: {
     flexDirection: 'row',
@@ -901,9 +995,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  avatarSelected: {
+    backgroundColor: '#DBEAFE',
+  },
   avatarText: {
     color: '#374151',
     fontWeight: '600',
+  },
+  avatarTextSelected: {
+    color: '#1D4ED8',
   },
   userName: {
     fontSize: 14,
