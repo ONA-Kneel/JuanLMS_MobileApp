@@ -168,8 +168,8 @@ export default function StudentsProfile() {
     try {
       // Test backend connection first
       console.log('Testing backend connection before upload...');
-      const isConnected = await profileService.testBackendConnection();
-      if (!isConnected) {
+      const connectionTest = await profileService.testServerConnection();
+      if (!connectionTest.success) {
         throw new Error('Cannot connect to server. Please check your internet connection.');
       }
       console.log('Backend connection test passed');
