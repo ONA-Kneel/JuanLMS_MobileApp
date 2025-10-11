@@ -51,6 +51,133 @@ const profileService = {
     }
   },
 
+  // Test POST request capability
+  async testPostCapability() {
+    try {
+      console.log('🔍 Testing POST request capability...');
+      
+      // Test with a simple POST request first
+      const testFormData = new FormData();
+      testFormData.append('test', 'data');
+      
+      const response = await fetch(`${API_URL}/api/mobile-test`, {
+        method: 'POST',
+        body: testFormData,
+        timeout: 10000,
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ POST request test result:', response.status, data.message);
+        return { success: true, status: response.status, data };
+      } else {
+        console.log('⚠️ POST test returned non-200 status:', response.status);
+        return { success: true, status: response.status }; // Still consider it a success for testing
+      }
+    } catch (error) {
+      console.error('❌ POST request test failed:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
+  // Test mobile upload capability (no file upload)
+  async testMobileUpload() {
+    try {
+      const token = await AsyncStorage.getItem('jwtToken');
+      if (!token) {
+        return { success: false, error: 'No token found' };
+      }
+
+      console.log('🔍 Testing mobile upload capability...');
+      
+      const response = await fetch(`${API_URL}/api/mobile-upload-test`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ test: 'data' }),
+        timeout: 10000,
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ Mobile upload test successful:', data);
+        return { success: true, data };
+      } else {
+        const errorText = await response.text();
+        console.error('❌ Mobile upload test failed:', response.status, errorText);
+        return { success: false, error: `Test failed: ${response.status}` };
+      }
+    } catch (error) {
+      console.error('❌ Mobile upload test failed:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
+  // Test authentication
+  async testAuthentication() {
+    try {
+      const token = await AsyncStorage.getItem('jwtToken');
+      if (!token) {
+        return { success: false, error: 'No token found' };
+      }
+
+      console.log('🔍 Testing authentication...');
+      
+      // Try the new test endpoint first
+      try {
+        const response = await fetch(`${API_URL}/api/test-auth`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 10000,
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          console.log('✅ Authentication test successful:', data);
+          return { success: true, data };
+        } else {
+          const errorText = await response.text();
+          console.log('⚠️ Test endpoint not available, trying fallback:', response.status, errorText);
+        }
+      } catch (endpointError) {
+        console.log('⚠️ Test endpoint not available, trying fallback:', endpointError.message);
+      }
+      
+      // Fallback: try to access user info endpoint
+      try {
+        const response = await fetch(`${API_URL}/users/${await AsyncStorage.getItem('userId')}`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 10000,
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          console.log('✅ Authentication test successful (fallback):', data.userID || data.email);
+          return { success: true, data: { user: data } };
+        } else {
+          const errorText = await response.text();
+          console.error('❌ Authentication test failed:', response.status, errorText);
+          return { success: false, error: `Auth failed: ${response.status}` };
+        }
+      } catch (fallbackError) {
+        console.error('❌ Authentication test failed:', fallbackError);
+        return { success: false, error: fallbackError.message };
+      }
+    } catch (error) {
+      console.error('❌ Authentication test failed:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
   async updateProfile(userId, profileData) {
     try {
       const token = await AsyncStorage.getItem('jwtToken');
@@ -129,74 +256,42 @@ const profileService = {
       console.log('isWeb:', isWeb);
       console.log('imageAsset:', imageAsset);
       
-       // Test network connectivity first
-       try {
-         console.log('Testing connectivity to:', `${API_URL}/api/health`);
-         console.log('Current API_URL:', API_URL);
-         
-         const controller = new AbortController();
-         const timeoutId = setTimeout(() => controller.abort(), 10000);
-         
-         const testResponse = await fetch(`${API_URL}/api/health`, {
-           method: 'GET',
-           signal: controller.signal,
-           headers: {
-             'Accept': 'application/json',
-             'Content-Type': 'application/json',
-           },
-         });
-         
-         clearTimeout(timeoutId);
-         console.log('Network connectivity test:', testResponse.status, testResponse.statusText);
-         
-         if (!testResponse.ok) {
-           const errorText = await testResponse.text();
-           console.error('Health check response:', errorText);
-           throw new Error(`Server health check failed: ${testResponse.status} - ${errorText}`);
-         }
-         
-         const healthData = await testResponse.json();
-         console.log('✅ Network connectivity verified:', healthData);
-       } catch (networkError) {
-         console.error('❌ Network connectivity test failed:', networkError);
-         console.error('Network error details:', {
-           message: networkError.message,
-           name: networkError.name,
-           stack: networkError.stack
-         });
-         
-         // Try multiple fallback endpoints
-         const fallbackEndpoints = [
-           `${API_URL}/`,
-           `${API_URL}/users`,
-           `${API_URL}/api/health`
-         ];
-         
-         let connectivityVerified = false;
-         for (const endpoint of fallbackEndpoints) {
-           try {
-             console.log(`🔄 Trying fallback endpoint: ${endpoint}`);
-             const fallbackResponse = await fetch(endpoint, {
-               method: 'GET',
-               timeout: 5000,
-             });
-             console.log(`✅ Fallback endpoint ${endpoint} responded:`, fallbackResponse.status);
-             connectivityVerified = true;
-             break;
-           } catch (fallbackError) {
-             console.error(`❌ Fallback endpoint ${endpoint} failed:`, fallbackError.message);
-           }
-         }
-         
-         if (!connectivityVerified) {
-           console.error('🚨 All connectivity tests failed - server may be down');
-           throw new Error('Cannot connect to server. The server may be temporarily unavailable. Please try again later.');
-         }
-       }
-      
       const token = await AsyncStorage.getItem('jwtToken');
       console.log('Token exists:', !!token);
       console.log('Token length:', token ? token.length : 0);
+      
+      if (!token) {
+        throw new Error('No authentication token found. Please log in again.');
+      }
+      
+      // Quick connectivity test
+      try {
+        console.log('🔍 Testing server connectivity...');
+        const healthResponse = await fetch(`${API_URL}/api/health`, {
+          method: 'GET',
+          timeout: 5000,
+        });
+        if (healthResponse.ok) {
+          console.log('✅ Server is reachable');
+        } else {
+          console.log('⚠️ Server health check failed, but continuing with upload');
+        }
+      } catch (healthError) {
+        console.log('⚠️ Server health check failed, but continuing with upload:', healthError.message);
+      }
+      
+      // Test mobile upload capability
+      try {
+        const uploadTest = await this.testMobileUpload();
+        if (uploadTest.success) {
+          console.log('✅ Mobile upload capability verified');
+        } else {
+          console.log('⚠️ Mobile upload test failed, but continuing with upload:', uploadTest.error);
+        }
+      } catch (uploadTestError) {
+        console.log('⚠️ Mobile upload test unavailable, continuing with upload:', uploadTestError.message);
+      }
+      
       // Enforce same constraints as WebApp: image types only, max 5MB
       const MAX_BYTES = 5 * 1024 * 1024;
       const formData = new FormData();
@@ -258,114 +353,109 @@ const profileService = {
           type,
         });
       }
-      // Use fetch instead of axios for React Native multipart uploads
+      // Use fetch for React Native multipart uploads
       const isNative = Platform.OS === 'ios' || Platform.OS === 'android';
       if (isNative) {
-        const fetchHeaders = {
-          // Do NOT set Content-Type; RN fetch will add correct multipart boundary
-          // Do NOT set Authorization header - matches web app behavior
-        };
-         const controller = new AbortController();
-         const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
-         
-         console.log('🚀 Sending upload request to:', `${API_URL}/users/${userId}/upload-profile`);
-         console.log('📤 Request headers:', fetchHeaders);
-         console.log('📦 FormData keys:', Array.from(formData._parts?.map(p => p[0]) || []));
-         console.log('🔗 Full upload URL:', `${API_URL}/users/${userId}/upload-profile`);
-         
-         let fetchResp;
-         let retryCount = 0;
-         const maxRetries = 3;
-         let lastError;
-         
-         while (retryCount < maxRetries) {
-           try {
-             console.log(`🔄 Upload attempt ${retryCount + 1}/${maxRetries}`);
-             fetchResp = await fetch(`${API_URL}/users/${userId}/upload-profile`, {
-               method: 'POST',
-               headers: fetchHeaders,
-               body: formData,
-               signal: controller.signal,
-             });
-             console.log('📥 Upload response status:', fetchResp.status, fetchResp.statusText);
-             break; // Success, exit retry loop
-           } catch (attemptError) {
-             lastError = attemptError;
-             retryCount++;
-             console.error(`❌ Upload attempt ${retryCount} failed:`, attemptError.message);
-             
-             if (attemptError.message.includes('Network request failed') && retryCount < maxRetries) {
-               console.log(`⏳ Retrying in ${retryCount * 1000}ms...`);
-               await new Promise(resolve => setTimeout(resolve, retryCount * 1000));
-               continue;
-             }
-             
-             // Try axios fallback for Android "Network request failed" errors
-             if (attemptError.message.includes('Network request failed') && Platform.OS === 'android') {
-               console.log('🔄 Trying axios fallback for Android...');
-               try {
-                 const axiosResponse = await axios.post(`${API_URL}/users/${userId}/upload-profile`, formData, {
-                   headers: {
-                     // Do NOT set Authorization header - matches web app behavior
-                     'Content-Type': 'multipart/form-data',
-                   },
-                   timeout: 30000,
-                 });
-                 console.log('✅ Axios fallback successful');
-                 fetchResp = {
-                   ok: true,
-                   status: axiosResponse.status,
-                   statusText: axiosResponse.statusText,
-                   headers: new Map(Object.entries(axiosResponse.headers)),
-                   json: () => Promise.resolve(axiosResponse.data),
-                 };
-                 break; // Success, exit retry loop
-               } catch (axiosError) {
-                 console.error('❌ Axios fallback also failed:', axiosError);
-                 throw attemptError; // Throw original fetch error
-               }
-             }
-             
-             throw attemptError;
-           }
-         }
-         
-         if (!fetchResp) {
-           throw lastError || new Error('All upload attempts failed');
-         }
+        console.log('🚀 Sending upload request to:', `${API_URL}/users/${userId}/upload-profile`);
+        console.log('📦 FormData keys:', Array.from(formData._parts?.map(p => p[0]) || []));
         
-        clearTimeout(timeoutId);
-        if (!fetchResp.ok) {
-          const text = await fetchResp.text();
-          throw new Error(text || `Upload failed with status ${fetchResp.status}`);
+        try {
+          console.log('🔍 FormData details before upload:', {
+            hasImage: formData._parts?.some(p => p[0] === 'image'),
+            partsCount: formData._parts?.length || 0,
+            imagePart: formData._parts?.find(p => p[0] === 'image')
+          });
+          
+          const response = await fetch(`${API_URL}/users/${userId}/upload-profile`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              // Do NOT set Content-Type; React Native will add correct multipart boundary
+            },
+            body: formData,
+          });
+          
+          console.log('📥 Upload response status:', response.status, response.statusText);
+          console.log('📥 Upload response headers:', response.headers);
+          
+          if (!response.ok) {
+            const errorText = await response.text();
+            console.error('❌ Upload failed:', response.status, errorText);
+            console.error('❌ Response headers:', response.headers);
+            throw new Error(`Upload failed: ${response.status} - ${errorText}`);
+          }
+          
+          const json = await response.json();
+          console.log('✅ Upload successful:', json);
+          
+          // Handle the backend response structure
+          let profilePicUrl = null;
+          if (json?.user?.profilePic) {
+            profilePicUrl = json.user.profilePic;
+          } else if (json?.imageFilename) {
+            profilePicUrl = json.imageFilename;
+          } else if (json?.profile_picture) {
+            profilePicUrl = json.profile_picture;
+          } else if (json?.url) {
+            profilePicUrl = json.url;
+          }
+          
+          if (profilePicUrl) {
+            console.log('✅ Profile picture URL extracted:', profilePicUrl);
+            return { user: { profilePic: profilePicUrl } };
+          } else {
+            console.warn('⚠️ No profile picture URL found in response:', json);
+            return json;
+          }
+        } catch (error) {
+          console.error('❌ Fetch upload error:', error);
+          
+          // Try axios fallback for mobile
+          if (error.message.includes('Network request failed') || error.message.includes('Network Error')) {
+            console.log('🔄 Trying axios fallback for mobile...');
+            try {
+              const axiosResponse = await axios.post(`${API_URL}/users/${userId}/upload-profile`, formData, {
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                  'Content-Type': 'multipart/form-data',
+                },
+                timeout: 30000,
+              });
+              
+              console.log('✅ Axios fallback successful:', axiosResponse.status);
+              
+              // Handle the backend response structure
+              let profilePicUrl = null;
+              if (axiosResponse.data?.user?.profilePic) {
+                profilePicUrl = axiosResponse.data.user.profilePic;
+              } else if (axiosResponse.data?.imageFilename) {
+                profilePicUrl = axiosResponse.data.imageFilename;
+              } else if (axiosResponse.data?.profile_picture) {
+                profilePicUrl = axiosResponse.data.profile_picture;
+              } else if (axiosResponse.data?.url) {
+                profilePicUrl = axiosResponse.data.url;
+              }
+              
+              if (profilePicUrl) {
+                console.log('✅ Profile picture URL extracted (axios fallback):', profilePicUrl);
+                return { user: { profilePic: profilePicUrl } };
+              } else {
+                console.warn('⚠️ No profile picture URL found in axios fallback response:', axiosResponse.data);
+                return axiosResponse.data;
+              }
+            } catch (axiosError) {
+              console.error('❌ Axios fallback also failed:', axiosError);
+              throw new Error(`Network connection failed. Please check your internet connection and try again. If the problem persists, the server may be temporarily unavailable.`);
+            }
+          } else {
+            throw new Error(`Upload failed: ${error.message}`);
+          }
         }
-         const json = await fetchResp.json();
-         console.log('Backend response:', json);
-         
-         // Handle the actual backend response structure
-         let profilePicUrl = null;
-         if (json?.user?.profilePic) {
-           profilePicUrl = json.user.profilePic;
-         } else if (json?.imageFilename) {
-           profilePicUrl = json.imageFilename;
-         } else if (json?.profile_picture) {
-           profilePicUrl = json.profile_picture;
-         } else if (json?.url) {
-           profilePicUrl = json.url;
-         }
-         
-         if (profilePicUrl) {
-           console.log('✅ Profile picture URL extracted:', profilePicUrl);
-           return { user: { profilePic: profilePicUrl } };
-         } else {
-           console.warn('⚠️ No profile picture URL found in response:', json);
-           return json;
-         }
       } else {
         // Use axios for web
         const response = await axios.post(`${API_URL}/users/${userId}/upload-profile`, formData, {
           headers: {
-            // Do NOT set Authorization header - matches web app behavior
+            'Authorization': `Bearer ${token}`,
             // Do NOT set Content-Type manually for multipart; let axios set boundary
             Accept: 'application/json',
           },
