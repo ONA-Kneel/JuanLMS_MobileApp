@@ -111,20 +111,6 @@ export default function StudentsProfile() {
     navigation.navigate('SReq');
   };
 
-  // Debug function to test backend connection
-  const testBackendConnection = async () => {
-    try {
-      console.log('Manual backend connection test...');
-      const connectionTest = await profileService.testServerConnection();
-      Alert.alert(
-        'Backend Test', 
-        connectionTest.success ? '✅ Backend connection successful!' : '❌ Backend connection failed!'
-      );
-    } catch (error) {
-      console.error('Backend test error:', error);
-      Alert.alert('Backend Test', `❌ Error: ${error.message}`);
-    }
-  };
 
   const pickImage = async () => {
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -166,13 +152,6 @@ export default function StudentsProfile() {
   const handleSaveProfile = async () => {
     setIsLoading(true);
     try {
-      // Test backend connection first
-      console.log('Testing backend connection before upload...');
-      const connectionTest = await profileService.testServerConnection();
-      if (!connectionTest.success) {
-        throw new Error('Cannot connect to server. Please check your internet connection.');
-      }
-      console.log('Backend connection test passed');
       
       let profilePicPath = editedUser?.profilePic;
       let data;
