@@ -284,15 +284,7 @@ export default function StudentMeeting() {
     );
   }
 
-  if (classes.length === 0) {
-    return (
-      <View style={styles.emptyContainer}>
-        <Icon name="account-group" size={64} color="#9CA3AF" />
-        <Text style={styles.emptyTitle}>No Active Classes</Text>
-        <Text style={styles.emptyText}>There are no active classes to join meetings in for the current academic year.</Text>
-      </View>
-    );
-  }
+  // Don't return early if no classes - still show tabs for direct invitations
 
   return (
     <>
@@ -423,52 +415,58 @@ export default function StudentMeeting() {
         </View>
       </View>
 
-      {/* Class Selector - Only show for class-meetings tab */}
-      {activeTab === 'class-meetings' && (
-        <View style={styles.classSelector}>
-        <Text style={styles.sectionTitle}>Select Class</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.classScroll}>
-          {classes.map((classItem) => (
-            <TouchableOpacity
-              key={classItem._id}
-              onPress={() => {
-                setSelectedClass(classItem);
-                fetchMeetings(classItem._id);
-              }}
-              style={[
-                styles.classCard,
-                selectedClass?._id === classItem._id && styles.selectedClassCard
-              ]}
-            >
-              <View style={styles.classCardContent}>
-                <View style={[
-                  styles.classIcon,
-                  selectedClass?._id === classItem._id && styles.selectedClassIcon
-                ]}>
-                  <Icon name="account-group" size={20} color={selectedClass?._id === classItem._id ? '#3B82F6' : '#6B7280'} />
-                </View>
-                <View>
-                  <Text style={[
-                    styles.className,
-                    selectedClass?._id === classItem._id && styles.selectedClassName
-                  ]}>
-                    {classItem.className || classItem.name}
-                  </Text>
-                  <Text style={styles.classCode}>{classItem.section || classItem.classCode || classItem._id}</Text>
-                  <Text style={styles.studentCount}>
-                    {classItem.members?.length || 0} students
-                  </Text>
-                </View>
-              </View>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-        </View>
-      )}
-
       {/* Tab Content */}
       {activeTab === 'class-meetings' && (
         <>
+          {/* Class Selector */}
+          <View style={styles.classSelector}>
+            <Text style={styles.sectionTitle}>Select Class</Text>
+            {classes.length === 0 ? (
+              <View style={styles.noClassesContainer}>
+                <Icon name="account-group" size={48} color="#9CA3AF" />
+                <Text style={styles.noClassesText}>No Active Classes</Text>
+                <Text style={styles.noClassesSubtext}>There are no active classes to join meetings in for the current academic year.</Text>
+              </View>
+            ) : (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.classScroll}>
+                {classes.map((classItem) => (
+                <TouchableOpacity
+                  key={classItem._id}
+                  onPress={() => {
+                    setSelectedClass(classItem);
+                    fetchMeetings(classItem._id);
+                  }}
+                  style={[
+                    styles.classCard,
+                    selectedClass?._id === classItem._id && styles.selectedClassCard
+                  ]}
+                >
+                  <View style={styles.classCardContent}>
+                    <View style={[
+                      styles.classIcon,
+                      selectedClass?._id === classItem._id && styles.selectedClassIcon
+                    ]}>
+                      <Icon name="account-group" size={20} color={selectedClass?._id === classItem._id ? '#3B82F6' : '#6B7280'} />
+                    </View>
+                    <View>
+                      <Text style={[
+                        styles.className,
+                        selectedClass?._id === classItem._id && styles.selectedClassName
+                      ]}>
+                        {classItem.className || classItem.name}
+                      </Text>
+                      <Text style={styles.classCode}>{classItem.section || classItem.classCode || classItem._id}</Text>
+                      <Text style={styles.studentCount}>
+                        {classItem.members?.length || 0} students
+                      </Text>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
+          </View>
+
           {/* Meeting List - Join Only */}
           {selectedClass && (
         <View style={styles.meetingSection}>
@@ -856,5 +854,23 @@ const styles = StyleSheet.create({
   activeTabText: {
     color: '#3B82F6',
     fontWeight: '600',
+  },
+  noClassesContainer: {
+    alignItems: 'center',
+    paddingVertical: 40,
+    paddingHorizontal: 20,
+  },
+  noClassesText: {
+    fontSize: 16,
+    color: '#6B7280',
+    marginTop: 16,
+    fontWeight: '600',
+  },
+  noClassesSubtext: {
+    fontSize: 14,
+    color: '#9CA3AF',
+    marginTop: 8,
+    textAlign: 'center',
+    lineHeight: 20,
   },
 });

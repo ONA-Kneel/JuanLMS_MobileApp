@@ -105,3 +105,4 @@ describe('InvitedMeetings Component', () => {
 });
 
 export default InvitedMeetings;
+
