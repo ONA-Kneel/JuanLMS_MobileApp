@@ -24,8 +24,33 @@ const getApiUrl = () => {
 };
 
 const API_URL = getApiUrl();
+console.log('🔧 ProfileService initialized with API_URL:', API_URL);
 
 const profileService = {
+  // Test server connectivity
+  async testServerConnection() {
+    try {
+      console.log('🔍 Testing server connection to:', API_URL);
+      
+      const response = await fetch(`${API_URL}/api/health`, {
+        method: 'GET',
+        timeout: 10000,
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ Server is responding:', data);
+        return { success: true, data };
+      } else {
+        console.error('❌ Server responded with error:', response.status, response.statusText);
+        return { success: false, error: `Server error: ${response.status}` };
+      }
+    } catch (error) {
+      console.error('❌ Server connection test failed:', error);
+      return { success: false, error: error.message };
+    }
+  },
+
   async updateProfile(userId, profileData) {
     try {
       const token = await AsyncStorage.getItem('jwtToken');
@@ -96,47 +121,82 @@ const profileService = {
     }
   },
 
-  async uploadProfilePicture(userId, imageAsset, isWeb = false, onLoadingChange = null, retryCount = 0) {
-    const maxRetries = 2;
-    const retryDelay = 1000; // 1 second
-    
+  async uploadProfilePicture(userId, imageAsset, isWeb = false) {
     try {
       console.log('=== ProfileService Upload Debug Start ===');
       console.log('API_URL:', API_URL);
       console.log('userId:', userId);
       console.log('isWeb:', isWeb);
       console.log('imageAsset:', imageAsset);
-      console.log('Retry attempt:', retryCount + 1);
       
-      // Notify UI that upload is starting
-      if (onLoadingChange) {
-        onLoadingChange(true);
-      }
+       // Test network connectivity first
+       try {
+         console.log('Testing connectivity to:', `${API_URL}/api/health`);
+         console.log('Current API_URL:', API_URL);
+         
+         const controller = new AbortController();
+         const timeoutId = setTimeout(() => controller.abort(), 10000);
+         
+         const testResponse = await fetch(`${API_URL}/api/health`, {
+           method: 'GET',
+           signal: controller.signal,
+           headers: {
+             'Accept': 'application/json',
+             'Content-Type': 'application/json',
+           },
+         });
+         
+         clearTimeout(timeoutId);
+         console.log('Network connectivity test:', testResponse.status, testResponse.statusText);
+         
+         if (!testResponse.ok) {
+           const errorText = await testResponse.text();
+           console.error('Health check response:', errorText);
+           throw new Error(`Server health check failed: ${testResponse.status} - ${errorText}`);
+         }
+         
+         const healthData = await testResponse.json();
+         console.log('✅ Network connectivity verified:', healthData);
+       } catch (networkError) {
+         console.error('❌ Network connectivity test failed:', networkError);
+         console.error('Network error details:', {
+           message: networkError.message,
+           name: networkError.name,
+           stack: networkError.stack
+         });
+         
+         // Try multiple fallback endpoints
+         const fallbackEndpoints = [
+           `${API_URL}/`,
+           `${API_URL}/users`,
+           `${API_URL}/api/health`
+         ];
+         
+         let connectivityVerified = false;
+         for (const endpoint of fallbackEndpoints) {
+           try {
+             console.log(`🔄 Trying fallback endpoint: ${endpoint}`);
+             const fallbackResponse = await fetch(endpoint, {
+               method: 'GET',
+               timeout: 5000,
+             });
+             console.log(`✅ Fallback endpoint ${endpoint} responded:`, fallbackResponse.status);
+             connectivityVerified = true;
+             break;
+           } catch (fallbackError) {
+             console.error(`❌ Fallback endpoint ${endpoint} failed:`, fallbackError.message);
+           }
+         }
+         
+         if (!connectivityVerified) {
+           console.error('🚨 All connectivity tests failed - server may be down');
+           throw new Error('Cannot connect to server. The server may be temporarily unavailable. Please try again later.');
+         }
+       }
       
       const token = await AsyncStorage.getItem('jwtToken');
       console.log('Token exists:', !!token);
       console.log('Token length:', token ? token.length : 0);
-      
-      // Quick network connectivity check
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000);
-        
-        const testResponse = await fetch(`${API_URL}/health`, { 
-          method: 'GET',
-          signal: controller.signal
-        });
-        clearTimeout(timeoutId);
-        
-        if (testResponse.ok) {
-          console.log('Network connectivity check passed:', testResponse.status);
-        } else {
-          console.warn('Network connectivity check returned non-OK status:', testResponse.status);
-        }
-      } catch (connectivityError) {
-        console.warn('Network connectivity check failed:', connectivityError.message);
-        // Continue with upload attempt anyway, as this is just a pre-check
-      }
       // Enforce same constraints as WebApp: image types only, max 5MB
       const MAX_BYTES = 5 * 1024 * 1024;
       const formData = new FormData();
@@ -202,113 +262,135 @@ const profileService = {
       const isNative = Platform.OS === 'ios' || Platform.OS === 'android';
       if (isNative) {
         const fetchHeaders = {
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
           // Do NOT set Content-Type; RN fetch will add correct multipart boundary
+          // Do NOT set Authorization header - matches web app behavior
         };
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 45000); // 45 second timeout for large uploads
-        
-        console.log('=== Network Request Debug ===');
-        console.log('Request URL:', `${API_URL}/users/${userId}/upload-profile`);
-        console.log('Request method: POST');
-        console.log('Headers:', fetchHeaders);
-        console.log('FormData keys:', Array.from(formData._parts ? formData._parts.keys() : []));
-        console.log('Token present:', !!token);
-        console.log('Token prefix:', token ? token.substring(0, 10) + '...' : 'None');
-        
-        let fetchResp;
-        try {
-          fetchResp = await fetch(`${API_URL}/users/${userId}/upload-profile`, {
-            method: 'POST',
-            headers: fetchHeaders,
-            body: formData,
-            signal: controller.signal,
-          });
-          
-          console.log('Fetch request completed successfully');
-        } catch (fetchError) {
-          clearTimeout(timeoutId);
-          console.error('=== Fetch Error Details ===');
-          console.error('Error name:', fetchError.name);
-          console.error('Error message:', fetchError.message);
-          console.error('Error code:', fetchError.code);
-          console.error('Error stack:', fetchError.stack);
-          console.error('API_URL:', API_URL);
-          console.error('Request URL:', `${API_URL}/users/${userId}/upload-profile`);
-          console.error('=== End Fetch Error Details ===');
-          
-          // Enhanced error handling for different types of fetch errors
-          if (fetchError.name === 'AbortError') {
-            throw new Error('Upload timeout. Please check your connection and try again.');
-          } else if (fetchError.message.includes('Network request failed')) {
-            throw new Error('Network connection failed. Please check your internet connection and try again.');
-          } else if (fetchError.message.includes('fetch')) {
-            throw new Error('Unable to reach server. Please check your internet connection.');
-          } else {
-            throw new Error(`Network error: ${fetchError.message}`);
-          }
-        }
+         const controller = new AbortController();
+         const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+         
+         console.log('🚀 Sending upload request to:', `${API_URL}/users/${userId}/upload-profile`);
+         console.log('📤 Request headers:', fetchHeaders);
+         console.log('📦 FormData keys:', Array.from(formData._parts?.map(p => p[0]) || []));
+         console.log('🔗 Full upload URL:', `${API_URL}/users/${userId}/upload-profile`);
+         
+         let fetchResp;
+         let retryCount = 0;
+         const maxRetries = 3;
+         let lastError;
+         
+         while (retryCount < maxRetries) {
+           try {
+             console.log(`🔄 Upload attempt ${retryCount + 1}/${maxRetries}`);
+             fetchResp = await fetch(`${API_URL}/users/${userId}/upload-profile`, {
+               method: 'POST',
+               headers: fetchHeaders,
+               body: formData,
+               signal: controller.signal,
+             });
+             console.log('📥 Upload response status:', fetchResp.status, fetchResp.statusText);
+             break; // Success, exit retry loop
+           } catch (attemptError) {
+             lastError = attemptError;
+             retryCount++;
+             console.error(`❌ Upload attempt ${retryCount} failed:`, attemptError.message);
+             
+             if (attemptError.message.includes('Network request failed') && retryCount < maxRetries) {
+               console.log(`⏳ Retrying in ${retryCount * 1000}ms...`);
+               await new Promise(resolve => setTimeout(resolve, retryCount * 1000));
+               continue;
+             }
+             
+             // Try axios fallback for Android "Network request failed" errors
+             if (attemptError.message.includes('Network request failed') && Platform.OS === 'android') {
+               console.log('🔄 Trying axios fallback for Android...');
+               try {
+                 const axiosResponse = await axios.post(`${API_URL}/users/${userId}/upload-profile`, formData, {
+                   headers: {
+                     // Do NOT set Authorization header - matches web app behavior
+                     'Content-Type': 'multipart/form-data',
+                   },
+                   timeout: 30000,
+                 });
+                 console.log('✅ Axios fallback successful');
+                 fetchResp = {
+                   ok: true,
+                   status: axiosResponse.status,
+                   statusText: axiosResponse.statusText,
+                   headers: new Map(Object.entries(axiosResponse.headers)),
+                   json: () => Promise.resolve(axiosResponse.data),
+                 };
+                 break; // Success, exit retry loop
+               } catch (axiosError) {
+                 console.error('❌ Axios fallback also failed:', axiosError);
+                 throw attemptError; // Throw original fetch error
+               }
+             }
+             
+             throw attemptError;
+           }
+         }
+         
+         if (!fetchResp) {
+           throw lastError || new Error('All upload attempts failed');
+         }
         
         clearTimeout(timeoutId);
-        console.log('Response status:', fetchResp.status);
-        console.log('Response status text:', fetchResp.statusText);
-        console.log('Response headers:', Object.fromEntries(fetchResp.headers.entries()));
-        
         if (!fetchResp.ok) {
-          let errorText;
-          try {
-            errorText = await fetchResp.text();
-            console.error('Error response text:', errorText);
-            
-            // Try to parse as JSON for better error handling
-            try {
-              const errorJson = JSON.parse(errorText);
-              console.error('Parsed error response:', errorJson);
-              throw new Error(errorJson.message || errorJson.error || `Upload failed with status ${fetchResp.status}`);
-            } catch (parseError) {
-              // If not JSON, use the text as is
-              throw new Error(errorText || `Upload failed with status ${fetchResp.status}`);
-            }
-          } catch (textError) {
-            console.error('Failed to read error response:', textError);
-            throw new Error(`Upload failed with status ${fetchResp.status}: ${textError.message}`);
-          }
+          const text = await fetchResp.text();
+          throw new Error(text || `Upload failed with status ${fetchResp.status}`);
         }
-        
-        const json = await fetchResp.json();
-        console.log('Upload response JSON:', json);
-        
-        // Notify UI that upload is complete
-        if (onLoadingChange) {
-          onLoadingChange(false);
-        }
-        
-        if (json?.profile_picture || json?.url) {
-          const pic = json.profile_picture || json.url;
-          return { user: { profilePic: pic } };
-        }
-        return json;
+         const json = await fetchResp.json();
+         console.log('Backend response:', json);
+         
+         // Handle the actual backend response structure
+         let profilePicUrl = null;
+         if (json?.user?.profilePic) {
+           profilePicUrl = json.user.profilePic;
+         } else if (json?.imageFilename) {
+           profilePicUrl = json.imageFilename;
+         } else if (json?.profile_picture) {
+           profilePicUrl = json.profile_picture;
+         } else if (json?.url) {
+           profilePicUrl = json.url;
+         }
+         
+         if (profilePicUrl) {
+           console.log('✅ Profile picture URL extracted:', profilePicUrl);
+           return { user: { profilePic: profilePicUrl } };
+         } else {
+           console.warn('⚠️ No profile picture URL found in response:', json);
+           return json;
+         }
       } else {
         // Use axios for web
         const response = await axios.post(`${API_URL}/users/${userId}/upload-profile`, formData, {
           headers: {
-            Authorization: token ? `Bearer ${token}` : undefined,
+            // Do NOT set Authorization header - matches web app behavior
             // Do NOT set Content-Type manually for multipart; let axios set boundary
             Accept: 'application/json',
           },
         });
-        
-        // Notify UI that upload is complete
-        if (onLoadingChange) {
-          onLoadingChange(false);
-        }
-        
-        // Normalize response to expected shape used by callers
-        if (response?.data?.profile_picture || response?.data?.url) {
-          const pic = response.data.profile_picture || response.data.url;
-          return { user: { profilePic: pic } };
-        }
-        return response.data;
+         // Normalize response to expected shape used by callers
+         console.log('Axios response:', response.data);
+         
+         let profilePicUrl = null;
+         if (response?.data?.user?.profilePic) {
+           profilePicUrl = response.data.user.profilePic;
+         } else if (response?.data?.imageFilename) {
+           profilePicUrl = response.data.imageFilename;
+         } else if (response?.data?.profile_picture) {
+           profilePicUrl = response.data.profile_picture;
+         } else if (response?.data?.url) {
+           profilePicUrl = response.data.url;
+         }
+         
+         if (profilePicUrl) {
+           console.log('✅ Profile picture URL extracted (axios):', profilePicUrl);
+           return { user: { profilePic: profilePicUrl } };
+         } else {
+           console.warn('⚠️ No profile picture URL found in axios response:', response.data);
+           return response.data;
+         }
       }
     } catch (error) {
       console.error('=== ProfileService Upload Debug End - Error ===');
@@ -318,34 +400,6 @@ const profileService = {
       console.error('Error response:', error.response);
       console.error('Error response data:', error.response?.data);
       console.error('Error response status:', error.response?.status);
-      
-      // Check if we should retry
-      const shouldRetry = retryCount < maxRetries && (
-        error.message.includes('Network request failed') ||
-        error.message.includes('Network connection failed') ||
-        error.message.includes('timeout') ||
-        error.message.includes('fetch')
-      );
-      
-      if (shouldRetry) {
-        console.log(`Retrying upload in ${retryDelay}ms... (attempt ${retryCount + 2}/${maxRetries + 1})`);
-        
-        // Notify UI that we're retrying
-        if (onLoadingChange) {
-          onLoadingChange(false);
-        }
-        
-        // Wait before retrying
-        await new Promise(resolve => setTimeout(resolve, retryDelay));
-        
-        // Retry the upload
-        return this.uploadProfilePicture(userId, imageAsset, isWeb, onLoadingChange, retryCount + 1);
-      }
-      
-      // Notify UI that upload failed and loading should stop
-      if (onLoadingChange) {
-        onLoadingChange(false);
-      }
       
       // Handle different types of errors
       if (error.message && error.message.includes('Cannot connect to server')) {
@@ -372,10 +426,16 @@ const profileService = {
         }
       }
       
-      // Handle network errors
-      if (error.message && error.message.includes('Network request failed')) {
-        throw new Error('Network connection failed. Please check your internet connection and try again.');
-      }
+       // Handle network errors with more specific guidance
+       if (error.message && error.message.includes('Network request failed')) {
+         console.error('🔍 Network request failed - possible causes:');
+         console.error('1. Backend server is down:', API_URL);
+         console.error('2. Network connectivity issues');
+         console.error('3. CORS issues');
+         console.error('4. Firewall blocking the request');
+         
+         throw new Error('Network connection failed. Please check your internet connection and try again. If the problem persists, the server may be temporarily unavailable.');
+       }
       
       if (error.message && error.message.includes('timeout')) {
         throw new Error('Upload timeout. Please try again with a smaller image or better connection.');
