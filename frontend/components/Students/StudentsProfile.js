@@ -115,10 +115,10 @@ export default function StudentsProfile() {
   const testBackendConnection = async () => {
     try {
       console.log('Manual backend connection test...');
-      const isConnected = await profileService.testBackendConnection();
+      const connectionTest = await profileService.testServerConnection();
       Alert.alert(
         'Backend Test', 
-        isConnected ? '✅ Backend connection successful!' : '❌ Backend connection failed!'
+        connectionTest.success ? '✅ Backend connection successful!' : '❌ Backend connection failed!'
       );
     } catch (error) {
       console.error('Backend test error:', error);
