@@ -20,6 +20,7 @@ import { useUser } from '../UserContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNotifications } from '../../NotificationContext';
 import NotificationCenter from '../NotificationCenter';
+import InvitedMeetings from '../Meeting/InvitedMeetings';
 let StreamMeetingRoomNative = null;
 let SimpleStreamMeetingRoom = null;
 if (Platform.OS !== 'web') {
@@ -41,6 +42,7 @@ export default function FacultyMeeting() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [academicContext, setAcademicContext] = useState('2025-2026 | Term 1');
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
+  const [activeTab, setActiveTab] = useState('class-meetings'); // 'class-meetings' or 'invited-meetings'
   
   // Notification state
   const [showNotificationCenter, setShowNotificationCenter] = useState(false);
@@ -464,8 +466,55 @@ export default function FacultyMeeting() {
           </View>
         </View>
 
-      {/* Class Selector */}
-      <View style={styles.classSelector}>
+        {/* Tab Navigation */}
+        <View style={styles.tabContainer}>
+          <View style={styles.tabNavigation}>
+            <TouchableOpacity
+              style={[
+                styles.tabButton,
+                activeTab === 'class-meetings' && styles.activeTabButton
+              ]}
+              onPress={() => setActiveTab('class-meetings')}
+            >
+              <Icon 
+                name="account-group" 
+                size={20} 
+                color={activeTab === 'class-meetings' ? '#3B82F6' : '#6B7280'} 
+              />
+              <Text style={[
+                styles.tabText,
+                activeTab === 'class-meetings' && styles.activeTabText
+              ]}>
+                Class Meetings
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.tabButton,
+                activeTab === 'invited-meetings' && styles.activeTabButton
+              ]}
+              onPress={() => setActiveTab('invited-meetings')}
+            >
+              <Icon 
+                name="account-plus" 
+                size={20} 
+                color={activeTab === 'invited-meetings' ? '#3B82F6' : '#6B7280'} 
+              />
+              <Text style={[
+                styles.tabText,
+                activeTab === 'invited-meetings' && styles.activeTabText
+              ]}>
+                Direct Invitations
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Tab Content */}
+        {activeTab === 'class-meetings' && (
+          <>
+            {/* Class Selector */}
+            <View style={styles.classSelector}>
         <Text style={styles.sectionTitle}>Select Class for Meeting</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.classScroll}>
           {classes.map((classItem) => (
@@ -592,9 +641,19 @@ export default function FacultyMeeting() {
             )}
           </View>
         </View>
-      )}
+          )}
+          </>
+        )}
 
-      {/* Create Meeting Modal */}
+        {/* Invited Meetings Tab */}
+        {activeTab === 'invited-meetings' && (
+          <InvitedMeetings
+            onJoinMeeting={handleJoinMeeting}
+            refreshTrigger={0}
+          />
+        )}
+
+        {/* Create Meeting Modal */}
       <Modal
         visible={showCreateModal}
         animationType="slide"
@@ -1133,5 +1192,50 @@ const styles = StyleSheet.create({
   submitButtonText: {
     color: 'white',
     fontWeight: '500',
+  },
+  // Tab Navigation Styles
+  tabContainer: {
+    backgroundColor: 'white',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    marginBottom: 16,
+  },
+  tabNavigation: {
+    flexDirection: 'row',
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
+    padding: 4,
+  },
+  tabButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    gap: 8,
+  },
+  activeTabButton: {
+    backgroundColor: 'white',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#6B7280',
+  },
+  activeTabText: {
+    color: '#3B82F6',
+    fontWeight: '600',
   },
 });

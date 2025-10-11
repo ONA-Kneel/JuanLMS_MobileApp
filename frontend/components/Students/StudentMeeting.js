@@ -19,6 +19,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import StudentDashboardStyle from '../styles/Stud/StudentDashStyle';
 import { useNotifications } from '../../NotificationContext';
 import NotificationCenter from '../NotificationCenter';
+import InvitedMeetings from '../Meeting/InvitedMeetings';
 let StreamMeetingRoomNative = null;
 let SimpleStreamMeetingRoom = null;
 if (Platform.OS !== 'web') {
@@ -42,6 +43,7 @@ export default function StudentMeeting() {
   const [academicContext, setAcademicContext] = useState('2025-2026 | Term 1');
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
   const [activeMeeting, setActiveMeeting] = useState(null);
+  const [activeTab, setActiveTab] = useState('class-meetings'); // 'class-meetings' or 'invited-meetings'
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -377,8 +379,53 @@ export default function StudentMeeting() {
         </View>
       </View>
 
-      {/* Class Selector */}
-      <View style={styles.classSelector}>
+      {/* Tab Navigation */}
+      <View style={styles.tabContainer}>
+        <View style={styles.tabNavigation}>
+          <TouchableOpacity
+            style={[
+              styles.tabButton,
+              activeTab === 'class-meetings' && styles.activeTabButton
+            ]}
+            onPress={() => setActiveTab('class-meetings')}
+          >
+            <Icon 
+              name="account-group" 
+              size={20} 
+              color={activeTab === 'class-meetings' ? '#3B82F6' : '#6B7280'} 
+            />
+            <Text style={[
+              styles.tabText,
+              activeTab === 'class-meetings' && styles.activeTabText
+            ]}>
+              Class Meetings
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.tabButton,
+              activeTab === 'invited-meetings' && styles.activeTabButton
+            ]}
+            onPress={() => setActiveTab('invited-meetings')}
+          >
+            <Icon 
+              name="account-plus" 
+              size={20} 
+              color={activeTab === 'invited-meetings' ? '#3B82F6' : '#6B7280'} 
+            />
+            <Text style={[
+              styles.tabText,
+              activeTab === 'invited-meetings' && styles.activeTabText
+            ]}>
+              Direct Invitations
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Class Selector - Only show for class-meetings tab */}
+      {activeTab === 'class-meetings' && (
+        <View style={styles.classSelector}>
         <Text style={styles.sectionTitle}>Select Class</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.classScroll}>
           {classes.map((classItem) => (
@@ -416,10 +463,14 @@ export default function StudentMeeting() {
             </TouchableOpacity>
           ))}
         </ScrollView>
-      </View>
+        </View>
+      )}
 
-      {/* Meeting List - Join Only */}
-      {selectedClass && (
+      {/* Tab Content */}
+      {activeTab === 'class-meetings' && (
+        <>
+          {/* Meeting List - Join Only */}
+          {selectedClass && (
         <View style={styles.meetingSection}>
           <View style={styles.meetingHeader}>
             <View>
@@ -490,6 +541,16 @@ export default function StudentMeeting() {
             )}
           </View>
         </View>
+          )}
+        </>
+      )}
+
+      {/* Invited Meetings Tab */}
+      {activeTab === 'invited-meetings' && (
+        <InvitedMeetings
+          onJoinMeeting={handleJoinMeeting}
+          refreshTrigger={0}
+        />
       )}
     </ScrollView>
     {activeMeeting && Platform.OS !== 'web' && SimpleStreamMeetingRoom && (
@@ -750,5 +811,50 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: '500',
     marginLeft: 4,
+  },
+  // Tab Navigation Styles
+  tabContainer: {
+    backgroundColor: 'white',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    marginBottom: 16,
+  },
+  tabNavigation: {
+    flexDirection: 'row',
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
+    padding: 4,
+  },
+  tabButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    gap: 8,
+  },
+  activeTabButton: {
+    backgroundColor: 'white',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#6B7280',
+  },
+  activeTabText: {
+    color: '#3B82F6',
+    fontWeight: '600',
   },
 });
