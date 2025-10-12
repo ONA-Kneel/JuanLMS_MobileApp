@@ -205,6 +205,16 @@ export default function EnhancedStreamMeetingRoom({
         return;
       }
 
+      // Disable screen sharing on iOS devices
+      if (Platform.OS === 'ios') {
+        Alert.alert(
+          'Screen Sharing Not Available',
+          'Screen sharing is not supported on iOS devices. Please use Android or web for screen sharing features.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+
       if (Platform.OS === 'web') {
         // For web, use the standard screen share
         if (isScreenSharing) {
@@ -213,7 +223,7 @@ export default function EnhancedStreamMeetingRoom({
           await call.startScreenShare();
         }
       } else {
-        // For mobile devices, check permissions first
+        // For Android devices, check permissions first
         if (Platform.OS === 'android') {
           const { PermissionsAndroid } = require('react-native');
           const granted = await PermissionsAndroid.request(

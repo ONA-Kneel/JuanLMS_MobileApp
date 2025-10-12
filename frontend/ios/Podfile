@@ -20,6 +20,9 @@ target 'JuanLMS' do
   # Flags change depending on the env values.
   flags = get_default_flags()
   
+  # Stream Video iOS SDK
+  pod 'StreamVideo', :path => '../../node_modules/@stream-io/video-react-native-sdk/ios'
+  
   # Let React Native auto-link handle Firebase pods
 
   use_react_native!(

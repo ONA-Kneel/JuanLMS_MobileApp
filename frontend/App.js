@@ -237,26 +237,8 @@ export default function App() {
     'Poppins-Thin': require('./assets/fonts/Poppins-Thin.ttf'),
   });
 
-  // Request notification permissions
-  useEffect(() => {
-    const requestPermission = async () => {
-      try {
-        const result = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS);
-        console.log("result**", result);
-        console.log("result2**", PermissionsAndroid.RESULTS.GRANTED);
-        if (result === PermissionsAndroid.RESULTS.GRANTED) {
-          // FCM token handling is now managed by NotificationContext
-          console.log("Notification permission granted");
-        } else {
-          Alert.alert("Permission Denied");
-        }
-      } catch (error) {
-        console.log(error);
-      }
-    };
-
-    requestPermission();
-  }, []);
+  // Note: Notification permissions are now handled by NotificationContext
+  // This ensures cross-platform compatibility for both iOS and Android
 
   if (!fontsLoaded) {
     return (
