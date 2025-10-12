@@ -42,7 +42,21 @@ export default function StudentMeeting() {
   const [academicContext, setAcademicContext] = useState('2025-2026 | Term 1');
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
   const [activeMeeting, setActiveMeeting] = useState(null);
-  const [activeTab, setActiveTab] = useState('class-meetings'); // 'class-meetings' or 'invited-meetings'
+  const [activeTab, setActiveTab] = useState('class-meetings'); // 'class-meetings', 'invited-meetings', or 'host-meeting'
+  
+  // Host meeting states
+  const [allUsers, setAllUsers] = useState([]);
+  const [selectedUsers, setSelectedUsers] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [expandedRoles, setExpandedRoles] = useState({});
+  const [creating, setCreating] = useState(false);
+  const [meetingTitle, setMeetingTitle] = useState('');
+  const [meetingDescription, setMeetingDescription] = useState('');
+  const [meetingType, setMeetingType] = useState('instant');
+  const [scheduledDate, setScheduledDate] = useState('');
+  const [scheduledTime, setScheduledTime] = useState('');
+  const [duration, setDuration] = useState('');
+  const [hostedMeetings, setHostedMeetings] = useState([]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -54,6 +68,8 @@ export default function StudentMeeting() {
 
   useEffect(() => {
     fetchClasses();
+    fetchAllUsers();
+    fetchHostedMeetings();
   }, []);
 
   // Add safety check to prevent white screen when user is null (during logout)
@@ -173,6 +189,50 @@ export default function StudentMeeting() {
     }
   };
 
+  const fetchAllUsers = async () => {
+    try {
+      const token = await AsyncStorage.getItem('jwtToken');
+      const response = await fetch('https://juanlms-webapp-server.onrender.com/users/all', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const users = await response.json();
+        const currentUserId = user?._id;
+        // Filter to only show other students
+        const filtered = Array.isArray(users)
+          ? users.filter(u => u && u._id && u._id !== currentUserId && u.role === 'student' && u.status !== 'inactive')
+          : [];
+        setAllUsers(filtered);
+      }
+    } catch (e) {
+      console.error('Error fetching users:', e);
+    }
+  };
+
+  const fetchHostedMeetings = async () => {
+    if (!user || !user._id) return;
+    
+    try {
+      const token = await AsyncStorage.getItem('jwtToken');
+      const response = await fetch('https://juanlms-webapp-server.onrender.com/api/meetings/direct-invite', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // Filter to only show meetings hosted by the current student
+        const studentHostedMeetings = Array.isArray(data) 
+          ? data.filter(meeting => meeting.hostId === user._id)
+          : [];
+        setHostedMeetings(studentHostedMeetings);
+      }
+    } catch (error) {
+      console.error('Error fetching hosted meetings:', error);
+    }
+  };
+
   const handleJoinMeeting = async (meeting) => {
     try {
       const token = await AsyncStorage.getItem('jwtToken');
@@ -213,6 +273,110 @@ export default function StudentMeeting() {
     } catch (error) {
       console.error('Error joining meeting:', error);
       Alert.alert('Error', 'Failed to join meeting');
+    }
+  };
+
+  const toggleUserSelection = (u) => {
+    setSelectedUsers(prev => {
+      const exists = prev.some(p => p._id === u._id);
+      if (exists) return prev.filter(p => p._id !== u._id);
+      return [...prev, u];
+    });
+  };
+
+  const toggleRoleExpansion = (role) => {
+    setExpandedRoles(prev => ({
+      ...prev,
+      [role]: !prev[role]
+    }));
+  };
+
+  const clearSelection = () => {
+    setSelectedUsers([]);
+    setSearchTerm('');
+  };
+
+  const usersByRole = allUsers
+    .filter(u => {
+      const name = `${u.firstName || u.firstname || ''} ${u.lastName || u.lastname || ''}`.toLowerCase();
+      const email = (u.email || '').toLowerCase();
+      const role = (u.role || '').toLowerCase();
+      const q = searchTerm.toLowerCase();
+      return name.includes(q) || email.includes(q) || role.includes(q);
+    })
+    .reduce((acc, u) => {
+      const role = u.role || 'student';
+      if (!acc[role]) acc[role] = [];
+      acc[role].push(u);
+      return acc;
+    }, {});
+
+  const handleCreateDirectInvite = async () => {
+    if (selectedUsers.length === 0) {
+      Alert.alert('No Participants', 'Please select at least one student to invite.');
+      return;
+    }
+    if (!meetingTitle.trim()) {
+      Alert.alert('Meeting Title Required', 'Please enter a meeting title.');
+      return;
+    }
+    if (meetingType === 'scheduled') {
+      if (!scheduledDate || !scheduledTime) {
+        Alert.alert('Schedule Required', 'Please provide date and time for scheduled meeting.');
+        return;
+      }
+    }
+    try {
+      setCreating(true);
+      const token = await AsyncStorage.getItem('jwtToken');
+      let scheduledIso = new Date().toISOString();
+      if (meetingType === 'scheduled') {
+        const composed = new Date(`${scheduledDate}T${scheduledTime}:00`);
+        if (!isNaN(composed.getTime())) {
+          scheduledIso = composed.toISOString();
+        }
+      }
+
+      const body = {
+        title: meetingTitle.trim(),
+        description: meetingDescription.trim(),
+        meetingType,
+        classID: 'direct-invite',
+        participants: selectedUsers.map(u => u._id),
+        scheduledTime: scheduledIso,
+        duration: duration ? parseInt(duration) : null,
+      };
+      const response = await fetch('https://juanlms-webapp-server.onrender.com/api/meetings/direct-invite', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(body),
+      });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.message || 'Failed to create meeting');
+      }
+      const newMeeting = await response.json();
+      setSelectedUsers([]);
+      setMeetingTitle('');
+      setMeetingDescription('');
+      setMeetingType('instant');
+      setScheduledDate('');
+      setScheduledTime('');
+      setDuration('');
+      fetchHostedMeetings();
+      if (newMeeting && newMeeting.meetingType === 'instant') {
+        handleJoinMeeting(newMeeting);
+      } else {
+        Alert.alert('Success', 'Meeting created successfully!');
+      }
+    } catch (e) {
+      console.error('Create direct-invite error:', e);
+      Alert.alert('Error', e.message || 'Failed to create meeting');
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -404,6 +568,25 @@ export default function StudentMeeting() {
               Direct Invitations
             </Text>
           </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.tabButton,
+              activeTab === 'host-meeting' && styles.activeTabButton
+            ]}
+            onPress={() => setActiveTab('host-meeting')}
+          >
+            <Icon 
+              name="video" 
+              size={20} 
+              color={activeTab === 'host-meeting' ? '#3B82F6' : '#6B7280'} 
+            />
+            <Text style={[
+              styles.tabText,
+              activeTab === 'host-meeting' && styles.activeTabText
+            ]}>
+              Host Meeting
+            </Text>
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -541,6 +724,290 @@ export default function StudentMeeting() {
           onJoinMeeting={handleJoinMeeting}
           refreshTrigger={0}
         />
+      )}
+
+      {/* Host Meeting Tab */}
+      {activeTab === 'host-meeting' && (
+        <>
+          {/* Student Hosted Meetings List */}
+          <View style={styles.meetingSection}>
+            <View style={styles.meetingHeader}>
+              <View>
+                <Text style={styles.meetingTitle}>Your Hosted Meetings</Text>
+                <Text style={styles.meetingSubtitle}>Instant Meetings</Text>
+              </View>
+            </View>
+
+            <View style={styles.meetingList}>
+              {hostedMeetings.length === 0 ? (
+                <View style={styles.noMeetings}>
+                  <Icon name="video" size={48} color="#9CA3AF" />
+                  <Text style={styles.noMeetingsText}>No meetings hosted yet</Text>
+                  <Text style={styles.noMeetingsSubtext}>Create your first meeting below</Text>
+                </View>
+              ) : (
+                hostedMeetings.map((meeting) => {
+                  const status = getMeetingStatus(meeting);
+                  return (
+                    <View key={meeting._id} style={styles.meetingCard}>
+                      <View style={styles.meetingInfo}>
+                        <View style={styles.meetingHeaderRow}>
+                          <Text style={styles.meetingName}>{meeting.title}</Text>
+                          <View style={[styles.statusBadge, { backgroundColor: status.color + '20' }]}>
+                            <Text style={[styles.statusText, { color: status.color }]}>
+                              {status.label}
+                            </Text>
+                          </View>
+                        </View>
+                        
+                        {meeting.description && (
+                          <Text style={styles.meetingDescription}>{meeting.description}</Text>
+                        )}
+                        
+                        <View style={styles.meetingDetails}>
+                          <View style={styles.detailItem}>
+                            <Icon name="calendar" size={16} color="#6B7280" />
+                            <Text style={styles.detailText}>{formatDateTime(meeting.scheduledTime)}</Text>
+                          </View>
+                          <View style={styles.detailItem}>
+                            <Icon name="clock-outline" size={16} color="#6B7280" />
+                            <Text style={styles.detailText}>{meeting.duration || 'No limit'} min</Text>
+                          </View>
+                          <View style={styles.detailItem}>
+                            <Icon name="account-group" size={16} color="#6B7280" />
+                            <Text style={styles.detailText}>{meeting.participants?.length || 0} invited</Text>
+                          </View>
+                        </View>
+                        
+                        {meeting.participants && meeting.participants.length > 0 && (
+                          <View style={styles.participantsList}>
+                            <Text style={styles.participantsTitle}>Invited:</Text>
+                            <Text style={styles.participantsText}>
+                              {meeting.participants.map(p => p.firstName || p.firstname || 'Unknown').join(', ')}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                      
+                      <View style={styles.meetingActions}>
+                        <TouchableOpacity
+                          onPress={() => handleJoinMeeting(meeting)}
+                          style={styles.joinButton}
+                        >
+                          <Icon name="play" size={16} color="white" />
+                          <Text style={styles.joinButtonText}>Join</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  );
+                })
+              )}
+            </View>
+          </View>
+
+          {/* Student Selection Section */}
+          <View style={styles.selectionCard}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <Text style={styles.sectionTitle}>Select Students to Invite</Text>
+              <TouchableOpacity
+                disabled={selectedUsers.length === 0 || creating || !meetingTitle.trim() || (meetingType === 'scheduled' && (!scheduledDate || !scheduledTime))}
+                onPress={handleCreateDirectInvite}
+                style={[styles.createButton, (selectedUsers.length === 0 || creating || !meetingTitle.trim()) && { opacity: 0.6 }]}
+              >
+                <Icon name="plus" size={18} color="#fff" />
+                <Text style={styles.createButtonText}>Create ({selectedUsers.length})</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Meeting Form */}
+            <View style={{ gap: 8, marginBottom: 16 }}>
+              {/* Title */}
+              <View style={styles.textInputRow}>
+                <Icon name="format-title" size={18} color="#6B7280" />
+                <Text style={styles.textLabel}>Title</Text>
+              </View>
+              <View style={styles.inputField}>
+                <Text
+                  style={styles.inputFieldText}
+                  onPress={() => {
+                    Alert.prompt('Meeting Title', 'Enter meeting title:', (text) => {
+                      if (text) setMeetingTitle(text);
+                    }, 'plain-text', meetingTitle);
+                  }}
+                >{meetingTitle || 'Add a meeting title'}</Text>
+              </View>
+
+              {/* Description */}
+              <View style={styles.textInputRow}>
+                <Icon name="text" size={18} color="#6B7280" />
+                <Text style={styles.textLabel}>Description (optional)</Text>
+              </View>
+              <View style={styles.inputField}>
+                <Text
+                  style={styles.inputFieldText}
+                  onPress={() => {
+                    Alert.prompt('Meeting Description', 'Enter meeting description (optional):', (text) => {
+                      setMeetingDescription(text || '');
+                    }, 'plain-text', meetingDescription);
+                  }}
+                >{meetingDescription || 'Add a description (optional)'}</Text>
+              </View>
+
+              {/* Meeting type toggle */}
+              <View style={styles.typeToggleRow}>
+                <TouchableOpacity onPress={() => setMeetingType('instant')} style={[styles.typePill, meetingType === 'instant' && styles.typePillActive]}>
+                  <Text style={[styles.typePillText, meetingType === 'instant' && styles.typePillTextActive]}>Instant</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setMeetingType('scheduled')} style={[styles.typePill, meetingType === 'scheduled' && styles.typePillActive]}>
+                  <Text style={[styles.typePillText, meetingType === 'scheduled' && styles.typePillTextActive]}>Scheduled</Text>
+                </TouchableOpacity>
+              </View>
+
+              {meetingType === 'scheduled' && (
+                <View style={{ gap: 8 }}>
+                  <View style={styles.inlineRow}>
+                    <Icon name="calendar" size={18} color="#6B7280" />
+                    <Text style={styles.inlineLabel}>Date (YYYY-MM-DD)</Text>
+                  </View>
+                  <View style={styles.inputField}>
+                    <Text
+                      style={styles.inputFieldText}
+                      onPress={() => {
+                        Alert.prompt('Date', 'Enter date (YYYY-MM-DD):', (text) => {
+                          if (text) setScheduledDate(text);
+                        }, 'plain-text', scheduledDate);
+                      }}
+                    >{scheduledDate || 'e.g. 2025-10-05'}</Text>
+                  </View>
+
+                  <View style={styles.inlineRow}>
+                    <Icon name="clock-outline" size={18} color="#6B7280" />
+                    <Text style={styles.inlineLabel}>Time (HH:mm)</Text>
+                  </View>
+                  <View style={styles.inputField}>
+                    <Text
+                      style={styles.inputFieldText}
+                      onPress={() => {
+                        Alert.prompt('Time', 'Enter time (HH:mm):', (text) => {
+                          if (text) setScheduledTime(text);
+                        }, 'plain-text', scheduledTime);
+                      }}
+                    >{scheduledTime || 'e.g. 14:30'}</Text>
+                  </View>
+
+                  <View style={styles.inlineRow}>
+                    <Icon name="timer" size={18} color="#6B7280" />
+                    <Text style={styles.inlineLabel}>Duration (minutes)</Text>
+                  </View>
+                  <View style={styles.inputField}>
+                    <Text
+                      style={styles.inputFieldText}
+                      onPress={() => {
+                        Alert.prompt('Duration', 'Enter duration in minutes (optional):', (text) => {
+                          setDuration(text || '');
+                        }, 'plain-text', duration);
+                      }}
+                    >{duration || 'optional'}</Text>
+                  </View>
+                </View>
+              )}
+            </View>
+
+            {/* Search Bar */}
+            <View style={styles.searchRow}>
+              <Icon name="magnify" size={18} color="#6B7280" />
+              <Text style={styles.searchPlaceholder}>{searchTerm || 'Search students by name or email...'}</Text>
+              <TouchableOpacity onPress={() => {
+                Alert.prompt('Search', 'Search students:', (text) => {
+                  setSearchTerm(text || '');
+                }, 'plain-text', searchTerm);
+              }}>
+                <Text style={{ color: '#2563EB', fontWeight: '500' }}>Edit</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Selected Users */}
+            {selectedUsers.length > 0 && (
+              <View style={{ marginBottom: 16 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <Text style={styles.selectedTitle}>Selected Participants ({selectedUsers.length})</Text>
+                  <TouchableOpacity onPress={clearSelection}>
+                    <Text style={styles.clearAllText}>Clear All</Text>
+                  </TouchableOpacity>
+                </View>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                  {selectedUsers.map(u => (
+                    <TouchableOpacity key={u._id} onPress={() => toggleUserSelection(u)} style={styles.chip}>
+                      <Text style={styles.chipText}>{(u.firstName || u.firstname || '?')[0]}{(u.lastName || u.lastname || '?')[0]} · {u.firstName || u.firstname} {u.lastName || u.lastname}</Text>
+                      <Text style={styles.chipRemove}>×</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            )}
+
+            {/* Student List */}
+            <View style={{ gap: 12 }}>
+              {Object.entries(usersByRole).map(([role, list]) => {
+                const isExpanded = expandedRoles[role];
+                const selectedInRole = list.filter(u => selectedUsers.some(s => s._id === u._id)).length;
+                
+                return (
+                  <View key={role} style={styles.roleDropdown}>
+                    <TouchableOpacity
+                      onPress={() => toggleRoleExpansion(role)}
+                      style={styles.roleDropdownHeader}
+                    >
+                      <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                        <Icon 
+                          name={isExpanded ? "chevron-down" : "chevron-right"} 
+                          size={20} 
+                          color="#6B7280" 
+                          style={{ marginRight: 8 }}
+                        />
+                        <Text style={styles.roleHeader}>
+                          {role.charAt(0).toUpperCase() + role.slice(1)}
+                        </Text>
+                        <Text style={styles.roleSelectionCount}>
+                          ({selectedInRole}/{list.length} selected)
+                        </Text>
+                      </View>
+                      <Text style={styles.roleUserCount}>{list.length} students</Text>
+                    </TouchableOpacity>
+                    
+                    {isExpanded && (
+                      <View style={styles.roleContent}>
+                        <View style={{ gap: 8 }}>
+                          {list.map(u => {
+                            const isSelected = selectedUsers.some(s => s._id === u._id);
+                            return (
+                              <TouchableOpacity 
+                                key={u._id} 
+                                onPress={() => toggleUserSelection(u)} 
+                                style={[styles.userRow, isSelected && styles.userRowSelected]}
+                              >
+                                <View style={[styles.avatar, isSelected && styles.avatarSelected]}>
+                                  <Text style={[styles.avatarText, isSelected && styles.avatarTextSelected]}>
+                                    {(u.firstName || u.firstname || '?')[0]}{(u.lastName || u.lastname || '?')[0]}
+                                  </Text>
+                                </View>
+                                <View style={{ flex: 1 }}>
+                                  <Text style={styles.userName}>{u.firstName || u.firstname} {u.lastName || u.lastname}</Text>
+                                  <Text style={styles.userEmail}>{u.email}</Text>
+                                </View>
+                                {isSelected && <Icon name="check-circle" size={20} color="#2563EB" />}
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </View>
+                      </View>
+                    )}
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+        </>
       )}
       </ScrollView>
       
@@ -899,5 +1366,231 @@ const styles = StyleSheet.create({
     marginTop: 8,
     textAlign: 'center',
     lineHeight: 20,
+  },
+  // Host Meeting Styles
+  selectionCard: {
+    backgroundColor: 'white',
+    margin: 16,
+    padding: 20,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  createButton: {
+    backgroundColor: '#2563EB',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    gap: 4,
+  },
+  createButtonText: {
+    color: 'white',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  textInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  textLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#374151',
+  },
+  inputField: {
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginTop: 4,
+  },
+  inputFieldText: {
+    fontSize: 14,
+    color: '#374151',
+  },
+  typeToggleRow: {
+    flexDirection: 'row',
+    backgroundColor: '#F3F4F6',
+    borderRadius: 8,
+    padding: 4,
+    gap: 4,
+  },
+  typePill: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  typePillActive: {
+    backgroundColor: 'white',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  typePillText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#6B7280',
+  },
+  typePillTextActive: {
+    color: '#2563EB',
+    fontWeight: '600',
+  },
+  inlineRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  inlineLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#374151',
+  },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 8,
+    marginBottom: 16,
+  },
+  searchPlaceholder: {
+    flex: 1,
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  selectedTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  clearAllText: {
+    fontSize: 14,
+    color: '#DC2626',
+    fontWeight: '500',
+  },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    borderRadius: 16,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    gap: 4,
+  },
+  chipText: {
+    fontSize: 12,
+    color: '#1E40AF',
+    fontWeight: '500',
+  },
+  chipRemove: {
+    fontSize: 16,
+    color: '#1E40AF',
+    fontWeight: 'bold',
+  },
+  roleDropdown: {
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  roleDropdownHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    backgroundColor: '#F3F4F6',
+  },
+  roleHeader: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  roleSelectionCount: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginLeft: 4,
+  },
+  roleUserCount: {
+    fontSize: 12,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  roleContent: {
+    padding: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+  },
+  userRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 8,
+    borderRadius: 6,
+    gap: 12,
+  },
+  userRowSelected: {
+    backgroundColor: '#EFF6FF',
+  },
+  avatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#D1D5DB',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarSelected: {
+    backgroundColor: '#BFDBFE',
+  },
+  avatarText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  avatarTextSelected: {
+    color: '#1E40AF',
+  },
+  userName: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#111827',
+  },
+  userEmail: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 2,
+  },
+  participantsList: {
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+  },
+  participantsTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 4,
+  },
+  participantsText: {
+    fontSize: 12,
+    color: '#6B7280',
   },
 });
