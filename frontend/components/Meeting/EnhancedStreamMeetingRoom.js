@@ -199,16 +199,66 @@ export default function EnhancedStreamMeetingRoom({
 
   const toggleScreenShare = useCallback(async () => {
     try {
-      if (call) {
+      if (!call) {
+        Alert.alert('Error', 'Call not available');
+        return;
+      }
+
+      if (Platform.OS === 'web') {
+        // For web, use the standard screen share
         if (isScreenSharing) {
           await call.stopScreenShare();
         } else {
           await call.startScreenShare();
         }
+      } else {
+        // For mobile devices, check permissions first
+        if (Platform.OS === 'android') {
+          const { PermissionsAndroid } = require('react-native');
+          const granted = await PermissionsAndroid.request(
+            PermissionsAndroid.PERMISSIONS.SYSTEM_ALERT_WINDOW,
+            {
+              title: 'Screen Share Permission',
+              message: 'This app needs permission to share your screen during meetings.',
+              buttonNeutral: 'Ask Me Later',
+              buttonNegative: 'Cancel',
+              buttonPositive: 'OK',
+            }
+          );
+          
+          if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
+            Alert.alert(
+              'Permission Required', 
+              'Screen sharing requires permission to display over other apps. Please enable this permission in your device settings.',
+              [{ text: 'OK' }]
+            );
+            return;
+          }
+        }
+
+        if (isScreenSharing) {
+          await call.stopScreenShare();
+          Alert.alert('Success', 'Screen sharing stopped');
+        } else {
+          await call.startScreenShare();
+          Alert.alert('Success', 'Screen sharing started');
+        }
       }
     } catch (err) {
       console.error('Error toggling screen share:', err);
-      Alert.alert('Error', 'Failed to toggle screen sharing');
+      let errorMessage = 'Failed to toggle screen sharing';
+      
+      if (err.message) {
+        if (err.message.includes('permission')) {
+          errorMessage = 'Screen sharing permission denied. Please check your device settings.';
+        } else if (err.message.includes('not supported')) {
+          errorMessage = 'Screen sharing is not supported on this device.';
+        } else {
+          errorMessage = `Screen sharing error: ${err.message}`;
+        }
+      }
+      
+      Alert.alert('Screen Share Error', errorMessage);
     }
   }, [call, isScreenSharing]);
 
