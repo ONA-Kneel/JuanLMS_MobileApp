@@ -10,15 +10,11 @@ import {
   Alert,
   ActivityIndicator,
   Dimensions,
-  Image,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { useIsFocused, useNavigation } from '@react-navigation/native';
+import { useIsFocused } from '@react-navigation/native';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useUser } from '../UserContext';
-import { useNotifications } from '../../NotificationContext';
-import NotificationCenter from '../NotificationCenter';
 
 const { width } = Dimensions.get('window');
 
@@ -58,9 +54,10 @@ const FilterDropdown = ({ title, options, selected, onSelect, placeholder, disab
                              <TouchableOpacity
                  key={index}
                  style={styles.dropdownOption}
-                onPress={() => {
-                  onSelect(option);
-                }}
+                 onPress={() => {
+                   onSelect(option);
+                   closeAllDropdowns();
+                 }}
                >
                 <Text style={[
                   styles.dropdownOptionText,
@@ -82,21 +79,8 @@ const FilterDropdown = ({ title, options, selected, onSelect, placeholder, disab
 
 export default function PrincipalGrades() {
   const isFocused = useIsFocused();
-  const navigation = useNavigation();
   const [isLoading, setIsLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  
-  // User and notification states
-  const { user } = useUser();
-  const [showNotificationCenter, setShowNotificationCenter] = useState(false);
-  let unreadCount = 0;
-  try {
-    const { unreadCount: count } = useNotifications();
-    unreadCount = count || 0;
-  } catch (error) {
-    console.error('Error accessing notifications:', error);
-    unreadCount = 0;
-  }
 
   // Principal grade view states
   const [academicYear, setAcademicYear] = useState(null);
@@ -445,10 +429,10 @@ export default function PrincipalGrades() {
         let grades = [];
         let allStudents = [];
         
-        // Method 1: Try the comprehensive endpoint (like web app)
         try {
           console.log('🔍 Using comprehensive endpoint to fetch students and grades...');
           
+          // Step 1: Get all students from the comprehensive endpoint
           const comprehensiveResponse = await fetch(
             `${API_BASE_URL}/api/grading/class/all/section/${selectedSection}/comprehensive?` +
             `trackName=${selectedStrand}&` +
@@ -469,7 +453,7 @@ export default function PrincipalGrades() {
               allStudents = comprehensiveData.data.students;
               console.log(`🔍 Found ${allStudents.length} students from comprehensive endpoint`);
               
-              // For each student, fetch their grades using the student endpoint
+              // Step 2: For each student, fetch their grades using the student endpoint
               for (const student of allStudents.slice(0, 50)) { // Limit to first 50 for performance
                 try {
                   const studentID = student.userID || student.studentID || student._id || student.id;
@@ -528,7 +512,7 @@ export default function PrincipalGrades() {
           console.log('🔍 Comprehensive approach failed:', error);
         }
         
-        // Method 2: Try the principal-view endpoint (like web app)
+        // If no grades found, try the principal-view endpoint
         if (grades.length === 0) {
           try {
             console.log('🔍 Trying principal-view endpoint as fallback...');
@@ -544,16 +528,14 @@ export default function PrincipalGrades() {
             
             if (pvRes && pvRes.ok) {
               const pvData = await pvRes.json();
-              console.log('🔍 Principal-view response:', pvData);
-              
-              if (pvData.success && pvData.grades && pvData.grades.length > 0) {
-                console.log(`🔍 Found ${pvData.grades.length} grades from principal-view endpoint`);
+              if (pvData.success && pvData.grades) {
+                console.log('🔍 Found grades from principal-view endpoint:', pvData.grades.length);
                 
-                // Transform the data to match our expected format
+                // Transform principal-view data to match our format
                 const transformedGrades = pvData.grades.map(grade => ({
                   _id: grade._id || grade.studentId,
-                  studentName: grade.studentName,
-                  schoolID: grade.schoolID,
+                  studentName: grade.studentName || `${grade.firstname || ''} ${grade.lastname || ''}`.trim(),
+                  schoolID: grade.schoolID || grade.studentId,
                   grades: {
                     quarter1: grade.grades?.quarter1 || grade.quarter1 || '-',
                     quarter2: grade.grades?.quarter2 || grade.quarter2 || '-',
@@ -568,46 +550,10 @@ export default function PrincipalGrades() {
                 }));
                 
                 grades = transformedGrades;
-                
-                // Extract students from grades
-                allStudents = [...new Set(transformedGrades.map(grade => ({
-                  _id: grade._id,
-                  name: grade.studentName,
-                  schoolID: grade.schoolID
-                })))];
-              } else if (pvData.success && pvData.data && pvData.data.length > 0) {
-                // Handle alternative response format
-                console.log(`🔍 Found ${pvData.data.length} grades from principal-view endpoint (alternative format)`);
-                
-                const transformedGrades = pvData.data.map(grade => ({
-                  _id: grade._id || grade.studentId,
-                  studentName: grade.studentName,
-                  schoolID: grade.schoolID,
-                  grades: {
-                    quarter1: grade.grades?.quarter1 || grade.quarter1 || '-',
-                    quarter2: grade.grades?.quarter2 || grade.quarter2 || '-',
-                    quarter3: grade.grades?.quarter3 || grade.quarter3 || '-',
-                    quarter4: grade.grades?.quarter4 || grade.quarter4 || '-',
-                    semesterFinal: grade.grades?.semesterFinal || grade.semesterFinal || '-',
-                    remarks: grade.grades?.remarks || grade.remarks || '-'
-                  },
-                  subjectName: grade.subjectName,
-                  subjectCode: grade.subjectCode,
-                  section: grade.section || selectedSection
-                }));
-                
-                grades = transformedGrades;
-                
-                // Extract students from grades
-                allStudents = [...new Set(transformedGrades.map(grade => ({
-                  _id: grade._id,
-                  name: grade.studentName,
-                  schoolID: grade.schoolID
-                })))];
               }
             }
           } catch (error) {
-            console.log('🔍 Principal-view approach failed:', error);
+            console.log('🔍 Principal-view endpoint failed:', error);
           }
         }
         
@@ -711,10 +657,44 @@ export default function PrincipalGrades() {
            });
          }
          
-         // If no students found, show empty state instead of sample data
+         // If no students found from comprehensive endpoint, create a basic student list
          if (finalStudentList.length === 0) {
-           console.log('🔍 No students found for the selected criteria');
-           // Show proper empty state - no sample data
+           // Create sample students for demonstration
+           const sampleStudents = [
+             {
+               _id: 'sample1',
+               studentName: 'Sample Student 1',
+               schoolID: 'ST001',
+               grades: {
+                 quarter1: '-',
+                 quarter2: '-',
+                 quarter3: '-',
+                 quarter4: '-',
+                 semesterFinal: '-',
+                 remarks: 'No Grades'
+               },
+               subjectName: selectedSubject,
+               subjectCode: '',
+               section: selectedSection
+             },
+             {
+               _id: 'sample2',
+               studentName: 'Sample Student 2',
+               schoolID: 'ST002',
+               grades: {
+                 quarter1: '-',
+                 quarter2: '-',
+                 quarter3: '-',
+                 quarter4: '-',
+                 semesterFinal: '-',
+                 remarks: 'No Grades'
+               },
+               subjectName: selectedSubject,
+               subjectCode: '',
+               section: selectedSection
+             }
+           ];
+           finalStudentList.push(...sampleStudents);
          }
         
         setStudentGrades(finalStudentList);
@@ -737,6 +717,7 @@ export default function PrincipalGrades() {
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
+      second: '2-digit',
       hour12: true
     });
   };
@@ -852,10 +833,6 @@ export default function PrincipalGrades() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
         onScrollBeginDrag={closeAllDropdowns}
-        showsVerticalScrollIndicator={true}
-        indicatorStyle="black"
-        scrollIndicatorInsets={{ right: 1 }}
-        persistentScrollbar={true}
       >
       {/* Blue background */}
       <View style={styles.blueHeaderBackground} />
@@ -864,75 +841,15 @@ export default function PrincipalGrades() {
       <View style={styles.whiteHeaderCard}>
         <View style={styles.headerContent}>
           <View>
-            <Text style={styles.headerTitle}>Student Grades Management</Text>
+                         <Text style={styles.headerTitle}>Student Grades Management</Text>
+            <Text style={styles.headerSubtitle}>
+              {formatDateTime(new Date())}
+            </Text>
             {academicYear && currentTerm && (
-              <Text style={styles.headerSubtitle}>
-                {academicYear.schoolYearStart}-{academicYear.schoolYearEnd} | {currentTerm.termName}
+              <Text style={styles.academicInfo}>
+                {academicYear.schoolYearStart}-{academicYear.schoolYearEnd} - {currentTerm.termName}
               </Text>
             )}
-            <Text style={styles.academicInfo}>
-              {new Date().toLocaleDateString("en-US", {
-                weekday: "long",
-                year: "numeric",
-                month: "long",
-                day: "numeric",
-              })} | {new Date().toLocaleTimeString("en-US", {
-                hour: '2-digit',
-                minute: '2-digit',
-                hour12: true
-              })}
-            </Text>
-          </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <TouchableOpacity 
-              onPress={() => {
-                try {
-                  setShowNotificationCenter(true);
-                } catch (error) {
-                  console.error('Error opening notification center:', error);
-                  Alert.alert('Notifications', 'Unable to open notifications. Please try again.');
-                }
-              }}
-              style={{ marginRight: 12, position: 'relative' }}
-            >
-              <Icon name="bell" size={24} color="#00418b" />
-              {unreadCount > 0 && (
-                <View style={{
-                  position: 'absolute',
-                  top: -5,
-                  right: -5,
-                  backgroundColor: '#ff4444',
-                  borderRadius: 10,
-                  minWidth: 20,
-                  height: 20,
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                }}>
-                  <Text style={{
-                    color: 'white',
-                    fontSize: 12,
-                    fontFamily: 'Poppins-Bold',
-                  }}>
-                    {unreadCount > 99 ? '99+' : unreadCount}
-                  </Text>
-                </View>
-              )}
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => navigation.navigate('PrincipalProfile')}>
-              {user?.profilePicture ? (
-                <Image 
-                  source={{ uri: user.profilePicture }} 
-                  style={{ width: 36, height: 36, borderRadius: 18 }}
-                  resizeMode="cover"
-                />
-              ) : (
-                <Image 
-                  source={require('../../assets/profile-icon (2).png')} 
-                  style={{ width: 36, height: 36, borderRadius: 18 }}
-                  resizeMode="cover"
-                />
-              )}
-            </TouchableOpacity>
           </View>
         </View>
       </View>
@@ -964,30 +881,21 @@ export default function PrincipalGrades() {
               
               {showGradeLevelDropdown && (
                 <View style={styles.selectionDropdown}>
-                  <ScrollView 
-                    style={styles.optionsScroll} 
-                    showsVerticalScrollIndicator={true}
-                    nestedScrollEnabled={true}
-                    scrollEnabled={true}
-                    indicatorStyle="default"
-                    scrollIndicatorInsets={{ right: 2 }}
-                  >
-                    {gradeLevels.map((level, index) => (
-                                           <TouchableOpacity
-                         key={index}
-                         style={styles.selectionOption}
-                         onPress={() => {
-                           setSelectedGradeLevel(level);
-                           closeAllDropdowns();
-                           setSelectedStrand('');
-                           setSelectedSection('');
-                           setSelectedSubject('');
-                         }}
-                       >
-                        <Text style={styles.selectionOptionText}>{level}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
+                  {gradeLevels.map((level, index) => (
+                                         <TouchableOpacity
+                       key={index}
+                       style={styles.selectionOption}
+                       onPress={() => {
+                         setSelectedGradeLevel(level);
+                         closeAllDropdowns();
+                         setSelectedStrand('');
+                         setSelectedSection('');
+                         setSelectedSubject('');
+                       }}
+                     >
+                      <Text style={styles.selectionOptionText}>{level}</Text>
+                    </TouchableOpacity>
+                  ))}
                 </View>
               )}
             </View>
@@ -1019,31 +927,20 @@ export default function PrincipalGrades() {
               
               {showStrandDropdown && selectedGradeLevel && (
                 <View style={styles.selectionDropdown}>
-                  <ScrollView 
-                    style={styles.optionsScroll} 
-                    showsVerticalScrollIndicator={true}
-                    nestedScrollEnabled={true}
-                    scrollEnabled={true}
-                    indicatorStyle="black"
-                    scrollIndicatorInsets={{ right: 2 }}
-                    persistentScrollbar={true}
-                    keyboardShouldPersistTaps="handled"
-                  >
-                    {strands.map((strand, index) => (
-                                           <TouchableOpacity
-                         key={index}
-                         style={styles.selectionOption}
-                         onPress={() => {
-                           setSelectedStrand(strand);
-                           closeAllDropdowns();
-                           setSelectedSection('');
-                           setSelectedSubject('');
-                         }}
-                       >
-                        <Text style={styles.selectionOptionTextSmall}>{strand}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
+                  {strands.map((strand, index) => (
+                                         <TouchableOpacity
+                       key={index}
+                       style={styles.selectionOption}
+                       onPress={() => {
+                         setSelectedStrand(strand);
+                         closeAllDropdowns();
+                         setSelectedSection('');
+                         setSelectedSubject('');
+                       }}
+                     >
+                      <Text style={styles.selectionOptionText}>{strand}</Text>
+                    </TouchableOpacity>
+                  ))}
                 </View>
               )}
             </View>
@@ -1198,10 +1095,7 @@ export default function PrincipalGrades() {
           </View>
         ) : studentGrades.length > 0 ? (
           <ScrollView
-            showsVerticalScrollIndicator={true}
-            indicatorStyle="black"
-            scrollIndicatorInsets={{ right: 1 }}
-            persistentScrollbar={true}
+            showsVerticalScrollIndicator={false}
             refreshControl={
               <RefreshControl
                 refreshing={refreshing}
@@ -1261,13 +1155,25 @@ export default function PrincipalGrades() {
         )}
       </View>
 
+      {/* Quick Actions */}
+      <View style={styles.quickActions}>
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={() => Alert.alert('Generate Report', 'Report generation feature coming soon!')}
+        >
+          <Icon name="file-pdf-box" size={24} color="#fff" />
+          <Text style={styles.actionButtonText}>Generate Report</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={() => Alert.alert('Export Data', 'Data export feature coming soon!')}
+        >
+          <Icon name="download" size={24} color="#fff" />
+          <Text style={styles.actionButtonText}>Export Data</Text>
+                 </TouchableOpacity>
+       </View>
        </ScrollView>
-       
-       {/* Notification Center */}
-       <NotificationCenter 
-         visible={showNotificationCenter} 
-         onClose={() => setShowNotificationCenter(false)} 
-       />
      </View>
    );
  }
@@ -1422,31 +1328,25 @@ export default function PrincipalGrades() {
      borderWidth: 1,
      borderColor: '#ddd',
      borderRadius: 8,
-     maxHeight: 180,
-     elevation: 10,
+     maxHeight: 200,
+     elevation: 5,
      shadowColor: '#000',
      shadowOffset: { width: 0, height: 2 },
-     shadowOpacity: 0.15,
-     shadowRadius: 6,
-     zIndex: 10000,
+     shadowOpacity: 0.1,
+     shadowRadius: 4,
+     zIndex: 9999,
    },
      selectionOption: {
-     paddingVertical: 10,
+     paddingVertical: 12,
      paddingHorizontal: 16,
      borderBottomWidth: 1,
      borderBottomColor: '#f0f0f0',
-     zIndex: 10000,
+     zIndex: 9999,
    },
   selectionOptionText: {
     fontSize: 14,
     color: '#333',
     fontFamily: 'Poppins-Regular',
-  },
-  selectionOptionTextSmall: {
-    fontSize: 12,
-    color: '#333',
-    fontFamily: 'Poppins-Regular',
-    lineHeight: 16,
   },
   summaryStatsContainer: {
     backgroundColor: '#f8f9fa',
@@ -1586,13 +1486,7 @@ export default function PrincipalGrades() {
           zIndex: 9999,
         },
   optionsScroll: {
-    flex: 1,
-    maxHeight: 180,
-  },
-  // Custom scrollbar styling
-  customScrollView: {
-    // This helps make the scrollbar more visible
-    scrollbarWidth: 'thick',
+    maxHeight: 200,
   },
   dropdownOption: {
     flexDirection: 'row',
@@ -1745,6 +1639,33 @@ export default function PrincipalGrades() {
     fontSize: 14,
     fontWeight: 'bold',
     color: '#333',
+  },
+  quickActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    padding: 20,
+    gap: 12,
+  },
+  actionButton: {
+    flex: 1,
+    backgroundColor: '#00418b',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    borderRadius: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  actionButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
+    fontFamily: 'Poppins-SemiBold',
   },
   loadingContainer: {
     flex: 1,

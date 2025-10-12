@@ -1,4 +1,4 @@
-import { Text, TouchableOpacity, View, ScrollView, Image, Dimensions, ActivityIndicator, RefreshControl } from 'react-native';
+import { Text, TouchableOpacity, View, ScrollView, Image, Dimensions, ActivityIndicator, RefreshControl, Alert } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import AdminDashStyle from '../styles/administrator/AdminDashStyle';
@@ -265,7 +265,6 @@ export default function AdminDashboard() {
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
-      second: '2-digit',
       hour12: true
     });
   };
@@ -376,8 +375,15 @@ export default function AdminDashboard() {
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <TouchableOpacity 
-              onPress={() => setShowNotificationCenter(true)}
-              style={{ marginRight: 12, position: 'relative', opacity: 0 }}
+              onPress={() => {
+                try {
+                  setShowNotificationCenter(true);
+                } catch (error) {
+                  console.error('Error opening notification center:', error);
+                  Alert.alert('Notifications', 'Unable to open notifications. Please try again.');
+                }
+              }}
+              style={{ marginRight: 12, position: 'relative' }}
             >
               <MaterialIcons name="notifications" size={24} color="#00418b" />
               {unreadCount > 0 && (

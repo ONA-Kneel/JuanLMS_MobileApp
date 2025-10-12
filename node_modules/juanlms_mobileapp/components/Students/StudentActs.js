@@ -407,7 +407,11 @@ function ActivityCard({ activity, onActivityPress }) {
 export default function StudentActs() {
   const navigation = useNavigation();
   const { user } = useUser();
+  const [uploading, setUploading] = useState(false);
   const { unreadCount } = useNotifications();
+  
+  // Debug logging (can be removed in production)
+  // console.log('StudentActs: Component rendered, user state:', user ? 'User available' : 'No user');
   const [showNotificationCenter, setShowNotificationCenter] = useState(false);
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -456,8 +460,41 @@ export default function StudentActs() {
     if (user && user._id) {
       fetchActivities();
       initializeSocketForActivities();
+    } else if (user === null) {
+      // User context is loaded but no user data (not logged in)
+      setLoading(false);
+      setError('Please log in to view activities');
+    } else if (user === undefined) {
+      // User context is still loading
+      // Component will remain in loading state until user context resolves
     }
   }, [user]);
+
+  // Add a timeout to prevent infinite loading
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (loading) {
+        console.warn('StudentActs: Loading timeout reached, setting loading to false');
+        setLoading(false);
+        setError('Loading timeout. Please try refreshing.');
+      }
+    }, 10000); // 10 second timeout
+
+    return () => clearTimeout(timeout);
+  }, [loading]);
+
+  // Additional safety check: if user context is still loading after 5 seconds, show error
+  useEffect(() => {
+    const userTimeout = setTimeout(() => {
+      if (user === undefined && loading) {
+        console.warn('StudentActs: User context loading timeout, showing error');
+        setLoading(false);
+        setError('Unable to load user data. Please restart the app.');
+      }
+    }, 5000); // 5 second timeout for user context
+
+    return () => clearTimeout(userTimeout);
+  }, [user, loading]);
 
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
@@ -1206,8 +1243,13 @@ export default function StudentActs() {
       return;
     }
 
+    const uploadKey = `replacement-upload-${Date.now()}`;
+
     try {
       setUploadingReplacement(true);
+      
+      // Show loading screen
+      setUploading(true);
       const token = await AsyncStorage.getItem('jwtToken');
       
       console.log('=== uploadReplacementFile START ===');
@@ -1299,6 +1341,10 @@ export default function StudentActs() {
 
       if (response.ok) {
         const result = await response.json();
+        
+        // Show success
+        setUploading(false);
+        
         Alert.alert(
           'Success', 
           `File replacement uploaded successfully! ${isLate ? 'Note: This is a late submission.' : 'Submitted on time.'}`,
@@ -1321,10 +1367,19 @@ export default function StudentActs() {
           errorData = { message: `Server returned HTML instead of JSON. Status: ${response.status}` };
         }
         
+        // Show error with retry option
+        setUploading(false);
+        Alert.alert('Upload Failed', 'Failed to upload replacement file. Please try again.');
+        
         Alert.alert('Error', errorData.message || 'Failed to upload replacement file.');
       }
     } catch (error) {
       console.error('Error uploading replacement file:', error);
+      
+      // Show error with retry option
+      setUploading(false);
+      Alert.alert('Upload Failed', 'Failed to upload replacement file. Please try again.');
+      
       Alert.alert('Error', `Failed to upload replacement file: ${error.message}`);
     } finally {
       setUploadingReplacement(false);
@@ -1376,7 +1431,6 @@ export default function StudentActs() {
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
-      second: '2-digit',
       hour12: true
     });
   };
@@ -1464,8 +1518,15 @@ export default function StudentActs() {
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <TouchableOpacity 
-              onPress={() => setShowNotificationCenter(true)}
-              style={{ marginRight: 12, position: 'relative', opacity: 0 }}
+              onPress={() => {
+                try {
+                  setShowNotificationCenter(true);
+                } catch (error) {
+                  console.error('Error opening notification center:', error);
+                  Alert.alert('Notifications', 'Unable to open notifications. Please try again.');
+                }
+              }}
+              style={{ marginRight: 12, position: 'relative' }}
             >
               <Icon name="bell" size={24} color="#00418b" />
               {unreadCount > 0 && (

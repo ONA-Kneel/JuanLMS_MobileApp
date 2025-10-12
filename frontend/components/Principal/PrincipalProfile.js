@@ -133,19 +133,46 @@ export default function PrincipalProfile() {
   const handleSaveProfile = async () => {
     setIsLoading(true);
     try {
-      const asset = editedUser?.newProfilePicAsset;
-      if (asset && user?._id) {
-        const isWeb = Platform.OS === 'web';
-        const resp = await profileService.uploadProfilePicture(user._id, asset, isWeb);
-        const updated = resp?.user;
-        if (updated?.profilePic) {
-          const newUser = { ...user, profilePic: updated.profilePic, profilePicture: updated.profilePic };
-          if (typeof updateUser === 'function') {
-            await updateUser(newUser);
-          } else {
-            await AsyncStorage.setItem('user', JSON.stringify(newUser));
-          }
+      let profilePicPath = editedUser?.profilePic;
+      let data;
+      
+      if (editedUser?.newProfilePicAsset) {
+        // Use the correct user ID format (prefer _id, fallback to userID)
+        const userId = user._id || user.userID;
+        if (!userId) {
+          throw new Error('User ID not found');
         }
+        
+        if (Platform.OS === 'web') {
+          // Pass File directly; service will append as 'image'
+          data = await profileService.uploadProfilePicture(userId, editedUser.newProfilePicAsset, true);
+        } else {
+          let asset = editedUser.newProfilePicAsset;
+          let localUri = asset.uri;
+          if (!localUri.startsWith('file://') && asset.base64) {
+            const fileUri = FileSystem.cacheDirectory + (asset.fileName || 'profile.jpg');
+            await FileSystem.writeAsStringAsync(fileUri, asset.base64, { encoding: FileSystem.EncodingType.Base64 });
+            localUri = fileUri;
+          }
+          const patchedAsset = {
+            uri: localUri,
+            fileName: asset.fileName || 'profile.jpg',
+            type: asset.type || 'image/jpeg',
+          };
+          data = await profileService.uploadProfilePicture(userId, patchedAsset, false);
+        }
+        const updated = data?.user;
+        if (updated?.profilePic) {
+          profilePicPath = updated.profilePic;
+        }
+      }
+      
+      // Always update user context/state with the new profilePic
+      const newUser = { ...user, profilePic: profilePicPath, profilePicture: profilePicPath };
+      if (typeof updateUser === 'function') {
+        await updateUser(newUser);
+      } else {
+        await AsyncStorage.setItem('user', JSON.stringify(newUser));
       }
       setIsEditModalVisible(false);
       Alert.alert('Success', 'Profile updated successfully!');

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Text, TouchableOpacity, View, ScrollView, Image, ActivityIndicator } from 'react-native';
+import { Text, TouchableOpacity, View, ScrollView, Image, ActivityIndicator, Alert } from 'react-native';
 import StudentDashStyle from '../styles/Stud/StudentDashStyle';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
@@ -235,8 +235,15 @@ export default function StudentDashboard() {
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <TouchableOpacity 
-              onPress={() => setShowNotificationCenter(true)}
-              style={{ marginRight: 12, position: 'relative', opacity: 0 }}
+              onPress={() => {
+                try {
+                  setShowNotificationCenter(true);
+                } catch (error) {
+                  console.error('Error opening notification center:', error);
+                  Alert.alert('Notifications', 'Unable to open notifications. Please try again.');
+                }
+              }}
+              style={{ marginRight: 12, position: 'relative' }}
             >
               <Icon name="bell" size={24} color="#00418b" />
               {unreadCount > 0 && (
@@ -303,42 +310,42 @@ export default function StudentDashboard() {
 
         {/* Announcements Preview Section */}
         {announcements && announcements.length > 0 && (
-          <View style={{ marginBottom: 20 }}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <Text style={{ fontSize: 18, fontWeight: 'bold', fontFamily: 'Poppins-Bold', color: '#333' }}>Announcements</Text>
+          <View style={{ marginBottom: 15 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <Text style={{ fontSize: 16, fontWeight: 'bold', fontFamily: 'Poppins-Bold', color: '#333' }}>Announcements</Text>
               <TouchableOpacity
                 onPress={() => setShowNotificationCenter(true)}
                 style={{
                   backgroundColor: '#00418b',
-                  paddingHorizontal: 12,
-                  paddingVertical: 6,
-                  borderRadius: 8
+                  paddingHorizontal: 10,
+                  paddingVertical: 4,
+                  borderRadius: 6
                 }}>
-                <Text style={{ color: '#fff', fontSize: 12, fontFamily: 'Poppins-Bold' }}>View All</Text>
+                <Text style={{ color: '#fff', fontSize: 11, fontFamily: 'Poppins-Bold' }}>View All</Text>
               </TouchableOpacity>
             </View>
             
             {/* Show latest announcement */}
             <View style={{
               backgroundColor: '#fff',
-              borderRadius: 16,
-              padding: 16,
+              borderRadius: 12,
+              padding: 12,
               shadowColor: '#000',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.1,
-              shadowRadius: 4,
-              elevation: 3,
-              borderLeftWidth: 4,
+              shadowOffset: { width: 0, height: 1 },
+              shadowOpacity: 0.08,
+              shadowRadius: 3,
+              elevation: 2,
+              borderLeftWidth: 3,
               borderLeftColor: '#ff6b6b'
             }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                <Icon name="bell" size={16} color="#ff6b6b" />
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                <Icon name="bell" size={14} color="#ff6b6b" />
                 <Text style={{ 
-                  fontSize: 16, 
+                  fontSize: 14, 
                   fontWeight: 'bold', 
                   color: '#333', 
                   fontFamily: 'Poppins-Bold',
-                  marginLeft: 8,
+                  marginLeft: 6,
                   flex: 1
                 }}>
                   {announcements[0].title}
@@ -361,11 +368,11 @@ export default function StudentDashboard() {
               </Text>
               
               <Text style={{ 
-                fontSize: 14, 
+                fontSize: 12, 
                 color: '#555', 
                 fontFamily: 'Poppins-Regular',
-                lineHeight: 20
-              }} numberOfLines={3}>
+                lineHeight: 16
+              }} numberOfLines={2}>
                 {announcements[0].body || announcements[0].content}
               </Text>
               

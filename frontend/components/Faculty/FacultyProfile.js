@@ -155,60 +155,6 @@ export default function FacultyProfile() {
   const handleSaveProfile = async () => {
     setIsLoading(true);
     try {
-      console.log('=== FacultyProfile Upload Debug Start ===');
-      console.log('Platform.OS:', Platform.OS);
-      console.log('User ID:', user._id || user.userID);
-      console.log('API_URL:', API_URL);
-      console.log('Edited User:', editedUser);
-      
-      // Test network connectivity first
-      try {
-        console.log('Testing network connectivity to backend...');
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-        
-        const testResponse = await fetch('https://juanlms-webapp-server.onrender.com/api/health', {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          signal: controller.signal,
-        });
-        
-        clearTimeout(timeoutId);
-        console.log('Network test response status:', testResponse.status);
-        console.log('Network test response ok:', testResponse.ok);
-        const testData = await testResponse.text();
-        console.log('Network test response data:', testData);
-        
-        // Test the upload endpoint specifically
-        console.log('Testing upload endpoint accessibility...');
-        try {
-          const uploadTestResponse = await fetch(`${API_URL}/users/${user._id || user.userID}/upload-profile`, {
-            method: 'OPTIONS', // Use OPTIONS to test if endpoint exists
-            headers: {
-              'Content-Type': 'application/json',
-            },
-          });
-          console.log('Upload endpoint test status:', uploadTestResponse.status);
-        } catch (uploadTestError) {
-          console.error('Upload endpoint test failed:', uploadTestError);
-        }
-      } catch (networkError) {
-        console.error('Network connectivity test failed:', networkError);
-        console.error('Network error message:', networkError.message);
-        console.error('Network error code:', networkError.code);
-        console.error('Network error type:', networkError.type);
-        console.error('Network error name:', networkError.name);
-        
-        if (networkError.name === 'AbortError') {
-          Alert.alert('Network Timeout', 'Connection to server timed out. Please check your internet connection.');
-        } else {
-          Alert.alert('Network Error', `Cannot connect to server: ${networkError.message}`);
-        }
-        return;
-      }
-      
       let profilePicPath = editedUser?.profilePic;
       let data;
       
