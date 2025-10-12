@@ -412,20 +412,8 @@ export default function StudentDashboard() {
         )}
 
         {/* Your Classes Section */}
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 5, marginBottom: 8 }}>
+        <View style={{ marginTop: 5, marginBottom: 8 }}>
           <Text style={{ fontSize: 16, fontWeight: 'bold', fontFamily: 'Poppins-Bold' }}>Your Classes</Text>
-          {classes.length > 3 && (
-            <TouchableOpacity
-              onPress={() => changeScreen.navigate('SClasses')}
-              style={{
-                backgroundColor: '#00418b',
-                paddingHorizontal: 12,
-                paddingVertical: 6,
-                borderRadius: 8
-              }}>
-              <Text style={{ color: '#fff', fontSize: 12, fontFamily: 'Poppins-Bold' }}>View All</Text>
-            </TouchableOpacity>
-          )}
         </View>
 
         {classes.slice(0, 3).map((course, index) => (

@@ -29,9 +29,8 @@ const QuizView = React.memo(function QuizView() {
   const { quizId, review } = route.params;
   const { startTimer, removeTimer, getRemainingTime, formatTime, pauseTimer, resumeTimer } = useTimer();
   const [timeRemaining, setTimeRemaining] = useState(0);
-  const [quizStarted, setQuizStarted] = useState(false);
+  const [quizStarted, setQuizStarted] = useState(true); // Auto-start timer when quiz loads
   const [isPaused, setIsPaused] = useState(false);
-  const [startTime, setStartTime] = useState(null);
   
   const [quiz, setQuiz] = useState(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -39,7 +38,6 @@ const QuizView = React.memo(function QuizView() {
   const [loading, setLoading] = useState(true);
   const [quizError, setQuizError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(null);
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   // Removed post-submit result/reveal popups per requirement
   const [showResultsModal, setShowResultsModal] = useState(false);
@@ -102,10 +100,10 @@ const QuizView = React.memo(function QuizView() {
       if (duration > 0) {
         setTimeRemaining(duration);
         
-        // Start timer when quiz begins
-        if (quizStarted) {
-          startTimer(quizId, duration, handleTimeUp);
-        }
+        // Auto-start timer immediately when quiz loads (like web app)
+        console.log('Starting timer for quiz:', quizId, 'duration:', duration, 'seconds');
+        startTimer(quizId, duration, handleTimeUp);
+        setQuizStarted(true); // Mark quiz as started
       }
     }
     
@@ -114,7 +112,7 @@ const QuizView = React.memo(function QuizView() {
         removeTimer(quizId);
       }
     };
-  }, [quiz, quizStarted, review]);
+  }, [quiz, review]); // Remove quizStarted dependency
 
   const handleTimeUp = () => {
     Alert.alert(
@@ -132,14 +130,6 @@ const QuizView = React.memo(function QuizView() {
     );
   };
 
-  const startQuiz = () => {
-    setQuizStarted(true);
-    setStartTime(new Date());
-    const duration = (quiz.timing?.timeLimit ? quiz.timing.timeLimit * 60 : 0) || (quiz.timeLimit ? quiz.timeLimit * 60 : 0);
-    if (duration > 0) {
-      startTimer(quizId, duration, handleTimeUp);
-    }
-  };
 
   const pauseQuiz = () => {
     const hasTimer = (quiz.timing?.timeLimit && quiz.timing.timeLimit > 0) || (quiz.timeLimit && quiz.timeLimit > 0);
@@ -162,11 +152,14 @@ const QuizView = React.memo(function QuizView() {
 
   const renderTimer = () => {
     const hasTimer = (quiz.timing?.timeLimit && quiz.timing.timeLimit > 0) || (quiz.timeLimit && quiz.timeLimit > 0);
-    if (review || !hasTimer || !quizStarted) return null;
+    if (review || !hasTimer) return null;
     
     const remaining = getRemainingTime(quizId);
     const isLowTime = remaining <= 60; // Show warning when less than 1 minute
     const isCriticalTime = remaining <= 30; // Show critical warning when less than 30 seconds
+    
+    // Debug: Log timer state
+    console.log('Timer render - remaining:', remaining, 'quizId:', quizId, 'hasTimer:', hasTimer);
     
     return (
       <View style={[
@@ -201,22 +194,6 @@ const QuizView = React.memo(function QuizView() {
     console.log('State changed - isReviewMode:', isReviewMode, 'quizResult:', !!quizResult, 'quiz:', !!quiz);
   }, [isReviewMode, quizResult, quiz]);
 
-  useEffect(() => {
-    if (quiz && quiz.timeLimit && quiz.timeLimit > 0) {
-      const timer = setInterval(() => {
-        setTimeLeft(prev => {
-          if (prev <= 1) {
-            clearInterval(timer);
-            forceSubmitQuiz(); // Use force submit when timer expires
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-
-      return () => clearInterval(timer);
-    }
-  }, [quiz]);
 
   // Safety check: ensure current question index is valid when quiz changes
   useEffect(() => {
@@ -386,7 +363,6 @@ const QuizView = React.memo(function QuizView() {
       if (!review && quizDuration > 0) {
         console.log('Auto-starting quiz with timer:', quizDuration, 'seconds');
         setQuizStarted(true);
-        setStartTime(new Date());
         startTimer(quizId, quizDuration, handleTimeUp);
       }
       
@@ -403,9 +379,6 @@ const QuizView = React.memo(function QuizView() {
         answerValue: initialAnswers[key],
         isArray: Array.isArray(initialAnswers[key])
       })));
-      if (hasTimeLimit) {
-        setTimeLeft(timeLimitSeconds);
-      }
 
       // Safety check: ensure current question index is within bounds
       if (currentQuestionIndex >= quizData.questions.length) {

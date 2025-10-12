@@ -10,7 +10,6 @@ import {
   CallParticipantsList,
   CallParticipantsGrid,
   CallParticipantsSpotlight,
-  SpeakerLayout,
   Lobby,
   RingingCallContent,
   useCall,
@@ -45,6 +44,7 @@ export default function SimpleStreamMeetingRoom({
   const [showStats, setShowStats] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [showConfirmLeave, setShowConfirmLeave] = useState(false);
+  const [showDocumentShare, setShowDocumentShare] = useState(false);
   const [participantCount, setParticipantCount] = useState(0);
   const [isRecording, setIsRecording] = useState(false);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
@@ -283,16 +283,66 @@ export default function SimpleStreamMeetingRoom({
 
   const toggleScreenShare = useCallback(async () => {
     try {
-      if (call) {
+      if (!call) {
+        Alert.alert('Error', 'Call not available');
+        return;
+      }
+
+      if (Platform.OS === 'web') {
+        // For web, use the standard screen share
         if (isScreenSharing) {
           await call.stopScreenShare();
         } else {
           await call.startScreenShare();
         }
+      } else {
+        // For mobile devices, check permissions first
+        if (Platform.OS === 'android') {
+          const { PermissionsAndroid } = require('react-native');
+          const granted = await PermissionsAndroid.request(
+            PermissionsAndroid.PERMISSIONS.SYSTEM_ALERT_WINDOW,
+            {
+              title: 'Screen Share Permission',
+              message: 'This app needs permission to share your screen during meetings.',
+              buttonNeutral: 'Ask Me Later',
+              buttonNegative: 'Cancel',
+              buttonPositive: 'OK',
+            }
+          );
+          
+          if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
+            Alert.alert(
+              'Permission Required', 
+              'Screen sharing requires permission to display over other apps. Please enable this permission in your device settings.',
+              [{ text: 'OK' }]
+            );
+            return;
+          }
+        }
+
+        if (isScreenSharing) {
+          await call.stopScreenShare();
+          Alert.alert('Success', 'Screen sharing stopped');
+        } else {
+          await call.startScreenShare();
+          Alert.alert('Success', 'Screen sharing started');
+        }
       }
     } catch (err) {
       console.error('Error toggling screen share:', err);
-      Alert.alert('Error', 'Failed to toggle screen sharing');
+      let errorMessage = 'Failed to toggle screen sharing';
+      
+      if (err.message) {
+        if (err.message.includes('permission')) {
+          errorMessage = 'Screen sharing permission denied. Please check your device settings.';
+        } else if (err.message.includes('not supported')) {
+          errorMessage = 'Screen sharing is not supported on this device.';
+        } else {
+          errorMessage = `Screen sharing error: ${err.message}`;
+        }
+      }
+      
+      Alert.alert('Screen Share Error', errorMessage);
     }
   }, [call, isScreenSharing]);
 
@@ -334,6 +384,47 @@ export default function SimpleStreamMeetingRoom({
       console.error('Error sending message:', err);
     }
   }, [call, newMessage]);
+
+  const shareDocument = useCallback(async () => {
+    try {
+      if (Platform.OS === 'web') {
+        // For web, use file input
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.pdf,.doc,.docx,.ppt,.pptx,.jpg,.jpeg,.png';
+        input.onchange = async (e) => {
+          const file = e.target.files[0];
+          if (file) {
+            await call.sendMessage({
+              text: `Shared document: ${file.name}`,
+              type: 'text',
+            });
+            Alert.alert('Success', `Document "${file.name}" shared successfully`);
+          }
+        };
+        input.click();
+      } else {
+        // For mobile, use document picker
+        const { DocumentPicker } = require('expo-document-picker');
+        const result = await DocumentPicker.getDocumentAsync({
+          type: ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.presentationml.presentation', 'image/jpeg', 'image/png'],
+        });
+        
+        if (!result.canceled && result.assets && result.assets.length > 0) {
+          const file = result.assets[0];
+          await call.sendMessage({
+            text: `Shared document: ${file.name}`,
+            type: 'text',
+          });
+          Alert.alert('Success', `Document "${file.name}" shared successfully`);
+        }
+      }
+      setShowDocumentShare(false);
+    } catch (err) {
+      console.error('Error sharing document:', err);
+      Alert.alert('Error', 'Failed to share document');
+    }
+  }, [call]);
 
   const changeLayout = useCallback((newLayout) => {
     setLayout(newLayout);
@@ -404,11 +495,6 @@ export default function SimpleStreamMeetingRoom({
                 />
               )}
               
-              {layout === 'speaker' && (
-                <SpeakerLayout
-                  style={styles.speakerLayout}
-                />
-              )}
             </View>
 
             {/* Top Controls */}
@@ -463,14 +549,23 @@ export default function SimpleStreamMeetingRoom({
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={[styles.controlButton, isScreenSharing && styles.controlButtonActive]}
-                  onPress={toggleScreenShare}
+                  style={[
+                    styles.controlButton, 
+                    isScreenSharing && styles.controlButtonActive,
+                    Platform.OS !== 'web' && styles.controlButtonLimited
+                  ]}
+                  onPress={Platform.OS === 'web' ? toggleScreenShare : () => setShowDocumentShare(true)}
                 >
                   <Icon 
-                    name="monitor-share" 
+                    name={Platform.OS === 'web' ? "monitor-share" : "file-document"} 
                     size={24} 
-                    color={isScreenSharing ? "#3B82F6" : "#fff"} 
+                    color={isScreenSharing ? "#3B82F6" : Platform.OS !== 'web' ? "#6B7280" : "#fff"} 
                   />
+                  {Platform.OS !== 'web' && (
+                    <View style={styles.limitedBadge}>
+                      <Text style={styles.limitedText}>Docs</Text>
+                    </View>
+                  )}
                 </TouchableOpacity>
 
                 {isHost && (
@@ -521,13 +616,6 @@ export default function SimpleStreamMeetingRoom({
                 >
                   <Icon name="spotlight" size={20} color={layout === 'spotlight' ? '#3B82F6' : '#fff'} />
                 </TouchableOpacity>
-                
-                <TouchableOpacity
-                  style={[styles.layoutButton, layout === 'speaker' && styles.layoutButtonActive]}
-                  onPress={() => changeLayout('speaker')}
-                >
-                  <Icon name="account" size={20} color={layout === 'speaker' ? '#3B82F6' : '#fff'} />
-                </TouchableOpacity>
               </View>
             </View>
 
@@ -552,7 +640,44 @@ export default function SimpleStreamMeetingRoom({
                       <Icon name="close" size={24} color="#fff" />
                     </TouchableOpacity>
                   </View>
-                  <CallParticipantsList />
+                  <View style={styles.participantsList}>
+                    {call && call.state.participants && call.state.participants.length > 0 ? (
+                      call.state.participants.map((participant, index) => (
+                        <View key={participant.userId || index} style={styles.participantItem}>
+                          <View style={styles.participantAvatar}>
+                            <Text style={styles.participantAvatarText}>
+                              {(participant.user?.name || 'User')[0].toUpperCase()}
+                            </Text>
+                          </View>
+                          <View style={styles.participantInfo}>
+                            <Text style={styles.participantName}>
+                              {participant.user?.name || 'Unknown User'}
+                            </Text>
+                            <Text style={styles.participantStatus}>
+                              {participant.isSpeaking ? 'Speaking' : 
+                               participant.isLocal ? 'You' : 'Connected'}
+                            </Text>
+                          </View>
+                          <View style={styles.participantControls}>
+                            {participant.publishedTracks.includes('audio') ? (
+                              <Icon name="microphone" size={16} color="#10B981" />
+                            ) : (
+                              <Icon name="microphone-off" size={16} color="#EF4444" />
+                            )}
+                            {participant.publishedTracks.includes('video') ? (
+                              <Icon name="video" size={16} color="#10B981" />
+                            ) : (
+                              <Icon name="video-off" size={16} color="#EF4444" />
+                            )}
+                          </View>
+                        </View>
+                      ))
+                    ) : (
+                      <View style={styles.noParticipants}>
+                        <Text style={styles.noParticipantsText}>No participants found</Text>
+                      </View>
+                    )}
+                  </View>
                 </View>
               </View>
             )}
@@ -607,6 +732,33 @@ export default function SimpleStreamMeetingRoom({
                     />
                     <TouchableOpacity style={styles.chatSendButton} onPress={sendMessage}>
                       <Icon name="send" size={20} color="#3B82F6" />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+            )}
+
+            {/* Document Share Modal */}
+            {showDocumentShare && (
+              <View style={styles.confirmModal}>
+                <View style={styles.confirmContent}>
+                  <Text style={styles.confirmTitle}>Share Document</Text>
+                  <Text style={styles.confirmText}>
+                    Since screen sharing is limited on mobile devices, you can share documents instead. 
+                    This will send a notification to all participants about the shared document.
+                  </Text>
+                  <View style={styles.confirmButtons}>
+                    <TouchableOpacity
+                      style={styles.cancelButton}
+                      onPress={() => setShowDocumentShare(false)}
+                    >
+                      <Text style={styles.cancelButtonText}>Cancel</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.leaveConfirmButton}
+                      onPress={shareDocument}
+                    >
+                      <Text style={styles.leaveConfirmButtonText}>Share Document</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -726,9 +878,6 @@ const styles = StyleSheet.create({
   participantsSpotlight: {
     flex: 1,
   },
-  speakerLayout: {
-    flex: 1,
-  },
   topControls: {
     position: 'absolute',
     top: 0,
@@ -789,6 +938,23 @@ const styles = StyleSheet.create({
   },
   controlButtonActive: {
     backgroundColor: 'rgba(255,255,255,0.3)',
+  },
+  controlButtonLimited: {
+    opacity: 0.7,
+  },
+  limitedBadge: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    backgroundColor: '#6B7280',
+    borderRadius: 8,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+  },
+  limitedText: {
+    color: '#fff',
+    fontSize: 8,
+    fontWeight: '600',
   },
   chatBadge: {
     position: 'absolute',
@@ -868,6 +1034,59 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: '#fff',
+  },
+  participantsList: {
+    flex: 1,
+    padding: 20,
+  },
+  participantItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333',
+  },
+  participantAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#3B82F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  participantAvatarText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  participantInfo: {
+    flex: 1,
+  },
+  participantName: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  participantStatus: {
+    color: '#6B7280',
+    fontSize: 14,
+    marginTop: 2,
+  },
+  participantControls: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  noParticipants: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  noParticipantsText: {
+    color: '#6B7280',
+    fontSize: 16,
+    textAlign: 'center',
   },
   statsModal: {
     position: 'absolute',

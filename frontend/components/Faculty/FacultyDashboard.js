@@ -459,33 +459,8 @@ export default function FacultyDashboard() {
         )}
 
           {/* Your Classes */}
-         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 24, marginBottom: 8, paddingHorizontal: 20, }}>
+         <View style={{ marginTop: 24, marginBottom: 8, paddingHorizontal: 20, }}>
            <Text style={{ fontSize: 16, fontWeight: 'bold', fontFamily: 'Poppins-Bold' }}>Your Classes</Text>
-           <View style={{ flexDirection: 'row', gap: 8 }}>
-             {/* <TouchableOpacity 
-               onPress={() => {
-                 console.log('Manual refresh triggered');
-                 fetchClasses();
-               }}
-               style={{ 
-                 backgroundColor: '#ff9800', 
-                 paddingHorizontal: 12, 
-                 paddingVertical: 6, 
-                 borderRadius: 8 
-               }}>
-               <Text style={{ color: '#fff', fontSize: 12, fontFamily: 'Poppins-Bold' }}>Refresh</Text>
-             </TouchableOpacity> */}
-             <TouchableOpacity 
-               onPress={() => navigation.navigate('FClasses')}
-               style={{ 
-                 backgroundColor: '#00418b', 
-                 paddingHorizontal: 12, 
-                 paddingVertical: 6, 
-                 borderRadius: 8 
-               }}>
-               <Text style={{ color: '#fff', fontSize: 12, fontFamily: 'Poppins-Bold' }}>View All</Text>
-             </TouchableOpacity>
-           </View>
          </View>
         
         {loading ? (

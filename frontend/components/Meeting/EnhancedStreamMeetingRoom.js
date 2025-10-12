@@ -45,6 +45,7 @@ export default function EnhancedStreamMeetingRoom({
   const [showStats, setShowStats] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
   const [showConfirmLeave, setShowConfirmLeave] = useState(false);
   const [participantCount, setParticipantCount] = useState(0);
   const [isRecording, setIsRecording] = useState(false);
@@ -199,16 +200,66 @@ export default function EnhancedStreamMeetingRoom({
 
   const toggleScreenShare = useCallback(async () => {
     try {
-      if (call) {
+      if (!call) {
+        Alert.alert('Error', 'Call not available');
+        return;
+      }
+
+      if (Platform.OS === 'web') {
+        // For web, use the standard screen share
         if (isScreenSharing) {
           await call.stopScreenShare();
         } else {
           await call.startScreenShare();
         }
+      } else {
+        // For mobile devices, check permissions first
+        if (Platform.OS === 'android') {
+          const { PermissionsAndroid } = require('react-native');
+          const granted = await PermissionsAndroid.request(
+            PermissionsAndroid.PERMISSIONS.SYSTEM_ALERT_WINDOW,
+            {
+              title: 'Screen Share Permission',
+              message: 'This app needs permission to share your screen during meetings.',
+              buttonNeutral: 'Ask Me Later',
+              buttonNegative: 'Cancel',
+              buttonPositive: 'OK',
+            }
+          );
+          
+          if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
+            Alert.alert(
+              'Permission Required', 
+              'Screen sharing requires permission to display over other apps. Please enable this permission in your device settings.',
+              [{ text: 'OK' }]
+            );
+            return;
+          }
+        }
+
+        if (isScreenSharing) {
+          await call.stopScreenShare();
+          Alert.alert('Success', 'Screen sharing stopped');
+        } else {
+          await call.startScreenShare();
+          Alert.alert('Success', 'Screen sharing started');
+        }
       }
     } catch (err) {
       console.error('Error toggling screen share:', err);
-      Alert.alert('Error', 'Failed to toggle screen sharing');
+      let errorMessage = 'Failed to toggle screen sharing';
+      
+      if (err.message) {
+        if (err.message.includes('permission')) {
+          errorMessage = 'Screen sharing permission denied. Please check your device settings.';
+        } else if (err.message.includes('not supported')) {
+          errorMessage = 'Screen sharing is not supported on this device.';
+        } else {
+          errorMessage = `Screen sharing error: ${err.message}`;
+        }
+      }
+      
+      Alert.alert('Screen Share Error', errorMessage);
     }
   }, [call, isScreenSharing]);
 
@@ -453,6 +504,13 @@ export default function EnhancedStreamMeetingRoom({
 
                 <TouchableOpacity
                   style={styles.controlButton}
+                  onPress={() => setShowProfile(true)}
+                >
+                  <Icon name="account" size={24} color="#fff" />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.controlButton}
                   onPress={() => setShowConfirmLeave(true)}
                 >
                   <Icon name="phone-hangup" size={24} color="#EF4444" />
@@ -506,8 +564,42 @@ export default function EnhancedStreamMeetingRoom({
                     </TouchableOpacity>
                   </View>
                   <ScrollView style={styles.participantsList}>
-                    {/* Participants list would go here */}
-                    <Text style={styles.participantItem}>Loading participants...</Text>
+                    {call && call.state.participants && call.state.participants.length > 0 ? (
+                      call.state.participants.map((participant, index) => (
+                        <View key={participant.userId || index} style={styles.participantItem}>
+                          <View style={styles.participantAvatar}>
+                            <Text style={styles.participantAvatarText}>
+                              {(participant.user?.name || 'User')[0].toUpperCase()}
+                            </Text>
+                          </View>
+                          <View style={styles.participantInfo}>
+                            <Text style={styles.participantName}>
+                              {participant.user?.name || 'Unknown User'}
+                            </Text>
+                            <Text style={styles.participantStatus}>
+                              {participant.isSpeaking ? 'Speaking' : 
+                               participant.isLocal ? 'You' : 'Connected'}
+                            </Text>
+                          </View>
+                          <View style={styles.participantControls}>
+                            {participant.publishedTracks.includes('audio') ? (
+                              <Icon name="microphone" size={16} color="#10B981" />
+                            ) : (
+                              <Icon name="microphone-off" size={16} color="#EF4444" />
+                            )}
+                            {participant.publishedTracks.includes('video') ? (
+                              <Icon name="video" size={16} color="#10B981" />
+                            ) : (
+                              <Icon name="video-off" size={16} color="#EF4444" />
+                            )}
+                          </View>
+                        </View>
+                      ))
+                    ) : (
+                      <View style={styles.noParticipants}>
+                        <Text style={styles.noParticipantsText}>No participants found</Text>
+                      </View>
+                    )}
                   </ScrollView>
                 </View>
               </View>
@@ -564,6 +656,69 @@ export default function EnhancedStreamMeetingRoom({
                     <TouchableOpacity style={styles.chatSendButton} onPress={sendMessage}>
                       <Icon name="send" size={20} color="#3B82F6" />
                     </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+            )}
+
+            {/* Profile Modal */}
+            {showProfile && (
+              <View style={styles.settingsModal}>
+                <View style={styles.profileContent}>
+                  <View style={styles.settingsHeader}>
+                    <Text style={styles.settingsTitle}>User Profile</Text>
+                    <TouchableOpacity onPress={() => setShowProfile(false)}>
+                      <Icon name="close" size={24} color="#fff" />
+                    </TouchableOpacity>
+                  </View>
+                  <View style={styles.profileBody}>
+                    <View style={styles.profileSection}>
+                      <Text style={styles.profileSectionTitle}>User Information</Text>
+                      <View style={styles.profileInfo}>
+                        <Text style={styles.profileLabel}>Name:</Text>
+                        <Text style={styles.profileValue}>
+                          {currentUser?.name || currentUser?.firstName + ' ' + currentUser?.lastName || 'Unknown User'}
+                        </Text>
+                      </View>
+                      <View style={styles.profileInfo}>
+                        <Text style={styles.profileLabel}>Email:</Text>
+                        <Text style={styles.profileValue}>{currentUser?.email || 'Not available'}</Text>
+                      </View>
+                      <View style={styles.profileInfo}>
+                        <Text style={styles.profileLabel}>Role:</Text>
+                        <Text style={styles.profileValue}>{currentUser?.role || 'Participant'}</Text>
+                      </View>
+                      <View style={styles.profileInfo}>
+                        <Text style={styles.profileLabel}>Status:</Text>
+                        <Text style={styles.profileValue}>
+                          {isHost ? 'Host' : 'Participant'}
+                        </Text>
+                      </View>
+                    </View>
+                    
+                    <View style={styles.profileSection}>
+                      <Text style={styles.profileSectionTitle}>Meeting Information</Text>
+                      <View style={styles.profileInfo}>
+                        <Text style={styles.profileLabel}>Meeting:</Text>
+                        <Text style={styles.profileValue}>{meetingData?.title || 'Unknown Meeting'}</Text>
+                      </View>
+                      <View style={styles.profileInfo}>
+                        <Text style={styles.profileLabel}>Participants:</Text>
+                        <Text style={styles.profileValue}>{participantCount}</Text>
+                      </View>
+                      <View style={styles.profileInfo}>
+                        <Text style={styles.profileLabel}>Audio:</Text>
+                        <Text style={styles.profileValue}>{isMuted ? 'Muted' : 'Unmuted'}</Text>
+                      </View>
+                      <View style={styles.profileInfo}>
+                        <Text style={styles.profileLabel}>Video:</Text>
+                        <Text style={styles.profileValue}>{isVideoOn ? 'On' : 'Off'}</Text>
+                      </View>
+                      <View style={styles.profileInfo}>
+                        <Text style={styles.profileLabel}>Screen Share:</Text>
+                        <Text style={styles.profileValue}>{isScreenSharing ? 'Active' : 'Inactive'}</Text>
+                      </View>
+                    </View>
                   </View>
                 </View>
               </View>
@@ -870,9 +1025,53 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   participantItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333',
+  },
+  participantAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#3B82F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  participantAvatarText: {
     color: '#fff',
     fontSize: 16,
-    paddingVertical: 8,
+    fontWeight: '600',
+  },
+  participantInfo: {
+    flex: 1,
+  },
+  participantName: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  participantStatus: {
+    color: '#6B7280',
+    fontSize: 14,
+    marginTop: 2,
+  },
+  participantControls: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  noParticipants: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  noParticipantsText: {
+    color: '#6B7280',
+    fontSize: 16,
+    textAlign: 'center',
   },
   statsModal: {
     position: 'absolute',

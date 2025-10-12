@@ -40,6 +40,7 @@ export default function PrincipalMeeting() {
   const [allUsers, setAllUsers] = useState([]);
   const [selectedUsers, setSelectedUsers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [expandedRoles, setExpandedRoles] = useState({});
   const [creating, setCreating] = useState(false);
   const [meetingTitle, setMeetingTitle] = useState('');
   const [meetingDescription, setMeetingDescription] = useState('');
@@ -137,6 +138,18 @@ export default function PrincipalMeeting() {
       if (exists) return prev.filter(p => p._id !== u._id);
       return [...prev, u];
     });
+  };
+
+  const toggleRoleExpansion = (role) => {
+    setExpandedRoles(prev => ({
+      ...prev,
+      [role]: !prev[role]
+    }));
+  };
+
+  const clearSelection = () => {
+    setSelectedUsers([]);
+    setSearchTerm('');
   };
 
   const usersByRole = allUsers
@@ -499,192 +512,6 @@ export default function PrincipalMeeting() {
           </View>
         </View>
 
-      {/* Direct Invite - User Selection */}
-      <View style={styles.selectionCard}>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-          <Text style={styles.sectionTitle}>Select Meeting Participants</Text>
-          <TouchableOpacity
-            disabled={selectedUsers.length === 0 || creating || !meetingTitle.trim()}
-            onPress={handleCreateDirectInvite}
-            style={[styles.createButton, (selectedUsers.length === 0 || creating || !meetingTitle.trim()) && { opacity: 0.6 }]}
-          >
-            <Icon name="plus" size={18} color="#fff" />
-            <Text style={styles.createButtonText}>Create ({selectedUsers.length})</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={{ marginBottom: 8 }}>
-          <TouchableOpacity onPress={() => { const t = prompt('Enter meeting title', meetingTitle) || ''; setMeetingTitle(t); }} style={styles.inputLikeRow}>
-            <Icon name="format-title" size={18} color="#6B7280" />
-            <Text style={styles.inputLikeText}>{meetingTitle || 'Add a meeting title'}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => { const d = prompt('Enter description (optional)', meetingDescription) || ''; setMeetingDescription(d); }} style={styles.inputLikeRow}>
-            <Icon name="text" size={18} color="#6B7280" />
-            <Text style={styles.inputLikeText}>{meetingDescription || 'Add a description (optional)'}</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.searchRow}>
-          <Icon name="magnify" size={18} color="#6B7280" />
-          <Text style={styles.searchPlaceholder}>{searchTerm || 'Search users by name, email, or role...'}</Text>
-          <TouchableOpacity onPress={() => setSearchTerm(prompt('Search', searchTerm) || '')}>
-            <Text style={{ color: '#2563EB', fontWeight: '500' }}>Edit</Text>
-          </TouchableOpacity>
-        </View>
-
-        {selectedUsers.length > 0 && (
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
-            {selectedUsers.map(u => (
-              <TouchableOpacity key={u._id} onPress={() => toggleUserSelection(u)} style={styles.chip}>
-                <Text style={styles.chipText}>{(u.firstName || u.firstname || '?')[0]}{(u.lastName || u.lastname || '?')[0]} · {u.firstName || u.firstname} {u.lastName || u.lastname}</Text>
-                <Text style={styles.chipRemove}>×</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
-
-        <View style={{ gap: 8 }}>
-          {Object.entries(usersByRole).map(([role, list]) => (
-            <View key={role} style={{ marginBottom: 8 }}>
-              <Text style={styles.roleHeader}>{role} ({list.length})</Text>
-              <View style={{ gap: 6 }}>
-                {list.map(u => {
-                  const isSelected = selectedUsers.some(s => s._id === u._id);
-                  return (
-                    <TouchableOpacity key={u._id} onPress={() => toggleUserSelection(u)} style={[styles.userRow, isSelected && styles.userRowSelected]}>
-                      <View style={styles.avatar}>
-                        <Text style={styles.avatarText}>{(u.firstName || u.firstname || '?')[0]}{(u.lastName || u.lastname || '?')[0]}</Text>
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.userName}>{u.firstName || u.firstname} {u.lastName || u.lastname}</Text>
-                        <Text style={styles.userEmail}>{u.email}</Text>
-                        <Text style={styles.userRole}>{u.role}</Text>
-                      </View>
-                      {isSelected && <Icon name="check-circle" size={20} color="#2563EB" />}
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </View>
-          ))}
-        </View>
-      </View>
-
-      {/* Direct Invite - User Selection */}
-      <View style={styles.selectionCard}>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-          <Text style={styles.sectionTitle}>Select Meeting Participants</Text>
-          <TouchableOpacity
-            disabled={selectedUsers.length === 0 || creating || !meetingTitle.trim() || (meetingType === 'scheduled' && (!scheduledDate || !scheduledTime))}
-            onPress={handleCreateDirectInvite}
-            style={[styles.createButton, (selectedUsers.length === 0 || creating || !meetingTitle.trim()) && { opacity: 0.6 }]}
-          >
-            <Icon name="plus" size={18} color="#fff" />
-            <Text style={styles.createButtonText}>Create ({selectedUsers.length})</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={{ gap: 8 }}>
-          <View style={styles.textInputRow}>
-            <Icon name="format-title" size={18} color="#6B7280" />
-            <Text style={styles.textLabel}>Title</Text>
-          </View>
-          <View style={styles.inputField}>
-            <Text style={styles.inputFieldText} onPress={() => setMeetingTitle(prompt('Title', meetingTitle) || '')}>{meetingTitle || 'Add a meeting title'}</Text>
-          </View>
-
-          <View style={styles.textInputRow}>
-            <Icon name="text" size={18} color="#6B7280" />
-            <Text style={styles.textLabel}>Description (optional)</Text>
-          </View>
-          <View style={styles.inputField}>
-            <Text style={styles.inputFieldText} onPress={() => setMeetingDescription(prompt('Description (optional)', meetingDescription) || '')}>{meetingDescription || 'Add a description (optional)'}</Text>
-          </View>
-
-          <View style={styles.typeToggleRow}>
-            <TouchableOpacity onPress={() => setMeetingType('instant')} style={[styles.typePill, meetingType === 'instant' && styles.typePillActive]}>
-              <Text style={[styles.typePillText, meetingType === 'instant' && styles.typePillTextActive]}>Instant</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => setMeetingType('scheduled')} style={[styles.typePill, meetingType === 'scheduled' && styles.typePillActive]}>
-              <Text style={[styles.typePillText, meetingType === 'scheduled' && styles.typePillTextActive]}>Scheduled</Text>
-            </TouchableOpacity>
-          </View>
-
-          {meetingType === 'scheduled' && (
-            <View style={{ gap: 8 }}>
-              <View style={styles.inlineRow}>
-                <Icon name="calendar" size={18} color="#6B7280" />
-                <Text style={styles.inlineLabel}>Date (YYYY-MM-DD)</Text>
-              </View>
-              <View style={styles.inputField}>
-                <Text style={styles.inputFieldText} onPress={() => setScheduledDate(prompt('Date (YYYY-MM-DD)', scheduledDate) || '')}>{scheduledDate || 'e.g. 2025-10-05'}</Text>
-              </View>
-
-              <View style={styles.inlineRow}>
-                <Icon name="clock-outline" size={18} color="#6B7280" />
-                <Text style={styles.inlineLabel}>Time (HH:mm)</Text>
-              </View>
-              <View style={styles.inputField}>
-                <Text style={styles.inputFieldText} onPress={() => setScheduledTime(prompt('Time (HH:mm)', scheduledTime) || '')}>{scheduledTime || 'e.g. 14:30'}</Text>
-              </View>
-
-              <View style={styles.inlineRow}>
-                <Icon name="timer" size={18} color="#6B7280" />
-                <Text style={styles.inlineLabel}>Duration (minutes)</Text>
-              </View>
-              <View style={styles.inputField}>
-                <Text style={styles.inputFieldText} onPress={() => setDuration(prompt('Duration (minutes)', duration) || '')}>{duration || 'optional'}</Text>
-              </View>
-            </View>
-          )}
-        </View>
-
-        <View style={styles.searchRow}>
-          <Icon name="magnify" size={18} color="#6B7280" />
-          <Text style={styles.searchPlaceholder}>{searchTerm || 'Search users by name, email, or role...'}</Text>
-          <TouchableOpacity onPress={() => setSearchTerm(prompt('Search', searchTerm) || '')}>
-            <Text style={{ color: '#2563EB', fontWeight: '500' }}>Edit</Text>
-          </TouchableOpacity>
-        </View>
-
-        {selectedUsers.length > 0 && (
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
-            {selectedUsers.map(u => (
-              <TouchableOpacity key={u._id} onPress={() => toggleUserSelection(u)} style={styles.chip}>
-                <Text style={styles.chipText}>{(u.firstName || u.firstname || '?')[0]}{(u.lastName || u.lastname || '?')[0]} · {u.firstName || u.firstname} {u.lastName || u.lastname}</Text>
-                <Text style={styles.chipRemove}>×</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
-
-        <View style={{ gap: 8 }}>
-          {Object.entries(usersByRole).map(([role, list]) => (
-            <View key={role} style={{ marginBottom: 8 }}>
-              <Text style={styles.roleHeader}>{role} ({list.length})</Text>
-              <View style={{ gap: 6 }}>
-                {list.map(u => {
-                  const isSelected = selectedUsers.some(s => s._id === u._id);
-                  return (
-                    <TouchableOpacity key={u._id} onPress={() => toggleUserSelection(u)} style={[styles.userRow, isSelected && styles.userRowSelected]}>
-                      <View style={styles.avatar}>
-                        <Text style={styles.avatarText}>{(u.firstName || u.firstname || '?')[0]}{(u.lastName || u.lastname || '?')[0]}</Text>
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.userName}>{u.firstName || u.firstname} {u.lastName || u.lastname}</Text>
-                        <Text style={styles.userEmail}>{u.email}</Text>
-                        <Text style={styles.userRole}>{u.role}</Text>
-                      </View>
-                      {isSelected && <Icon name="check-circle" size={20} color="#2563EB" />}
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </View>
-          ))}
-        </View>
-      </View>
-
       {/* Meeting List */}
       <View style={styles.meetingSection}>
         <View style={styles.meetingHeader}>
@@ -768,6 +595,184 @@ export default function PrincipalMeeting() {
           )}
         </View>
       </View>
+
+      {/* Direct Invite - User Selection */}
+      <View style={styles.selectionCard}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <Text style={styles.sectionTitle}>Select Meeting Participants</Text>
+          <TouchableOpacity
+            disabled={selectedUsers.length === 0 || creating || !meetingTitle.trim() || (meetingType === 'scheduled' && (!scheduledDate || !scheduledTime))}
+            onPress={handleCreateDirectInvite}
+            style={[styles.createButton, (selectedUsers.length === 0 || creating || !meetingTitle.trim()) && { opacity: 0.6 }]}
+          >
+            <Icon name="plus" size={18} color="#fff" />
+            <Text style={styles.createButtonText}>Create ({selectedUsers.length})</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Inline inputs */}
+        <View style={{ gap: 8 }}>
+          <View style={styles.textInputRow}>
+            <Icon name="format-title" size={18} color="#6B7280" />
+            <Text style={styles.textLabel}>Title</Text>
+          </View>
+          <View style={styles.inputField}>
+            <Text
+              style={styles.inputFieldText}
+              onPress={() => setMeetingTitle(prompt('Title', meetingTitle) || '')}
+            >{meetingTitle || 'Add a meeting title'}</Text>
+          </View>
+
+          <View style={styles.textInputRow}>
+            <Icon name="text" size={18} color="#6B7280" />
+            <Text style={styles.textLabel}>Description (optional)</Text>
+          </View>
+          <View style={styles.inputField}>
+            <Text
+              style={styles.inputFieldText}
+              onPress={() => setMeetingDescription(prompt('Description (optional)', meetingDescription) || '')}
+            >{meetingDescription || 'Add a description (optional)'}</Text>
+          </View>
+
+          {/* Meeting type toggle */}
+          <View style={styles.typeToggleRow}>
+            <TouchableOpacity onPress={() => setMeetingType('instant')} style={[styles.typePill, meetingType === 'instant' && styles.typePillActive]}>
+              <Text style={[styles.typePillText, meetingType === 'instant' && styles.typePillTextActive]}>Instant</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setMeetingType('scheduled')} style={[styles.typePill, meetingType === 'scheduled' && styles.typePillActive]}>
+              <Text style={[styles.typePillText, meetingType === 'scheduled' && styles.typePillTextActive]}>Scheduled</Text>
+            </TouchableOpacity>
+          </View>
+
+          {meetingType === 'scheduled' && (
+            <View style={{ gap: 8 }}>
+              <View style={styles.inlineRow}>
+                <Icon name="calendar" size={18} color="#6B7280" />
+                <Text style={styles.inlineLabel}>Date (YYYY-MM-DD)</Text>
+              </View>
+              <View style={styles.inputField}>
+                <Text
+                  style={styles.inputFieldText}
+                  onPress={() => setScheduledDate(prompt('Date (YYYY-MM-DD)', scheduledDate) || '')}
+                >{scheduledDate || 'e.g. 2025-10-05'}</Text>
+              </View>
+
+              <View style={styles.inlineRow}>
+                <Icon name="clock-outline" size={18} color="#6B7280" />
+                <Text style={styles.inlineLabel}>Time (HH:mm)</Text>
+              </View>
+              <View style={styles.inputField}>
+                <Text
+                  style={styles.inputFieldText}
+                  onPress={() => setScheduledTime(prompt('Time (HH:mm)', scheduledTime) || '')}
+                >{scheduledTime || 'e.g. 14:30'}</Text>
+              </View>
+
+              <View style={styles.inlineRow}>
+                <Icon name="timer" size={18} color="#6B7280" />
+                <Text style={styles.inlineLabel}>Duration (minutes)</Text>
+              </View>
+              <View style={styles.inputField}>
+                <Text
+                  style={styles.inputFieldText}
+                  onPress={() => setDuration(prompt('Duration (minutes)', duration) || '')}
+                >{duration || 'optional'}</Text>
+              </View>
+            </View>
+          )}
+        </View>
+
+        {/* Search Bar */}
+        <View style={styles.searchRow}>
+          <Icon name="magnify" size={18} color="#6B7280" />
+          <Text style={styles.searchPlaceholder}>{searchTerm || 'Search users by name, email, or role...'}</Text>
+          <TouchableOpacity onPress={() => setSearchTerm(prompt('Search', searchTerm) || '')}>
+            <Text style={{ color: '#2563EB', fontWeight: '500' }}>Edit</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Selected Users */}
+        {selectedUsers.length > 0 && (
+          <View style={{ marginBottom: 16 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <Text style={styles.selectedTitle}>Selected Participants ({selectedUsers.length})</Text>
+              <TouchableOpacity onPress={clearSelection}>
+                <Text style={styles.clearAllText}>Clear All</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+              {selectedUsers.map(u => (
+                <TouchableOpacity key={u._id} onPress={() => toggleUserSelection(u)} style={styles.chip}>
+                  <Text style={styles.chipText}>{(u.firstName || u.firstname || '?')[0]}{(u.lastName || u.lastname || '?')[0]} · {u.firstName || u.firstname} {u.lastName || u.lastname}</Text>
+                  <Text style={styles.chipRemove}>×</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* User List by Role with Collapsible Dropdowns */}
+        <View style={{ gap: 12 }}>
+          {Object.entries(usersByRole).map(([role, list]) => {
+            const isExpanded = expandedRoles[role];
+            const selectedInRole = list.filter(u => selectedUsers.some(s => s._id === u._id)).length;
+            
+            return (
+              <View key={role} style={styles.roleDropdown}>
+                <TouchableOpacity
+                  onPress={() => toggleRoleExpansion(role)}
+                  style={styles.roleDropdownHeader}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                    <Icon 
+                      name={isExpanded ? "chevron-down" : "chevron-right"} 
+                      size={20} 
+                      color="#6B7280" 
+                      style={{ marginRight: 8 }}
+                    />
+                    <Text style={styles.roleHeader}>
+                      {role.charAt(0).toUpperCase() + role.slice(1)}
+                    </Text>
+                    <Text style={styles.roleSelectionCount}>
+                      ({selectedInRole}/{list.length} selected)
+                    </Text>
+                  </View>
+                  <Text style={styles.roleUserCount}>{list.length} users</Text>
+                </TouchableOpacity>
+                
+                {isExpanded && (
+                  <View style={styles.roleContent}>
+                    <View style={{ gap: 8 }}>
+                      {list.map(u => {
+                        const isSelected = selectedUsers.some(s => s._id === u._id);
+                        return (
+                          <TouchableOpacity 
+                            key={u._id} 
+                            onPress={() => toggleUserSelection(u)} 
+                            style={[styles.userRow, isSelected && styles.userRowSelected]}
+                          >
+                            <View style={[styles.avatar, isSelected && styles.avatarSelected]}>
+                              <Text style={[styles.avatarText, isSelected && styles.avatarTextSelected]}>
+                                {(u.firstName || u.firstname || '?')[0]}{(u.lastName || u.lastname || '?')[0]}
+                              </Text>
+                            </View>
+                            <View style={{ flex: 1 }}>
+                              <Text style={styles.userName}>{u.firstName || u.firstname} {u.lastName || u.lastname}</Text>
+                              <Text style={styles.userEmail}>{u.email}</Text>
+                              <Text style={styles.userRole}>{u.role}</Text>
+                            </View>
+                            {isSelected && <Icon name="check-circle" size={20} color="#2563EB" />}
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </View>
+                )}
+              </View>
+            );
+          })}
+        </View>
+      </View>
       {activeMeeting && Platform.OS !== 'web' && SimpleStreamMeetingRoom && (
         <SimpleStreamMeetingRoom
           isOpen={!!activeMeeting}
@@ -777,12 +782,12 @@ export default function PrincipalMeeting() {
           currentUser={{ name: user?.name || user?.username || 'Host' }}
           credentials={{
             apiKey: 'mmhfdzb5evj2',
-            token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL3Byb250by5nZXRzdHJlYW0uaW8iLCJzdWIiOiJ1c2VyL1B1cnBsZV9NZXJjdXJ5IiwidXNlcl9pZCI6IlB1cnBsZV9NZXJjdXJ5IiwidmFsaWRpdHlfaW5fc2Vjb25kcyI6NjA0ODAwLCJpYXQiOjE3NTk2NTE4NjQsImV4cCI6MTc2MDI1NjY2NH0.IKuWpIS41aryq8sgxpTEgXMP3Upqn7xPjY6LdF3dJBo',
-            userId: 'Purple_Mercury',
-            callId: 'kTE5BNNcs080Jp4MA5UhA',
+            token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL3Byb250by5nZXRzdHJlYW0uaW8iLCJzdWIiOiJ1c2VyL0Fib3VuZGluZ19Qb3Bjb3JuIiwidXNlcl9pZCI6IkFib3VuZGluZ19Qb3Bjb3JuIiwidmFsaWRpdHlfaW5fc2Vjb25kcyI6NjA0ODAwLCJpYXQiOjE3NjAyNDMyNjYsImV4cCI6MTc2MDg0ODA2Nn0.OtFBJIHfa8Ojp3kFl47A2Z1_HWvkHiWKvM1sdumOoeQ',
+            userId: 'Abounding_Popcorn',
+            callId: 'cOYIirg4DL6tCrwXxVXx5',
           }}
           isHost={true}
-          hostUserId={'Purple_Mercury'}
+          hostUserId={'Abounding_Popcorn'}
         />
       )}
       
@@ -918,12 +923,50 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
   },
+  selectedTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  clearAllText: {
+    fontSize: 12,
+    color: '#EF4444',
+    fontWeight: '500',
+  },
+  roleDropdown: {
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    backgroundColor: 'white',
+  },
+  roleDropdownHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    backgroundColor: '#F9FAFB',
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+  },
   roleHeader: {
     fontSize: 14,
     fontWeight: '600',
     color: '#374151',
-    marginBottom: 6,
     textTransform: 'capitalize',
+  },
+  roleSelectionCount: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginLeft: 8,
+  },
+  roleUserCount: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  roleContent: {
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
   },
   userRow: {
     flexDirection: 'row',
@@ -947,9 +990,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  avatarSelected: {
+    backgroundColor: '#DBEAFE',
+  },
   avatarText: {
     color: '#374151',
     fontWeight: '600',
+  },
+  avatarTextSelected: {
+    color: '#1D4ED8',
   },
   userName: {
     fontSize: 14,
