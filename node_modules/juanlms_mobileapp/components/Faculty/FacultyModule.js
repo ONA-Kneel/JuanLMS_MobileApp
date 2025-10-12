@@ -966,7 +966,7 @@ export default function FacultyModule() {
                     </View>
                 </View>
             {/* Tabs */}
-            <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: 18, gap: 8, marginLeft: 10, marginRight: 10 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: 18, gap: 12, marginLeft: 10, marginRight: 10 }}>
                 {['Announcement', 'Classwork', 'Class Materials'].map(tab => (
                     <TouchableOpacity
                         key={tab}
@@ -976,8 +976,8 @@ export default function FacultyModule() {
                         }}
                         style={{
                             backgroundColor: activeTab === tab ? '#00418b' : '#e3eefd',
-                            paddingVertical: 7,
-                            paddingHorizontal: 10,
+                            paddingVertical: 8,
+                            paddingHorizontal: 12,
                             borderRadius: 10,
                         }}
                     >

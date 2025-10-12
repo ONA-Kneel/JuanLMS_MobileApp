@@ -15,6 +15,7 @@ import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../UserContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { fetchActiveQuarter } from '../../utils/academicContext';
 
 export default function StudentClasses() {
   const navigation = useNavigation();
@@ -26,24 +27,54 @@ export default function StudentClasses() {
   const [selectedClass, setSelectedClass] = useState(null);
   const [showClassModal, setShowClassModal] = useState(false);
   const [classStats, setClassStats] = useState({});
+  const [activeQuarter, setActiveQuarter] = useState(null);
 
   const API_BASE = 'https://juanlms-webapp-server.onrender.com';
 
   useEffect(() => {
-    fetchClasses();
+    fetchActiveQuarterInfo();
   }, []);
+
+  useEffect(() => {
+    if (activeQuarter) {
+      fetchClasses();
+    }
+  }, [activeQuarter]);
+
+  const fetchActiveQuarterInfo = async () => {
+    try {
+      const quarterInfo = await fetchActiveQuarter();
+      console.log('Active quarter info:', quarterInfo);
+      setActiveQuarter(quarterInfo);
+    } catch (error) {
+      console.error('Error fetching active quarter info:', error);
+      // Set default quarter info if fetch fails
+      setActiveQuarter({
+        quarterName: 'Quarter 1',
+        termName: 'Term 1',
+        schoolYear: '2025-2026',
+        isActive: false
+      });
+    }
+  };
 
   const fetchClasses = async () => {
     try {
       setLoading(true);
       setError(null);
-        const token = await AsyncStorage.getItem('jwtToken');
+      const token = await AsyncStorage.getItem('jwtToken');
       
       if (!token) {
         throw new Error('No authentication token found');
       }
 
-        console.log('Fetching classes for student:', user._id);
+      if (!activeQuarter) {
+        console.log('No active quarter info available yet');
+        return;
+      }
+
+      console.log('Fetching classes for student:', user._id);
+      console.log('Filtering by active quarter:', activeQuarter);
         
       const response = await fetch(`${API_BASE}/classes/my-classes`, {
           method: 'GET',
@@ -62,12 +93,44 @@ export default function StudentClasses() {
         console.log('API Response from /my-classes:', data);
         
         // The my-classes endpoint already filters classes based on user role and membership
-        const userClasses = Array.isArray(data) ? data : [];
-        console.log('User classes:', userClasses);
-        setClasses(userClasses);
+        let userClasses = Array.isArray(data) ? data : [];
+        console.log('User classes before quarter filtering:', userClasses);
+        
+        // Apply quarter filtering logic similar to web app
+        const filteredClasses = userClasses.filter(cls => {
+          // Filter out archived classes
+          if (cls.isArchived === true) {
+            console.log(`Filtering out archived class: ${cls.className || cls.classCode}`);
+            return false;
+          }
+          
+          // Filter by academic year (tolerate missing academicYear)
+          if (cls.academicYear && cls.academicYear !== activeQuarter.schoolYear) {
+            console.log(`Filtering out class with wrong year: ${cls.className || cls.classCode} (${cls.academicYear})`);
+            return false;
+          }
+          
+          // Filter by term (tolerate missing termName)
+          if (cls.termName && cls.termName !== activeQuarter.termName) {
+            console.log(`Filtering out class with wrong term: ${cls.className || cls.classCode} (${cls.termName})`);
+            return false;
+          }
+          
+          // Filter by quarter (tolerate missing quarterName)
+          if (cls.quarterName && cls.quarterName !== activeQuarter.quarterName) {
+            console.log(`Filtering out class with wrong quarter: ${cls.className || cls.classCode} (${cls.quarterName})`);
+            return false;
+          }
+          
+          console.log(`Including class: ${cls.className || cls.classCode}`);
+          return true;
+        });
+        
+        console.log('User classes after quarter filtering:', filteredClasses);
+        setClasses(filteredClasses);
       
-      // Fetch class statistics for each class
-      await fetchClassStats(userClasses, token);
+      // Fetch class statistics for each filtered class
+      await fetchClassStats(filteredClasses, token);
       
     } catch (error) {
       console.error('Error fetching classes:', error);
@@ -158,7 +221,9 @@ export default function StudentClasses() {
 
   const onRefresh = () => {
     setRefreshing(true);
-    fetchClasses();
+    fetchActiveQuarterInfo().then(() => {
+      // fetchClasses will be called automatically when activeQuarter state updates
+    });
   };
 
   const handleClassPress = (classItem) => {
@@ -331,8 +396,11 @@ export default function StudentClasses() {
       <MaterialCommunityIcons name="school-outline" size={64} color="#ccc" />
       <Text style={styles.emptyTitle}>No Classes Found</Text>
       <Text style={styles.emptyText}>
-        You are not enrolled in any classes yet. Please contact your administrator.
-        </Text>
+        {activeQuarter 
+          ? `You are not enrolled in any classes for ${activeQuarter.quarterName} of ${activeQuarter.termName}. Please contact your administrator.`
+          : 'You are not enrolled in any classes yet. Please contact your administrator.'
+        }
+      </Text>
     </View>
   );
 
@@ -353,6 +421,11 @@ export default function StudentClasses() {
         <Text style={styles.headerSubtitle}>
           Manage your enrolled classes and access course materials
         </Text>
+        {activeQuarter && (
+          <Text style={styles.quarterInfo}>
+            {activeQuarter.schoolYear} | {activeQuarter.termName} | {activeQuarter.quarterName}
+          </Text>
+        )}
       </View>
 
       {/* Classes List */}
@@ -478,6 +551,12 @@ const styles = {
   headerSubtitle: {
     color: 'rgba(255, 255, 255, 0.8)',
     fontSize: 16,
+  },
+  quarterInfo: {
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontSize: 14,
+    fontWeight: '500',
+    marginTop: 4,
   },
   classesList: {
     flex: 1,

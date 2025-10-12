@@ -31,12 +31,13 @@ const QuizView = React.memo(function QuizView() {
   const [timeRemaining, setTimeRemaining] = useState(0);
   const [quizStarted, setQuizStarted] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
+  const [startTime, setStartTime] = useState(null);
   
   const [quiz, setQuiz] = useState(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState({});
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [quizError, setQuizError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [timeLeft, setTimeLeft] = useState(null);
   const [showSubmitModal, setShowSubmitModal] = useState(false);
@@ -96,13 +97,15 @@ const QuizView = React.memo(function QuizView() {
   }, [quizId, review]);
 
   useEffect(() => {
-    if (quiz && !review && quiz.timing?.duration) {
-      const duration = quiz.timing.duration;
-      setTimeRemaining(duration);
-      
-      // Start timer when quiz begins
-      if (quizStarted) {
-        startTimer(quizId, duration, handleTimeUp);
+    if (quiz && !review) {
+      const duration = (quiz.timing?.timeLimit ? quiz.timing.timeLimit * 60 : 0) || (quiz.timeLimit ? quiz.timeLimit * 60 : 0);
+      if (duration > 0) {
+        setTimeRemaining(duration);
+        
+        // Start timer when quiz begins
+        if (quizStarted) {
+          startTimer(quizId, duration, handleTimeUp);
+        }
       }
     }
     
@@ -132,20 +135,23 @@ const QuizView = React.memo(function QuizView() {
   const startQuiz = () => {
     setQuizStarted(true);
     setStartTime(new Date());
-    if (quiz.timing?.duration) {
-      startTimer(quizId, quiz.timing.duration, handleTimeUp);
+    const duration = (quiz.timing?.timeLimit ? quiz.timing.timeLimit * 60 : 0) || (quiz.timeLimit ? quiz.timeLimit * 60 : 0);
+    if (duration > 0) {
+      startTimer(quizId, duration, handleTimeUp);
     }
   };
 
   const pauseQuiz = () => {
-    if (quiz.timing?.duration) {
+    const hasTimer = (quiz.timing?.timeLimit && quiz.timing.timeLimit > 0) || (quiz.timeLimit && quiz.timeLimit > 0);
+    if (hasTimer) {
       pauseTimer(quizId);
       setIsPaused(true);
     }
   };
 
   const resumeQuiz = () => {
-    if (quiz.timing?.duration) {
+    const hasTimer = (quiz.timing?.timeLimit && quiz.timing.timeLimit > 0) || (quiz.timeLimit && quiz.timeLimit > 0);
+    if (hasTimer) {
       const remaining = getRemainingTime(quizId);
       if (remaining > 0) {
         resumeTimer(quizId, remaining, handleTimeUp);
@@ -155,7 +161,8 @@ const QuizView = React.memo(function QuizView() {
   };
 
   const renderTimer = () => {
-    if (review || !quiz.timing?.duration || !quizStarted) return null;
+    const hasTimer = (quiz.timing?.timeLimit && quiz.timing.timeLimit > 0) || (quiz.timeLimit && quiz.timeLimit > 0);
+    if (review || !hasTimer || !quizStarted) return null;
     
     const remaining = getRemainingTime(quizId);
     const isLowTime = remaining <= 60; // Show warning when less than 1 minute
@@ -273,7 +280,7 @@ const QuizView = React.memo(function QuizView() {
   const fetchQuiz = async () => {
     try {
       setLoading(true);
-      setError(null);
+      setQuizError(null);
       
       const token = await AsyncStorage.getItem('jwtToken');
       console.log('Fetching quiz data for ID:', quizId);
@@ -374,6 +381,15 @@ const QuizView = React.memo(function QuizView() {
       setQuiz(quizData);
       setAnswers(initialAnswers);
       
+      // Auto-start quiz if it has a timer and is not in review mode
+      const quizDuration = (quizData.timing?.timeLimit ? quizData.timing.timeLimit * 60 : 0) || (quizData.timeLimit ? quizData.timeLimit * 60 : 0);
+      if (!review && quizDuration > 0) {
+        console.log('Auto-starting quiz with timer:', quizDuration, 'seconds');
+        setQuizStarted(true);
+        setStartTime(new Date());
+        startTimer(quizId, quizDuration, handleTimeUp);
+      }
+      
       // Debug: Log the initial state
       console.log('=== STATE UPDATE DEBUG ===');
       console.log('Quiz data set:', quizData._id);
@@ -453,7 +469,7 @@ const QuizView = React.memo(function QuizView() {
       
     } catch (error) {
       console.error('Error fetching quiz:', error);
-      setError(error.message);
+      setQuizError(error.message);
       setQuiz(null);
       setAnswers({});
     } finally {
@@ -595,6 +611,11 @@ const QuizView = React.memo(function QuizView() {
 
   // Common submission logic
   const submitQuiz = async () => {
+    const quizKey = `quiz-submission-${Date.now()}`;
+    
+    // Set submitting state
+    setSubmitting(true);
+    
     // Record time for current question before submitting
     const currentTime = Date.now();
     const timeSpent = Math.floor((currentTime - questionStartTime) / 1000);
@@ -741,6 +762,8 @@ const QuizView = React.memo(function QuizView() {
         feedback: result.feedback || null,
       });
 
+      // Quiz submitted successfully
+      
       // Per requirement: no results/reveal dialogs. Show simple message and return.
       Alert.alert(
         'Quiz Submitted',
@@ -759,6 +782,7 @@ const QuizView = React.memo(function QuizView() {
       console.error('Error submitting quiz:', error);
       console.error('Error message:', error.message);
       console.error('Error stack:', error.stack);
+      // Show error
       Alert.alert('Error', `Failed to submit quiz: ${error.message}`);
     } finally {
       setSubmitting(false);
@@ -1077,7 +1101,7 @@ const QuizView = React.memo(function QuizView() {
     );
   };
 
-  if (loading && !error) {
+  if (loading && !quizError) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#00418b" />
@@ -1088,16 +1112,16 @@ const QuizView = React.memo(function QuizView() {
     );
   }
 
-  if (error) {
+  if (quizError) {
     return (
       <View style={styles.errorContainer}>
         <MaterialIcons name="error-outline" size={64} color="#f44336" />
         <Text style={styles.errorTitle}>Failed to Load Quiz</Text>
-        <Text style={styles.errorText}>{error}</Text>
+        <Text style={styles.errorText}>{quizError}</Text>
         <TouchableOpacity
           style={styles.retryButton}
           onPress={() => {
-            setError(null);
+            setQuizError(null);
             setLoading(true);
             fetchQuiz();
           }}
@@ -1207,7 +1231,7 @@ const QuizView = React.memo(function QuizView() {
         <TouchableOpacity
           style={styles.retryButton}
           onPress={() => {
-            setError(null);
+            setQuizError(null);
             setLoading(true);
             fetchQuiz();
           }}

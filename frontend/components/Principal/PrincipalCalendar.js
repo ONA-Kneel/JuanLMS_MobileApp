@@ -1,51 +1,90 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, Image, Dimensions, ActivityIndicator } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  RefreshControl,
+  Alert,
+  Image,
+  Dimensions,
+  ActivityIndicator
+} from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { useNavigation } from '@react-navigation/native';
+import { useIsFocused, useNavigation } from '@react-navigation/native';
 import { useUser } from '../UserContext';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { formatDate, getCurrentDate, addDays, isSameDay, isSameMonth, isBefore, clone } from '../../utils/dateUtils';
 import moment from 'moment';
 import { getAuthHeaders, handleApiError } from '../../utils/apiUtils';
-import { useNotifications } from '../../NotificationContext';
-import NotificationCenter from '../NotificationCenter';
 
 const API_BASE_URL = 'https://juanlms-webapp-server.onrender.com';
 const { width } = Dimensions.get('window');
 
+const CalendarDay = ({ day, isCurrentMonth, isSelected, hasEvents, onPress, isToday }) => (
+  <TouchableOpacity
+    style={[
+      styles.calendarDay,
+      !isCurrentMonth && styles.otherMonthDay,
+      isSelected && styles.selectedDay,
+      isToday && styles.today,
+    ]}
+    onPress={onPress}
+  >
+    <Text
+      style={[
+        styles.dayText,
+        !isCurrentMonth && styles.otherMonthText,
+        isSelected && styles.selectedDayText,
+        isToday && styles.todayText,
+      ]}
+    >
+      {day}
+    </Text>
+    {hasEvents && <View style={styles.eventDot} />}
+  </TouchableOpacity>
+);
+
+const EventItem = ({ event, onPress }) => (
+  <TouchableOpacity style={styles.eventItem} onPress={onPress}>
+    <View style={[styles.eventColor, { backgroundColor: event.color }]} />
+    <View style={styles.eventContent}>
+      <Text style={styles.eventTitle}>{event.title}</Text>
+      <Text style={styles.eventTime}>{event.time}</Text>
+      <Text style={styles.eventLocation}>{event.location}</Text>
+      {event.type && (
+        <View style={styles.eventTypeBadge}>
+          <Text style={styles.eventTypeText}>{event.type}</Text>
+        </View>
+      )}
+    </View>
+    <Icon name="chevron-right" size={20} color="#666" />
+  </TouchableOpacity>
+);
+
 export default function PrincipalCalendar() {
+  const isFocused = useIsFocused();
   const navigation = useNavigation();
   const { user } = useUser();
-  const [currentDate, setCurrentDate] = useState(new Date());
+  const [currentDate, setCurrentDate] = useState(getCurrentDate());
+  const [selectedDate, setSelectedDate] = useState(getCurrentDate());
   const [events, setEvents] = useState([]);
-  const [selectedDate, setSelectedDate] = useState(new Date());
   const [isLoading, setIsLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   
   // New state variables for enhanced functionality
   const [academicYear, setAcademicYear] = useState(null);
   const [currentTerm, setCurrentTerm] = useState(null);
   const [classDates, setClassDates] = useState([]);
   const [holidays, setHolidays] = useState([]);
-  
-  // Notification state
-  const [showNotificationCenter, setShowNotificationCenter] = useState(false);
-  let unreadCount = 0;
-  try {
-    const { unreadCount: count } = useNotifications();
-    unreadCount = count;
-  } catch (error) {
-    console.error('Error getting notification count:', error);
-  }
 
   // Ensure selectedDate is always set to today when component mounts
   useEffect(() => {
-    const today = new Date();
+    const today = getCurrentDate();
     setSelectedDate(today);
     setCurrentDate(today);
-  }, []);
-
-  useEffect(() => {
-    fetchCalendarEvents();
   }, []);
 
   const fetchCalendarEvents = async () => {
@@ -53,15 +92,11 @@ export default function PrincipalCalendar() {
       setIsLoading(true);
       
       // Fetch calendar events from multiple endpoints like the web app does
-      const month = currentDate.getMonth() + 1;
-      const year = currentDate.getFullYear();
-      
       const headers = await getAuthHeaders();
-
       const [classDatesRes, eventsRes, holidaysRes] = await Promise.all([
         axios.get(`${API_BASE_URL}/api/class-dates`, { headers }),
         axios.get(`${API_BASE_URL}/events`, { headers }),
-        axios.get(`https://date.nager.at/api/v3/PublicHolidays/${year}/PH`)
+        axios.get(`https://date.nager.at/api/v3/PublicHolidays/${new Date().getFullYear()}/PH`)
       ]);
       
       let allEvents = [];
@@ -72,10 +107,12 @@ export default function PrincipalCalendar() {
         allEvents = allEvents.concat(classDatesRes.data.map(date => ({
           id: `class-${date._id}`,
           title: 'Class Day',
-          date: new Date(date.date),
-          type: 'class',
-          description: 'Regular class day',
-          color: '#4CAF50'
+          date: formatDate(new Date(date.date), 'YYYY-MM-DD'),
+          time: 'All Day',
+          location: 'All Classrooms',
+          color: '#4CAF50',
+          category: 'Academic',
+          type: 'class'
         })));
       }
       
@@ -84,10 +121,12 @@ export default function PrincipalCalendar() {
         allEvents = allEvents.concat(eventsRes.data.map(event => ({
           id: `event-${event._id}`,
           title: event.title,
-          date: new Date(event.date),
-          type: 'event',
-          description: event.description || 'Event',
-          color: '#2196F3'
+          date: formatDate(new Date(event.date), 'YYYY-MM-DD'),
+          time: event.time || 'All Day',
+          location: event.location || 'TBA',
+          color: event.color || '#2196F3',
+          category: event.category || 'General',
+          type: 'event'
         })));
       }
       
@@ -97,10 +136,12 @@ export default function PrincipalCalendar() {
         allEvents = allEvents.concat(holidaysRes.data.map(holiday => ({
           id: `holiday-${holiday.date}`,
           title: holiday.localName || 'Holiday',
-          date: new Date(holiday.date),
-          type: 'holiday',
-          description: 'Public Holiday',
-          color: '#FF9800'
+          date: holiday.date,
+          time: 'All Day',
+          location: 'Philippines',
+          color: '#FF9800',
+          category: 'Holiday',
+          type: 'holiday'
         })));
       }
       
@@ -109,7 +150,7 @@ export default function PrincipalCalendar() {
       console.error('Error fetching calendar events:', error);
       const errorMessage = handleApiError(error, 'Failed to fetch calendar events');
       Alert.alert('Error', errorMessage);
-      // For now, use mock data since API might not be fully implemented
+      // Use mock data for now
       setEvents(getMockEvents());
     } finally {
       setIsLoading(false);
@@ -159,99 +200,100 @@ export default function PrincipalCalendar() {
     fetchActiveTermForYear();
   }, [academicYear]);
 
-  const getMockEvents = () => {
-    const today = new Date();
-    return [
-      {
-        id: 1,
-        title: 'Academic Year Start',
-        date: new Date(today.getFullYear(), 5, 1), // June 1
-        type: 'academic',
-        description: 'Beginning of new academic year',
-        color: '#4CAF50'
-      },
-      {
-        id: 2,
-        title: 'First Term Start',
-        date: new Date(today.getFullYear(), 7, 2), // August 2
-        type: 'term',
-        description: 'First term classes begin',
-        color: '#2196F3'
-      },
-      {
-        id: 3,
-        title: 'First Term End',
-        date: new Date(today.getFullYear(), 7, 3), // August 3
-        type: 'term',
-        description: 'First term classes end',
-        color: '#FF9800'
-      },
-      {
-        id: 4,
-        title: 'Academic Year End',
-        date: new Date(today.getFullYear() + 1, 3, 30), // April 30
-        type: 'academic',
-        description: 'End of academic year',
-        color: '#F44336'
-      }
-    ];
+  const getMockEvents = () => [
+    {
+      id: 1,
+      title: 'Faculty Meeting',
+      date: formatDate(getCurrentDate(), 'YYYY-MM-DD'),
+      time: '9:00 AM - 10:00 AM',
+      location: 'Conference Room A',
+      color: '#4CAF50',
+      category: 'Academic',
+      type: 'meeting'
+    },
+    {
+      id: 2,
+      title: 'Student Orientation',
+      date: formatDate(addDays(getCurrentDate(), 2), 'YYYY-MM-DD'),
+      time: '2:00 PM - 4:00 PM',
+      location: 'Auditorium',
+      color: '#2196F3',
+      category: 'Student',
+      type: 'orientation'
+    },
+    {
+      id: 3,
+      title: 'Board Meeting',
+      date: formatDate(addDays(getCurrentDate(), 5), 'YYYY-MM-DD'),
+      time: '3:00 PM - 5:00 PM',
+      location: 'Board Room',
+      color: '#FF9800',
+      category: 'Administrative',
+      type: 'meeting'
+    },
+  ];
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchCalendarEvents();
+    setRefreshing(false);
   };
 
+  useEffect(() => {
+    if (isFocused) {
+      fetchCalendarEvents();
+    }
+  }, [isFocused]);
+
   const getDaysInMonth = (date) => {
-    const year = date.getFullYear();
-    const month = date.getMonth();
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
-    const daysInMonth = lastDay.getDate();
-    const startingDay = firstDay.getDay();
+    const start = new Date(date.getFullYear(), date.getMonth(), 1);
+    const startOfWeek = new Date(start);
+    startOfWeek.setDate(start.getDate() - start.getDay());
+    
+    const end = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+    const endOfWeek = new Date(end);
+    endOfWeek.setDate(end.getDate() + (6 - end.getDay()));
     
     const days = [];
-    
-    // Add empty cells for days before the first day of the month
-    for (let i = 0; i < startingDay; i++) {
-      days.push(null);
+    let day = new Date(startOfWeek);
+
+    while (isBefore(day, endOfWeek) || isSameDay(day, endOfWeek)) {
+      days.push(new Date(day));
+      day.setDate(day.getDate() + 1);
     }
-    
-    // Add all days of the month
-    for (let i = 1; i <= daysInMonth; i++) {
-      days.push(new Date(year, month, i));
-    }
-    
+
     return days;
   };
 
   const getEventsForDate = (date) => {
-    if (!date) return [];
-    return events.filter(event => {
-      const eventDate = new Date(event.date);
-      return eventDate.toDateString() === date.toDateString();
-    });
+    const dateStr = formatDate(date, 'YYYY-MM-DD');
+    return events.filter(event => event.date === dateStr);
   };
 
-  const getMonthName = (date) => {
-    return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-  };
-
-  const getDayName = (dayIndex) => {
-    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    return days[dayIndex];
+  const getMonthDisplayName = (date) => {
+    const monthName = getMonthName(date.getMonth());
+    const year = date.getFullYear();
+    return `${monthName} ${year}`;
   };
 
   const changeMonth = (direction) => {
-    const newDate = new Date(currentDate);
-    if (direction === 'next') {
-      newDate.setMonth(newDate.getMonth() + 1);
-    } else {
-      newDate.setMonth(newDate.getMonth() - 1);
-    }
-    setCurrentDate(newDate);
-    setSelectedDate(new Date(newDate.getFullYear(), newDate.getMonth(), 1));
+    setCurrentDate(prev => {
+      const newDate = new Date(prev);
+      newDate.setMonth(prev.getMonth() + direction);
+      return newDate;
+    });
   };
 
-  const goToToday = () => {
-    const today = new Date();
-    setCurrentDate(today);
-    setSelectedDate(today);
+  const handleDateSelect = (date) => {
+    setSelectedDate(date);
+  };
+
+  const handleEventPress = (event) => {
+    Alert.alert(
+      event.title,
+      `Time: ${event.time}\nLocation: ${event.location}\nCategory: ${event.category}\nType: ${event.type}`,
+      [{ text: 'OK' }]
+    );
   };
 
   const days = getDaysInMonth(currentDate);
@@ -259,233 +301,117 @@ export default function PrincipalCalendar() {
 
   if (isLoading) {
     return (
-      <View style={styles.loadingContainer}>
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
         <ActivityIndicator size="large" color="#00418b" />
-        <Text style={styles.loadingText}>Loading calendar...</Text>
+        <Text style={{ marginTop: 16, fontFamily: 'Poppins-Regular', color: '#666' }}>
+          Loading calendar...
+        </Text>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Blue background */}
-        <View style={{
-          backgroundColor: '#00418b',
-          height: 90,
-          borderBottomLeftRadius: 20,
-          borderBottomRightRadius: 20,
-        }} />
-        {/* White card header */}
-        <View style={{
-          backgroundColor: '#fff',
-          borderRadius: 16,
-          marginHorizontal: 16,
-          marginTop: -40,
-          padding: 20,
-          elevation: 4,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: 2 },
-          shadowOpacity: 0.08,
-          shadowRadius: 8,
-          zIndex: 2,
-          marginBottom: 16,
-        }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <View>
-              <Text style={{
-                fontSize: 22,
-                color: '#222',
-                fontFamily: 'Poppins-Bold',
-              }}>
-                Calendar
-              </Text>
-              <Text style={{
-                color: '#888',
-                fontSize: 14,
-                fontFamily: 'Poppins-Regular',
-                marginTop: 4,
-              }}>
-                {academicYear ? `${academicYear.schoolYearStart}-${academicYear.schoolYearEnd}` : "Loading..."} | 
-                {currentTerm ? ` ${currentTerm.termName}` : " Loading..."}
-              </Text>
-              <Text style={{
-                color: '#666',
-                fontSize: 12,
-                fontFamily: 'Poppins-Regular',
-                marginTop: 6,
-              }}>
-                {moment(new Date()).format('dddd, MMMM D, YYYY | h:mm A')}
-              </Text>
-            </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <TouchableOpacity 
-                onPress={() => {
-                  try {
-                    setShowNotificationCenter(true);
-                  } catch (error) {
-                    console.error('Error opening notification center:', error);
-                    Alert.alert('Notifications', 'Unable to open notifications. Please try again.');
-                  }
-                }}
-                style={{ marginRight: 12, position: 'relative' }}
-              >
-                <Icon name="bell" size={24} color="#00418b" />
-                {unreadCount > 0 && (
-                  <View style={{
-                    position: 'absolute',
-                    top: -5,
-                    right: -5,
-                    backgroundColor: '#ff4444',
-                    borderRadius: 10,
-                    minWidth: 20,
-                    height: 20,
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                  }}>
-                    <Text style={{
-                      color: 'white',
-                      fontSize: 12,
-                      fontFamily: 'Poppins-Bold',
-                    }}>
-                      {unreadCount > 99 ? '99+' : unreadCount}
-                    </Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => navigation.navigate('PrincipalProfile')}>
-                {(() => {
-                  const API_BASE = 'https://juanlms-webapp-server.onrender.com';
-                  const raw = user?.profilePic || user?.profilePicture;
-                  const uri = raw && typeof raw === 'string' && raw.startsWith('/uploads/') ? (API_BASE + raw) : raw;
-                  return uri ? (
-                    <Image 
-                      source={{ uri }} 
-                      style={{ width: 36, height: 36, borderRadius: 18 }}
-                      resizeMode="cover"
-                    />
-                  ) : (
-                    <Image 
-                      source={require('../../assets/profile-icon (2).png')} 
-                      style={{ width: 36, height: 36, borderRadius: 18 }}
-                      resizeMode="cover"
-                    />
-                  );
-                })()}
-              </TouchableOpacity>
-            </View>
+      {/* Profile Header */}
+      <View style={styles.profileHeader}>
+        <View style={styles.profileHeaderContent}>
+          <View style={styles.profileInfo}>
+            <Text style={styles.greetingText}>
+              Hello, <Text style={styles.userName}>{user?.firstname || 'Principal'}!</Text>
+            </Text>
+            <Text style={styles.roleText}>Principal</Text>
+            <Text style={styles.dateText}>
+              {moment(new Date()).format('dddd, MMMM D, YYYY')}
+            </Text>
           </View>
+          <TouchableOpacity onPress={() => navigation.navigate('PrincipalProfile')}>
+            {user?.profilePicture ? (
+              <Image 
+                source={{ uri: user.profilePicture }} 
+                style={styles.profileImage}
+                resizeMode="cover"
+              />
+            ) : (
+              <Image 
+                source={require('../../assets/profile-icon (2).png')} 
+                style={styles.profileImage}
+              />
+            )}
+          </TouchableOpacity>
         </View>
+      </View>
+
+      <ScrollView style={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Calendar Title */}
         <View style={styles.calendarTitleContainer}>
           <Text style={styles.calendarTitle}>Principal Calendar</Text>
           <Icon name="calendar" size={28} color="#00418b" />
         </View>
 
-        {/* Month Navigation */}
-        <View style={styles.monthNavigation}>
-          <TouchableOpacity onPress={() => changeMonth('prev')} style={styles.navButton}>
-            <Icon name="chevron-left" size={24} color="#00418b" />
-          </TouchableOpacity>
-          <Text style={styles.monthText}>{getMonthName(currentDate)}</Text>
-          <TouchableOpacity onPress={() => changeMonth('next')} style={styles.navButton}>
-            <Icon name="chevron-right" size={24} color="#00418b" />
-          </TouchableOpacity>
+        {/* Academic Year and Term Info */}
+        <View style={styles.academicInfo}>
+          <Text style={styles.academicText}>
+            {academicYear ? `${academicYear.schoolYearStart}-${academicYear.schoolYearEnd}` : "Loading..."} | 
+            {currentTerm ? ` ${currentTerm.termName}` : " Loading..."}
+          </Text>
         </View>
 
-        {/* Today Button */}
-        <View style={styles.todayButtonContainer}>
-          <TouchableOpacity onPress={goToToday} style={styles.todayButton}>
-            <Icon name="calendar-today" size={16} color="#00418b" />
-            <Text style={styles.todayButtonText}>Today</Text>
+        {/* Month Navigation */}
+        <View style={styles.monthNavigation}>
+          <TouchableOpacity onPress={() => changeMonth(-1)} style={styles.navButton}>
+            <Icon name="chevron-left" size={24} color="#00418b" />
+          </TouchableOpacity>
+          <Text style={styles.monthTitle}>{getMonthDisplayName(currentDate)}</Text>
+          <TouchableOpacity onPress={() => changeMonth(1)} style={styles.navButton}>
+            <Icon name="chevron-right" size={24} color="#00418b" />
           </TouchableOpacity>
         </View>
 
         {/* Calendar Grid */}
         <View style={styles.calendarContainer}>
-          {/* Day Headers */}
-          <View style={styles.dayHeaders}>
+          <View style={styles.weekDaysHeader}>
             {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-              <Text key={day} style={styles.dayHeader}>{day}</Text>
+              <Text key={day} style={styles.weekDayHeader}>
+                {day}
+              </Text>
             ))}
           </View>
-
-          {/* Calendar Days */}
+          
           <View style={styles.calendarGrid}>
             {days.map((day, index) => {
-              const dayEvents = day ? getEventsForDate(day) : [];
-              const isSelected = day && selectedDate.toDateString() === day.toDateString();
-              const isToday = day && day.toDateString() === new Date().toDateString();
+              const dayEvents = getEventsForDate(day);
+              const isSelected = isSameDay(day, selectedDate);
+              const isToday = isSameDay(day, getCurrentDate());
               
               return (
-                <TouchableOpacity
+                <CalendarDay
                   key={index}
-                  style={[
-                    styles.dayCell,
-                    isSelected && styles.selectedDay,
-                    isToday && styles.today
-                  ]}
-                  onPress={() => day && setSelectedDate(day)}
-                  disabled={!day}
-                >
-                  {day && (
-                    <>
-                      <Text style={[
-                        styles.dayNumber,
-                        isSelected && styles.selectedDayText,
-                        isToday && styles.todayText
-                      ]}>
-                        {day.getDate()}
-                      </Text>
-                      {dayEvents.length > 0 && (
-                        <View style={styles.eventIndicator}>
-                          <Text style={styles.eventCount}>{dayEvents.length}</Text>
-                        </View>
-                      )}
-                    </>
-                  )}
-                </TouchableOpacity>
+                  day={day.getDate()}
+                  isCurrentMonth={isSameMonth(day, currentDate)}
+                  isSelected={isSelected}
+                  hasEvents={dayEvents.length > 0}
+                  onPress={() => handleDateSelect(day)}
+                  isToday={isToday}
+                />
               );
             })}
           </View>
         </View>
 
         {/* Selected Date Events */}
-        <View style={styles.eventsContainer}>
-          <Text style={styles.eventsTitle}>
-            Events for {selectedDate.toLocaleDateString('en-US', { 
-              weekday: 'long', 
-              year: 'numeric', 
-              month: 'long', 
-              day: 'numeric' 
-            })}
+        <View style={styles.eventsSection}>
+          <Text style={styles.eventsSectionTitle}>
+            Events for {formatDate(selectedDate, 'MMMM D, YYYY')}
           </Text>
           
           {selectedDateEvents.length > 0 ? (
-            <View style={styles.eventsList}>
-              {selectedDateEvents.map(event => (
-                <View key={event.id} style={[styles.eventCard, { borderLeftColor: event.color }]}>
-                  <View style={styles.eventHeader}>
-                    <Icon 
-                      name={event.type === 'academic' ? 'school' : 
-                            event.type === 'class' ? 'calendar' : 
-                            event.type === 'holiday' ? 'flag' : 'calendar'} 
-                      size={20} 
-                      color={event.color} 
-                    />
-                    <Text style={styles.eventTitle}>{event.title}</Text>
-                  </View>
-                  <Text style={styles.eventDescription}>{event.description}</Text>
-                  {event.type && (
-                    <View style={[styles.eventTypeBadge, { backgroundColor: `${event.color}20` }]}>
-                      <Text style={[styles.eventTypeText, { color: event.color }]}>
-                        {event.type.toUpperCase()}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-              ))}
-            </View>
+            selectedDateEvents.map(event => (
+              <EventItem
+                key={event.id}
+                event={event}
+                onPress={() => handleEventPress(event)}
+              />
+            ))
           ) : (
             <View style={styles.noEventsContainer}>
               <Icon name="calendar-blank" size={48} color="#ccc" />
@@ -493,15 +419,30 @@ export default function PrincipalCalendar() {
             </View>
           )}
         </View>
+
+        {/* Quick Actions */}
+        <View style={styles.quickActions}>
+          <TouchableOpacity
+            style={styles.addEventButton}
+            onPress={() => Alert.alert('Add Event', 'Event creation feature coming soon!')}
+          >
+            <Icon name="plus" size={24} color="#fff" />
+            <Text style={styles.addEventButtonText}>Add New Event</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
-      
-      <NotificationCenter 
-        visible={showNotificationCenter} 
-        onClose={() => setShowNotificationCenter(false)}
-      />
     </View>
   );
 }
+
+// Helper function for month names
+const getMonthName = (monthIndex) => {
+  const months = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+  return months[monthIndex];
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -509,7 +450,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f7f9fa',
   },
   
-  // Profile Header
+  // Profile Header Styles
   profileHeader: {
     backgroundColor: '#00418b',
     paddingTop: 48,
@@ -535,7 +476,7 @@ const styles = StyleSheet.create({
   userName: {
     fontWeight: 'bold',
   },
-  academicContext: {
+  roleText: {
     fontSize: 14,
     fontFamily: 'Poppins-Regular',
     color: '#e3f2fd',
@@ -573,170 +514,181 @@ const styles = StyleSheet.create({
     color: '#00418b',
   },
 
+  // Academic Info
+  academicInfo: {
+    backgroundColor: '#e3f2fd',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 20,
+    borderLeftWidth: 4,
+    borderLeftColor: '#00418b',
+  },
+  academicText: {
+    fontSize: 14,
+    color: '#1976d2',
+    fontFamily: 'Poppins-Regular',
+    textAlign: 'center',
+    fontWeight: '500',
+  },
+
   // Month Navigation
   monthNavigation: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 20,
-    paddingHorizontal: 20,
+    alignItems: 'center',
+    padding: 20,
+    backgroundColor: '#fff',
+    marginHorizontal: 20,
+    marginTop: -20,
+    borderRadius: 12,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   navButton: {
-    padding: 12,
-    backgroundColor: '#f0f8ff',
-    borderRadius: 12,
+    padding: 8,
   },
-  monthText: {
+  monthTitle: {
     fontSize: 20,
-    fontFamily: 'Poppins-Bold',
+    fontWeight: 'bold',
     color: '#333',
-  },
-
-  // Today Button
-  todayButtonContainer: {
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  todayButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#e3f2fd',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#00418b',
-  },
-  todayButtonText: {
-    fontSize: 14,
-    fontFamily: 'Poppins-Medium',
-    color: '#00418b',
-    marginLeft: 8,
+    fontFamily: 'Poppins-Bold',
   },
 
   // Calendar Container
   calendarContainer: {
     backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 24,
+    margin: 20,
+    borderRadius: 12,
+    padding: 16,
+    elevation: 2,
     shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
-  dayHeaders: {
+  weekDaysHeader: {
     flexDirection: 'row',
-    marginBottom: 20,
+    marginBottom: 16,
   },
-  dayHeader: {
+  weekDayHeader: {
     flex: 1,
     textAlign: 'center',
     fontSize: 14,
-    fontFamily: 'Poppins-SemiBold',
+    fontWeight: '600',
     color: '#666',
+    fontFamily: 'Poppins-SemiBold',
   },
   calendarGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
   },
-  dayCell: {
+  calendarDay: {
     width: (width - 80) / 7,
     aspectRatio: 1,
-    alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#f0f0f0',
+    alignItems: 'center',
     position: 'relative',
+  },
+  dayText: {
+    fontSize: 16,
+    color: '#333',
+    fontFamily: 'Poppins-Regular',
+  },
+  otherMonthDay: {
+    opacity: 0.3,
+  },
+  otherMonthText: {
+    color: '#999',
   },
   selectedDay: {
     backgroundColor: '#00418b',
-    borderColor: '#00418b',
-  },
-  today: {
-    borderColor: '#ff6b6b',
-    borderWidth: 2,
-  },
-  dayNumber: {
-    fontSize: 16,
-    fontFamily: 'Poppins-Regular',
-    color: '#333',
+    borderRadius: 20,
   },
   selectedDayText: {
     color: '#fff',
     fontWeight: 'bold',
   },
+  today: {
+    borderWidth: 2,
+    borderColor: '#ff6b6b',
+  },
   todayText: {
     color: '#ff6b6b',
     fontWeight: 'bold',
   },
-  eventIndicator: {
+  eventDot: {
     position: 'absolute',
-    top: 2,
-    right: 2,
+    bottom: 4,
+    right: 4,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
     backgroundColor: '#ff6b6b',
-    borderRadius: 6,
-    minWidth: 12,
-    height: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  eventCount: {
-    color: '#fff',
-    fontSize: 8,
-    fontFamily: 'Poppins-Bold',
   },
 
-  // Events Container
-  eventsContainer: {
-    flex: 1,
+  // Events Section
+  eventsSection: {
+    margin: 20,
   },
-  eventsTitle: {
+  eventsSectionTitle: {
     fontSize: 18,
     fontFamily: 'Poppins-Bold',
     color: '#333',
     marginBottom: 16,
   },
-  eventsList: {
-    flex: 1,
-  },
-  eventCard: {
+  eventItem: {
     backgroundColor: '#fff',
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    elevation: 2,
     shadowColor: '#000',
     shadowOpacity: 0.06,
     shadowRadius: 6,
-    elevation: 2,
-    borderLeftWidth: 4,
   },
-  eventHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
+  eventColor: {
+    width: 4,
+    height: 40,
+    borderRadius: 2,
+    marginRight: 12,
+  },
+  eventContent: {
+    flex: 1,
   },
   eventTitle: {
     fontSize: 16,
     fontFamily: 'Poppins-SemiBold',
     color: '#333',
-    marginLeft: 12,
+    marginBottom: 4,
   },
-  eventDescription: {
+  eventTime: {
     fontSize: 14,
     fontFamily: 'Poppins-Regular',
     color: '#666',
-    marginBottom: 12,
+    marginBottom: 2,
+  },
+  eventLocation: {
+    fontSize: 14,
+    fontFamily: 'Poppins-Regular',
+    color: '#666',
+    marginBottom: 8,
   },
   eventTypeBadge: {
+    backgroundColor: '#e3f2fd',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
     alignSelf: 'flex-start',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 6,
   },
   eventTypeText: {
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: 'Poppins-Bold',
+    color: '#1976d2',
   },
   noEventsContainer: {
     alignItems: 'center',
@@ -750,17 +702,41 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
 
-  // Loading
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f7f9fa',
+  // Quick Actions
+  quickActions: {
+    margin: 20,
   },
-  loadingText: {
-    marginTop: 16,
+  addEventButton: {
+    backgroundColor: '#00418b',
+    borderRadius: 12,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  addEventButtonText: {
+    color: '#fff',
     fontSize: 16,
+    fontFamily: 'Poppins-SemiBold',
+  },
+
+  // Legacy styles (keeping for compatibility)
+  header: {
+    backgroundColor: '#00418b',
+    padding: 20,
+    paddingTop: 40,
+  },
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#fff',
+    fontFamily: 'Poppins-Bold',
+  },
+  headerSubtitle: {
+    fontSize: 16,
+    color: '#e3f2fd',
+    marginTop: 4,
     fontFamily: 'Poppins-Regular',
-    color: '#666',
   },
 });
