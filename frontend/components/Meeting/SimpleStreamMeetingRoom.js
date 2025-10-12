@@ -499,6 +499,16 @@ export default function SimpleStreamMeetingRoom({
               {layout === 'speaker' && (
                 <SpeakerLayout
                   style={styles.speakerLayout}
+                  ParticipantView={({ participant }) => (
+                    <View style={styles.participantView}>
+                      <Text style={styles.participantName}>
+                        {participant.name || 'Unknown'}
+                      </Text>
+                      {participant.isSpeaking && (
+                        <View style={styles.speakingIndicator} />
+                      )}
+                    </View>
+                  )}
                 />
               )}
             </View>
@@ -893,6 +903,27 @@ const styles = StyleSheet.create({
   },
   speakerLayout: {
     flex: 1,
+  },
+  participantView: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#1a1a1a',
+  },
+  participantName: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    marginTop: 8,
+  },
+  speakingIndicator: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#10B981',
   },
   topControls: {
     position: 'absolute',

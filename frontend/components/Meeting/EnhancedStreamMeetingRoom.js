@@ -45,6 +45,7 @@ export default function EnhancedStreamMeetingRoom({
   const [showStats, setShowStats] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
   const [showConfirmLeave, setShowConfirmLeave] = useState(false);
   const [participantCount, setParticipantCount] = useState(0);
   const [isRecording, setIsRecording] = useState(false);
@@ -503,6 +504,13 @@ export default function EnhancedStreamMeetingRoom({
 
                 <TouchableOpacity
                   style={styles.controlButton}
+                  onPress={() => setShowProfile(true)}
+                >
+                  <Icon name="account" size={24} color="#fff" />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.controlButton}
                   onPress={() => setShowConfirmLeave(true)}
                 >
                   <Icon name="phone-hangup" size={24} color="#EF4444" />
@@ -648,6 +656,69 @@ export default function EnhancedStreamMeetingRoom({
                     <TouchableOpacity style={styles.chatSendButton} onPress={sendMessage}>
                       <Icon name="send" size={20} color="#3B82F6" />
                     </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+            )}
+
+            {/* Profile Modal */}
+            {showProfile && (
+              <View style={styles.settingsModal}>
+                <View style={styles.profileContent}>
+                  <View style={styles.settingsHeader}>
+                    <Text style={styles.settingsTitle}>User Profile</Text>
+                    <TouchableOpacity onPress={() => setShowProfile(false)}>
+                      <Icon name="close" size={24} color="#fff" />
+                    </TouchableOpacity>
+                  </View>
+                  <View style={styles.profileBody}>
+                    <View style={styles.profileSection}>
+                      <Text style={styles.profileSectionTitle}>User Information</Text>
+                      <View style={styles.profileInfo}>
+                        <Text style={styles.profileLabel}>Name:</Text>
+                        <Text style={styles.profileValue}>
+                          {currentUser?.name || currentUser?.firstName + ' ' + currentUser?.lastName || 'Unknown User'}
+                        </Text>
+                      </View>
+                      <View style={styles.profileInfo}>
+                        <Text style={styles.profileLabel}>Email:</Text>
+                        <Text style={styles.profileValue}>{currentUser?.email || 'Not available'}</Text>
+                      </View>
+                      <View style={styles.profileInfo}>
+                        <Text style={styles.profileLabel}>Role:</Text>
+                        <Text style={styles.profileValue}>{currentUser?.role || 'Participant'}</Text>
+                      </View>
+                      <View style={styles.profileInfo}>
+                        <Text style={styles.profileLabel}>Status:</Text>
+                        <Text style={styles.profileValue}>
+                          {isHost ? 'Host' : 'Participant'}
+                        </Text>
+                      </View>
+                    </View>
+                    
+                    <View style={styles.profileSection}>
+                      <Text style={styles.profileSectionTitle}>Meeting Information</Text>
+                      <View style={styles.profileInfo}>
+                        <Text style={styles.profileLabel}>Meeting:</Text>
+                        <Text style={styles.profileValue}>{meetingData?.title || 'Unknown Meeting'}</Text>
+                      </View>
+                      <View style={styles.profileInfo}>
+                        <Text style={styles.profileLabel}>Participants:</Text>
+                        <Text style={styles.profileValue}>{participantCount}</Text>
+                      </View>
+                      <View style={styles.profileInfo}>
+                        <Text style={styles.profileLabel}>Audio:</Text>
+                        <Text style={styles.profileValue}>{isMuted ? 'Muted' : 'Unmuted'}</Text>
+                      </View>
+                      <View style={styles.profileInfo}>
+                        <Text style={styles.profileLabel}>Video:</Text>
+                        <Text style={styles.profileValue}>{isVideoOn ? 'On' : 'Off'}</Text>
+                      </View>
+                      <View style={styles.profileInfo}>
+                        <Text style={styles.profileLabel}>Screen Share:</Text>
+                        <Text style={styles.profileValue}>{isScreenSharing ? 'Active' : 'Inactive'}</Text>
+                      </View>
+                    </View>
                   </View>
                 </View>
               </View>
