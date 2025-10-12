@@ -20,13 +20,8 @@
         "buildType": "apk",
         "gradleCommand": ":app:assembleRelease"
       },
-     "ios": {
-    "buildConfiguration": "Release",
-    "simulator": false,
-    "buildSettings": {
-      "USE_FRAMEWORKS": "STATIC",
-      "ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES": "YES"
-      }
+      "ios": {
+        "buildConfiguration": "Release"
       },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://juanlms-webapp-server.onrender.com"
@@ -39,16 +34,7 @@
         "gradleCommand": ":app:assembleRelease"
       },
       "ios": {
-        "buildConfiguration": "Release",
-        "simulator": false,
-        "buildSettings": {
-          "ENABLE_BITCODE": "NO",
-          "VALID_ARCHS": "arm64",
-          "USE_FRAMEWORKS": "STATIC",
-          "ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES": "YES",
-          "USE_MODULAR_HEADERS": "YES"
-        },
-        "useModularHeaders": true
+        "buildConfiguration": "Release"
       },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://juanlms-webapp-server.onrender.com"

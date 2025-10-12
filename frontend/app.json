@@ -18,6 +18,7 @@
       "bundleIdentifier": "com.kneelpngnbn.juanlms.mobileapp",
       "buildNumber": "3",
       "deploymentTarget": "13.4",
+      "bitcode": false,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSCameraUsageDescription": "This app needs access to camera for video calls and to take profile pictures.",
