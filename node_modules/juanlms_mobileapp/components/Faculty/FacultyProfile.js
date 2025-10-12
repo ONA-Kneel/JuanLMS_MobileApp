@@ -45,7 +45,7 @@ const buildImageUri = (pathOrUrl) => {
 };
 
 export default function FacultyProfile() {
-  const { user, updateUser, logout: logoutFromContext } = useUser();
+  const { user, loading, updateUser, logout: logoutFromContext } = useUser();
   const navigation = useNavigation();
   
   // Add safety checks for context providers
@@ -101,6 +101,15 @@ export default function FacultyProfile() {
   const goToSupportCenter = () => {
     navigation.navigate('FReq');
   };
+
+  if (loading) {
+    return (
+      <View style={FacultyProfileStyle.container}>
+        <ActivityIndicator size="large" color="#00418b" />
+        <Text style={{ marginTop: 10, fontSize: 16, color: '#666' }}>Loading profile...</Text>
+      </View>
+    );
+  }
 
   // Add safety check to prevent white screen when user is null (during logout)
   // This must be placed AFTER all hooks to avoid "Rendered fewer hooks than expected" error

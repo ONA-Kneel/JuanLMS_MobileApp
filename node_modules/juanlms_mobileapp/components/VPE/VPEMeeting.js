@@ -41,6 +41,7 @@ export default function VPEMeeting() {
   const [allUsers, setAllUsers] = useState([]);
   const [selectedUsers, setSelectedUsers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [expandedRoles, setExpandedRoles] = useState({});
   const [creating, setCreating] = useState(false);
   const [meetingTitle, setMeetingTitle] = useState('');
   const [meetingDescription, setMeetingDescription] = useState('');
@@ -130,6 +131,18 @@ export default function VPEMeeting() {
       if (exists) return prev.filter(p => p._id !== u._id);
       return [...prev, u];
     });
+  };
+
+  const toggleRoleExpansion = (role) => {
+    setExpandedRoles(prev => ({
+      ...prev,
+      [role]: !prev[role]
+    }));
+  };
+
+  const clearSelection = () => {
+    setSelectedUsers([]);
+    setSearchTerm('');
   };
 
   const usersByRole = allUsers
@@ -504,6 +517,90 @@ export default function VPEMeeting() {
           </View>
         </View>
 
+      {/* Meeting List */}
+      <View style={styles.meetingSection}>
+        <View style={styles.meetingHeader}>
+          <View>
+            <Text style={styles.meetingTitle}>All School Meetings</Text>
+            <Text style={styles.meetingSubtitle}>
+              Monitor meetings across all classes
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.meetingList}>
+          {meetings.length === 0 ? (
+            <View style={styles.noMeetings}>
+              <Icon name="video" size={48} color="#9CA3AF" />
+              <Text style={styles.noMeetingsText}>No meetings scheduled</Text>
+              <Text style={styles.noMeetingsSubtext}>Check back later for scheduled meetings</Text>
+            </View>
+          ) : (
+            <View style={styles.meetingsContainer}>
+              {Object.entries(groupMeetingsByDate(meetings)).map(([groupKey, groupMeetings]) => (
+                <View key={groupKey} style={styles.meetingGroup}>
+                  <Text style={styles.groupTitle}>{getGroupTitle(groupKey)}</Text>
+                  <View style={styles.groupMeetings}>
+                    {groupMeetings.map((meeting) => {
+                      const status = getMeetingStatus(meeting);
+                      return (
+                        <View key={meeting._id} style={styles.meetingCard}>
+                          <View style={styles.meetingInfo}>
+                            <View style={styles.meetingHeaderRow}>
+                              <Text style={styles.meetingName}>{meeting.title}</Text>
+                              <View style={[styles.statusBadge, { backgroundColor: status.color + '20' }]}>
+                                <Text style={[styles.statusText, { color: status.color }]}>
+                                  {status.label}
+                                </Text>
+                              </View>
+                            </View>
+                            
+                            {meeting.description && (
+                              <Text style={styles.meetingDescription}>{meeting.description}</Text>
+                            )}
+                            
+                            <View style={styles.meetingDetails}>
+                              <View style={styles.detailItem}>
+                                <Icon name="calendar" size={16} color="#6B7280" />
+                                <Text style={styles.detailText}>{formatDateTime(meeting.scheduledTime)}</Text>
+                              </View>
+                              <View style={styles.detailItem}>
+                                <Icon name="clock-outline" size={16} color="#6B7280" />
+                                <Text style={styles.detailText}>{meeting.duration || 'No limit'} min</Text>
+                              </View>
+                              <View style={styles.detailItem}>
+                                <Icon name="account-group" size={16} color="#6B7280" />
+                                <Text style={styles.detailText}>{meeting.participantCount || 0} participants</Text>
+                              </View>
+                              {meeting.classID && (
+                                <View style={styles.detailItem}>
+                                  <Icon name="school" size={16} color="#6B7280" />
+                                  <Text style={styles.detailText}>Class: {meeting.classID}</Text>
+                                </View>
+                              )}
+                            </View>
+                          </View>
+                          
+                          <View style={styles.meetingActions}>
+                            <TouchableOpacity
+                              onPress={() => handleJoinMeeting(meeting)}
+                              style={styles.joinButton}
+                            >
+                              <Icon name="play" size={16} color="white" />
+                              <Text style={styles.joinButtonText}>Join</Text>
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                      );
+                    })}
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
+      </View>
+
       {/* Direct Invite - User Selection */}
       <View style={styles.selectionCard}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
@@ -599,127 +696,86 @@ export default function VPEMeeting() {
           </TouchableOpacity>
         </View>
 
-        {/* Selected chips */}
+        {/* Selected Users */}
         {selectedUsers.length > 0 && (
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
-            {selectedUsers.map(u => (
-              <TouchableOpacity key={u._id} onPress={() => toggleUserSelection(u)} style={styles.chip}>
-                <Text style={styles.chipText}>{(u.firstName || u.firstname || '?')[0]}{(u.lastName || u.lastname || '?')[0]} · {u.firstName || u.firstname} {u.lastName || u.lastname}</Text>
-                <Text style={styles.chipRemove}>×</Text>
+          <View style={{ marginBottom: 16 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <Text style={styles.selectedTitle}>Selected Participants ({selectedUsers.length})</Text>
+              <TouchableOpacity onPress={clearSelection}>
+                <Text style={styles.clearAllText}>Clear All</Text>
               </TouchableOpacity>
-            ))}
+            </View>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+              {selectedUsers.map(u => (
+                <TouchableOpacity key={u._id} onPress={() => toggleUserSelection(u)} style={styles.chip}>
+                  <Text style={styles.chipText}>{(u.firstName || u.firstname || '?')[0]}{(u.lastName || u.lastname || '?')[0]} · {u.firstName || u.firstname} {u.lastName || u.lastname}</Text>
+                  <Text style={styles.chipRemove}>×</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
         )}
 
-        {/* Users grouped by role */}
-        <View style={{ gap: 8 }}>
-          {Object.entries(usersByRole).map(([role, list]) => (
-            <View key={role} style={{ marginBottom: 8 }}>
-              <Text style={styles.roleHeader}>{role} ({list.length})</Text>
-              <View style={{ gap: 6 }}>
-                {list.map(u => {
-                  const isSelected = selectedUsers.some(s => s._id === u._id);
-                  return (
-                    <TouchableOpacity key={u._id} onPress={() => toggleUserSelection(u)} style={[styles.userRow, isSelected && styles.userRowSelected]}>
-                      <View style={styles.avatar}>
-                        <Text style={styles.avatarText}>{(u.firstName || u.firstname || '?')[0]}{(u.lastName || u.lastname || '?')[0]}</Text>
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.userName}>{u.firstName || u.firstname} {u.lastName || u.lastname}</Text>
-                        <Text style={styles.userEmail}>{u.email}</Text>
-                        <Text style={styles.userRole}>{u.role}</Text>
-                      </View>
-                      {isSelected && <Icon name="check-circle" size={20} color="#2563EB" />}
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </View>
-          ))}
-        </View>
-      </View>
-
-      {/* Meeting List */}
-      <View style={styles.meetingSection}>
-        <View style={styles.meetingHeader}>
-          <View>
-            <Text style={styles.meetingTitle}>All School Meetings</Text>
-            <Text style={styles.meetingSubtitle}>
-              Monitor meetings across all classes
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.meetingList}>
-          {meetings.length === 0 ? (
-            <View style={styles.noMeetings}>
-              <Icon name="video" size={48} color="#9CA3AF" />
-              <Text style={styles.noMeetingsText}>No meetings scheduled</Text>
-              <Text style={styles.noMeetingsSubtext}>Check back later for scheduled meetings</Text>
-            </View>
-          ) : (
-            <View style={styles.meetingsContainer}>
-              {Object.entries(groupMeetingsByDate(meetings)).map(([groupKey, groupMeetings]) => (
-                <View key={groupKey} style={styles.meetingGroup}>
-                  <Text style={styles.groupTitle}>{getGroupTitle(groupKey)}</Text>
-                  <View style={styles.groupMeetings}>
-                    {groupMeetings.map((meeting) => {
-                      const status = getMeetingStatus(meeting);
-                      return (
-                        <View key={meeting._id} style={styles.meetingCard}>
-                          <View style={styles.meetingInfo}>
-                            <View style={styles.meetingHeaderRow}>
-                              <Text style={styles.meetingName}>{meeting.title}</Text>
-                              <View style={[styles.statusBadge, { backgroundColor: status.color + '20' }]}>
-                                <Text style={[styles.statusText, { color: status.color }]}>
-                                  {status.label}
-                                </Text>
-                              </View>
-                            </View>
-                            
-                            {meeting.description && (
-                              <Text style={styles.meetingDescription}>{meeting.description}</Text>
-                            )}
-                            
-                            <View style={styles.meetingDetails}>
-                              <View style={styles.detailItem}>
-                                <Icon name="calendar" size={16} color="#6B7280" />
-                                <Text style={styles.detailText}>{formatDateTime(meeting.scheduledTime)}</Text>
-                              </View>
-                              <View style={styles.detailItem}>
-                                <Icon name="clock-outline" size={16} color="#6B7280" />
-                                <Text style={styles.detailText}>{meeting.duration || 'No limit'} min</Text>
-                              </View>
-                              <View style={styles.detailItem}>
-                                <Icon name="account-group" size={16} color="#6B7280" />
-                                <Text style={styles.detailText}>{meeting.participantCount || 0} participants</Text>
-                              </View>
-                              {meeting.classID && (
-                                <View style={styles.detailItem}>
-                                  <Icon name="school" size={16} color="#6B7280" />
-                                  <Text style={styles.detailText}>Class: {meeting.classID}</Text>
-                                </View>
-                              )}
-                            </View>
-                          </View>
-                          
-                          <View style={styles.meetingActions}>
-                            <TouchableOpacity
-                              onPress={() => handleJoinMeeting(meeting)}
-                              style={styles.joinButton}
-                            >
-                              <Icon name="play" size={16} color="white" />
-                              <Text style={styles.joinButtonText}>Join</Text>
-                            </TouchableOpacity>
-                          </View>
-                        </View>
-                      );
-                    })}
+        {/* User List by Role with Collapsible Dropdowns */}
+        <View style={{ gap: 12 }}>
+          {Object.entries(usersByRole).map(([role, list]) => {
+            const isExpanded = expandedRoles[role];
+            const selectedInRole = list.filter(u => selectedUsers.some(s => s._id === u._id)).length;
+            
+            return (
+              <View key={role} style={styles.roleDropdown}>
+                <TouchableOpacity
+                  onPress={() => toggleRoleExpansion(role)}
+                  style={styles.roleDropdownHeader}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                    <Icon 
+                      name={isExpanded ? "chevron-down" : "chevron-right"} 
+                      size={20} 
+                      color="#6B7280" 
+                      style={{ marginRight: 8 }}
+                    />
+                    <Text style={styles.roleHeader}>
+                      {role.charAt(0).toUpperCase() + role.slice(1)}
+                    </Text>
+                    <Text style={styles.roleSelectionCount}>
+                      ({selectedInRole}/{list.length} selected)
+                    </Text>
                   </View>
-                </View>
-              ))}
-            </View>
-          )}
+                  <Text style={styles.roleUserCount}>{list.length} users</Text>
+                </TouchableOpacity>
+                
+                {isExpanded && (
+                  <View style={styles.roleContent}>
+                    <View style={{ gap: 8 }}>
+                      {list.map(u => {
+                        const isSelected = selectedUsers.some(s => s._id === u._id);
+                        return (
+                          <TouchableOpacity 
+                            key={u._id} 
+                            onPress={() => toggleUserSelection(u)} 
+                            style={[styles.userRow, isSelected && styles.userRowSelected]}
+                          >
+                            <View style={[styles.avatar, isSelected && styles.avatarSelected]}>
+                              <Text style={[styles.avatarText, isSelected && styles.avatarTextSelected]}>
+                                {(u.firstName || u.firstname || '?')[0]}{(u.lastName || u.lastname || '?')[0]}
+                              </Text>
+                            </View>
+                            <View style={{ flex: 1 }}>
+                              <Text style={styles.userName}>{u.firstName || u.firstname} {u.lastName || u.lastname}</Text>
+                              <Text style={styles.userEmail}>{u.email}</Text>
+                              <Text style={styles.userRole}>{u.role}</Text>
+                            </View>
+                            {isSelected && <Icon name="check-circle" size={20} color="#2563EB" />}
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </View>
+                )}
+              </View>
+            );
+          })}
         </View>
       </View>
       {activeMeeting && Platform.OS !== 'web' && SimpleStreamMeetingRoom && (
@@ -731,12 +787,12 @@ export default function VPEMeeting() {
           currentUser={{ name: user?.name || user?.username || 'Host' }}
           credentials={{
             apiKey: 'mmhfdzb5evj2',
-            token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL3Byb250by5nZXRzdHJlYW0uaW8iLCJzdWIiOiJ1c2VyL1B1cnBsZV9NZXJjdXJ5IiwidXNlcl9pZCI6IlB1cnBsZV9NZXJjdXJ5IiwidmFsaWRpdHlfaW5fc2Vjb25kcyI6NjA0ODAwLCJpYXQiOjE3NTk2NTE4NjQsImV4cCI6MTc2MDI1NjY2NH0.IKuWpIS41aryq8sgxpTEgXMP3Upqn7xPjY6LdF3dJBo',
-            userId: 'Purple_Mercury',
-            callId: 'kTE5BNNcs080Jp4MA5UhA',
+            token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL3Byb250by5nZXRzdHJlYW0uaW8iLCJzdWIiOiJ1c2VyL0Fib3VuZGluZ19Qb3Bjb3JuIiwidXNlcl9pZCI6IkFib3VuZGluZ19Qb3Bjb3JuIiwidmFsaWRpdHlfaW5fc2Vjb25kcyI6NjA0ODAwLCJpYXQiOjE3NjAyNDMyNjYsImV4cCI6MTc2MDg0ODA2Nn0.OtFBJIHfa8Ojp3kFl47A2Z1_HWvkHiWKvM1sdumOoeQ',
+            userId: 'Abounding_Popcorn',
+            callId: 'cOYIirg4DL6tCrwXxVXx5',
           }}
           isHost={true}
-          hostUserId={'Purple_Mercury'}
+          hostUserId={'Abounding_Popcorn'}
         />
       )}
       
@@ -872,12 +928,50 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
   },
+  selectedTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  clearAllText: {
+    fontSize: 12,
+    color: '#EF4444',
+    fontWeight: '500',
+  },
+  roleDropdown: {
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    backgroundColor: 'white',
+  },
+  roleDropdownHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    backgroundColor: '#F9FAFB',
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+  },
   roleHeader: {
     fontSize: 14,
     fontWeight: '600',
     color: '#374151',
-    marginBottom: 6,
     textTransform: 'capitalize',
+  },
+  roleSelectionCount: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginLeft: 8,
+  },
+  roleUserCount: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  roleContent: {
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
   },
   userRow: {
     flexDirection: 'row',
@@ -901,9 +995,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  avatarSelected: {
+    backgroundColor: '#DBEAFE',
+  },
   avatarText: {
     color: '#374151',
     fontWeight: '600',
+  },
+  avatarTextSelected: {
+    color: '#1D4ED8',
   },
   userName: {
     fontSize: 14,
