@@ -24,8 +24,6 @@ export default function StudentClasses() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
-  const [selectedClass, setSelectedClass] = useState(null);
-  const [showClassModal, setShowClassModal] = useState(false);
   const [activeQuarter, setActiveQuarter] = useState(null);
 
   const API_BASE = 'https://juanlms-webapp-server.onrender.com';
@@ -146,22 +144,7 @@ export default function StudentClasses() {
     });
   };
 
-  const handleClassPress = (classItem) => {
-    setSelectedClass(classItem);
-    setShowClassModal(true);
-  };
-
-  const navigateToClassContent = (classItem) => {
-    setShowClassModal(false);
-    // Redirect to SModule since ClassContent route doesn't exist
-    navigation.navigate('SModule', {
-      classId: classItem._id || classItem.classID,
-      className: classItem.className
-    });
-  };
-
   const navigateToClassModule = (classItem) => {
-    setShowClassModal(false);
     navigation.navigate('SModule', {
       classId: classItem._id || classItem.classID,
       className: classItem.className
@@ -174,7 +157,7 @@ export default function StudentClasses() {
       <TouchableOpacity
         key={index}
         style={styles.classCard}
-        onPress={() => handleClassPress(classItem)}
+        onPress={() => navigateToClassModule(classItem)}
       >
         {/* Class Image Placeholder */}
         <View style={{
@@ -256,7 +239,15 @@ export default function StudentClasses() {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>My Classes</Text>
+        <View style={styles.headerTop}>
+          <TouchableOpacity 
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <MaterialIcons name="arrow-back" size={24} color="white" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>My Classes</Text>
+        </View>
         <Text style={styles.headerSubtitle}>
           Manage your enrolled classes and access course materials
         </Text>
@@ -295,49 +286,6 @@ export default function StudentClasses() {
         renderEmptyState()
       )}
 
-      {/* Class Details Modal */}
-      <Modal
-        visible={showClassModal}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowClassModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modal}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Class Details</Text>
-              <TouchableOpacity onPress={() => setShowClassModal(false)}>
-                <MaterialIcons name="close" size={24} color="#666" />
-              </TouchableOpacity>
-            </View>
-
-            {selectedClass && (
-              <ScrollView style={styles.modalContent}>
-                <Text style={styles.modalClassName}>{selectedClass.className}</Text>
-                <Text style={styles.modalClassCode}>{selectedClass.section || selectedClass.classCode || selectedClass.subjectCode}</Text>
-                
-                <View style={styles.modalActions}>
-                  <TouchableOpacity
-                    style={styles.modalActionButton}
-                    onPress={() => navigateToClassContent(selectedClass)}
-                  >
-                    <MaterialIcons name="folder" size={20} color="white" />
-                    <Text style={styles.modalActionButtonText}>View Content</Text>
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity 
-                    style={styles.modalActionButton}
-                    onPress={() => navigateToClassModule(selectedClass)}
-                  >
-                    <MaterialIcons name="school" size={20} color="white" />
-                    <Text style={styles.modalActionButtonText}>Access Module</Text>
-                  </TouchableOpacity>
-                </View>
-              </ScrollView>
-            )}
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 }
@@ -353,11 +301,20 @@ const styles = {
     paddingBottom: 20,
     paddingHorizontal: 20,
   },
+  headerTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  backButton: {
+    marginRight: 16,
+    padding: 4,
+  },
   headerTitle: {
     color: 'white',
     fontSize: 24,
     fontWeight: 'bold',
-    marginBottom: 4,
+    flex: 1,
   },
   headerSubtitle: {
     color: 'rgba(255, 255, 255, 0.8)',
@@ -437,61 +394,6 @@ const styles = {
     color: '#999',
     textAlign: 'center',
     lineHeight: 24,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modal: {
-    backgroundColor: 'white',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '80%',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  modalContent: {
-    padding: 20,
-  },
-  modalClassName: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 8,
-  },
-  modalClassCode: {
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 20,
-  },
-  modalActions: {
-    gap: 12,
-  },
-  modalActionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#00418b',
-    paddingVertical: 16,
-    borderRadius: 8,
-  },
-  modalActionButtonText: {
-    color: 'white',
-              fontSize: 16,
-    fontWeight: 'bold',
-    marginLeft: 8,
   },
   activeQuizzesContainer: {
     marginTop: 16,
