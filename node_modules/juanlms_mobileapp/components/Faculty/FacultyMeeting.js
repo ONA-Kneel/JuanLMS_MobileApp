@@ -23,10 +23,15 @@ import NotificationCenter from '../NotificationCenter';
 import InvitedMeetings from '../Meeting/InvitedMeetings';
 let StreamMeetingRoomNative = null;
 let SimpleStreamMeetingRoom = null;
+let StreamMeetingRoomIOS = null;
+
 if (Platform.OS !== 'web') {
   try { 
     StreamMeetingRoomNative = require('../Meeting/StreamMeetingRoomNative').default;
     SimpleStreamMeetingRoom = require('../Meeting/SimpleStreamMeetingRoom').default;
+    if (Platform.OS === 'ios') {
+      StreamMeetingRoomIOS = require('../Meeting/StreamMeetingRoomIOS').default;
+    }
   } catch (e) { /* noop on web */ }
 }
 
@@ -260,12 +265,18 @@ export default function FacultyMeeting() {
                 return;
               }
             }
+            // iOS permissions are handled automatically by the Stream Video SDK
           } catch (e) { /* ignore */ }
-          if (!StreamMeetingRoomNative) {
+          
+          // Use appropriate meeting room based on platform
+          if (Platform.OS === 'ios' && StreamMeetingRoomIOS) {
+            setActiveMeeting(enriched);
+          } else if (StreamMeetingRoomNative || SimpleStreamMeetingRoom) {
+            setActiveMeeting(enriched);
+          } else {
             Alert.alert('Meeting', 'Native meeting module is unavailable. Make sure you run a development build (not Expo Go).');
             return;
           }
-          setActiveMeeting(enriched);
         }
       } else {
         const result = await response.json();
@@ -775,7 +786,27 @@ export default function FacultyMeeting() {
           </View>
         </View>
       </Modal>
-      {activeMeeting && Platform.OS !== 'web' && SimpleStreamMeetingRoom && (
+      {/* iOS Native SDK */}
+      {activeMeeting && Platform.OS === 'ios' && StreamMeetingRoomIOS && (
+        <StreamMeetingRoomIOS
+          isOpen={!!activeMeeting}
+          onClose={() => setActiveMeeting(null)}
+          onLeave={() => setActiveMeeting(null)}
+          meetingData={activeMeeting}
+          currentUser={{ name: user?.name || user?.username || 'Host' }}
+          credentials={{
+            apiKey: 'mmhfdzb5evj2',
+            token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL3Byb250by5nZXRzdHJlYW0uaW8iLCJzdWIiOiJ1c2VyL0Fib3VuZGluZ19Qb3Bjb3JuIiwidXNlcl9pZCI6IkFib3VuZGluZ19Qb3Bjb3JuIiwidmFsaWRpdHlfaW5fc2Vjb25kcyI6NjA0ODAwLCJpYXQiOjE3NjAyNDMyNjYsImV4cCI6MTc2MDg0ODA2Nn0.OtFBJIHfa8Ojp3kFl47A2Z1_HWvkHiWKvM1sdumOoeQ',
+            userId: 'Abounding_Popcorn',
+            callId: 'cOYIirg4DL6tCrwXxVXx5',
+          }}
+          isHost={true}
+          hostUserId={'Abounding_Popcorn'}
+        />
+      )}
+      
+      {/* React Native SDK for Android */}
+      {activeMeeting && Platform.OS !== 'web' && Platform.OS !== 'ios' && SimpleStreamMeetingRoom && (
         <SimpleStreamMeetingRoom
           isOpen={!!activeMeeting}
           onClose={() => setActiveMeeting(null)}
