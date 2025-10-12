@@ -10,7 +10,9 @@ import {
   Dimensions,
   Platform,
   PermissionsAndroid,
-  Image
+  Image,
+  TextInput,
+  Modal
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
@@ -57,6 +59,14 @@ export default function StudentMeeting() {
   const [scheduledTime, setScheduledTime] = useState('');
   const [duration, setDuration] = useState('');
   const [hostedMeetings, setHostedMeetings] = useState([]);
+  
+  // Input modal states
+  const [showTitleModal, setShowTitleModal] = useState(false);
+  const [showDescriptionModal, setShowDescriptionModal] = useState(false);
+  const [showDateModal, setShowDateModal] = useState(false);
+  const [showTimeModal, setShowTimeModal] = useState(false);
+  const [showDurationModal, setShowDurationModal] = useState(false);
+  const [tempInputValue, setTempInputValue] = useState('');
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -71,6 +81,13 @@ export default function StudentMeeting() {
     fetchAllUsers();
     fetchHostedMeetings();
   }, []);
+
+  // Refresh hosted meetings when switching to host-meeting tab
+  useEffect(() => {
+    if (activeTab === 'host-meeting') {
+      fetchHostedMeetings();
+    }
+  }, [activeTab]);
 
   // Add safety check to prevent white screen when user is null (during logout)
   // This must be placed AFTER all hooks to avoid "Rendered fewer hooks than expected" error
@@ -198,9 +215,9 @@ export default function StudentMeeting() {
       if (response.ok) {
         const users = await response.json();
         const currentUserId = user?._id;
-        // Filter to only show other students
+        // Filter to only show other students (both 'student' and 'students' roles)
         const filtered = Array.isArray(users)
-          ? users.filter(u => u && u._id && u._id !== currentUserId && u.role === 'student' && u.status !== 'inactive')
+          ? users.filter(u => u && u._id && u._id !== currentUserId && (u.role === 'student' || u.role === 'students') && u.status !== 'inactive' && !u.isArchived)
           : [];
         setAllUsers(filtered);
       }
@@ -222,9 +239,9 @@ export default function StudentMeeting() {
 
       if (response.ok) {
         const data = await response.json();
-        // Filter to only show meetings hosted by the current student
+        // Filter to only show meetings created by the current student
         const studentHostedMeetings = Array.isArray(data) 
-          ? data.filter(meeting => meeting.hostId === user._id)
+          ? data.filter(meeting => meeting.createdBy === user._id || meeting.createdBy._id === user._id)
           : [];
         setHostedMeetings(studentHostedMeetings);
       }
@@ -311,13 +328,71 @@ export default function StudentMeeting() {
       return acc;
     }, {});
 
+  // Input modal handlers
+  const openTitleModal = () => {
+    setTempInputValue(meetingTitle);
+    setShowTitleModal(true);
+  };
+
+  const openDescriptionModal = () => {
+    setTempInputValue(meetingDescription);
+    setShowDescriptionModal(true);
+  };
+
+  const openDateModal = () => {
+    setTempInputValue(scheduledDate);
+    setShowDateModal(true);
+  };
+
+  const openTimeModal = () => {
+    setTempInputValue(scheduledTime);
+    setShowTimeModal(true);
+  };
+
+  const openDurationModal = () => {
+    setTempInputValue(duration);
+    setShowDurationModal(true);
+  };
+
+  const saveTitleInput = () => {
+    setMeetingTitle(tempInputValue);
+    setShowTitleModal(false);
+  };
+
+  const saveDescriptionInput = () => {
+    setMeetingDescription(tempInputValue);
+    setShowDescriptionModal(false);
+  };
+
+  const saveDateInput = () => {
+    setScheduledDate(tempInputValue);
+    setShowDateModal(false);
+  };
+
+  const saveTimeInput = () => {
+    setScheduledTime(tempInputValue);
+    setShowTimeModal(false);
+  };
+
+  const saveDurationInput = () => {
+    setDuration(tempInputValue);
+    setShowDurationModal(false);
+  };
+
   const handleCreateDirectInvite = async () => {
+    console.log('[DEBUG] handleCreateDirectInvite called');
+    console.log('[DEBUG] selectedUsers:', selectedUsers);
+    console.log('[DEBUG] meetingTitle:', meetingTitle);
+    console.log('[DEBUG] meetingType:', meetingType);
+    console.log('[DEBUG] scheduledDate:', scheduledDate);
+    console.log('[DEBUG] scheduledTime:', scheduledTime);
+    
     if (selectedUsers.length === 0) {
       Alert.alert('No Participants', 'Please select at least one student to invite.');
       return;
     }
     if (!meetingTitle.trim()) {
-      Alert.alert('Meeting Title Required', 'Please enter a meeting title.');
+      Alert.alert('Meeting Title Required', 'Please enter a meeting title first.');
       return;
     }
     if (meetingType === 'scheduled') {
@@ -342,10 +417,16 @@ export default function StudentMeeting() {
         description: meetingDescription.trim(),
         meetingType,
         classID: 'direct-invite',
-        participants: selectedUsers.map(u => u._id),
+        invitedUsers: selectedUsers.map(u => ({
+          userId: u._id,
+          email: u.email,
+          name: `${u.firstName || u.firstname} ${u.lastName || u.lastname}`,
+          role: u.role
+        })),
         scheduledTime: scheduledIso,
         duration: duration ? parseInt(duration) : null,
       };
+      console.log('[DEBUG] Sending meeting creation request:', body);
       const response = await fetch('https://juanlms-webapp-server.onrender.com/api/meetings/direct-invite', {
         method: 'POST',
         headers: {
@@ -354,11 +435,15 @@ export default function StudentMeeting() {
         },
         body: JSON.stringify(body),
       });
+      
+      console.log('[DEBUG] Meeting creation response status:', response.status);
+      const responseData = await response.json().catch(() => ({}));
+      console.log('[DEBUG] Meeting creation response data:', responseData);
+      
       if (!response.ok) {
-        const err = await response.json().catch(() => ({}));
-        throw new Error(err.message || 'Failed to create meeting');
+        throw new Error(responseData.error || responseData.message || 'Failed to create meeting');
       }
-      const newMeeting = await response.json();
+      const newMeeting = responseData;
       setSelectedUsers([]);
       setMeetingTitle('');
       setMeetingDescription('');
@@ -775,15 +860,15 @@ export default function StudentMeeting() {
                           </View>
                           <View style={styles.detailItem}>
                             <Icon name="account-group" size={16} color="#6B7280" />
-                            <Text style={styles.detailText}>{meeting.participants?.length || 0} invited</Text>
+                            <Text style={styles.detailText}>{meeting.invitedUsers?.length || 0} invited</Text>
                           </View>
                         </View>
                         
-                        {meeting.participants && meeting.participants.length > 0 && (
+                        {meeting.invitedUsers && meeting.invitedUsers.length > 0 && (
                           <View style={styles.participantsList}>
                             <Text style={styles.participantsTitle}>Invited:</Text>
                             <Text style={styles.participantsText}>
-                              {meeting.participants.map(p => p.firstName || p.firstname || 'Unknown').join(', ')}
+                              {meeting.invitedUsers.map(p => p.name || 'Unknown').join(', ')}
                             </Text>
                           </View>
                         )}
@@ -812,12 +897,29 @@ export default function StudentMeeting() {
               <TouchableOpacity
                 disabled={selectedUsers.length === 0 || creating || !meetingTitle.trim() || (meetingType === 'scheduled' && (!scheduledDate || !scheduledTime))}
                 onPress={handleCreateDirectInvite}
-                style={[styles.createButton, (selectedUsers.length === 0 || creating || !meetingTitle.trim()) && { opacity: 0.6 }]}
+                style={[
+                  styles.createButton, 
+                  (selectedUsers.length === 0 || creating || !meetingTitle.trim()) && styles.createButtonDisabled
+                ]}
               >
                 <Icon name="plus" size={18} color="#fff" />
                 <Text style={styles.createButtonText}>Create ({selectedUsers.length})</Text>
               </TouchableOpacity>
             </View>
+            
+            {/* Help Text */}
+            {(!meetingTitle.trim() || selectedUsers.length === 0) && (
+              <View style={{ marginBottom: 8 }}>
+                <Text style={styles.helpText}>
+                  {!meetingTitle.trim() && selectedUsers.length === 0 
+                    ? 'Enter a meeting title and select students to enable creation'
+                    : !meetingTitle.trim() 
+                      ? 'Enter a meeting title to enable creation'
+                      : 'Select students to enable creation'
+                  }
+                </Text>
+              </View>
+            )}
 
             {/* Meeting Form */}
             <View style={{ gap: 8, marginBottom: 16 }}>
@@ -826,32 +928,22 @@ export default function StudentMeeting() {
                 <Icon name="format-title" size={18} color="#6B7280" />
                 <Text style={styles.textLabel}>Title</Text>
               </View>
-              <View style={styles.inputField}>
-                <Text
-                  style={styles.inputFieldText}
-                  onPress={() => {
-                    Alert.prompt('Meeting Title', 'Enter meeting title:', (text) => {
-                      if (text) setMeetingTitle(text);
-                    }, 'plain-text', meetingTitle);
-                  }}
-                >{meetingTitle || 'Add a meeting title'}</Text>
-              </View>
+              <TouchableOpacity style={styles.inputField} onPress={openTitleModal}>
+                <Text style={styles.inputFieldText}>
+                  {meetingTitle || 'Add a meeting title'}
+                </Text>
+              </TouchableOpacity>
 
               {/* Description */}
               <View style={styles.textInputRow}>
                 <Icon name="text" size={18} color="#6B7280" />
                 <Text style={styles.textLabel}>Description (optional)</Text>
               </View>
-              <View style={styles.inputField}>
-                <Text
-                  style={styles.inputFieldText}
-                  onPress={() => {
-                    Alert.prompt('Meeting Description', 'Enter meeting description (optional):', (text) => {
-                      setMeetingDescription(text || '');
-                    }, 'plain-text', meetingDescription);
-                  }}
-                >{meetingDescription || 'Add a description (optional)'}</Text>
-              </View>
+              <TouchableOpacity style={styles.inputField} onPress={openDescriptionModal}>
+                <Text style={styles.inputFieldText}>
+                  {meetingDescription || 'Add a description (optional)'}
+                </Text>
+              </TouchableOpacity>
 
               {/* Meeting type toggle */}
               <View style={styles.typeToggleRow}>
@@ -869,46 +961,31 @@ export default function StudentMeeting() {
                     <Icon name="calendar" size={18} color="#6B7280" />
                     <Text style={styles.inlineLabel}>Date (YYYY-MM-DD)</Text>
                   </View>
-                  <View style={styles.inputField}>
-                    <Text
-                      style={styles.inputFieldText}
-                      onPress={() => {
-                        Alert.prompt('Date', 'Enter date (YYYY-MM-DD):', (text) => {
-                          if (text) setScheduledDate(text);
-                        }, 'plain-text', scheduledDate);
-                      }}
-                    >{scheduledDate || 'e.g. 2025-10-05'}</Text>
-                  </View>
+                  <TouchableOpacity style={styles.inputField} onPress={openDateModal}>
+                    <Text style={styles.inputFieldText}>
+                      {scheduledDate || 'e.g. 2025-10-05'}
+                    </Text>
+                  </TouchableOpacity>
 
                   <View style={styles.inlineRow}>
                     <Icon name="clock-outline" size={18} color="#6B7280" />
                     <Text style={styles.inlineLabel}>Time (HH:mm)</Text>
                   </View>
-                  <View style={styles.inputField}>
-                    <Text
-                      style={styles.inputFieldText}
-                      onPress={() => {
-                        Alert.prompt('Time', 'Enter time (HH:mm):', (text) => {
-                          if (text) setScheduledTime(text);
-                        }, 'plain-text', scheduledTime);
-                      }}
-                    >{scheduledTime || 'e.g. 14:30'}</Text>
-                  </View>
+                  <TouchableOpacity style={styles.inputField} onPress={openTimeModal}>
+                    <Text style={styles.inputFieldText}>
+                      {scheduledTime || 'e.g. 14:30'}
+                    </Text>
+                  </TouchableOpacity>
 
                   <View style={styles.inlineRow}>
                     <Icon name="timer" size={18} color="#6B7280" />
                     <Text style={styles.inlineLabel}>Duration (minutes)</Text>
                   </View>
-                  <View style={styles.inputField}>
-                    <Text
-                      style={styles.inputFieldText}
-                      onPress={() => {
-                        Alert.prompt('Duration', 'Enter duration in minutes (optional):', (text) => {
-                          setDuration(text || '');
-                        }, 'plain-text', duration);
-                      }}
-                    >{duration || 'optional'}</Text>
-                  </View>
+                  <TouchableOpacity style={styles.inputField} onPress={openDurationModal}>
+                    <Text style={styles.inputFieldText}>
+                      {duration || 'optional'}
+                    </Text>
+                  </TouchableOpacity>
                 </View>
               )}
             </View>
@@ -1020,15 +1097,138 @@ export default function StudentMeeting() {
         currentUser={{ name: user?.name || user?.username || 'Student' }}
         credentials={{
           apiKey: 'mmhfdzb5evj2',
-              token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL3Byb250by5nZXRzdHJlYW0uaW8iLCJzdWIiOiJ1c2VyL1NjcmVlY2hpbmdfRm9ybSIsInVzZXJfaWQiOiJTY3JlZWNoaW5nX0Zvcm0iLCJ2YWxpZGl0eV9pbl9zZWNvbmRzIjo2MDQ4MDAsImlhdCI6MTc2MDE3MzkyNSwiZXhwIjoxNzYwNzc4NzI1fQ.Q6Z4eZgE4dlgQfiZtO7OOSNt4NhLIx-H08LhpTuFGuQ',
-              userId: 'Screeching_Form',
-              callId: 'chowmvfINRb53EwzExeOS',
+            token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL3Byb250by5nZXRzdHJlYW0uaW8iLCJzdWIiOiJ1c2VyL0Fib3VuZGluZ19Qb3Bjb3JuIiwidXNlcl9pZCI6IkFib3VuZGluZ19Qb3Bjb3JuIiwidmFsaWRpdHlfaW5fc2Vjb25kcyI6NjA0ODAwLCJpYXQiOjE3NjAyNDMyNjYsImV4cCI6MTc2MDg0ODA2Nn0.OtFBJIHfa8Ojp3kFl47A2Z1_HWvkHiWKvM1sdumOoeQ',
+            userId: 'Abounding_Popcorn',
+            callId: 'cOYIirg4DL6tCrwXxVXx5',
         }}
         isHost={false}
-        hostUserId={'Screeching_Form'}
+        hostUserId={'Abounding_Popcorn'}
       />
     )}
     
+      {/* Input Modals */}
+      {/* Title Input Modal */}
+      <Modal visible={showTitleModal} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Meeting Title</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={tempInputValue}
+              onChangeText={setTempInputValue}
+              placeholder="Enter meeting title"
+              autoFocus
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity style={styles.modalCancelButton} onPress={() => setShowTitleModal(false)}>
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalSaveButton} onPress={saveTitleInput}>
+                <Text style={styles.modalSaveText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Description Input Modal */}
+      <Modal visible={showDescriptionModal} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Meeting Description</Text>
+            <TextInput
+              style={[styles.modalInput, { height: 80, textAlignVertical: 'top' }]}
+              value={tempInputValue}
+              onChangeText={setTempInputValue}
+              placeholder="Enter meeting description (optional)"
+              multiline
+              autoFocus
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity style={styles.modalCancelButton} onPress={() => setShowDescriptionModal(false)}>
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalSaveButton} onPress={saveDescriptionInput}>
+                <Text style={styles.modalSaveText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Date Input Modal */}
+      <Modal visible={showDateModal} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Meeting Date</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={tempInputValue}
+              onChangeText={setTempInputValue}
+              placeholder="YYYY-MM-DD (e.g. 2025-10-05)"
+              autoFocus
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity style={styles.modalCancelButton} onPress={() => setShowDateModal(false)}>
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalSaveButton} onPress={saveDateInput}>
+                <Text style={styles.modalSaveText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Time Input Modal */}
+      <Modal visible={showTimeModal} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Meeting Time</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={tempInputValue}
+              onChangeText={setTempInputValue}
+              placeholder="HH:mm (e.g. 14:30)"
+              autoFocus
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity style={styles.modalCancelButton} onPress={() => setShowTimeModal(false)}>
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalSaveButton} onPress={saveTimeInput}>
+                <Text style={styles.modalSaveText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Duration Input Modal */}
+      <Modal visible={showDurationModal} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Meeting Duration</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={tempInputValue}
+              onChangeText={setTempInputValue}
+              placeholder="Duration in minutes (optional)"
+              keyboardType="numeric"
+              autoFocus
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity style={styles.modalCancelButton} onPress={() => setShowDurationModal(false)}>
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalSaveButton} onPress={saveDurationInput}>
+                <Text style={styles.modalSaveText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {/* Notification Center */}
       <NotificationCenter 
         visible={showNotificationCenter} 
@@ -1393,6 +1593,16 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 14,
   },
+  createButtonDisabled: {
+    backgroundColor: '#9CA3AF',
+    opacity: 0.6,
+  },
+  helpText: {
+    fontSize: 12,
+    color: '#6B7280',
+    fontStyle: 'italic',
+    textAlign: 'center',
+  },
   textInputRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1411,6 +1621,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     marginTop: 4,
+    minHeight: 44,
+    justifyContent: 'center',
   },
   inputFieldText: {
     fontSize: 14,
@@ -1592,5 +1804,71 @@ const styles = StyleSheet.create({
   participantsText: {
     fontSize: 12,
     color: '#6B7280',
+  },
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 20,
+    width: '100%',
+    maxWidth: 400,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    marginBottom: 20,
+    backgroundColor: '#F9FAFB',
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  modalCancelButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+  },
+  modalCancelText: {
+    color: '#374151',
+    fontWeight: '500',
+    fontSize: 16,
+  },
+  modalSaveButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: '#3B82F6',
+    alignItems: 'center',
+  },
+  modalSaveText: {
+    color: 'white',
+    fontWeight: '600',
+    fontSize: 16,
   },
 });
