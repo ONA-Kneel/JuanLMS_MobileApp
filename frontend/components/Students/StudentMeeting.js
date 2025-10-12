@@ -16,7 +16,6 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
 import { useUser } from '../UserContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import StudentDashboardStyle from '../styles/Stud/StudentDashStyle';
 import { useNotifications } from '../../NotificationContext';
 import NotificationCenter from '../NotificationCenter';
 import InvitedMeetings from '../Meeting/InvitedMeetings';
@@ -287,35 +286,28 @@ export default function StudentMeeting() {
   // Don't return early if no classes - still show tabs for direct invitations
 
   return (
-    <>
-    <ScrollView style={styles.container}>
-    <View style={
-      {
-        paddingBottom: 80,
-        // paddingHorizontal: 20,
-        // paddingTop: 120, // Space for fixed header
-      }
-      }/>
-      {/* Blue background */}
-      <View style={StudentDashboardStyle.blueHeaderBackground} />
-      
-      {/* White card header */}
-      <View style={StudentDashboardStyle.whiteHeaderCard}>
+    <View style={styles.container}>
+      <ScrollView showsVerticalScrollIndicator={false}>
+        {/* Blue background */}
+        <View style={styles.blueHeaderBackground} />
+        
+        {/* White card header */}
+        <View style={styles.whiteHeaderCard}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <View>
-            <Text style={StudentDashboardStyle.headerTitle}>
+            <Text style={styles.headerTitle}>
               Meetings
             </Text>
-                         <Text style={StudentDashboardStyle.headerSubtitle}>{academicContext}</Text>
-             <Text style={StudentDashboardStyle.headerSubtitle2}>{currentDateTime.toLocaleString('en-US', {
-               weekday: 'long',
-               year: 'numeric',
-               month: 'long',
-               day: 'numeric',
-               hour: '2-digit',
-               minute: '2-digit',
-               hour12: true
-             })}</Text>
+            <Text style={styles.headerSubtitle}>{academicContext}</Text>
+            <Text style={styles.headerSubtitle2}>{currentDateTime.toLocaleString('en-US', {
+              weekday: 'long',
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: true
+            })}</Text>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <TouchableOpacity 
@@ -550,8 +542,9 @@ export default function StudentMeeting() {
           refreshTrigger={0}
         />
       )}
-    </ScrollView>
-    {activeMeeting && Platform.OS !== 'web' && SimpleStreamMeetingRoom && (
+      </ScrollView>
+      
+      {activeMeeting && Platform.OS !== 'web' && SimpleStreamMeetingRoom && (
       <SimpleStreamMeetingRoom
         isOpen={!!activeMeeting}
         onClose={() => setActiveMeeting(null)}
@@ -569,12 +562,12 @@ export default function StudentMeeting() {
       />
     )}
     
-    {/* Notification Center */}
-    <NotificationCenter 
-      visible={showNotificationCenter} 
-      onClose={() => setShowNotificationCenter(false)} 
-    />
-    </>
+      {/* Notification Center */}
+      <NotificationCenter 
+        visible={showNotificationCenter} 
+        onClose={() => setShowNotificationCenter(false)} 
+      />
+    </View>
   );
 }
 
@@ -582,6 +575,41 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F3F4F6',
+  },
+  blueHeaderBackground: {
+    backgroundColor: '#00418b',
+    height: 90,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+  },
+  whiteHeaderCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    marginHorizontal: 16,
+    marginTop: -40,
+    padding: 20,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    zIndex: 2,
+    marginBottom: 16,
+  },
+  headerTitle: {
+    fontSize: 22,
+    color: '#222',
+    fontFamily: 'Poppins-Bold',
+  },
+  headerSubtitle: {
+    color: '#888',
+    fontSize: 14,
+    fontFamily: 'Poppins-Regular',
+  },
+  headerSubtitle2: {
+    color: '#666',
+    fontSize: 12,
+    fontFamily: 'Poppins-Regular',
+    marginTop: 2,
   },
   loadingContainer: {
     flex: 1,
@@ -629,8 +657,7 @@ const styles = StyleSheet.create({
   },
   classSelector: {
     backgroundColor: 'white',
-    marginTop: '25%',
-    marginHorizontal: 16,
+    margin: 16,
     padding: 20,
     borderRadius: 12,
     shadowColor: '#000',
