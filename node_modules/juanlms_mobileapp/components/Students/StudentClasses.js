@@ -144,7 +144,8 @@ export default function StudentClasses() {
     });
   };
 
-  const navigateToClassModule = (classItem) => {
+  const handleClassPress = (classItem) => {
+    // Navigate directly to the class module
     navigation.navigate('SModule', {
       classId: classItem._id || classItem.classID,
       className: classItem.className
@@ -152,12 +153,13 @@ export default function StudentClasses() {
   };
 
 
+
   const renderClassCard = (classItem, index) => {
     return (
       <TouchableOpacity
         key={index}
         style={styles.classCard}
-        onPress={() => navigateToClassModule(classItem)}
+        onPress={() => handleClassPress(classItem)}
       >
         {/* Class Image Placeholder */}
         <View style={{
@@ -237,26 +239,26 @@ export default function StudentClasses() {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerTop}>
-          <TouchableOpacity 
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-          >
-            <MaterialIcons name="arrow-back" size={24} color="white" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>My Classes</Text>
-        </View>
-        <Text style={styles.headerSubtitle}>
-          Manage your enrolled classes and access course materials
-        </Text>
-        {activeQuarter && (
-          <Text style={styles.quarterInfo}>
-            {activeQuarter.schoolYear} | {activeQuarter.termName} | {activeQuarter.quarterName}
-          </Text>
-        )}
-      </View>
+       {/* Header */}
+       <View style={styles.header}>
+         <View style={styles.headerTop}>
+           <TouchableOpacity 
+             style={styles.backButton}
+             onPress={() => navigation.goBack()}
+           >
+             <MaterialIcons name="arrow-back" size={24} color="white" />
+           </TouchableOpacity>
+           <Text style={styles.headerTitle}>My Classes</Text>
+         </View>
+         <Text style={styles.headerSubtitle}>
+           Manage your enrolled classes and access course materials
+         </Text>
+         {activeQuarter && (
+           <Text style={styles.quarterInfo}>
+             {activeQuarter.schoolYear} | {activeQuarter.termName} | {activeQuarter.quarterName}
+           </Text>
+         )}
+       </View>
 
       {/* Classes List */}
       {error ? (
@@ -301,20 +303,11 @@ const styles = {
     paddingBottom: 20,
     paddingHorizontal: 20,
   },
-  headerTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  backButton: {
-    marginRight: 16,
-    padding: 4,
-  },
   headerTitle: {
     color: 'white',
     fontSize: 24,
     fontWeight: 'bold',
-    flex: 1,
+    marginBottom: 4,
   },
   headerSubtitle: {
     color: 'rgba(255, 255, 255, 0.8)',
@@ -395,6 +388,15 @@ const styles = {
     textAlign: 'center',
     lineHeight: 24,
   },
+   headerTop: {
+     flexDirection: 'row',
+     alignItems: 'center',
+     marginBottom: 4,
+   },
+   backButton: {
+     marginRight: 16,
+     padding: 4,
+   },
   activeQuizzesContainer: {
     marginTop: 16,
     paddingTop: 12,
