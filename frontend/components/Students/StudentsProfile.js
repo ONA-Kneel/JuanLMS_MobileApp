@@ -320,10 +320,6 @@ export default function StudentsProfile() {
             <Feather name="help-circle" size={20} color="#00418b" />
             <Text style={[StudentsProfileStyle.actionText, { fontFamily: 'Poppins-Regular' }]}>Support Center</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={StudentsProfileStyle.actionBtn} onPress={testBackendConnection}>
-            <Feather name="wifi" size={20} color="#00418b" />
-            <Text style={[StudentsProfileStyle.actionText, { fontFamily: 'Poppins-Regular' }]}>Test Connection</Text>
-          </TouchableOpacity>
         </View>
       </View>
       {/* Logout Button */}

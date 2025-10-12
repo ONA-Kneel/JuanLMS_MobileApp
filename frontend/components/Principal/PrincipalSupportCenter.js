@@ -249,7 +249,7 @@ export default function PrincipalSupportCenter() {
                     <MaterialIcons name="arrow-back" size={24} color="#00418b" />
                   </View>
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => navigation.navigate('PProfile')}>
+                <TouchableOpacity onPress={() => navigation.navigate('PrincipalProfile')}>
                   <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#e3f2fd', justifyContent: 'center', alignItems: 'center' }}>
                     <MaterialIcons name="person" size={24} color="#00418b" />
                   </View>
