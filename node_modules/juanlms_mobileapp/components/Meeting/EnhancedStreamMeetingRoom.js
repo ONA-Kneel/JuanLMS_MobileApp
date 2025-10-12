@@ -506,8 +506,42 @@ export default function EnhancedStreamMeetingRoom({
                     </TouchableOpacity>
                   </View>
                   <ScrollView style={styles.participantsList}>
-                    {/* Participants list would go here */}
-                    <Text style={styles.participantItem}>Loading participants...</Text>
+                    {call && call.state.participants && call.state.participants.length > 0 ? (
+                      call.state.participants.map((participant, index) => (
+                        <View key={participant.userId || index} style={styles.participantItem}>
+                          <View style={styles.participantAvatar}>
+                            <Text style={styles.participantAvatarText}>
+                              {(participant.user?.name || 'User')[0].toUpperCase()}
+                            </Text>
+                          </View>
+                          <View style={styles.participantInfo}>
+                            <Text style={styles.participantName}>
+                              {participant.user?.name || 'Unknown User'}
+                            </Text>
+                            <Text style={styles.participantStatus}>
+                              {participant.isSpeaking ? 'Speaking' : 
+                               participant.isLocal ? 'You' : 'Connected'}
+                            </Text>
+                          </View>
+                          <View style={styles.participantControls}>
+                            {participant.publishedTracks.includes('audio') ? (
+                              <Icon name="microphone" size={16} color="#10B981" />
+                            ) : (
+                              <Icon name="microphone-off" size={16} color="#EF4444" />
+                            )}
+                            {participant.publishedTracks.includes('video') ? (
+                              <Icon name="video" size={16} color="#10B981" />
+                            ) : (
+                              <Icon name="video-off" size={16} color="#EF4444" />
+                            )}
+                          </View>
+                        </View>
+                      ))
+                    ) : (
+                      <View style={styles.noParticipants}>
+                        <Text style={styles.noParticipantsText}>No participants found</Text>
+                      </View>
+                    )}
                   </ScrollView>
                 </View>
               </View>
@@ -870,9 +904,53 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   participantItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333',
+  },
+  participantAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#3B82F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  participantAvatarText: {
     color: '#fff',
     fontSize: 16,
-    paddingVertical: 8,
+    fontWeight: '600',
+  },
+  participantInfo: {
+    flex: 1,
+  },
+  participantName: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  participantStatus: {
+    color: '#6B7280',
+    fontSize: 14,
+    marginTop: 2,
+  },
+  participantControls: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  noParticipants: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  noParticipantsText: {
+    color: '#6B7280',
+    fontSize: 16,
+    textAlign: 'center',
   },
   statsModal: {
     position: 'absolute',
