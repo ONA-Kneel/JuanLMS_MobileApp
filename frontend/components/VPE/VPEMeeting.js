@@ -517,6 +517,90 @@ export default function VPEMeeting() {
           </View>
         </View>
 
+      {/* Meeting List */}
+      <View style={styles.meetingSection}>
+        <View style={styles.meetingHeader}>
+          <View>
+            <Text style={styles.meetingTitle}>All School Meetings</Text>
+            <Text style={styles.meetingSubtitle}>
+              Monitor meetings across all classes
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.meetingList}>
+          {meetings.length === 0 ? (
+            <View style={styles.noMeetings}>
+              <Icon name="video" size={48} color="#9CA3AF" />
+              <Text style={styles.noMeetingsText}>No meetings scheduled</Text>
+              <Text style={styles.noMeetingsSubtext}>Check back later for scheduled meetings</Text>
+            </View>
+          ) : (
+            <View style={styles.meetingsContainer}>
+              {Object.entries(groupMeetingsByDate(meetings)).map(([groupKey, groupMeetings]) => (
+                <View key={groupKey} style={styles.meetingGroup}>
+                  <Text style={styles.groupTitle}>{getGroupTitle(groupKey)}</Text>
+                  <View style={styles.groupMeetings}>
+                    {groupMeetings.map((meeting) => {
+                      const status = getMeetingStatus(meeting);
+                      return (
+                        <View key={meeting._id} style={styles.meetingCard}>
+                          <View style={styles.meetingInfo}>
+                            <View style={styles.meetingHeaderRow}>
+                              <Text style={styles.meetingName}>{meeting.title}</Text>
+                              <View style={[styles.statusBadge, { backgroundColor: status.color + '20' }]}>
+                                <Text style={[styles.statusText, { color: status.color }]}>
+                                  {status.label}
+                                </Text>
+                              </View>
+                            </View>
+                            
+                            {meeting.description && (
+                              <Text style={styles.meetingDescription}>{meeting.description}</Text>
+                            )}
+                            
+                            <View style={styles.meetingDetails}>
+                              <View style={styles.detailItem}>
+                                <Icon name="calendar" size={16} color="#6B7280" />
+                                <Text style={styles.detailText}>{formatDateTime(meeting.scheduledTime)}</Text>
+                              </View>
+                              <View style={styles.detailItem}>
+                                <Icon name="clock-outline" size={16} color="#6B7280" />
+                                <Text style={styles.detailText}>{meeting.duration || 'No limit'} min</Text>
+                              </View>
+                              <View style={styles.detailItem}>
+                                <Icon name="account-group" size={16} color="#6B7280" />
+                                <Text style={styles.detailText}>{meeting.participantCount || 0} participants</Text>
+                              </View>
+                              {meeting.classID && (
+                                <View style={styles.detailItem}>
+                                  <Icon name="school" size={16} color="#6B7280" />
+                                  <Text style={styles.detailText}>Class: {meeting.classID}</Text>
+                                </View>
+                              )}
+                            </View>
+                          </View>
+                          
+                          <View style={styles.meetingActions}>
+                            <TouchableOpacity
+                              onPress={() => handleJoinMeeting(meeting)}
+                              style={styles.joinButton}
+                            >
+                              <Icon name="play" size={16} color="white" />
+                              <Text style={styles.joinButtonText}>Join</Text>
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                      );
+                    })}
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
+      </View>
+
       {/* Direct Invite - User Selection */}
       <View style={styles.selectionCard}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
@@ -692,90 +776,6 @@ export default function VPEMeeting() {
               </View>
             );
           })}
-        </View>
-      </View>
-
-      {/* Meeting List */}
-      <View style={styles.meetingSection}>
-        <View style={styles.meetingHeader}>
-          <View>
-            <Text style={styles.meetingTitle}>All School Meetings</Text>
-            <Text style={styles.meetingSubtitle}>
-              Monitor meetings across all classes
-            </Text>
-          </View>
-        </View>
-
-        <View style={styles.meetingList}>
-          {meetings.length === 0 ? (
-            <View style={styles.noMeetings}>
-              <Icon name="video" size={48} color="#9CA3AF" />
-              <Text style={styles.noMeetingsText}>No meetings scheduled</Text>
-              <Text style={styles.noMeetingsSubtext}>Check back later for scheduled meetings</Text>
-            </View>
-          ) : (
-            <View style={styles.meetingsContainer}>
-              {Object.entries(groupMeetingsByDate(meetings)).map(([groupKey, groupMeetings]) => (
-                <View key={groupKey} style={styles.meetingGroup}>
-                  <Text style={styles.groupTitle}>{getGroupTitle(groupKey)}</Text>
-                  <View style={styles.groupMeetings}>
-                    {groupMeetings.map((meeting) => {
-                      const status = getMeetingStatus(meeting);
-                      return (
-                        <View key={meeting._id} style={styles.meetingCard}>
-                          <View style={styles.meetingInfo}>
-                            <View style={styles.meetingHeaderRow}>
-                              <Text style={styles.meetingName}>{meeting.title}</Text>
-                              <View style={[styles.statusBadge, { backgroundColor: status.color + '20' }]}>
-                                <Text style={[styles.statusText, { color: status.color }]}>
-                                  {status.label}
-                                </Text>
-                              </View>
-                            </View>
-                            
-                            {meeting.description && (
-                              <Text style={styles.meetingDescription}>{meeting.description}</Text>
-                            )}
-                            
-                            <View style={styles.meetingDetails}>
-                              <View style={styles.detailItem}>
-                                <Icon name="calendar" size={16} color="#6B7280" />
-                                <Text style={styles.detailText}>{formatDateTime(meeting.scheduledTime)}</Text>
-                              </View>
-                              <View style={styles.detailItem}>
-                                <Icon name="clock-outline" size={16} color="#6B7280" />
-                                <Text style={styles.detailText}>{meeting.duration || 'No limit'} min</Text>
-                              </View>
-                              <View style={styles.detailItem}>
-                                <Icon name="account-group" size={16} color="#6B7280" />
-                                <Text style={styles.detailText}>{meeting.participantCount || 0} participants</Text>
-                              </View>
-                              {meeting.classID && (
-                                <View style={styles.detailItem}>
-                                  <Icon name="school" size={16} color="#6B7280" />
-                                  <Text style={styles.detailText}>Class: {meeting.classID}</Text>
-                                </View>
-                              )}
-                            </View>
-                          </View>
-                          
-                          <View style={styles.meetingActions}>
-                            <TouchableOpacity
-                              onPress={() => handleJoinMeeting(meeting)}
-                              style={styles.joinButton}
-                            >
-                              <Icon name="play" size={16} color="white" />
-                              <Text style={styles.joinButtonText}>Join</Text>
-                            </TouchableOpacity>
-                          </View>
-                        </View>
-                      );
-                    })}
-                  </View>
-                </View>
-              ))}
-            </View>
-          )}
         </View>
       </View>
       {activeMeeting && Platform.OS !== 'web' && SimpleStreamMeetingRoom && (
