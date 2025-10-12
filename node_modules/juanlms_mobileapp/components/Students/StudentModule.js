@@ -461,9 +461,9 @@ export default function StudentModule(){
             console.log('DEBUG StudentModule: API returned:', classesRes.data);
             let classObj = null;
             if (Array.isArray(classesRes.data)) {
-                classObj = classesRes.data.find(c => c.classID === targetClassId);
+                classObj = classesRes.data.find(c => c.classID === targetClassId || c._id === targetClassId);
             } else if (classesRes.data.success && Array.isArray(classesRes.data.classes)) {
-                classObj = classesRes.data.classes.find(c => c.classID === targetClassId);
+                classObj = classesRes.data.classes.find(c => c.classID === targetClassId || c._id === targetClassId);
             }
             console.log('DEBUG StudentModule: selected classObj:', classObj);
             if (classObj) {

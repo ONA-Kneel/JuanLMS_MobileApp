@@ -146,6 +146,8 @@ export default function StudentClasses() {
 
   const handleClassPress = (classItem) => {
     // Navigate directly to the class module
+    console.log('StudentClasses: Navigating to class:', classItem);
+    console.log('StudentClasses: Using classId:', classItem._id || classItem.classID);
     navigation.navigate('SModule', {
       classId: classItem._id || classItem.classID,
       className: classItem.className
