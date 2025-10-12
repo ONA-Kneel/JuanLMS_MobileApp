@@ -495,7 +495,7 @@ export default function StudentDashboard() {
               marginTop: 8
             }}>
             <Text style={{ color: '#00418b', fontFamily: 'Poppins-Bold' }}>
-              View {classes.length - 3} more classes
+              View Classes
             </Text>
           </TouchableOpacity>
         )}
