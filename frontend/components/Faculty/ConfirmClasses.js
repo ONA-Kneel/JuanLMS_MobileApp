@@ -13,7 +13,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useUser } from '../UserContext';
 import { getAuthHeaders, handleApiError } from '../../utils/apiUtils';
-import ClassConfirmationModal from './ClassConfimationModal';
+import ClassConfirmationModal from './ClassConfirmationModal';
 
 const API_BASE = 'https://juanlms-webapp-server.onrender.com';
 
