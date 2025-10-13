@@ -254,6 +254,7 @@ export default function App() {
           <NotificationProvider>
             <TimerProvider>
               <NavigationContainer ref={navigationRef}>
+                <ErrorBoundary>
           <Screens.Navigator initialRouteName='Login'>
         <Screens.Screen name='Login' component={Login} options={{ headerShown: false }}/>
         <Screens.Screen name='SplashScreen' component={SplashScreen} options={{ headerShown: false }}/>
@@ -317,6 +318,7 @@ export default function App() {
 
 
           </Screens.Navigator>
+                </ErrorBoundary>
         </NavigationContainer>
               </TimerProvider>
             </NotificationProvider>

@@ -69,6 +69,7 @@
       }
     },
     "plugins": [
+      "@react-native-firebase/app",
       [
         "expo-image-picker",
         {
