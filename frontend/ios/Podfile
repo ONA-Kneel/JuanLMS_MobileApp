@@ -3,11 +3,9 @@ require_relative '../../node_modules/react-native/scripts/react_native_pods'
 platform :ios, '13.4'
 install! 'cocoapods', :deterministic_uuids => false
 
-# Enable modular headers for Swift pods (required for Firebase)
-use_modular_headers!
-
-# Use dynamic frameworks for Firebase compatibility
-use_frameworks! :linkage => :dynamic
+# Firebase temporarily disabled; comment out global modular headers and dynamic frameworks
+# use_modular_headers!
+# use_frameworks! :linkage => :dynamic
 
 # Force all pods to use dynamic frameworks
 def use_frameworks_for_all_pods!
@@ -22,6 +20,8 @@ target 'JuanLMS' do
   
   # Stream Video iOS SDK
   pod 'StreamVideo', :path => '../../node_modules/@stream-io/video-react-native-sdk/ios'
+  
+  # Firebase temporarily disabled; remove explicit Google/Firebase pods
   
   # Let React Native auto-link handle Firebase pods
 
@@ -48,44 +48,9 @@ target 'JuanLMS' do
     )
     __apply_Xcode_12_5_M1_post_install_workaround(installer)
     
-    # Force dynamic frameworks for all targets
     installer.pods_project.targets.each do |target|
       target.build_configurations.each do |config|
-        # Force dynamic framework settings
-        config.build_settings['BUILD_LIBRARY_FOR_DISTRIBUTION'] = 'YES'
-        config.build_settings['DEFINES_MODULE'] = 'YES'
-        config.build_settings['CLANG_ENABLE_MODULES'] = 'YES'
-        config.build_settings['SWIFT_COMPILATION_MODE'] = 'wholemodule'
-        
-        # Firebase and Google specific fixes
-        if target.name.include?('Firebase') || target.name.include?('Google')
-          config.build_settings['DEFINES_MODULE'] = 'YES'
-          config.build_settings['CLANG_ENABLE_MODULES'] = 'YES'
-          config.build_settings['SWIFT_VERSION'] = '5.0'
-          config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
-          config.build_settings['MODULEMAP_FILE'] = ''
-          config.build_settings['BUILD_LIBRARY_FOR_DISTRIBUTION'] = 'YES'
-        end
-        
-        # Specific fixes for problematic pods
-        case target.name
-        when 'GoogleUtilities'
-          config.build_settings['DEFINES_MODULE'] = 'YES'
-          config.build_settings['CLANG_ENABLE_MODULES'] = 'YES'
-          config.build_settings['MODULEMAP_FILE'] = ''
-          config.build_settings['BUILD_LIBRARY_FOR_DISTRIBUTION'] = 'YES'
-        when 'FirebaseCoreInternal'
-          config.build_settings['DEFINES_MODULE'] = 'YES'
-          config.build_settings['CLANG_ENABLE_MODULES'] = 'YES'
-          config.build_settings['SWIFT_VERSION'] = '5.0'
-          config.build_settings['MODULEMAP_FILE'] = ''
-          config.build_settings['BUILD_LIBRARY_FOR_DISTRIBUTION'] = 'YES'
-        when 'FirebaseCore'
-          config.build_settings['DEFINES_MODULE'] = 'YES'
-          config.build_settings['CLANG_ENABLE_MODULES'] = 'YES'
-          config.build_settings['SWIFT_VERSION'] = '5.0'
-          config.build_settings['BUILD_LIBRARY_FOR_DISTRIBUTION'] = 'YES'
-        end
+        # Remove Firebase/Google-specific overrides during temporary removal
       end
     end
   end

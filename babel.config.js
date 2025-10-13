@@ -3,5 +3,12 @@ module.exports = {
   plugins: [
     'react-native-reanimated/plugin', // <- keep LAST
   ],
+  env: {
+    production: {
+      plugins: [
+        'react-native-reanimated/plugin',
+      ],
+    },
+  },
 };
 

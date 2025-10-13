@@ -1,8 +1,20 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Platform, PermissionsAndroid, Alert, AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import messaging from '@react-native-firebase/messaging';
-import { getApp } from '@react-native-firebase/app';
+// Firebase modules are optional; load dynamically when available
+let messaging;
+let getApp;
+try {
+  const { NativeModules } = require('react-native');
+  if (NativeModules && (NativeModules.RNFBMessagingModule || NativeModules.RNFBAppModule)) {
+    try {
+      messaging = require('@react-native-firebase/messaging').default;
+    } catch {}
+    try {
+      ({ getApp } = require('@react-native-firebase/app'));
+    } catch {}
+  }
+} catch {}
 import Toast from 'react-native-root-toast';
 import { registerDeviceToken } from './services/notificationService';
 import { apiGet, apiPatch } from './utils/apiUtils';
@@ -26,11 +38,12 @@ export const NotificationProvider = ({ children }) => {
   // Check if Firebase is initialized
   const checkFirebaseInitialization = () => {
     try {
+      if (!getApp) return false;
       const app = getApp();
       console.log('Firebase app initialized:', app.name);
       return true;
     } catch (error) {
-      console.error('Firebase not initialized:', error);
+      console.warn('Firebase not initialized:', error?.message || error);
       return false;
     }
   };
@@ -131,6 +144,7 @@ export const NotificationProvider = ({ children }) => {
 
     const requestNotificationPermissionIOS = async () => {
       try {
+        if (!messaging) return false;
         const authStatus = await messaging().requestPermission();
         const enabled =
           authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
@@ -148,7 +162,7 @@ export const NotificationProvider = ({ children }) => {
     const registerAndGetToken = async () => {
       try {
         // Check if Firebase is initialized before using messaging
-        if (!checkFirebaseInitialization()) {
+        if (!messaging || !checkFirebaseInitialization()) {
           console.error('Firebase not initialized, cannot get FCM token');
           return;
         }
@@ -177,7 +191,7 @@ export const NotificationProvider = ({ children }) => {
 
     const setupForegroundListener = () => {
       // Check if Firebase is initialized before setting up listeners
-      if (!checkFirebaseInitialization()) {
+      if (!messaging || !checkFirebaseInitialization()) {
         console.error('Firebase not initialized, cannot setup foreground listener');
         return null;
       }
@@ -207,7 +221,8 @@ export const NotificationProvider = ({ children }) => {
       if (granted) {
         await registerAndGetToken();
         unsubscribeOnMessage = setupForegroundListener();
-        unsubscribeOnTokenRefresh = messaging().onTokenRefresh(async token => {
+        if (messaging) {
+          unsubscribeOnTokenRefresh = messaging().onTokenRefresh(async token => {
           setFcmToken(token);
           console.log('FCM token refreshed:', token.substring(0, 20) + '...');
           try { 
@@ -234,7 +249,8 @@ export const NotificationProvider = ({ children }) => {
           } catch (syncErr) {
             console.error('Token refresh sync error:', syncErr);
           }
-        });
+          });
+        }
       }
     })();
 

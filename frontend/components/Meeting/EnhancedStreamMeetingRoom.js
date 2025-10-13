@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import { Modal, View, Text, TouchableOpacity, ActivityIndicator, StyleSheet, Platform, Alert, Dimensions, ScrollView } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, ActivityIndicator, StyleSheet, Platform, Alert, Dimensions, ScrollView, TextInput } from 'react-native';
 import {
   StreamVideo,
   StreamVideoClient,
@@ -57,7 +57,7 @@ export default function EnhancedStreamMeetingRoom({
   const [chatMessages, setChatMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
 
-  // Initialize Stream.io client
+  // Initialize Stream.io client with enhanced error handling
   useEffect(() => {
     if (!isOpen || !credentials) return;
 
@@ -66,11 +66,23 @@ export default function EnhancedStreamMeetingRoom({
         setIsConnecting(true);
         setError(null);
 
+        // Validate credentials before proceeding
+        if (!credentials.apiKey || !credentials.userId || !credentials.token) {
+          throw new Error('Invalid meeting credentials provided');
+        }
+
+        console.log('Initializing Stream client with credentials:', {
+          hasApiKey: !!credentials.apiKey,
+          hasUserId: !!credentials.userId,
+          hasToken: !!credentials.token,
+          hasCallId: !!credentials.callId
+        });
+
         const streamClient = new StreamVideoClient({
           apiKey: credentials.apiKey,
           user: {
             id: credentials.userId,
-            name: currentUser?.name || 'User',
+            name: currentUser?.name || currentUser?.firstName + ' ' + currentUser?.lastName || 'User',
             image: currentUser?.profilePic || null,
           },
           token: credentials.token,
@@ -78,53 +90,102 @@ export default function EnhancedStreamMeetingRoom({
 
         setClient(streamClient);
 
-        // Create call
+        // Create call with timeout
         const callInstance = streamClient.call('default', credentials.callId);
-        await callInstance.join({ create: true });
+        
+        // Set up error handlers before joining
+        callInstance.on('call.error', (error) => {
+          console.error('Stream call error:', error);
+          setError(`Call error: ${error.message || 'Unknown error occurred'}`);
+        });
+
+        // Join call with timeout
+        const joinPromise = callInstance.join({ create: true });
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Call join timeout after 30 seconds')), 30000)
+        );
+        
+        await Promise.race([joinPromise, timeoutPromise]);
         setCall(callInstance);
 
-        // Set up call event listeners
+        // Set up call event listeners with error handling
         callInstance.on('call.updated', (event) => {
-          console.log('Call updated:', event);
+          try {
+            console.log('Call updated:', event);
+          } catch (err) {
+            console.error('Error in call.updated handler:', err);
+          }
         });
 
         callInstance.on('call.ended', () => {
-          console.log('Call ended');
-          onLeave?.();
+          try {
+            console.log('Call ended');
+            onLeave?.();
+          } catch (err) {
+            console.error('Error in call.ended handler:', err);
+          }
         });
 
         callInstance.on('call.recording.started', () => {
-          setIsRecording(true);
+          try {
+            setIsRecording(true);
+          } catch (err) {
+            console.error('Error setting recording state:', err);
+          }
         });
 
         callInstance.on('call.recording.stopped', () => {
-          setIsRecording(false);
+          try {
+            setIsRecording(false);
+          } catch (err) {
+            console.error('Error setting recording state:', err);
+          }
         });
 
         callInstance.on('call.screen_share.started', () => {
-          setIsScreenSharing(true);
+          try {
+            setIsScreenSharing(true);
+          } catch (err) {
+            console.error('Error setting screen share state:', err);
+          }
         });
 
         callInstance.on('call.screen_share.stopped', () => {
-          setIsScreenSharing(false);
+          try {
+            setIsScreenSharing(false);
+          } catch (err) {
+            console.error('Error setting screen share state:', err);
+          }
         });
 
         callInstance.on('call.reaction', (event) => {
-          setReactions(prev => [...prev, event]);
-          // Remove reaction after 3 seconds
-          setTimeout(() => {
-            setReactions(prev => prev.filter(r => r.id !== event.id));
-          }, 3000);
+          try {
+            setReactions(prev => [...prev, event]);
+            // Remove reaction after 3 seconds
+            setTimeout(() => {
+              setReactions(prev => prev.filter(r => r.id !== event.id));
+            }, 3000);
+          } catch (err) {
+            console.error('Error handling reaction:', err);
+          }
         });
 
         callInstance.on('call.chat', (event) => {
-          setChatMessages(prev => [...prev, event]);
+          try {
+            setChatMessages(prev => [...prev, event]);
+          } catch (err) {
+            console.error('Error handling chat message:', err);
+          }
         });
 
-        // Set up participant count tracking
+        // Set up participant count tracking with error handling
         const updateParticipantCount = () => {
-          const count = callInstance.state.participants?.length || 0;
-          setParticipantCount(count);
+          try {
+            const count = callInstance.state?.participants?.length || 0;
+            setParticipantCount(count);
+          } catch (err) {
+            console.error('Error updating participant count:', err);
+          }
         };
 
         callInstance.on('call.participant_joined', updateParticipantCount);
@@ -134,7 +195,22 @@ export default function EnhancedStreamMeetingRoom({
 
       } catch (err) {
         console.error('Error initializing Stream client:', err);
-        setError(err.message || 'Failed to initialize meeting');
+        
+        // Provide more specific error messages
+        let errorMessage = 'Failed to initialize meeting';
+        if (err.message) {
+          if (err.message.includes('timeout')) {
+            errorMessage = 'Connection timeout. Please check your internet connection and try again.';
+          } else if (err.message.includes('credentials')) {
+            errorMessage = 'Invalid meeting credentials. Please contact the meeting organizer.';
+          } else if (err.message.includes('network')) {
+            errorMessage = 'Network error. Please check your internet connection.';
+          } else {
+            errorMessage = `Meeting error: ${err.message}`;
+          }
+        }
+        
+        setError(errorMessage);
       } finally {
         setIsConnecting(false);
       }
@@ -143,11 +219,15 @@ export default function EnhancedStreamMeetingRoom({
     initClient();
 
     return () => {
-      if (call) {
-        call.leave();
-      }
-      if (client) {
-        client.disconnectUser();
+      try {
+        if (call) {
+          call.leave().catch(err => console.error('Error leaving call during cleanup:', err));
+        }
+        if (client) {
+          client.disconnectUser().catch(err => console.error('Error disconnecting client during cleanup:', err));
+        }
+      } catch (err) {
+        console.error('Error during Stream cleanup:', err);
       }
     };
   }, [isOpen, credentials]);
@@ -160,7 +240,12 @@ export default function EnhancedStreamMeetingRoom({
       onLeave?.();
     } catch (err) {
       console.error('Error leaving call:', err);
-      onLeave?.();
+      // Always call onLeave even if there's an error
+      try {
+        onLeave?.();
+      } catch (onLeaveErr) {
+        console.error('Error in onLeave callback:', onLeaveErr);
+      }
     }
   }, [call, onLeave]);
 
@@ -172,7 +257,12 @@ export default function EnhancedStreamMeetingRoom({
       onLeave?.();
     } catch (err) {
       console.error('Error ending call:', err);
-      onLeave?.();
+      // Always call onLeave even if there's an error
+      try {
+        onLeave?.();
+      } catch (onLeaveErr) {
+        console.error('Error in onLeave callback:', onLeaveErr);
+      }
     }
   }, [call, isHost, onLeave]);
 

@@ -12,6 +12,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Login from './components/Login';
 import ErrorBoundary from './components/ErrorBoundary';
+import HermesErrorBoundary from './components/HermesErrorBoundary';
 import ForgotPassword from './components/ForgotPassword';
 import Chat from './components/Chat';
 import GroupChat from './components/GroupChat';
@@ -268,7 +269,8 @@ export default function App() {
           <NotificationProvider>
             <TimerProvider>
               <NavigationContainer ref={navigationRef}>
-                <ErrorBoundary>
+                <HermesErrorBoundary>
+                  <ErrorBoundary>
           <Screens.Navigator initialRouteName='Login'>
         <Screens.Screen name='Login' component={Login} options={{ headerShown: false }}/>
         <Screens.Screen name='SplashScreen' component={SplashScreen} options={{ headerShown: false }}/>
@@ -332,7 +334,8 @@ export default function App() {
 
 
           </Screens.Navigator>
-                </ErrorBoundary>
+                  </ErrorBoundary>
+                </HermesErrorBoundary>
         </NavigationContainer>
               </TimerProvider>
             </NotificationProvider>

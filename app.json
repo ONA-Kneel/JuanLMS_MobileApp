@@ -2,26 +2,46 @@
   "expo": {
     "name": "JuanLMS",
     "slug": "juanlms-mobile-app",
-    "owner": "nylineee",
-    "version": "1.0.0",
+    "owner": "orionneil",
+    "version": "1.1.7",
     "orientation": "portrait",
     "icon": "frontend/assets/SanJuan.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "splash": {
       "image": "frontend/assets/JuanLMS-LogoV1.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#03045E"
     },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.kneelpngnbn.juanlms.mobileapp",
-      "bitcode": false
+      "buildNumber": "3",
+      "deploymentTarget": "13.4",
+      "bitcode": false,
+      "googleServicesFile": "frontend/GoogleService-Info.plist",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "This app needs access to camera for video calls and to take profile pictures.",
+        "NSPhotoLibraryUsageDescription": "This app needs access to photos for sharing in video calls and profile pictures.",
+        "NSMicrophoneUsageDescription": "This app needs access to microphone for video calls and audio features.",
+        "NSUserNotificationsUsageDescription": "This app sends notifications for important updates.",
+        "NSLocationWhenInUseUsageDescription": "This app needs location access for enhanced features.",
+        "UIRequiredDeviceCapabilities": [
+          "armv7"
+        ],
+        "UIBackgroundModes": [
+          "audio",
+          "fetch",
+          "voip"
+        ],
+        "AVAudioSessionCategory": "playAndRecord"
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "frontend/assets/SanJuan.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#03045E"
       },
       "package": "com.kneelpngnbn.juanlms.mobileapp",
       "versionCode": 1,
@@ -52,7 +72,7 @@
     "extra": {
       "API_URL": "https://juanlms-webapp-server.onrender.com",
       "eas": {
-        "projectId": "dba9df6a-43c3-42d7-a7e1-7b236c8e6123"
+        "projectId": "957324a8-0b6f-4c97-9f37-2feeb1a6fb96"
       }
     },
     "plugins": [

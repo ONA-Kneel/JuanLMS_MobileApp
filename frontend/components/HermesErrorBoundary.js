@@ -1,14 +1,14 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 
-class ErrorBoundary extends React.Component {
+class HermesErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
     this.state = { 
       hasError: false, 
       error: null, 
       errorInfo: null,
-      retryCount: 0 
+      recoveryAttempts: 0
     };
   }
 
@@ -17,31 +17,35 @@ class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error('ErrorBoundary caught an error:', {
+    console.error('HermesErrorBoundary caught an error:', {
       error: error.message,
       stack: error.stack,
       componentStack: errorInfo.componentStack,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      isHermesError: this.isHermesRelatedError(error)
     });
     
     this.setState({ 
       error, 
       errorInfo,
-      retryCount: this.state.retryCount + 1 
-    });
-
-    // Log to crash reporting service in the future
-    // For now, just log to console
-    console.error('Error details:', {
-      name: error.name,
-      message: error.message,
-      stack: error.stack,
-      componentStack: errorInfo.componentStack
+      recoveryAttempts: this.state.recoveryAttempts + 1
     });
   }
 
+  isHermesRelatedError = (error) => {
+    const errorMessage = error.message || '';
+    const errorStack = error.stack || '';
+    
+    return errorMessage.includes('Hermes') || 
+           errorMessage.includes('IRBuilder') ||
+           errorMessage.includes('ESTreeIRGen') ||
+           errorMessage.includes('createStoreFrameInst') ||
+           errorStack.includes('hermes') ||
+           errorStack.includes('IRBuilder');
+  };
+
   handleRetry = () => {
-    // Reset error state
+    // Reset error state and attempt recovery
     this.setState({ 
       hasError: false, 
       error: null, 
@@ -49,24 +53,39 @@ class ErrorBoundary extends React.Component {
     });
   };
 
-  handleReportError = () => {
-    Alert.alert(
-      'Error Report',
-      `Error: ${this.state.error?.message || 'Unknown error'}\n\nThis error has been logged. If the problem persists, please contact support.`,
-      [{ text: 'OK' }]
-    );
+  handleRestart = () => {
+    // Force app restart by clearing storage and reloading
+    try {
+      const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+      AsyncStorage.clear().then(() => {
+        // This will cause the app to restart
+        const { DevSettings } = require('react-native');
+        if (DevSettings && DevSettings.reload) {
+          DevSettings.reload();
+        }
+      });
+    } catch (error) {
+      console.error('Failed to restart app:', error);
+    }
   };
 
   render() {
     if (this.state.hasError) {
+      const isHermesError = this.isHermesRelatedError(this.state.error);
       const maxRetries = 3;
-      const canRetry = this.state.retryCount < maxRetries;
+      const canRetry = this.state.recoveryAttempts < maxRetries;
       
       return (
         <View style={styles.container}>
-          <Text style={styles.title}>⚠️ Something went wrong</Text>
+          <Text style={styles.title}>
+            {isHermesError ? '⚠️ Engine Error Detected' : '⚠️ Something went wrong'}
+          </Text>
+          
           <Text style={styles.message}>
-            {this.props.fallbackMessage || 'An unexpected error occurred. Please try again.'}
+            {isHermesError 
+              ? 'A JavaScript engine error occurred. This is usually temporary and can be resolved by restarting the app.'
+              : 'An unexpected error occurred. Please try again.'
+            }
           </Text>
           
           {this.state.error && (
@@ -88,12 +107,18 @@ class ErrorBoundary extends React.Component {
             )}
             
             <TouchableOpacity
-              style={[styles.button, styles.secondaryButton]}
-              onPress={this.handleReportError}
+              style={[styles.button, styles.restartButton]}
+              onPress={this.handleRestart}
             >
-              <Text style={styles.secondaryButtonText}>Report Issue</Text>
+              <Text style={styles.buttonText}>Restart App</Text>
             </TouchableOpacity>
           </View>
+          
+          {isHermesError && (
+            <Text style={styles.helpText}>
+              If this error persists, please restart the app completely or contact support.
+            </Text>
+          )}
           
           {!canRetry && (
             <Text style={styles.maxRetriesText}>
@@ -156,8 +181,8 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     minWidth: 120,
   },
-  secondaryButton: {
-    backgroundColor: '#6c757d',
+  restartButton: {
+    backgroundColor: '#d32f2f',
   },
   buttonText: {
     color: 'white',
@@ -165,11 +190,12 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 16,
   },
-  secondaryButtonText: {
-    color: 'white',
-    fontWeight: 'bold',
+  helpText: {
+    fontSize: 14,
+    color: '#666',
     textAlign: 'center',
-    fontSize: 16,
+    fontStyle: 'italic',
+    marginTop: 16,
   },
   maxRetriesText: {
     fontSize: 14,
@@ -179,4 +205,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default ErrorBoundary;
+export default HermesErrorBoundary;

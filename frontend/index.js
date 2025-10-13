@@ -1,5 +1,5 @@
 import { registerRootComponent } from 'expo';
-import { AppRegistry, LogBox } from 'react-native';
+import { AppRegistry, LogBox, ErrorUtils } from 'react-native';
 
 // Suppress specific warnings that can cause crashes
 LogBox.ignoreLogs([
@@ -8,16 +8,81 @@ LogBox.ignoreLogs([
   'Warning: componentWillReceiveProps',
   'Warning: componentWillMount',
   'Warning: componentWillUpdate',
+  'Firebase',
+  'RNFBMessagingModule',
+  'RNFBAppModule',
+  'Hermes',
+  'IRBuilder',
+  'ESTreeIRGen',
+  'createStoreFrameInst',
+  'Reanimated',
+  'worklet',
+  'shareable',
 ]);
 
-// Initialize Firebase before importing App
-try {
-  require('./config/firebase');
-} catch (error) {
-  console.warn('Firebase initialization failed:', error);
-}
+// Global JavaScript error handler to prevent crashes
+const originalHandler = ErrorUtils.getGlobalHandler();
 
-import messaging from '@react-native-firebase/messaging';
+ErrorUtils.setGlobalHandler((error, isFatal) => {
+  console.error('Global JavaScript Error:', {
+    error: error.message,
+    stack: error.stack,
+    isFatal,
+    timestamp: new Date().toISOString(),
+    errorName: error.name,
+    errorType: typeof error
+  });
+  
+  // Enhanced error handling for different error types
+  if (isFatal) {
+    console.error('Fatal JavaScript Error - App would have crashed, but we prevented it:', error);
+    
+    // Special handling for Hermes engine errors
+    if (error.message && (
+      error.message.includes('Hermes') || 
+      error.message.includes('IRBuilder') ||
+      error.message.includes('ESTreeIRGen') ||
+      error.message.includes('createStoreFrameInst')
+    )) {
+      console.error('Hermes engine error detected - attempting recovery');
+      // Don't crash, let the app continue
+      return;
+    }
+    
+    // Special handling for Reanimated errors
+    if (error.message && error.message.includes('Reanimated')) {
+      console.error('Reanimated error detected - attempting recovery');
+      // Don't crash, let the app continue
+      return;
+    }
+    
+    // You can add crash reporting here in the future
+  }
+  
+  // Call original handler for non-fatal errors
+  if (!isFatal && originalHandler) {
+    originalHandler(error, isFatal);
+  }
+});
+
+// Handle unhandled promise rejections
+if (typeof global !== 'undefined') {
+  const originalUnhandledRejection = global.onunhandledrejection;
+  global.onunhandledrejection = (event) => {
+    console.error('Unhandled Promise Rejection:', {
+      reason: event.reason,
+      promise: event.promise,
+      timestamp: new Date().toISOString()
+    });
+    
+    // Prevent the rejection from crashing the app
+    event.preventDefault();
+    
+    if (originalUnhandledRejection) {
+      originalUnhandledRejection(event);
+    }
+  };
+}
 import { navigate } from './navigationRef';
 import App from './App';
 
@@ -26,51 +91,6 @@ import App from './App';
 // the environment is set up appropriately
 registerRootComponent(App);
 
-// Background/quit state message handler (must be in the entry file)
-try {
-  messaging().setBackgroundMessageHandler(async remoteMessage => {
-    try {
-      console.log('Background FCM message:', remoteMessage);
-      // Perform background processing if needed
-    } catch (error) {
-      console.log('Background handler error:', error);
-    }
-  });
-} catch (error) {
-  console.warn('Failed to set background message handler:', error);
-}
-
-// When the app is opened from a background state by tapping a notification
-try {
-  messaging().onNotificationOpenedApp(remoteMessage => {
-    try {
-      const screen = remoteMessage?.data?.screen;
-      const params = remoteMessage?.data?.params ? JSON.parse(remoteMessage.data.params) : undefined;
-      if (screen) navigate(screen, params);
-    } catch (e) {
-      console.log('onNotificationOpenedApp navigation error:', e);
-    }
-  });
-} catch (error) {
-  console.warn('Failed to set notification opened app handler:', error);
-}
-
-// When the app is opened from a quit state by tapping a notification
-try {
-  messaging()
-    .getInitialNotification()
-    .then(remoteMessage => {
-      if (remoteMessage) {
-        try {
-          const screen = remoteMessage?.data?.screen;
-          const params = remoteMessage?.data?.params ? JSON.parse(remoteMessage.data.params) : undefined;
-          if (screen) navigate(screen, params);
-        } catch (e) {
-          console.log('getInitialNotification navigation error:', e);
-        }
-      }
-    })
-    .catch(e => console.log('getInitialNotification error:', e));
-} catch (error) {
-  console.warn('Failed to get initial notification:', error);
-}
+// Firebase messaging temporarily disabled to prevent crashes
+// Will be re-enabled once Firebase configuration is stable
+console.log('Firebase messaging temporarily disabled for stability');
