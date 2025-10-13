@@ -1,3 +1,5 @@
+import 'react-native-gesture-handler';
+import 'react-native-reanimated';
 import { registerRootComponent } from 'expo';
 import { AppRegistry, LogBox, ErrorUtils } from 'react-native';
 

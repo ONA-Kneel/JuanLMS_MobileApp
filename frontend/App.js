@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { useFonts } from 'expo-font';
 import { View, ActivityIndicator, PermissionsAndroid, Alert } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 //folders
 import SplashScreen from './components/SplashScreen';
@@ -264,13 +265,14 @@ export default function App() {
   }
 
   return (
-      <AnnouncementProvider>
-        <UserProvider>
-          <NotificationProvider>
-            <TimerProvider>
-              <NavigationContainer ref={navigationRef}>
-                <HermesErrorBoundary>
-                  <ErrorBoundary>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <AnnouncementProvider>
+          <UserProvider>
+            <NotificationProvider>
+              <TimerProvider>
+                <NavigationContainer ref={navigationRef}>
+                  <HermesErrorBoundary>
+                    <ErrorBoundary>
           <Screens.Navigator initialRouteName='Login'>
         <Screens.Screen name='Login' component={Login} options={{ headerShown: false }}/>
         <Screens.Screen name='SplashScreen' component={SplashScreen} options={{ headerShown: false }}/>
@@ -334,12 +336,13 @@ export default function App() {
 
 
           </Screens.Navigator>
-                  </ErrorBoundary>
-                </HermesErrorBoundary>
-        </NavigationContainer>
+                    </ErrorBoundary>
+                  </HermesErrorBoundary>
+                </NavigationContainer>
               </TimerProvider>
             </NotificationProvider>
           </UserProvider>
         </AnnouncementProvider>
+      </GestureHandlerRootView>
     );
 }
