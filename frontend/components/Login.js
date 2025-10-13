@@ -15,15 +15,7 @@ const BACKEND_URL = 'https://juanlms-webapp-server.onrender.com/login'; // Updat
 
 export default function Login() {
   console.log('🔐 Login component rendering...');
-  
-  // Test UserContext integration
-  try {
-    const userContext = useUser();
-    console.log('✅ UserContext loaded successfully:', Object.keys(userContext));
-  } catch (error) {
-    console.error('❌ UserContext error:', error);
-  }
-  
+  //mema commit na lang para lang may kulay ako today
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [email, setEmail] = useState('');
@@ -36,28 +28,8 @@ export default function Login() {
   const [isDisabledByRememberClicks, setIsDisabledByRememberClicks] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const navigation = useNavigation();
-  
-  // Safe access to UserContext methods
-  let setUserAndToken;
-  let registerFCMTokenAfterLogin;
-  
-  try {
-    const userContext = useUser();
-    setUserAndToken = userContext.setUserAndToken;
-    console.log('✅ setUserAndToken method available:', typeof setUserAndToken);
-  } catch (error) {
-    console.error('❌ Error accessing setUserAndToken:', error);
-    setUserAndToken = null;
-  }
-  
-  try {
-    const notificationContext = useNotifications();
-    registerFCMTokenAfterLogin = notificationContext.registerFCMTokenAfterLogin;
-    console.log('✅ registerFCMTokenAfterLogin method available:', typeof registerFCMTokenAfterLogin);
-  } catch (error) {
-    console.error('❌ Error accessing registerFCMTokenAfterLogin:', error);
-    registerFCMTokenAfterLogin = null;
-  }
+  const { setUserAndToken } = useUser();
+  const { registerFCMTokenAfterLogin } = useNotifications();
 
   useEffect(() => {
     console.log('🔐 Login useEffect running...');
@@ -242,17 +214,7 @@ export default function Login() {
         if (!userRes.ok) throw new Error(`Failed to fetch user data: ${userRes.status}`);
         const userData = await userRes.json();
 
-        // Store user data and token using UserContext method
-        if (setUserAndToken) {
-          await setUserAndToken(userData, data.token);
-          console.log('✅ User data and token stored via UserContext');
-        } else {
-          console.error('❌ setUserAndToken method not available');
-          // Fallback to direct AsyncStorage
-          await AsyncStorage.setItem('user', JSON.stringify(userData));
-          await AsyncStorage.setItem('jwtToken', data.token);
-          console.log('✅ User data and token stored via AsyncStorage fallback');
-        }
+        await setUserAndToken(userData, data.token);
 
         // Save or clear credentials depending on remember setting
         await saveCredentialsIfRemembered(emailArg, passwordArg);
@@ -418,26 +380,11 @@ export default function Login() {
           throw new Error('Invalid user data received from server');
         }
 
-        // Store user data and token using UserContext method
-        if (setUserAndToken) {
-          await setUserAndToken(userData, data.token);
-          console.log('✅ User data and token stored via UserContext (auto-login)');
-        } else {
-          console.error('❌ setUserAndToken method not available (auto-login)');
-          // Fallback to direct AsyncStorage
-          await AsyncStorage.setItem('user', JSON.stringify(userData));
-          await AsyncStorage.setItem('jwtToken', data.token);
-          console.log('✅ User data and token stored via AsyncStorage fallback (auto-login)');
-        }
+        await setUserAndToken(userData, data.token);
 
         // Register FCM token after successful login
         try {
-          if (registerFCMTokenAfterLogin) {
-            await registerFCMTokenAfterLogin(userData._id);
-            console.log('✅ FCM token registered after auto-login');
-          } else {
-            console.warn('⚠️ registerFCMTokenAfterLogin method not available');
-          }
+          await registerFCMTokenAfterLogin(userData._id);
         } catch (fcmError) {
           console.error('Error registering FCM token after login:', fcmError);
         }
