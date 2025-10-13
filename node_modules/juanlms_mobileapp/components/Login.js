@@ -5,7 +5,7 @@ import LoginStyle from './styles/LoginStyle';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Toast from 'react-native-root-toast';
-import { useUser } from './UserContext';
+import { useUser } from '../UserContext';
 import { useNotifications } from '../NotificationContext';
 import { addAuditLog } from './Admin/auditTrailUtils';
 import StorageService from '../services/storageService';
