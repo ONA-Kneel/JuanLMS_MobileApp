@@ -5,7 +5,8 @@ import LoginStyle from './styles/LoginStyle';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Toast from 'react-native-root-toast';
-import { useUser } from '../UserContext';
+// import { useUser } from '../UserContext'; // Removed to skip UserContext
+import { useUserState } from '../hooks/useUserState';
 import { useNotifications } from '../NotificationContext';
 import { addAuditLog } from './Admin/auditTrailUtils';
 import StorageService from '../services/storageService';
@@ -16,13 +17,8 @@ const BACKEND_URL = 'https://juanlms-webapp-server.onrender.com/login'; // Updat
 export default function Login() {
   console.log('🔐 Login component rendering...');
   
-  // Test UserContext integration
-  try {
-    const userContext = useUser();
-    console.log('✅ UserContext loaded successfully:', Object.keys(userContext));
-  } catch (error) {
-    console.error('❌ UserContext error:', error);
-  }
+  // Use the simple user state hook (no UserContext dependency)
+  const { setUserAndToken } = useUserState();
   
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
@@ -37,19 +33,10 @@ export default function Login() {
   const [isLoading, setIsLoading] = useState(false);
   const navigation = useNavigation();
   
-  // Safe access to UserContext methods
-  let setUserAndToken;
+  // User management is now handled by useUserState hook
+  
+  // Safe access to notification context
   let registerFCMTokenAfterLogin;
-  
-  try {
-    const userContext = useUser();
-    setUserAndToken = userContext.setUserAndToken;
-    console.log('✅ setUserAndToken method available:', typeof setUserAndToken);
-  } catch (error) {
-    console.error('❌ Error accessing setUserAndToken:', error);
-    setUserAndToken = null;
-  }
-  
   try {
     const notificationContext = useNotifications();
     registerFCMTokenAfterLogin = notificationContext.registerFCMTokenAfterLogin;
@@ -242,17 +229,9 @@ export default function Login() {
         if (!userRes.ok) throw new Error(`Failed to fetch user data: ${userRes.status}`);
         const userData = await userRes.json();
 
-        // Store user data and token using UserContext method
-        if (setUserAndToken) {
-          await setUserAndToken(userData, data.token);
-          console.log('✅ User data and token stored via UserContext');
-        } else {
-          console.error('❌ setUserAndToken method not available');
-          // Fallback to direct AsyncStorage
-          await AsyncStorage.setItem('user', JSON.stringify(userData));
-          await AsyncStorage.setItem('jwtToken', data.token);
-          console.log('✅ User data and token stored via AsyncStorage fallback');
-        }
+        // Store user data and token directly
+        await setUserAndToken(userData, data.token);
+        console.log('✅ User data and token stored directly');
 
         // Save or clear credentials depending on remember setting
         await saveCredentialsIfRemembered(emailArg, passwordArg);
@@ -418,17 +397,9 @@ export default function Login() {
           throw new Error('Invalid user data received from server');
         }
 
-        // Store user data and token using UserContext method
-        if (setUserAndToken) {
-          await setUserAndToken(userData, data.token);
-          console.log('✅ User data and token stored via UserContext (auto-login)');
-        } else {
-          console.error('❌ setUserAndToken method not available (auto-login)');
-          // Fallback to direct AsyncStorage
-          await AsyncStorage.setItem('user', JSON.stringify(userData));
-          await AsyncStorage.setItem('jwtToken', data.token);
-          console.log('✅ User data and token stored via AsyncStorage fallback (auto-login)');
-        }
+        // Store user data and token directly
+        await setUserAndToken(userData, data.token);
+        console.log('✅ User data and token stored directly');
 
         // Register FCM token after successful login
         try {

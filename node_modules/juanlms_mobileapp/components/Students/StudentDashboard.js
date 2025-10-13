@@ -5,7 +5,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
 import CustomBottomNav from '../CustomBottomNav';
 import StudentDashboardStyle from '../styles/Stud/StudentDashStyle';
-import { useUser } from '../UserContext';
+import { useUserState } from '../../hooks/useUserState';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNotifications } from '../../NotificationContext';
 import NotificationCenter from '../NotificationCenter';
@@ -13,7 +13,7 @@ import { useAnnouncements } from '../../AnnouncementContext';
 
 export default function StudentDashboard() {
   const changeScreen = useNavigation();
-  const { user } = useUser();
+  const { user } = useUserState();
   const { unreadCount } = useNotifications();
   const { announcements, loading: loadingAnnouncements } = useAnnouncements();
   const [showNotificationCenter, setShowNotificationCenter] = useState(false);
