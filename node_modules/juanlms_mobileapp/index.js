@@ -12,7 +12,7 @@ LogBox.ignoreLogs([
 
 // Initialize Firebase before importing App
 try {
-  import('./config/firebase');
+  require('./config/firebase');
 } catch (error) {
   console.warn('Firebase initialization failed:', error);
 }

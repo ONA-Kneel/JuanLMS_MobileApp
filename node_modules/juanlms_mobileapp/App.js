@@ -98,7 +98,7 @@ import PrincipalGrades from './components/Principal/PrincipalGrades';
 
 //chats
 import { ChatProvider } from './ChatContext';
-import { UserProvider } from './components/UserContext';
+import { UserProvider } from './UserContext';
 import { NotificationProvider } from './NotificationContext';
 import { AnnouncementProvider } from './AnnouncementContext';
 import { TimerProvider } from './TimerContext';
@@ -228,7 +228,7 @@ function PrincipalTabs() {
 //Specific Screen Change
 const Screens = createNativeStackNavigator();
 export default function App() {
-  const [fontsLoaded] = useFonts({
+  const [fontsLoaded, fontError] = useFonts({
     'Poppins-Regular': require('./assets/fonts/Poppins-Regular.ttf'),
     'Poppins-Bold': require('./assets/fonts/Poppins-Bold.ttf'),
     'Poppins-Medium': require('./assets/fonts/Poppins-Medium.ttf'),
@@ -236,6 +236,15 @@ export default function App() {
     'Poppins-Light': require('./assets/fonts/Poppins-Light.ttf'),
     'Poppins-Thin': require('./assets/fonts/Poppins-Thin.ttf'),
   });
+
+  // Log font loading status
+  useEffect(() => {
+    if (fontError) {
+      console.error('Font loading error:', fontError);
+    } else if (fontsLoaded) {
+      console.log('Fonts loaded successfully');
+    }
+  }, [fontsLoaded, fontError]);
 
   // Note: Notification permissions are now handled by NotificationContext
   // This ensures cross-platform compatibility for both iOS and Android
@@ -246,6 +255,11 @@ export default function App() {
         <ActivityIndicator size="large" />
       </View>
     );
+  }
+
+  // If there's a font error, still render the app but log the error
+  if (fontError) {
+    console.warn('Font loading failed, continuing with system fonts:', fontError);
   }
 
   return (

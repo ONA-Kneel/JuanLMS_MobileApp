@@ -1,24 +1,74 @@
-// // UserContext.js
-// import React, { createContext, useContext, useState, useEffect } from 'react';
+// UserContext.js
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// const UserContext = createContext();
+const UserContext = createContext();
 
-// export const UserProvider = ({ children }) => {
-//   const [user, setUser] = useState({ role: "Student", name: "Juan Dela Cruz" }); // default role for testing
+export const useUser = () => {
+  const context = useContext(UserContext);
+  if (!context) {
+    throw new Error('useUser must be used within a UserProvider');
+  }
+  return context;
+};
 
-//   // Fetch user from backend (or session) on login
-//   useEffect(() => {
-//     // Simulating a login with a role
-//     // You should replace this with real login logic
-//     const loggedInUser = { role: "Student", name: "Juan Dela Cruz" }; // Example
-//     setUser(loggedInUser);
-//   }, []);
+export const UserProvider = ({ children }) => {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-//   return (
-//     <UserContext.Provider value={{ user, setUser }}>
-//       {children}
-//     </UserContext.Provider>
-//   );
-// };
+  // Load user from AsyncStorage on app start
+  useEffect(() => {
+    const loadUser = async () => {
+      try {
+        const userData = await AsyncStorage.getItem('user');
+        if (userData) {
+          const parsedUser = JSON.parse(userData);
+          setUser(parsedUser);
+          console.log('User loaded from storage:', parsedUser);
+        }
+      } catch (error) {
+        console.error('Error loading user from storage:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-// export const useUser = () => useContext(UserContext);
+    loadUser();
+  }, []);
+
+  // Save user to AsyncStorage when it changes
+  const updateUser = async (userData) => {
+    try {
+      await AsyncStorage.setItem('user', JSON.stringify(userData));
+      setUser(userData);
+      console.log('User saved to storage:', userData);
+    } catch (error) {
+      console.error('Error saving user to storage:', error);
+    }
+  };
+
+  // Clear user data (for logout)
+  const clearUser = async () => {
+    try {
+      await AsyncStorage.removeItem('user');
+      await AsyncStorage.removeItem('jwtToken');
+      setUser(null);
+      console.log('User cleared from storage');
+    } catch (error) {
+      console.error('Error clearing user from storage:', error);
+    }
+  };
+
+  const value = {
+    user,
+    loading,
+    setUser: updateUser,
+    clearUser,
+  };
+
+  return (
+    <UserContext.Provider value={value}>
+      {children}
+    </UserContext.Provider>
+  );
+};
