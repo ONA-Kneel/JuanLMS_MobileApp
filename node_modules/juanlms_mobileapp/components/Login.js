@@ -5,8 +5,7 @@ import LoginStyle from './styles/LoginStyle';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Toast from 'react-native-root-toast';
-// import { useUser } from '../UserContext'; // Removed to skip UserContext
-import { useUserState } from '../hooks/useUserState';
+import { useUser } from './UserContext';
 import { useNotifications } from '../NotificationContext';
 import { addAuditLog } from './Admin/auditTrailUtils';
 import StorageService from '../services/storageService';
@@ -16,10 +15,7 @@ const BACKEND_URL = 'https://juanlms-webapp-server.onrender.com/login'; // Updat
 
 export default function Login() {
   console.log('🔐 Login component rendering...');
-  
-  // Use the simple user state hook (no UserContext dependency)
-  const { setUserAndToken } = useUserState();
-  
+  //mema commit na lang para lang may kulay ako today
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [email, setEmail] = useState('');
@@ -32,19 +28,8 @@ export default function Login() {
   const [isDisabledByRememberClicks, setIsDisabledByRememberClicks] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const navigation = useNavigation();
-  
-  // User management is now handled by useUserState hook
-  
-  // Safe access to notification context
-  let registerFCMTokenAfterLogin;
-  try {
-    const notificationContext = useNotifications();
-    registerFCMTokenAfterLogin = notificationContext.registerFCMTokenAfterLogin;
-    console.log('✅ registerFCMTokenAfterLogin method available:', typeof registerFCMTokenAfterLogin);
-  } catch (error) {
-    console.error('❌ Error accessing registerFCMTokenAfterLogin:', error);
-    registerFCMTokenAfterLogin = null;
-  }
+  const { setUserAndToken } = useUser();
+  const { registerFCMTokenAfterLogin } = useNotifications();
 
   useEffect(() => {
     console.log('🔐 Login useEffect running...');
@@ -229,9 +214,7 @@ export default function Login() {
         if (!userRes.ok) throw new Error(`Failed to fetch user data: ${userRes.status}`);
         const userData = await userRes.json();
 
-        // Store user data and token directly
         await setUserAndToken(userData, data.token);
-        console.log('✅ User data and token stored directly');
 
         // Save or clear credentials depending on remember setting
         await saveCredentialsIfRemembered(emailArg, passwordArg);
@@ -397,18 +380,11 @@ export default function Login() {
           throw new Error('Invalid user data received from server');
         }
 
-        // Store user data and token directly
         await setUserAndToken(userData, data.token);
-        console.log('✅ User data and token stored directly');
 
         // Register FCM token after successful login
         try {
-          if (registerFCMTokenAfterLogin) {
-            await registerFCMTokenAfterLogin(userData._id);
-            console.log('✅ FCM token registered after auto-login');
-          } else {
-            console.warn('⚠️ registerFCMTokenAfterLogin method not available');
-          }
+          await registerFCMTokenAfterLogin(userData._id);
         } catch (fcmError) {
           console.error('Error registering FCM token after login:', fcmError);
         }
