@@ -98,7 +98,7 @@ import PrincipalGrades from './components/Principal/PrincipalGrades';
 
 //chats
 import { ChatProvider } from './ChatContext';
-// import { UserProvider } from './UserContext'; // Removed to skip UserContext
+import { UserProvider } from './UserContext';
 import { NotificationProvider } from './NotificationContext';
 import { AnnouncementProvider } from './AnnouncementContext';
 import { TimerProvider } from './TimerContext';
@@ -264,11 +264,12 @@ export default function App() {
 
   return (
       <AnnouncementProvider>
-        <NotificationProvider>
-          <TimerProvider>
-            <NavigationContainer ref={navigationRef}>
-              <ErrorBoundary>
-        <Screens.Navigator initialRouteName='Login'>
+        <UserProvider>
+          <NotificationProvider>
+            <TimerProvider>
+              <NavigationContainer ref={navigationRef}>
+                <ErrorBoundary>
+          <Screens.Navigator initialRouteName='Login'>
         <Screens.Screen name='Login' component={Login} options={{ headerShown: false }}/>
         <Screens.Screen name='SplashScreen' component={SplashScreen} options={{ headerShown: false }}/>
         <Screens.Screen name='ForgotPassword' component={ForgotPassword} options={{ headerShown: false }}/>
@@ -330,11 +331,12 @@ export default function App() {
                 <Screens.Screen name='PrincipalSupportCenter' component={PrincipalSupportCenter} options={{ headerShown: false }}/>
 
 
-        </Screens.Navigator>
-              </ErrorBoundary>
-            </NavigationContainer>
-          </TimerProvider>
-        </NotificationProvider>
-      </AnnouncementProvider>
+          </Screens.Navigator>
+                </ErrorBoundary>
+        </NavigationContainer>
+              </TimerProvider>
+            </NotificationProvider>
+          </UserProvider>
+        </AnnouncementProvider>
     );
 }

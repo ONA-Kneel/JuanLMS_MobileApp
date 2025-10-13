@@ -3,7 +3,7 @@ import { Text, TouchableOpacity, View, ScrollView, Image, ActivityIndicator, Ale
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
 import FacultyDashStyle from '../styles/faculty/FacultyDashStyle';
-import { useUserState } from '../../hooks/useUserState';
+import { useUser } from '../UserContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNotifications } from '../../NotificationContext';
 import NotificationCenter from '../NotificationCenter';
@@ -11,7 +11,7 @@ import { useAnnouncements } from '../../AnnouncementContext';
 
 export default function FacultyDashboard() {
   const navigation = useNavigation();
-  const { user } = useUserState();
+  const { user } = useUser();
   const { unreadCount } = useNotifications();
   const { announcements, loading: loadingAnnouncements } = useAnnouncements();
   const [showNotificationCenter, setShowNotificationCenter] = useState(false);
