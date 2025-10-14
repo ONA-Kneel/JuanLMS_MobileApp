@@ -23,9 +23,6 @@ yarn-error.*
 .env
 .env*.local
 
-# NPM configuration
-.npmrc
-
 # OS generated files
 .DS_Store
 Thumbs.db
