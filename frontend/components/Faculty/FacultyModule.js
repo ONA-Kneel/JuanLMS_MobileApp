@@ -288,11 +288,7 @@ export default function FacultyModule() {
         if (typeof uri === 'string' && uri.startsWith('/uploads/')) return API_BASE + uri;
         return uri;
     };
-    let [fontsLoaded] = useFonts({
-        'Poppins-Regular': require('../../assets/fonts/Poppins-Regular.ttf'),
-        'Poppins-Bold': require('../../assets/fonts/Poppins-Bold.ttf'),
-    });
-    if (!fontsLoaded) return null;
+    // Fonts are loaded globally in App.js - no need to load them here
 
     // Activity creation handlers
     const handleCreateAnnouncement = () => {

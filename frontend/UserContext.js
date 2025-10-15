@@ -47,6 +47,18 @@ export const UserProvider = ({ children }) => {
     }
   };
 
+  // Set user and token together (for login)
+  const setUserAndToken = async (userData, token) => {
+    try {
+      await AsyncStorage.setItem('user', JSON.stringify(userData));
+      await AsyncStorage.setItem('jwtToken', token);
+      setUser(userData);
+      console.log('User and token saved to storage:', { user: userData, hasToken: !!token });
+    } catch (error) {
+      console.error('Error saving user and token to storage:', error);
+    }
+  };
+
   // Clear user data (for logout)
   const clearUser = async () => {
     try {
@@ -63,6 +75,7 @@ export const UserProvider = ({ children }) => {
     user,
     loading,
     setUser: updateUser,
+    setUserAndToken,
     clearUser,
   };
 

@@ -14,6 +14,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Login from './components/Login';
 import ErrorBoundary from './components/ErrorBoundary';
 import HermesErrorBoundary from './components/HermesErrorBoundary';
+import FontErrorBoundary from './components/FontErrorBoundary';
 import ForgotPassword from './components/ForgotPassword';
 import Chat from './components/Chat';
 import GroupChat from './components/GroupChat';
@@ -239,19 +240,25 @@ export default function App() {
     'Poppins-Thin': require('./assets/fonts/Poppins-Thin.ttf'),
   });
 
-  // Log font loading status
+  // Log font loading status and set global flag
   useEffect(() => {
     if (fontError) {
       console.error('Font loading error:', fontError);
+      global.fontsFailed = true;
     } else if (fontsLoaded) {
       console.log('Fonts loaded successfully');
+      global.fontsFailed = false;
+    } else {
+      // Fonts are still loading
+      global.fontsFailed = true;
     }
   }, [fontsLoaded, fontError]);
 
   // Note: Notification permissions are now handled by NotificationContext
   // This ensures cross-platform compatibility for both iOS and Android
 
-  if (!fontsLoaded) {
+  // Always render the app, but handle font loading gracefully
+  if (!fontsLoaded && !fontError) {
     return (
       <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}>
         <ActivityIndicator size="large" />
@@ -262,6 +269,8 @@ export default function App() {
   // If there's a font error, still render the app but log the error
   if (fontError) {
     console.warn('Font loading failed, continuing with system fonts:', fontError);
+    // Set a global flag to use system fonts as fallback
+    global.fontsFailed = true;
   }
 
   return (
@@ -273,6 +282,7 @@ export default function App() {
                 <NavigationContainer ref={navigationRef}>
                   <HermesErrorBoundary>
                     <ErrorBoundary>
+                      <FontErrorBoundary>
           <Screens.Navigator initialRouteName='Login'>
         <Screens.Screen name='Login' component={Login} options={{ headerShown: false }}/>
         <Screens.Screen name='SplashScreen' component={SplashScreen} options={{ headerShown: false }}/>
@@ -336,6 +346,7 @@ export default function App() {
 
 
           </Screens.Navigator>
+                      </FontErrorBoundary>
                     </ErrorBoundary>
                   </HermesErrorBoundary>
                 </NavigationContainer>

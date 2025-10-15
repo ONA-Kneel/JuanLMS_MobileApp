@@ -5,7 +5,7 @@ import LoginStyle from './styles/LoginStyle';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Toast from 'react-native-root-toast';
-import { useUser } from './UserContext';
+import { useUser } from '../UserContext';
 import { useNotifications } from '../NotificationContext';
 import { addAuditLog } from './Admin/auditTrailUtils';
 import StorageService from '../services/storageService';
@@ -462,7 +462,7 @@ export default function Login() {
 
   return (
     <View style={LoginStyle.container}>
-      <View style={LoginStyle.topSection}> {/* Responsive margin */}
+      <View style={LoginStyle.topSection}>
         <Image 
           source={require('../assets/JuanLMS-LogoV1.png')} 
           style={LoginStyle.logo} 
@@ -521,9 +521,9 @@ export default function Login() {
               onPress={onToggleRememberMe}
               style={LoginStyle.checkbox}
             >
-              {rememberMe ? (
+              {rememberMe && (
                 <MaterialCommunityIcons name="check" size={18} color="#1976d2" />
-              ) : null}
+              )}
             </TouchableOpacity>
             <Text style={LoginStyle.rememberText}>Remember Me</Text>
           </TouchableOpacity>
@@ -534,9 +534,9 @@ export default function Login() {
             <Text style={LoginStyle.forgotPassword}>Forgot Password?</Text>
           </TouchableOpacity>
         </View>
-        {errorMessage ? (
+        {errorMessage && (
           <Text style={LoginStyle.errorText}>{errorMessage}</Text>
-        ) : null}
+        )}
         <TouchableOpacity
           onPress={btnLogin}
           style={[

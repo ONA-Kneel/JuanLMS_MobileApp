@@ -1,11 +1,12 @@
 import { StyleSheet, Dimensions } from 'react-native';
+import { createSafeStyleSheet } from '../../utils/fontUtils';
 
 const { width, height } = Dimensions.get('window');
 
 const CARD_WIDTH = Math.min(width * 0.96, 420);
 const CARD_RADIUS = 40;
 
-const LoginStyle = StyleSheet.create({
+const LoginStyle = createSafeStyleSheet({
   container: {
     flex: 1,
     backgroundColor: '#0a1a4f',
@@ -158,7 +159,7 @@ const LoginStyle = StyleSheet.create({
     width: '100%',
     color: '#D9534F',
     fontSize: 13,
-    fontFamily: 'Poppins-Regular',
+    fontFamily: 'System',
     marginTop: -12,
     marginBottom: 16,
     textAlign: 'left',

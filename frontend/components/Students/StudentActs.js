@@ -286,7 +286,7 @@ function ActivityCard({ activity, onActivityPress }) {
                  activity.autoAssigned && { color: "#F44336", fontStyle: "italic" }
                ]}>
                  Score: {activity.score}/{activity.type === 'quiz' ? (activity.totalPoints || activity.points || 100) : (activity.points || 100)}
-                 {activity.autoAssigned && " (Auto-assigned)"}
+                 {activity.autoAssigned && ' (Auto-assigned)'}
                </Text>
              </View>
            )}
@@ -1713,7 +1713,7 @@ export default function StudentActs() {
                           selectedActivity.autoAssigned && { color: '#F44336', fontStyle: 'italic' }
                         ]}>
                           {selectedActivity.score}/{selectedActivity.totalPoints || selectedActivity.points || 100}
-                          {selectedActivity.autoAssigned && " (Auto-assigned)"}
+                          {selectedActivity.autoAssigned && ' (Auto-assigned)'}
                         </Text>
                       </View>
                       {selectedActivity.percentage !== undefined && (
