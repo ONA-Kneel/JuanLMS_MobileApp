@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useIsFocused, useNavigation } from '@react-navigation/native';
-import { useUser } from '../UserContext';
+import { useUser } from '../../UserContext';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { formatDate, getCurrentDate, addDays, isSameDay, isSameMonth, isBefore, clone } from '../../utils/dateUtils';

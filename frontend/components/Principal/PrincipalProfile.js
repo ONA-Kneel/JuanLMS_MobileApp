@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { View, Text, TouchableOpacity, Image, ScrollView, Alert, ActivityIndicator, Modal, TextInput } from 'react-native';
 import { MaterialIcons, Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { useUser } from '../UserContext';
+import { useUser } from '../../UserContext';
 import ConfirmLogoutModal from '../Shared/ConfirmLogoutModal.js';
 import { useNotifications } from '../../NotificationContext';
 import { useAnnouncements } from '../../AnnouncementContext';
