@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { decode } from 'base-64';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import StudentGradesStyle from '../styles/Stud/StudentGradesStyle';
@@ -222,7 +223,7 @@ const StudentGrades = () => {
       try {
         const tokenRaw = await AsyncStorage.getItem('jwtToken');
         if (tokenRaw) {
-          const payload = JSON.parse(atob(tokenRaw.split('.')[1] || '')) || {};
+          const payload = JSON.parse(decode(tokenRaw.split('.')[1] || '')) || {};
           const claimSchool = payload.schoolID || payload.schoolId;
           const claimUser = payload.userID || payload.userId || payload.sub;
           if (claimSchool) schoolID = claimSchool;

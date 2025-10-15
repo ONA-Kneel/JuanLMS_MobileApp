@@ -9,6 +9,7 @@ import { useUser } from '../UserContext';
 import { useNotifications } from '../NotificationContext';
 import { addAuditLog } from './Admin/auditTrailUtils';
 import StorageService from '../services/storageService';
+import { decode } from 'base-64';
 
 // Set your public backend URL here (replace with your actual deployed backend URL)
 const BACKEND_URL = 'https://juanlms-webapp-server.onrender.com/login'; // Update this to your actual backend URL
@@ -201,7 +202,7 @@ export default function Login() {
         showToast('Login successful!', 'success');
         setErrorMessage('');
 
-        const tokenPayload = JSON.parse(atob(data.token.split('.')[1]));
+        const tokenPayload = JSON.parse(decode(data.token.split('.')[1]));
         const role = tokenPayload.role;
         const userId = tokenPayload.id;
 
@@ -341,7 +342,7 @@ export default function Login() {
         showToast('Login successful!', 'success');
         setErrorMessage('');
 
-        const tokenPayload = JSON.parse(atob(data.token.split('.')[1]));
+        const tokenPayload = JSON.parse(decode(data.token.split('.')[1]));
         console.log('Token payload:', {
           role: tokenPayload.role,
           userId: tokenPayload.id
