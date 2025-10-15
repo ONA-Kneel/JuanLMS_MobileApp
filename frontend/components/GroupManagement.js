@@ -8,7 +8,8 @@ import {
   Image,
   Alert,
   Modal,
-  FlatList
+  FlatList,
+  ActivityIndicator
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useUser } from './UserContext';
@@ -21,7 +22,7 @@ const ALLOWED_ROLES = ['students', 'director', 'admin', 'faculty'];
 
 export default function GroupManagement() {
   const navigation = useNavigation();
-  const { user } = useUser();
+  const { user, loading: userLoading } = useUser();
   const [activeTab, setActiveTab] = useState('create'); // 'create' or 'join'
   const [groupName, setGroupName] = useState('');
   const [groupDescription, setGroupDescription] = useState('');
@@ -136,6 +137,30 @@ export default function GroupManagement() {
   const filteredUsers = allUsers.filter(u =>
     `${u.firstname} ${u.lastname}`.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // Add safety check to prevent white screen when user is null (during logout)
+  // This must be placed AFTER all hooks to avoid "Rendered fewer hooks than expected" error
+  if (userLoading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f3f3f3' }}>
+        <ActivityIndicator size="large" color="#00418b" />
+        <Text style={{ marginTop: 16, fontSize: 16, color: '#666', fontFamily: 'Poppins-Regular' }}>
+          Loading user data...
+        </Text>
+      </View>
+    );
+  }
+
+  if (!user || !user._id) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f3f3f3' }}>
+        <ActivityIndicator size="large" color="#00418b" />
+        <Text style={{ marginTop: 16, fontSize: 16, color: '#666', fontFamily: 'Poppins-Regular' }}>
+          Redirecting to login...
+        </Text>
+      </View>
+    );
+  }
 
   return (
     <View style={{ flex: 1, backgroundColor: '#f3f3f3' }}>

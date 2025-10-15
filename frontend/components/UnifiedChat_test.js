@@ -8,7 +8,8 @@ import {
   Image, 
   Alert,
   Modal,
-  FlatList
+  FlatList,
+  ActivityIndicator
 } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useUser } from './UserContext';
@@ -28,7 +29,7 @@ export default function UnifiedChat() {
   const navigation = useNavigation();
   const route = useRoute();
   const { selectedUser, selectedGroup, setRecentChats } = route.params || {};
-  const { user, setUser } = useUser();
+  const { user, setUser, loading: userLoading } = useUser();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [groupMembers, setGroupMembers] = useState([]);
@@ -778,10 +779,26 @@ export default function UnifiedChat() {
     return date.toLocaleDateString();
   };
 
+  // Add safety check to prevent white screen when user is null (during logout)
+  // This must be placed AFTER all hooks to avoid "Rendered fewer hooks than expected" error
+  if (userLoading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f3f3f3' }}>
+        <ActivityIndicator size="large" color="#00418b" />
+        <Text style={{ marginTop: 16, fontSize: 16, color: '#666', fontFamily: 'Poppins-Regular' }}>
+          Loading user data...
+        </Text>
+      </View>
+    );
+  }
+
   if (!user || !user._id) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <Text>Loading chat...</Text>
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f3f3f3' }}>
+        <ActivityIndicator size="large" color="#00418b" />
+        <Text style={{ marginTop: 16, fontSize: 16, color: '#666', fontFamily: 'Poppins-Regular' }}>
+          Redirecting to login...
+        </Text>
       </View>
     );
   }

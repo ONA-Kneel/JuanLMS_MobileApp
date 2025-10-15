@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Image, Alert, Platform } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Image, Alert, Platform, ActivityIndicator } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useUser } from './UserContext';
 import io from 'socket.io-client';
@@ -19,7 +19,7 @@ export default function Chat() {
   const navigation = useNavigation();
   const route = useRoute();
   const { selectedUser, setRecentChats } = route.params;
-  const { user, setUser } = useUser();
+  const { user, setUser, loading: userLoading } = useUser();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
@@ -223,10 +223,26 @@ export default function Chat() {
     ? [...messages].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
     : [];
 
+  // Add safety check to prevent white screen when user is null (during logout)
+  // This must be placed AFTER all hooks to avoid "Rendered fewer hooks than expected" error
+  if (userLoading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f3f3f3' }}>
+        <ActivityIndicator size="large" color="#00418b" />
+        <Text style={{ marginTop: 16, fontSize: 16, color: '#666', fontFamily: 'Poppins-Regular' }}>
+          Loading user data...
+        </Text>
+      </View>
+    );
+  }
+
   if (!user || !user._id || !selectedUser) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <Text>Loading chat...</Text>
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f3f3f3' }}>
+        <ActivityIndicator size="large" color="#00418b" />
+        <Text style={{ marginTop: 16, fontSize: 16, color: '#666', fontFamily: 'Poppins-Regular' }}>
+          Redirecting to login...
+        </Text>
       </View>
     );
   }

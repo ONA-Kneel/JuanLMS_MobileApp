@@ -36,7 +36,7 @@ export default function UnifiedChat() {
   const navigation = useNavigation();
   const route = useRoute();
   const { selectedUser: routeSelectedUser, selectedGroup: routeSelectedGroup, setRecentChats } = route.params || {};
-  const { user, setUser } = useUser();
+  const { user, setUser, loading: userLoading } = useUser();
   const [uploading, setUploading] = useState(false);
   
   // Internal state for managing selected chat (overrides route params)
@@ -1747,10 +1747,26 @@ export default function UnifiedChat() {
     return Array.from(map.values()).sort((a,b)=> new Date(b.lastMessageTime || 0) - new Date(a.lastMessageTime || 0));
   })();
 
+  // Add safety check to prevent white screen when user is null (during logout)
+  // This must be placed AFTER all hooks to avoid "Rendered fewer hooks than expected" error
+  if (userLoading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f3f3f3' }}>
+        <ActivityIndicator size="large" color="#00418b" />
+        <Text style={{ marginTop: 16, fontSize: 16, color: '#666', fontFamily: 'Poppins-Regular' }}>
+          Loading user data...
+        </Text>
+      </View>
+    );
+  }
+
   if (!user || !user._id) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f3f3f3' }}>
-        <Text style={{ fontSize: 16, color: '#666' }}>Loading user data...</Text>
+        <ActivityIndicator size="large" color="#00418b" />
+        <Text style={{ marginTop: 16, fontSize: 16, color: '#666', fontFamily: 'Poppins-Regular' }}>
+          Redirecting to login...
+        </Text>
       </View>
     );
   }

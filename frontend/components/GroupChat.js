@@ -8,7 +8,8 @@ import {
   Image, 
   Alert,
   Modal,
-  FlatList
+  FlatList,
+  ActivityIndicator
 } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useUser } from './UserContext';
@@ -24,7 +25,7 @@ export default function GroupChat() {
   const navigation = useNavigation();
   const route = useRoute();
   const { selectedGroup, setRecentChats } = route.params;
-  const { user } = useUser();
+  const { user, loading: userLoading } = useUser();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [groupMembers, setGroupMembers] = useState([]);
@@ -173,10 +174,26 @@ export default function GroupChat() {
     ? [...messages].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
     : [];
 
+  // Add safety check to prevent white screen when user is null (during logout)
+  // This must be placed AFTER all hooks to avoid "Rendered fewer hooks than expected" error
+  if (userLoading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f3f3f3' }}>
+        <ActivityIndicator size="large" color="#00418b" />
+        <Text style={{ marginTop: 16, fontSize: 16, color: '#666', fontFamily: 'Poppins-Regular' }}>
+          Loading user data...
+        </Text>
+      </View>
+    );
+  }
+
   if (!user || !user._id || !selectedGroup) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <Text>Loading group chat...</Text>
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f3f3f3' }}>
+        <ActivityIndicator size="large" color="#00418b" />
+        <Text style={{ marginTop: 16, fontSize: 16, color: '#666', fontFamily: 'Poppins-Regular' }}>
+          Redirecting to login...
+        </Text>
       </View>
     );
   }

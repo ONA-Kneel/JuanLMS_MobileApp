@@ -464,7 +464,7 @@ export default function StudentDashboard() {
           </View>
         )}
 
-        {/* Debug: Show announcement count */}
+        {/* Debug: Show announcement count
         {__DEV__ && (
           <View style={{ backgroundColor: '#f0f0f0', padding: 10, marginBottom: 10, borderRadius: 8 }}>
             <Text style={{ fontSize: 12, color: '#666' }}>
@@ -479,7 +479,7 @@ export default function StudentDashboard() {
               </Text>
             )}
           </View>
-        )}
+        )} */}
 
         {/* Your Classes Section */}
         <View style={{ marginTop: 5, marginBottom: 8 }}>
