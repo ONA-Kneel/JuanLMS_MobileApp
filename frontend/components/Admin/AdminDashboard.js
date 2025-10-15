@@ -2,7 +2,7 @@ import { Text, TouchableOpacity, View, ScrollView, Image, Dimensions, ActivityIn
 import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import AdminDashStyle from '../styles/administrator/AdminDashStyle';
-import { useUser } from '../UserContext';
+import { useUser } from '../../UserContext';
 import { useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import moment from 'moment';
@@ -22,7 +22,7 @@ export default function AdminDashboard() {
     if (typeof uri === 'string' && uri.startsWith('/uploads/')) return API_BASE + uri;
     return uri;
   };
-  const { user } = useUser();
+  const { user, loading: userLoading } = useUser();
   const { unreadCount } = useNotifications();
   const { announcements, loading: loadingAnnouncements } = useAnnouncements();
   const [showNotificationCenter, setShowNotificationCenter] = useState(false);
@@ -40,6 +40,30 @@ export default function AdminDashboard() {
   const [academicYear, setAcademicYear] = useState('2025-2026');
   const [currentTerm, setCurrentTerm] = useState('Term 1');
   const [academicContext, setAcademicContext] = useState('2025-2026 | Term 1');
+
+  // Add safety check to prevent white screen when user is null (during logout)
+  // This must be placed AFTER all hooks to avoid "Rendered fewer hooks than expected" error
+  if (userLoading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f7f9fa' }}>
+        <ActivityIndicator size="large" color="#00418b" />
+        <Text style={{ marginTop: 16, fontSize: 16, color: '#666', fontFamily: 'Poppins-Regular' }}>
+          Loading user data...
+        </Text>
+      </View>
+    );
+  }
+
+  if (!user) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f7f9fa' }}>
+        <ActivityIndicator size="large" color="#00418b" />
+        <Text style={{ marginTop: 16, fontSize: 16, color: '#666', fontFamily: 'Poppins-Regular' }}>
+          Redirecting to login...
+        </Text>
+      </View>
+    );
+  }
 
   useEffect(() => {
     const timer = setInterval(() => {

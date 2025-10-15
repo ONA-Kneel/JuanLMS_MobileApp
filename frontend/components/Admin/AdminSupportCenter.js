@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, ScrollView, TextInput, Alert, ActivityInd
 import { MaterialIcons, Feather, Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useUser } from '../../UserContext';
 
 const TABS = [
   { key: 'all', label: 'All' },
@@ -12,6 +13,7 @@ const TABS = [
 ];
 
 export default function AdminSupportCenter() {
+  const { user, loading: userLoading } = useUser();
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
   const [activeTab, setActiveTab] = useState('all');
   const [search, setSearch] = useState('');
@@ -28,6 +30,30 @@ export default function AdminSupportCenter() {
   const [userDetails, setUserDetails] = useState({});
   const [view, setView] = useState('list'); // 'list' or 'detail'
   const navigation = useNavigation();
+
+  // Add safety check to prevent white screen when user is null (during logout)
+  // This must be placed AFTER all hooks to avoid "Rendered fewer hooks than expected" error
+  if (userLoading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f7f9fa' }}>
+        <ActivityIndicator size="large" color="#00418b" />
+        <Text style={{ marginTop: 16, fontSize: 16, color: '#666', fontFamily: 'Poppins-Regular' }}>
+          Loading user data...
+        </Text>
+      </View>
+    );
+  }
+
+  if (!user) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f7f9fa' }}>
+        <ActivityIndicator size="large" color="#00418b" />
+        <Text style={{ marginTop: 16, fontSize: 16, color: '#666', fontFamily: 'Poppins-Regular' }}>
+          Redirecting to login...
+        </Text>
+      </View>
+    );
+  }
 
   useEffect(() => {
     const timer = setInterval(() => {

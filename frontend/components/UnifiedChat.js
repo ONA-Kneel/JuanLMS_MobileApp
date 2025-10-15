@@ -14,7 +14,8 @@ import {
   Platform
 } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
-import { useUser } from './UserContext';
+import { useUser } from '../UserContext';
+
 import classSocketService from '../services/classSocketService';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';

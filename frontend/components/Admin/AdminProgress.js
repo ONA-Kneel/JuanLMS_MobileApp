@@ -4,13 +4,39 @@ import { useNavigation } from "@react-navigation/native";
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { formatDate } from '../../utils/dateUtils';
 import adminService from '../../services/adminService';
+import { useUser } from '../../UserContext';
 
 export default function AdminProgress() {
+    const { user, loading: userLoading } = useUser();
     const navigation = useNavigation();
     const [schoolYearProgress, setSchoolYearProgress] = useState(0); // Set default value
     const [termProgress, setTermProgress] = useState(0); // Set default value
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+
+    // Add safety check to prevent white screen when user is null (during logout)
+    // This must be placed AFTER all hooks to avoid "Rendered fewer hooks than expected" error
+    if (userLoading) {
+        return (
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f7f9fa' }}>
+                <ActivityIndicator size="large" color="#00418b" />
+                <Text style={{ marginTop: 16, fontSize: 16, color: '#666', fontFamily: 'Poppins-Regular' }}>
+                    Loading user data...
+                </Text>
+            </View>
+        );
+    }
+
+    if (!user) {
+        return (
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f7f9fa' }}>
+                <ActivityIndicator size="large" color="#00418b" />
+                <Text style={{ marginTop: 16, fontSize: 16, color: '#666', fontFamily: 'Poppins-Regular' }}>
+                    Redirecting to login...
+                </Text>
+            </View>
+        );
+    }
 
     useEffect(() => {
         const fetchProgressData = async () => {

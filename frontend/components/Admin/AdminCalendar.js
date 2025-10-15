@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import AdminCalendarStyle from '../styles/administrator/AdminCalendarStyle';
 import { useNavigation } from '@react-navigation/native';
-import { useUser } from '../UserContext';
+import { useUser } from '../../UserContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import moment from 'moment';
 
@@ -46,7 +46,7 @@ const addDays = (dateString, days) => {
 
 export default function AdminCalendar() {
   const navigation = useNavigation();
-  const { user } = useUser();
+  const { user, loading: userLoading } = useUser();
   const [items, setItems] = useState({});
   const [selectedDate, setSelectedDate] = useState(() => timeToString(new Date()));
   const [currentMonth, setCurrentMonth] = useState(() => getMonthYearString(timeToString(new Date())));
@@ -66,6 +66,30 @@ export default function AdminCalendar() {
   const [currentTerm, setCurrentTerm] = useState(null);
   const [classDates, setClassDates] = useState([]);
   const [loadingEvents, setLoadingEvents] = useState(true);
+
+  // Add safety check to prevent white screen when user is null (during logout)
+  // This must be placed AFTER all hooks to avoid "Rendered fewer hooks than expected" error
+  if (userLoading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f7f9fa' }}>
+        <ActivityIndicator size="large" color="#00418b" />
+        <Text style={{ marginTop: 16, fontSize: 16, color: '#666', fontFamily: 'Poppins-Regular' }}>
+          Loading user data...
+        </Text>
+      </View>
+    );
+  }
+
+  if (!user) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f7f9fa' }}>
+        <ActivityIndicator size="large" color="#00418b" />
+        <Text style={{ marginTop: 16, fontSize: 16, color: '#666', fontFamily: 'Poppins-Regular' }}>
+          Redirecting to login...
+        </Text>
+      </View>
+    );
+  }
 
   useEffect(() => {
     const fetchAll = async () => {

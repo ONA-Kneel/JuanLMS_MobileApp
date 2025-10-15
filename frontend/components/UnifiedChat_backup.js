@@ -12,7 +12,7 @@ import {
   ActivityIndicator
 } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
-import { useUser } from './UserContext';
+import { useUser } from '../../UserContext';
 import io from 'socket.io-client';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';

@@ -9,7 +9,7 @@ import {
   StyleSheet,
   Switch
 } from 'react-native';
-import { useUser } from './UserContext';
+import { useUser } from '../../UserContext';
 import classSocketService from '../services/classSocketService';
 import { socketLog } from '../config/socketConfig';
 import AsyncStorage from '@react-native-async-storage/async-storage';
