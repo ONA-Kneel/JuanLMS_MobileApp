@@ -3,7 +3,7 @@ import * as React from 'react';
 import { useState, useEffect } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { useUser } from '../UserContext';
+import { useUser } from '../../UserContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import moment from 'moment';
 import { useNotifications } from '../../NotificationContext';

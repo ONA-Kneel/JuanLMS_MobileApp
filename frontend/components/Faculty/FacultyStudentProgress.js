@@ -5,7 +5,7 @@ import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import StudentProgStyle from "../styles/Stud/StudentProgStyle";
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useUser } from '../UserContext';
+import { useUser } from '../../UserContext';
 
 export default function FacultyStudentProgress() {
     const navigation = useNavigation();

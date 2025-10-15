@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, ScrollView, TextInput, Alert, ActivityInd
 import { MaterialIcons, Feather, Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useUser } from '../UserContext';
+import { useUser } from '../../UserContext';
 
 export default function FacultySupportCenter() {
   const [currentDateTime, setCurrentDateTime] = useState(new Date());

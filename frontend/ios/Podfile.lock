@@ -1586,6 +1586,8 @@ PODS:
     - React-logger
     - React-perflogger
     - React-utils (= 0.76.9)
+  - ReactNativeIncallManager (4.2.1):
+    - React-Core
   - RNCAsyncStorage (1.23.1):
     - React-Core
   - RNCCheckbox (0.5.20):
@@ -1878,6 +1880,7 @@ DEPENDENCIES:
   - React-utils (from `../../node_modules/react-native/ReactCommon/react/utils`)
   - ReactCodegen (from `build/generated/ios`)
   - ReactCommon/turbomodule/core (from `../../node_modules/react-native/ReactCommon`)
+  - ReactNativeIncallManager (from `../../node_modules/react-native-incall-manager`)
   - "RNCAsyncStorage (from `../../node_modules/@react-native-async-storage/async-storage`)"
   - "RNCCheckbox (from `../../node_modules/@react-native-community/checkbox`)"
   - "RNCMaskedView (from `../../node_modules/@react-native-community/masked-view`)"
@@ -2053,6 +2056,8 @@ EXTERNAL SOURCES:
     :path: build/generated/ios
   ReactCommon:
     :path: "../../node_modules/react-native/ReactCommon"
+  ReactNativeIncallManager:
+    :path: "../../node_modules/react-native-incall-manager"
   RNCAsyncStorage:
     :path: "../../node_modules/@react-native-async-storage/async-storage"
   RNCCheckbox:
@@ -2159,6 +2164,7 @@ SPEC CHECKSUMS:
   React-utils: faa7b0d9d558ed343b8c185070e11f80fd36f576
   ReactCodegen: 66bd17958388a30b935ee2342d5e413acefc502a
   ReactCommon: 9cd9f89d1600b392c3a94552afc34def5fe54d02
+  ReactNativeIncallManager: dccd3e7499caa3bb73d3acfedf4fb0360f1a87d5
   RNCAsyncStorage: aa75595c1aefa18f868452091fa0c411a516ce11
   RNCCheckbox: 33b44487ca8008394ce658cc32b26eab04f426ef
   RNCMaskedView: 4c5ee1c8667d56077246cc6d1977f77393923560

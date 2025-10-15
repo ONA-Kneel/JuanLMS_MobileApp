@@ -4,7 +4,7 @@ import CreateClassesStyle from "../styles/faculty/CreateClassesStyle";
 import { useNavigation } from "@react-navigation/native";
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import axios from 'axios';
-import { useUser } from '../UserContext';
+import { useUser } from '../../UserContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getAuthHeaders, handleApiError } from '../../utils/apiUtils';
 

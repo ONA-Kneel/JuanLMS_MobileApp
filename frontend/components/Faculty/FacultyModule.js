@@ -5,7 +5,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import FacultyModuleStyle from '../styles/faculty/FacultyModuleStyle';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
-import { useUser } from '../UserContext';
+import { useUser } from '../../UserContext';
 import * as DocumentPicker from 'expo-document-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { formatDate } from '../../utils/dateUtils';

@@ -11,7 +11,7 @@ import {
 import { useNavigation } from "@react-navigation/native";
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useUser } from '../UserContext';
+import { useUser } from '../../UserContext';
 import { getAuthHeaders, handleApiError } from '../../utils/apiUtils';
 import ClassConfirmationModal from './ClassConfirmationModal';
 

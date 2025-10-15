@@ -8,14 +8,33 @@ import {
   StyleSheet, 
   Platform,
   Alert,
-  Dimensions,
-  NativeModules,
-  NativeEventEmitter
+  Dimensions
 } from 'react-native';
+import {
+  StreamVideo,
+  StreamVideoClient,
+  Call,
+  StreamCall,
+  CallContent,
+  CallControls,
+  CallParticipantsList,
+  CallParticipantsGrid,
+  CallParticipantsSpotlight,
+  Lobby,
+  RingingCallContent,
+  useCall,
+  useCallStateHooks,
+  useStreamVideoClient,
+  useParticipantCount,
+  useCallSettings,
+  useCallRecordingState,
+  useCallScreenShareState,
+  useCallChatState,
+  useCallReactionState,
+} from '@stream-io/video-react-native-sdk';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 const { width, height } = Dimensions.get('window');
-const { StreamVideoBridge } = NativeModules;
 
 export default function StreamMeetingRoomIOS({
   isOpen,
@@ -27,140 +46,216 @@ export default function StreamMeetingRoomIOS({
   isHost = false,
   hostUserId = null,
 }) {
+  const [client, setClient] = useState(null);
+  const [call, setCall] = useState(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState(null);
-  const [callState, setCallState] = useState('disconnected');
-  const [participants, setParticipants] = useState([]);
+  const [showParticipants, setShowParticipants] = useState(false);
+  const [showStats, setShowStats] = useState(false);
+  const [showChat, setShowChat] = useState(false);
+  const [showConfirmLeave, setShowConfirmLeave] = useState(false);
+  const [showDocumentShare, setShowDocumentShare] = useState(false);
+  const [participantCount, setParticipantCount] = useState(0);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOn, setIsVideoOn] = useState(true);
-  const [isInitialized, setIsInitialized] = useState(false);
-  const eventEmitter = useRef(null);
-  const callId = useRef(null);
+  const [layout, setLayout] = useState('grid'); // grid, spotlight, speaker
+  const [reactions, setReactions] = useState([]);
+  const [chatMessages, setChatMessages] = useState([]);
+  const [newMessage, setNewMessage] = useState('');
+  const isInitialized = useRef(false);
+  const initTimeoutRef = useRef(null);
 
-  // Initialize event emitter
+  // Initialize Stream.io client
   useEffect(() => {
-    if (StreamVideoBridge) {
-      eventEmitter.current = new NativeEventEmitter(StreamVideoBridge);
-      
-      const subscription1 = eventEmitter.current.addListener('onCallStateChanged', (event) => {
-        console.log('Call state changed:', event);
-        setCallState(event.state);
-      });
-      
-      const subscription2 = eventEmitter.current.addListener('onParticipantJoined', (event) => {
-        console.log('Participant joined:', event);
-        setParticipants(prev => [...prev, event.participant]);
-      });
-      
-      const subscription3 = eventEmitter.current.addListener('onParticipantLeft', (event) => {
-        console.log('Participant left:', event);
-        setParticipants(prev => prev.filter(p => p.id !== event.participant.id));
-      });
-      
-      const subscription4 = eventEmitter.current.addListener('onCallEnded', (event) => {
-        console.log('Call ended:', event);
-        handleLeave();
-      });
+    if (!isOpen || !credentials) return;
 
-      return () => {
-        subscription1.remove();
-        subscription2.remove();
-        subscription3.remove();
-        subscription4.remove();
-      };
+    // Prevent multiple initializations
+    if (isInitialized.current || client || call) {
+      console.log('Already initialized or client/call exists, skipping initialization');
+      return;
     }
-  }, []);
 
-  // Initialize StreamVideo when modal opens
-  useEffect(() => {
-    if (!isOpen || !credentials || isInitialized) return;
+    isInitialized.current = true;
 
-    const initializeStreamVideo = async () => {
+    // Clear any existing timeout
+    if (initTimeoutRef.current) {
+      clearTimeout(initTimeoutRef.current);
+    }
+
+    // Add a small delay to prevent rapid re-initializations
+    initTimeoutRef.current = setTimeout(async () => {
+      const initClient = async () => {
       try {
         setIsConnecting(true);
         setError(null);
 
-        const config = {
+        const streamClient = new StreamVideoClient({
           apiKey: credentials.apiKey,
-          userId: credentials.userId,
+          user: {
+            id: credentials.userId,
+            name: currentUser?.name || 'User',
+            image: currentUser?.profilePic || null,
+          },
           token: credentials.token,
-          userName: currentUser?.name || 'User'
+        });
+
+        setClient(streamClient);
+
+        // Create call and join with mic/camera disabled by default
+        const callInstance = streamClient.call('default', credentials.callId);
+        await callInstance.join({ create: true });
+        try {
+          await callInstance.microphone?.disable?.();
+        } catch (e) { /* ignore */ }
+        try {
+          await callInstance.camera?.disable?.();
+        } catch (e) { /* ignore */ }
+        setIsMuted(true);
+        setIsVideoOn(false);
+        setCall(callInstance);
+
+        // Check if call is already connected
+        console.log('Call state after join:', callInstance.state.status);
+        if (callInstance.state.status === 'joined' || callInstance.state.status === 'active') {
+          console.log('Call already joined/active');
+          setIsConnecting(false);
+        }
+
+        // Set up call event listeners
+        callInstance.on('call.updated', (event) => {
+          console.log('Call updated:', event);
+          if (event.call.state.status === 'joined' || event.call.state.status === 'active') {
+            setIsConnecting(false);
+          }
+        });
+
+        callInstance.on('call.session.started', () => {
+          console.log('Call session started');
+          setIsConnecting(false);
+        });
+
+        callInstance.on('call.session.ended', () => {
+          console.log('Call session ended');
+          handleLeave();
+        });
+
+        callInstance.on('call.ended', () => {
+          console.log('Call ended');
+          handleLeave();
+        });
+
+        callInstance.on('call.recording.started', () => {
+          console.log('Recording started');
+          setIsRecording(true);
+        });
+
+        callInstance.on('call.recording.stopped', () => {
+          console.log('Recording stopped');
+          setIsRecording(false);
+        });
+
+        callInstance.on('call.screen_share.started', () => {
+          console.log('Screen share started');
+          setIsScreenSharing(true);
+        });
+
+        callInstance.on('call.screen_share.stopped', () => {
+          console.log('Screen share stopped');
+          setIsScreenSharing(false);
+        });
+
+        callInstance.on('call.reaction', (event) => {
+          console.log('Reaction received:', event);
+          setReactions(prev => [...prev, event]);
+          // Auto-remove reaction after 3 seconds
+          setTimeout(() => {
+            setReactions(prev => prev.filter(r => r !== event));
+          }, 3000);
+        });
+
+        callInstance.on('call.chat', (event) => {
+          console.log('Chat message received:', event);
+          setChatMessages(prev => [...prev, event]);
+        });
+
+        // Set up participant count tracking
+        const updateParticipantCount = () => {
+          const count = callInstance.state.participants ? Object.keys(callInstance.state.participants).length : 0;
+          setParticipantCount(count);
         };
 
-        const result = await StreamVideoBridge.initializeStreamVideo(config);
-        console.log('StreamVideo initialized:', result);
-        
-        setIsInitialized(true);
-        
-        // Join call after initialization
-        await joinCall();
-        
+        callInstance.on('call.participant.joined', updateParticipantCount);
+        callInstance.on('call.participant.left', updateParticipantCount);
+        updateParticipantCount();
+
       } catch (error) {
         console.error('Failed to initialize StreamVideo:', error);
         setError(error.message || 'Failed to initialize StreamVideo');
-      } finally {
         setIsConnecting(false);
       }
     };
 
-    initializeStreamVideo();
-  }, [isOpen, credentials, isInitialized]);
+    initClient();
+    }, 100);
 
-  const joinCall = async () => {
-    try {
-      const callConfig = {
-        callId: credentials.callId || meetingData?.meetingId || meetingData?._id,
-        callType: 'default'
-      };
-
-      callId.current = callConfig.callId;
-      const result = await StreamVideoBridge.joinCall(callConfig);
-      console.log('Joined call:', result);
-      
-    } catch (error) {
-      console.error('Failed to join call:', error);
-      setError(error.message || 'Failed to join call');
-    }
-  };
+    return () => {
+      if (initTimeoutRef.current) {
+        clearTimeout(initTimeoutRef.current);
+      }
+    };
+  }, [isOpen, credentials]);
 
   const handleLeave = useCallback(async () => {
     try {
-      if (callId.current) {
-        await StreamVideoBridge.leaveCall(callId.current);
+      if (call) {
+        await call.leave();
+      }
+      if (client) {
+        await client.disconnectUser();
       }
     } catch (error) {
       console.error('Error leaving call:', error);
     } finally {
-      setIsInitialized(false);
-      callId.current = null;
+      setClient(null);
+      setCall(null);
+      isInitialized.current = false;
       if (onLeave) onLeave();
       if (onClose) onClose();
     }
-  }, [onLeave, onClose]);
-
-  const toggleMicrophone = async () => {
-    try {
-      const newMutedState = !isMuted;
-      await StreamVideoBridge.toggleMicrophone(!newMutedState);
-      setIsMuted(newMutedState);
-    } catch (error) {
-      console.error('Error toggling microphone:', error);
-      Alert.alert('Error', 'Failed to toggle microphone');
-    }
-  };
-
-  const toggleCamera = async () => {
-    try {
-      const newVideoState = !isVideoOn;
-      await StreamVideoBridge.toggleCamera(!newVideoState);
-      setIsVideoOn(newVideoState);
-    } catch (error) {
-      console.error('Error toggling camera:', error);
-      Alert.alert('Error', 'Failed to toggle camera');
-    }
-  };
+  }, [call, client, onLeave, onClose]);
 
   if (!isOpen) return null;
+
+  if (!client || !call) {
+    return (
+      <Modal 
+        visible={isOpen} 
+        animationType="slide" 
+        onRequestClose={handleLeave} 
+        transparent={false}
+      >
+        <View style={styles.container}>
+          <View style={styles.centerContent}>
+            <ActivityIndicator size="large" color="#3B82F6" />
+            <Text style={styles.loadingText}>
+              {isConnecting ? 'Connecting...' : 'Initializing...'}
+            </Text>
+            {error && (
+              <>
+                <Icon name="alert-circle" size={48} color="#EF4444" style={{ marginTop: 20 }} />
+                <Text style={styles.errorText}>{error}</Text>
+                <TouchableOpacity onPress={handleLeave} style={styles.retryButton}>
+                  <Text style={styles.retryButtonText}>Close</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
+    );
+  }
 
   return (
     <Modal 
@@ -169,86 +264,35 @@ export default function StreamMeetingRoomIOS({
       onRequestClose={handleLeave} 
       transparent={false}
     >
-      <View style={styles.container}>
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <Text style={styles.title}>
-              {meetingData?.title || 'Video Call'}
-            </Text>
-            <Text style={styles.subtitle}>
-              {participants.length + 1} participant{participants.length !== 0 ? 's' : ''}
-            </Text>
-          </View>
-          <TouchableOpacity onPress={handleLeave} style={styles.leaveButton}>
-            <Icon name="phone-hangup" size={24} color="white" />
-          </TouchableOpacity>
-        </View>
-
-        {/* Video Content Area */}
-        <View style={styles.videoContainer}>
-          {isConnecting || !isInitialized ? (
-            <View style={styles.centerContent}>
-              <ActivityIndicator size="large" color="#3B82F6" />
-              <Text style={styles.loadingText}>
-                {isConnecting ? 'Connecting...' : 'Initializing...'}
-              </Text>
-            </View>
-          ) : error ? (
-            <View style={styles.centerContent}>
-              <Icon name="alert-circle" size={48} color="#EF4444" />
-              <Text style={styles.errorText}>{error}</Text>
-              <TouchableOpacity onPress={handleLeave} style={styles.retryButton}>
-                <Text style={styles.retryButtonText}>Close</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <View style={styles.videoPlaceholder}>
-              <Icon name="video" size={64} color="#9CA3AF" />
-              <Text style={styles.videoPlaceholderText}>
-                Video call in progress
-              </Text>
-              <Text style={styles.callStateText}>
-                State: {callState}
-              </Text>
-            </View>
-          )}
-        </View>
-
-        {/* Controls */}
-        {isInitialized && !error && (
-          <View style={styles.controls}>
-            <TouchableOpacity
-              onPress={toggleMicrophone}
-              style={[styles.controlButton, isMuted && styles.controlButtonActive]}
-            >
-              <Icon 
-                name={isMuted ? "microphone-off" : "microphone"} 
-                size={24} 
-                color={isMuted ? "white" : "#374151"} 
-              />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={toggleCamera}
-              style={[styles.controlButton, !isVideoOn && styles.controlButtonActive]}
-            >
-              <Icon 
-                name={isVideoOn ? "video" : "video-off"} 
-                size={24} 
-                color={!isVideoOn ? "white" : "#374151"} 
-              />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={handleLeave}
-              style={[styles.controlButton, styles.leaveControlButton]}
-            >
-              <Icon name="phone-hangup" size={24} color="white" />
-            </TouchableOpacity>
-          </View>
-        )}
-      </View>
+      <StreamVideo client={client}>
+        <StreamCall call={call}>
+          <CallContent
+            CallTopView={() => (
+              <View style={styles.header}>
+                <View style={styles.headerLeft}>
+                  <Text style={styles.title}>
+                    {meetingData?.title || 'Video Call'}
+                  </Text>
+                  <Text style={styles.subtitle}>
+                    {participantCount} participant{participantCount !== 1 ? 's' : ''}
+                  </Text>
+                </View>
+                <TouchableOpacity onPress={handleLeave} style={styles.leaveButton}>
+                  <Icon name="phone-hangup" size={24} color="white" />
+                </TouchableOpacity>
+              </View>
+            )}
+            CallBottomView={() => (
+              <View style={styles.controls}>
+                <CallControls
+                  onLeaveCallHandler={handleLeave}
+                  onHangupCallHandler={handleLeave}
+                />
+              </View>
+            )}
+          />
+        </StreamCall>
+      </StreamVideo>
     </Modal>
   );
 }

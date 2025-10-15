@@ -4,7 +4,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import StudentSupportStyle from '../styles/Stud/StudentSupportStyle';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useUser } from '../UserContext';
+import { useUser } from '../../UserContext';
 
 const commonQuestions = [
   { question: 'How do I reset my password?', answer: 'Go to settings and select "Reset Password".' },

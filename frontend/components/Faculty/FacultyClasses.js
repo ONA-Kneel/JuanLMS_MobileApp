@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Text, TouchableOpacity, View, ScrollView, Image, ActivityIndicator, Alert } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
-import { useUser } from '../UserContext';
+import { useUser } from '../../UserContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { fetchActiveQuarter } from '../../utils/academicContext';
 import { useNotifications } from '../../NotificationContext';

@@ -10,7 +10,7 @@ import {
     ActivityIndicator,
 } from "react-native";
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { useUser } from '../UserContext';
+import { useUser } from '../../UserContext';
 import { getAuthHeaders, handleApiError } from '../../utils/apiUtils';
 
 const API_BASE = 'https://juanlms-webapp-server.onrender.com';

@@ -14,7 +14,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { useUser } from '../UserContext';
+import { useUser } from '../../UserContext';
 
 const API_BASE = 'https://juanlms-webapp-server.onrender.com';
 

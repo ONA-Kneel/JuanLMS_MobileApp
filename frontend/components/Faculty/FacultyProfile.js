@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, Image, ScrollView, Modal, ActivityIndicat
 import { MaterialIcons, Feather } from '@expo/vector-icons';
 import FacultyProfileStyle from '../styles/faculty/FacultyProfileStyle';
 import { useNavigation } from '@react-navigation/native';
-import { useUser } from '../UserContext';
+import { useUser } from '../../UserContext';
 import ConfirmLogoutModal from '../Shared/ConfirmLogoutModal.js';
 import { useNotifications } from '../../NotificationContext';
 import { useAnnouncements } from '../../AnnouncementContext';

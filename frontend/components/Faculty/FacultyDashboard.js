@@ -3,7 +3,7 @@ import { Text, TouchableOpacity, View, ScrollView, Image, ActivityIndicator, Ale
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
 import FacultyDashStyle from '../styles/faculty/FacultyDashStyle';
-import { useUser } from '../UserContext';
+import { useUser } from '../../UserContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNotifications } from '../../NotificationContext';
 import NotificationCenter from '../NotificationCenter';
