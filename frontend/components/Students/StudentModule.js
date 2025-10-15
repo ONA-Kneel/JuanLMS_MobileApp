@@ -679,11 +679,7 @@ export default function StudentModule(){
       changeScreen.goBack();
     }
     const [activeTab, setActiveTab] = useState('Announcement');
-    let [fontsLoaded] = useFonts({
-        'Poppins-Regular': require('../../assets/fonts/Poppins-Regular.ttf'),
-        'Poppins-Bold': require('../../assets/fonts/Poppins-Bold.ttf'),
-    });
-    if (!fontsLoaded) return null;
+    // Fonts are loaded globally in App.js - no need to load them here
 
     const renderTabContent = () => {
         switch (activeTab) {
