@@ -5,7 +5,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
 import CustomBottomNav from '../CustomBottomNav';
 import StudentDashboardStyle from '../styles/Stud/StudentDashStyle';
-import { useUser } from '../UserContext';
+import { useUser } from '../../UserContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNotifications } from '../../NotificationContext';
 import NotificationCenter from '../NotificationCenter';
@@ -13,9 +13,15 @@ import { useAnnouncements } from '../../AnnouncementContext';
 
 export default function StudentDashboard() {
   const changeScreen = useNavigation();
-  const { user } = useUser();
+  
+  // Get context values
+  const { user, loading: userLoading } = useUser();
   const { unreadCount } = useNotifications();
   const { announcements, loading: loadingAnnouncements } = useAnnouncements();
+
+  // Debug logging
+  console.log('StudentDashboard - User loading:', userLoading);
+  console.log('StudentDashboard - User data:', user ? { id: user._id, name: user.firstname, role: user.role } : 'No user');
   const [showNotificationCenter, setShowNotificationCenter] = useState(false);
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
   const [classes, setClasses] = useState([]);
@@ -103,7 +109,11 @@ export default function StudentDashboard() {
         console.error('Network error fetching classes:', error);
         setClasses([]);
         setCompletedClassesPercent(0);
-        setError('Network error occurred: ' + error.message);
+        // Set a more user-friendly error message
+        const errorMessage = error.message?.includes('Network') 
+          ? 'Unable to connect to server. Please check your internet connection.'
+          : 'Failed to load classes. Please try again.';
+        setError(errorMessage);
       } finally {
         setLoading(false);
       }
@@ -161,6 +171,17 @@ export default function StudentDashboard() {
 
   // Add safety check to prevent white screen when user is null (during logout)
   // This must be placed AFTER all hooks to avoid "Rendered fewer hooks than expected" error
+  if (userLoading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f7f9fa' }}>
+        <ActivityIndicator size="large" color="#00418b" />
+        <Text style={{ marginTop: 16, fontSize: 16, color: '#666', fontFamily: 'Poppins-Regular' }}>
+          Loading user data...
+        </Text>
+      </View>
+    );
+  }
+
   if (!user) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f7f9fa' }}>
@@ -168,6 +189,43 @@ export default function StudentDashboard() {
         <Text style={{ marginTop: 16, fontSize: 16, color: '#666', fontFamily: 'Poppins-Regular' }}>
           Redirecting to login...
         </Text>
+      </View>
+    );
+  }
+
+  // Add error boundary for dashboard rendering
+  if (error) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f7f9fa', padding: 20 }}>
+        <Icon name="alert-circle" size={48} color="#f44336" />
+        <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#333', marginTop: 16, textAlign: 'center', fontFamily: 'Poppins-Bold' }}>
+          Dashboard Error
+        </Text>
+        <Text style={{ fontSize: 14, color: '#666', marginTop: 8, textAlign: 'center', fontFamily: 'Poppins-Regular' }}>
+          {error}
+        </Text>
+        <TouchableOpacity 
+          style={{ 
+            backgroundColor: '#00418b', 
+            paddingHorizontal: 24, 
+            paddingVertical: 12, 
+            borderRadius: 8, 
+            marginTop: 16 
+          }}
+          onPress={() => {
+            setError(null);
+            setLoading(true);
+            // Retry fetching data
+            if (user && user._id) {
+              // Re-trigger the useEffect by updating a dependency
+              setClasses([]);
+            }
+          }}
+        >
+          <Text style={{ color: 'white', fontWeight: 'bold', fontFamily: 'Poppins-Bold' }}>
+            Try Again
+          </Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -201,6 +259,18 @@ export default function StudentDashboard() {
     if (typeof uri === 'string' && uri.startsWith('/uploads/')) return API_BASE + uri;
     return uri;
   };
+
+  // Show loading state while data is being fetched
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f7f9fa' }}>
+        <ActivityIndicator size="large" color="#00418b" />
+        <Text style={{ marginTop: 16, fontSize: 16, color: '#666', fontFamily: 'Poppins-Regular' }}>
+          Loading dashboard...
+        </Text>
+      </View>
+    );
+  }
 
   return (
     <View style={StudentDashboardStyle.container}>

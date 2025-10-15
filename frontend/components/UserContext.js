@@ -10,13 +10,21 @@ export function UserProvider({ children }) {
   useEffect(() => {
     // Load user from secure storage on mount
     const loadUser = async () => {
-      const authResult = await StorageService.getAuthData();
-      if (authResult.success && authResult.user) {
-        setUser(authResult.user);
+      try {
+        const authResult = await StorageService.getAuthData();
+        if (authResult.success && authResult.user) {
+          setUser(authResult.user);
+        }
+      } catch (error) {
+        console.error('Error loading user from storage:', error);
+        // Set user to null to prevent render errors
+        setUser(null);
       }
     };
-    loadUser();
-    console.log('UserProvider rendered');
+    
+    // Add a small delay to prevent race conditions
+    const timeoutId = setTimeout(loadUser, 50);
+    return () => clearTimeout(timeoutId);
   }, []);
 
   // Function to update user data

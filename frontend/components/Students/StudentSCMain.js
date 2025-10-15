@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, Image } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import StudentSCMainStyle from '../styles/Stud/StudentSCMainStyle';
 import StudentDashboardStyle from '../styles/Stud/StudentDashStyle';
-import { useUser } from '../UserContext';
+import { useUser } from '../../UserContext';
 import { useNotifications } from '../../NotificationContext';
 import NotificationCenter from '../NotificationCenter';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';

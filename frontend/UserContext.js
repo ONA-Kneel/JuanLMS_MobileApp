@@ -20,16 +20,21 @@ export const UserProvider = ({ children }) => {
   useEffect(() => {
     const loadUser = async () => {
       try {
+        console.log('UserContext - Loading user from AsyncStorage...');
         const userData = await AsyncStorage.getItem('user');
+        console.log('UserContext - Raw user data from storage:', userData);
         if (userData) {
           const parsedUser = JSON.parse(userData);
           setUser(parsedUser);
-          console.log('User loaded from storage:', parsedUser);
+          console.log('UserContext - User loaded from storage:', { id: parsedUser._id, name: parsedUser.firstname, role: parsedUser.role });
+        } else {
+          console.log('UserContext - No user data found in storage');
         }
       } catch (error) {
-        console.error('Error loading user from storage:', error);
+        console.error('UserContext - Error loading user from storage:', error);
       } finally {
         setLoading(false);
+        console.log('UserContext - Loading completed');
       }
     };
 
@@ -50,12 +55,13 @@ export const UserProvider = ({ children }) => {
   // Set user and token together (for login)
   const setUserAndToken = async (userData, token) => {
     try {
+      console.log('UserContext - setUserAndToken called with:', { user: userData, hasToken: !!token });
       await AsyncStorage.setItem('user', JSON.stringify(userData));
       await AsyncStorage.setItem('jwtToken', token);
       setUser(userData);
-      console.log('User and token saved to storage:', { user: userData, hasToken: !!token });
+      console.log('UserContext - User and token saved to storage:', { id: userData._id, name: userData.firstname, role: userData.role, hasToken: !!token });
     } catch (error) {
-      console.error('Error saving user and token to storage:', error);
+      console.error('UserContext - Error saving user and token to storage:', error);
     }
   };
 

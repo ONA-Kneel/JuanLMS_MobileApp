@@ -2,6 +2,95 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Keychain from 'react-native-keychain';
 import * as FileSystem from 'expo-file-system';
 
+// Ensure btoa and atob are available (React Native polyfills)
+if (typeof global.btoa === 'undefined') {
+  global.btoa = (str) => {
+    try {
+      return require('react-native').Platform.select({
+        ios: () => require('react-native').NativeModules.RNBase64.encode(str),
+        android: () => require('react-native').NativeModules.RNBase64.encode(str),
+        default: () => {
+          // Fallback to manual base64 encoding
+          const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+          let result = '';
+          let i = 0;
+          while (i < str.length) {
+            const a = str.charCodeAt(i++);
+            const b = i < str.length ? str.charCodeAt(i++) : 0;
+            const c = i < str.length ? str.charCodeAt(i++) : 0;
+            const bitmap = (a << 16) | (b << 8) | c;
+            result += chars.charAt((bitmap >> 18) & 63) + chars.charAt((bitmap >> 12) & 63) +
+                      (i - 2 < str.length ? chars.charAt((bitmap >> 6) & 63) : '=') +
+                      (i - 1 < str.length ? chars.charAt(bitmap & 63) : '=');
+          }
+          return result;
+        }
+      })();
+    } catch (e) {
+      // Fallback to manual base64 encoding
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+      let result = '';
+      let i = 0;
+      while (i < str.length) {
+        const a = str.charCodeAt(i++);
+        const b = i < str.length ? str.charCodeAt(i++) : 0;
+        const c = i < str.length ? str.charCodeAt(i++) : 0;
+        const bitmap = (a << 16) | (b << 8) | c;
+        result += chars.charAt((bitmap >> 18) & 63) + chars.charAt((bitmap >> 12) & 63) +
+                  (i - 2 < str.length ? chars.charAt((bitmap >> 6) & 63) : '=') +
+                  (i - 1 < str.length ? chars.charAt(bitmap & 63) : '=');
+      }
+      return result;
+    }
+  };
+}
+
+if (typeof global.atob === 'undefined') {
+  global.atob = (str) => {
+    try {
+      return require('react-native').Platform.select({
+        ios: () => require('react-native').NativeModules.RNBase64.decode(str),
+        android: () => require('react-native').NativeModules.RNBase64.decode(str),
+        default: () => {
+          // Fallback to manual base64 decoding
+          const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+          let result = '';
+          let i = 0;
+          str = str.replace(/[^A-Za-z0-9+/]/g, '');
+          while (i < str.length) {
+            const encoded1 = chars.indexOf(str.charAt(i++));
+            const encoded2 = chars.indexOf(str.charAt(i++));
+            const encoded3 = chars.indexOf(str.charAt(i++));
+            const encoded4 = chars.indexOf(str.charAt(i++));
+            const bitmap = (encoded1 << 18) | (encoded2 << 12) | (encoded3 << 6) | encoded4;
+            result += String.fromCharCode((bitmap >> 16) & 255);
+            if (encoded3 !== 64) result += String.fromCharCode((bitmap >> 8) & 255);
+            if (encoded4 !== 64) result += String.fromCharCode(bitmap & 255);
+          }
+          return result;
+        }
+      })();
+    } catch (e) {
+      // Fallback to manual base64 decoding
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+      let result = '';
+      let i = 0;
+      str = str.replace(/[^A-Za-z0-9+/]/g, '');
+      while (i < str.length) {
+        const encoded1 = chars.indexOf(str.charAt(i++));
+        const encoded2 = chars.indexOf(str.charAt(i++));
+        const encoded3 = chars.indexOf(str.charAt(i++));
+        const encoded4 = chars.indexOf(str.charAt(i++));
+        const bitmap = (encoded1 << 18) | (encoded2 << 12) | (encoded3 << 6) | encoded4;
+        result += String.fromCharCode((bitmap >> 16) & 255);
+        if (encoded3 !== 64) result += String.fromCharCode((bitmap >> 8) & 255);
+        if (encoded4 !== 64) result += String.fromCharCode(bitmap & 255);
+      }
+      return result;
+    }
+  };
+}
+
 class StorageService {
   // Keychain operations for secure credential storage
   static async saveCredentials(email, password) {
@@ -117,7 +206,8 @@ class StorageService {
       };
       
       // Simple obfuscation (not encryption, just to avoid plain text)
-      const obfuscated = Buffer.from(JSON.stringify(credentials)).toString('base64');
+      // Use btoa for base64 encoding in React Native
+      const obfuscated = btoa(JSON.stringify(credentials));
       
       // Store in MULTIPLE locations for maximum persistence
       const locations = [
@@ -164,7 +254,8 @@ class StorageService {
           if (exists.exists) {
             // Read and deobfuscate
             const obfuscated = await FileSystem.readAsStringAsync(filePath);
-            const credentials = JSON.parse(Buffer.from(obfuscated, 'base64').toString('utf8'));
+            // Use atob for base64 decoding in React Native
+            const credentials = JSON.parse(atob(obfuscated));
             
             if (credentials.email && credentials.password) {
               console.log(`✅ Credentials retrieved from file storage: ${filePath}`);
@@ -245,7 +336,8 @@ class StorageService {
         version: '1.0'
       };
       
-      const obfuscated = Buffer.from(JSON.stringify(credentials)).toString('base64');
+      // Use btoa for base64 encoding in React Native
+      const obfuscated = btoa(JSON.stringify(credentials));
       
       // Store with obfuscated keys to avoid detection
       const keys = [
@@ -288,7 +380,8 @@ class StorageService {
         try {
           const obfuscated = await AsyncStorage.getItem(key);
           if (obfuscated) {
-            const credentials = JSON.parse(Buffer.from(obfuscated, 'base64').toString('utf8'));
+            // Use atob for base64 decoding in React Native
+            const credentials = JSON.parse(atob(obfuscated));
             if (credentials.email && credentials.password) {
               console.log(`✅ Credentials retrieved from AsyncStorage key: ${key}`);
               return {
@@ -348,7 +441,8 @@ class StorageService {
         version: '1.0'
       };
       
-      const obfuscated = Buffer.from(JSON.stringify(data)).toString('base64');
+      // Use btoa for base64 encoding in React Native
+      const obfuscated = btoa(JSON.stringify(data));
       
       // Store in MULTIPLE locations for maximum persistence
       const locations = [
@@ -394,7 +488,8 @@ class StorageService {
           const exists = await FileSystem.getInfoAsync(filePath);
           if (exists.exists) {
             const obfuscated = await FileSystem.readAsStringAsync(filePath);
-            const data = JSON.parse(Buffer.from(obfuscated, 'base64').toString('utf8'));
+            // Use atob for base64 decoding in React Native
+            const data = JSON.parse(atob(obfuscated));
             
             if (typeof data.enabled === 'boolean') {
               console.log(`✅ Remember me preference retrieved from file: ${filePath}`);

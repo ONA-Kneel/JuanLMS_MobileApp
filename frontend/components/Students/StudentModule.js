@@ -12,7 +12,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { formatDate } from '../../utils/dateUtils';
 import { getAuthHeaders, handleApiError } from '../../utils/apiUtils';
 import classSocketService from '../../services/classSocketService';
-import { useUser } from '../UserContext';
+import { useUser } from '../../UserContext';
 
 const API_BASE = 'https://juanlms-webapp-server.onrender.com';
 

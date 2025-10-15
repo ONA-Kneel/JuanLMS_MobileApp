@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import StudentCalendarStyle from '../styles/Stud/StudentCalendarStyle';
 import StudentDashboardStyle from '../styles/Stud/StudentDashStyle';
 import { useNavigation } from '@react-navigation/native';
-import { useUser } from '../UserContext';
+import { useUser } from '../../UserContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { useNotifications } from '../../NotificationContext';

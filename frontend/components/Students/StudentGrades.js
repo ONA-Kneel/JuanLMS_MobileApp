@@ -19,7 +19,7 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import StudentGradesStyle from '../styles/Stud/StudentGradesStyle';
 import StudentDashboardStyle from '../styles/Stud/StudentDashStyle';
 import { fetchActiveQuarter } from '../../utils/academicContext';
-import { useUser } from '../UserContext';
+import { useUser } from '../../UserContext';
 import { useNotifications } from '../../NotificationContext';
 import NotificationCenter from '../NotificationCenter';
 

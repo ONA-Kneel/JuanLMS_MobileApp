@@ -219,8 +219,21 @@ export const AnnouncementProvider = ({ children }) => {
 
   // Initialize announcements
   useEffect(() => {
-    fetchAnnouncements();
-    fetchAcknowledgedAnnouncements();
+    const initializeAnnouncements = async () => {
+      try {
+        await fetchAnnouncements();
+        await fetchAcknowledgedAnnouncements();
+      } catch (error) {
+        console.error('Error initializing announcements:', error);
+        // Set empty state to prevent render errors
+        setAnnouncements([]);
+        setAcknowledgedAnnouncements([]);
+      }
+    };
+
+    // Add a small delay to prevent race conditions
+    const timeoutId = setTimeout(initializeAnnouncements, 200);
+    return () => clearTimeout(timeoutId);
   }, []);
 
   const value = {

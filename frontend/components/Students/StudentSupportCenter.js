@@ -4,7 +4,7 @@ import { MaterialIcons, Feather, Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import StudentDashboardStyle from '../styles/Stud/StudentDashStyle';
-import { useUser } from '../UserContext';
+import { useUser } from '../../UserContext';
 
 export default function StudentSupportCenter() {
   const { user } = useUser();

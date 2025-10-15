@@ -15,6 +15,7 @@ import Login from './components/Login';
 import ErrorBoundary from './components/ErrorBoundary';
 import HermesErrorBoundary from './components/HermesErrorBoundary';
 import FontErrorBoundary from './components/FontErrorBoundary';
+import DashboardErrorBoundary from './components/DashboardErrorBoundary';
 import ForgotPassword from './components/ForgotPassword';
 import Chat from './components/Chat';
 import GroupChat from './components/GroupChat';
@@ -116,13 +117,22 @@ function StudentTabs() {
       tabBar={props => <CustomBottomNav {...props} />}
       screenOptions={{ headerShown: false }}
     >
-      <Tabs.Screen name="StudentDashboard" component={StudentDashboard} />
+      <Tabs.Screen name="StudentDashboard" component={StudentDashboardWithErrorBoundary} />
       <Tabs.Screen name="SActs" component={StudentActs} />
       <Tabs.Screen name="SCalendar" component={StudentCalendar} />
       <Tabs.Screen name="SGrade" component={StudentGrades} />
       <Tabs.Screen name="SChat" component={StudentChats} />
       <Tabs.Screen name="SMeeting" component={StudentMeeting} />
     </Tabs.Navigator>
+  );
+}
+
+// Wrapped StudentDashboard with error boundary
+function StudentDashboardWithErrorBoundary() {
+  return (
+    <DashboardErrorBoundary>
+      <StudentDashboard />
+    </DashboardErrorBoundary>
   );
 }
 // FCM token handling is now managed by NotificationContext

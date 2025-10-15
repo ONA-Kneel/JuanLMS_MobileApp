@@ -89,10 +89,15 @@ export const NotificationProvider = ({ children }) => {
         }
       } catch (error) {
         console.error('Error initializing notifications:', error);
+        // Set empty state to prevent render errors
+        setNotifications([]);
+        setUnreadCount(0);
       }
     };
 
-    initializeNotifications();
+    // Add a small delay to prevent race conditions
+    const timeoutId = setTimeout(initializeNotifications, 100);
+    return () => clearTimeout(timeoutId);
     
     // Set up interval to refresh notifications every 30 seconds (like web app)
     const interval = setInterval(async () => {
