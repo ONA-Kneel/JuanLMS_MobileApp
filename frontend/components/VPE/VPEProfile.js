@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { View, Text, TouchableOpacity, Image, ScrollView, Alert, ActivityIndicator, Modal, TextInput } from 'react-native';
 import { MaterialIcons, Feather } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { useUser } from '../UserContext';
+import { useUser } from '../../UserContext';
 import ConfirmLogoutModal from '../Shared/ConfirmLogoutModal.js';
 import { useNotifications } from '../../NotificationContext';
 import { useAnnouncements } from '../../AnnouncementContext';
@@ -31,7 +31,7 @@ const buildImageUri = (pathOrUrl) => {
 };
 
 export default function VPEProfile() {
-  const { user, loading, updateUser, logout: logoutFromContext } = useUser();
+  const { user, loading: userLoading, updateUser, logout: logoutFromContext } = useUser();
   const navigation = useNavigation();
   const { unreadCount } = useNotifications();
   const { announcements } = useAnnouncements();
@@ -166,27 +166,26 @@ export default function VPEProfile() {
     }
   };
 
-  if (loading) {
+  // Add safety check to prevent white screen when user is null (during logout)
+  // This must be placed AFTER all hooks to avoid "Rendered fewer hooks than expected" error
+  if (userLoading) {
     return (
-      <View style={styles.container}>
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f7f9fa' }}>
         <ActivityIndicator size="large" color="#00418b" />
+        <Text style={{ marginTop: 16, fontSize: 16, color: '#666', fontFamily: 'Poppins-Regular' }}>
+          Loading user data...
+        </Text>
       </View>
     );
   }
 
   if (!user) {
     return (
-      <View style={styles.container}>
-        <View style={styles.topBackground} />
-        <View style={styles.card}>
-          <Text style={styles.name}>Profile Not Available</Text>
-          <TouchableOpacity 
-            style={[styles.logout, { marginTop: 20 }]} 
-            onPress={() => navigation.navigate('Login')}
-          >
-            <Text style={styles.logoutText}>Go to Login</Text>
-          </TouchableOpacity>
-        </View>
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f7f9fa' }}>
+        <ActivityIndicator size="large" color="#00418b" />
+        <Text style={{ marginTop: 16, fontSize: 16, color: '#666', fontFamily: 'Poppins-Regular' }}>
+          Redirecting to login...
+        </Text>
       </View>
     );
   }
