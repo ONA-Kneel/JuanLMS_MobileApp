@@ -1,2 +1,9 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# Force LF for shell and env scripts to prevent CRLF issues on macOS builders
+*.sh text eol=lf
+*.env text eol=lf
+*.env.* text eol=lf
+frontend/ios/.xcode.env text eol=lf
+frontend/ios/.xcode.env.local text eol=lf
