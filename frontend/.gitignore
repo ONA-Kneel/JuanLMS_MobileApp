@@ -35,3 +35,4 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 ios/.xcode.env.local
+ios/.xcode.env

@@ -27,3 +27,4 @@ yarn-error.*
 .DS_Store
 Thumbs.db
 frontend/ios/.xcode.env.local
+frontend/ios/.xcode.env
