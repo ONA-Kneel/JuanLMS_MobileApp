@@ -3,7 +3,7 @@
     "name": "JuanLMS",
     "slug": "juanlms-mobile-app",
     "owner": "orionneil",
-    "version": "1.1.7",
+    "version": "1.2.4",
     "orientation": "portrait",
     "icon": "frontend/assets/SanJuan.png",
     "userInterfaceStyle": "light",
