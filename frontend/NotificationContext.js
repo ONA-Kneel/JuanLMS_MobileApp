@@ -1,20 +1,9 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Platform, PermissionsAndroid, Alert, AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-// Firebase modules are optional; load dynamically when available
-let messaging;
-let getApp;
-try {
-  const { NativeModules } = require('react-native');
-  if (NativeModules && (NativeModules.RNFBMessagingModule || NativeModules.RNFBAppModule)) {
-    try {
-      messaging = require('@react-native-firebase/messaging').default;
-    } catch {}
-    try {
-      ({ getApp } = require('@react-native-firebase/app'));
-    } catch {}
-  }
-} catch {}
+// Firebase/FCM removed per request: all messaging-related logic is disabled
+const messaging = null;
+const getApp = null;
 import Toast from 'react-native-root-toast';
 import { registerDeviceToken } from './services/notificationService';
 import { apiGet, apiPatch } from './utils/apiUtils';
@@ -35,42 +24,11 @@ export const NotificationProvider = ({ children }) => {
   const [loading, setLoading] = useState(false);
   const [fcmToken, setFcmToken] = useState(null);
 
-  // Check if Firebase is initialized
-  const checkFirebaseInitialization = () => {
-    try {
-      if (!getApp) return false;
-      const app = getApp();
-      console.log('Firebase app initialized:', app.name);
-      return true;
-    } catch (error) {
-      console.warn('Firebase not initialized:', error?.message || error);
-      return false;
-    }
-  };
+  // Firebase removed: always return false
+  const checkFirebaseInitialization = () => false;
 
-  // Function to register FCM token with backend after login
-  const registerFCMTokenAfterLogin = async (userId) => {
-    try {
-      const token = await AsyncStorage.getItem('fcmToken');
-      if (token && userId) {
-        console.log('Registering FCM token after login for user:', userId);
-        const success = await registerDeviceToken(userId, token);
-        if (success) {
-          console.log('FCM token registered successfully after login');
-          return true;
-        } else {
-          console.warn('Failed to register FCM token after login');
-          return false;
-        }
-      } else {
-        console.log('No FCM token or user ID available for registration');
-        return false;
-      }
-    } catch (error) {
-      console.error('Error registering FCM token after login:', error);
-      return false;
-    }
-  };
+  // FCM removed: no-op to preserve API surface
+  const registerFCMTokenAfterLogin = async () => false;
 
   // Auto-fetch notifications when context is initialized
   useEffect(() => {
@@ -118,180 +76,14 @@ export const NotificationProvider = ({ children }) => {
     return () => clearInterval(interval);
   }, []);
 
-  // Firebase Cloud Messaging: permissions, token, and foreground listener
+  // Firebase/FCM removed: skip permissions, tokens, and listeners
   useEffect(() => {
-    const requestNotificationPermissionAndroid = async () => {
-      try {
-        if (Platform.OS === 'android' && Platform.Version >= 33) {
-          // Optional rationale before system prompt
-          // You can customize this with your own UI modal if needed
-          // For now, a simple Alert as rationale
-          try {
-            Alert && Alert.alert && Alert.alert(
-              'Enable Notifications',
-              'Allow notifications to receive updates about messages, grades, and announcements.'
-            );
-          } catch {}
-          const result = await PermissionsAndroid.request(
-            PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS
-          );
-          if (result !== PermissionsAndroid.RESULTS.GRANTED) {
-            Alert && Alert.alert && Alert.alert('Permission Denied', 'Notifications may be limited.');
-            return false;
-          }
-        }
-        return true;
-      } catch (error) {
-        console.log('Android permission error:', error);
-        return false;
-      }
-    };
-
-    const requestNotificationPermissionIOS = async () => {
-      try {
-        if (!messaging) return false;
-        const authStatus = await messaging().requestPermission();
-        const enabled =
-          authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
-          authStatus === messaging.AuthorizationStatus.PROVISIONAL;
-        if (!enabled) {
-          return false;
-        }
-        return true;
-      } catch (error) {
-        console.log('iOS permission error:', error);
-        return false;
-      }
-    };
-
-    const registerAndGetToken = async () => {
-      try {
-        // Check if Firebase is initialized before using messaging
-        if (!messaging || !checkFirebaseInitialization()) {
-          console.error('Firebase not initialized, cannot get FCM token');
-          return;
-        }
-        
-        await messaging().registerDeviceForRemoteMessages();
-        const token = await messaging().getToken();
-        if (token) {
-          setFcmToken(token);
-          console.log('FCM token obtained:', token.substring(0, 20) + '...');
-          try { 
-            await AsyncStorage.setItem('fcmToken', token); 
-            console.log('FCM token stored in AsyncStorage');
-          } catch (storageErr) {
-            console.error('Failed to store FCM token:', storageErr);
-          }
-          // Store FCM token locally but don't register with backend yet
-          // Backend registration will happen after successful login
-          console.log('FCM token obtained and stored locally. Backend registration will happen after login.');
-        } else {
-          console.warn('No FCM token received');
-        }
-      } catch (error) {
-        console.error('FCM token error:', error);
-      }
-    };
-
-    const setupForegroundListener = () => {
-      // Check if Firebase is initialized before setting up listeners
-      if (!messaging || !checkFirebaseInitialization()) {
-        console.error('Firebase not initialized, cannot setup foreground listener');
-        return null;
-      }
-      
-      const unsubscribeOnMessage = messaging().onMessage(async remoteMessage => {
-        try {
-          console.log('Foreground FCM message:', remoteMessage);
-          const title = remoteMessage?.notification?.title || 'New notification';
-          const body = remoteMessage?.notification?.body || '';
-          Toast.show(`${title}${body ? ': ' + body : ''}`, {
-            duration: Toast.durations.SHORT,
-            position: Toast.positions.TOP,
-          });
-        } catch (e) {
-          console.log('Toast error:', e);
-        }
-      });
-      return unsubscribeOnMessage;
-    };
-
-    let unsubscribeOnMessage;
-    let unsubscribeOnTokenRefresh;
-    (async () => {
-      const granted = Platform.OS === 'ios'
-        ? await requestNotificationPermissionIOS()
-        : await requestNotificationPermissionAndroid();
-      if (granted) {
-        await registerAndGetToken();
-        unsubscribeOnMessage = setupForegroundListener();
-        if (messaging) {
-          unsubscribeOnTokenRefresh = messaging().onTokenRefresh(async token => {
-          setFcmToken(token);
-          console.log('FCM token refreshed:', token.substring(0, 20) + '...');
-          try { 
-            await AsyncStorage.setItem('fcmToken', token); 
-            console.log('Refreshed FCM token stored in AsyncStorage');
-          } catch (storageErr) {
-            console.error('Failed to store refreshed FCM token:', storageErr);
-          }
-          try {
-            const storedUser = await AsyncStorage.getItem('user');
-            const userData = storedUser ? JSON.parse(storedUser) : null;
-            const userId = userData?._id || userData?.userID;
-            if (userId) {
-              console.log('Registering refreshed FCM token for user:', userId);
-              const success = await registerDeviceToken(userId, token);
-              if (success) {
-                console.log('Refreshed FCM token registered successfully');
-              } else {
-                console.warn('Failed to register refreshed FCM token');
-              }
-            } else {
-              console.warn('No user ID found for refreshed FCM token registration');
-            }
-          } catch (syncErr) {
-            console.error('Token refresh sync error:', syncErr);
-          }
-          });
-        }
-      }
-    })();
-
-    return () => {
-      if (unsubscribeOnMessage) unsubscribeOnMessage();
-      if (unsubscribeOnTokenRefresh) unsubscribeOnTokenRefresh();
-    };
+    setFcmToken(null);
   }, []);
 
   // Handle app state changes to re-register tokens when app becomes active
   useEffect(() => {
-    const handleAppStateChange = async (nextAppState) => {
-      if (nextAppState === 'active') {
-        try {
-          const storedUser = await AsyncStorage.getItem('user');
-          const fcmToken = await AsyncStorage.getItem('fcmToken');
-          
-          if (storedUser && fcmToken) {
-            const userData = JSON.parse(storedUser);
-            const userId = userData._id || userData.userID;
-            
-            if (userId) {
-              console.log('App became active, re-registering FCM token for user:', userId);
-              const success = await registerDeviceToken(userId, fcmToken);
-              if (success) {
-                console.log('FCM token re-registered successfully on app resume');
-              } else {
-                console.warn('Failed to re-register FCM token on app resume');
-              }
-            }
-          }
-        } catch (error) {
-          console.error('Error re-registering FCM token on app resume:', error);
-        }
-      }
-    };
+    const handleAppStateChange = async () => {};
 
     const subscription = AppState.addEventListener('change', handleAppStateChange);
     return () => subscription?.remove();

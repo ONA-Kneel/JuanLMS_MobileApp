@@ -6,7 +6,6 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Toast from 'react-native-root-toast';
 import { useUser } from '../UserContext';
-import { useNotifications } from '../NotificationContext';
 import { addAuditLog } from './Admin/auditTrailUtils';
 import StorageService from '../services/storageService';
 import { decode } from 'base-64';
@@ -30,7 +29,6 @@ export default function Login() {
   const [isLoading, setIsLoading] = useState(false);
   const navigation = useNavigation();
   const { setUserAndToken } = useUser();
-  const { registerFCMTokenAfterLogin } = useNotifications();
 
   useEffect(() => {
     console.log('🔐 Login useEffect running...');
@@ -383,12 +381,7 @@ export default function Login() {
 
         await setUserAndToken(userData, data.token);
 
-        // Register FCM token after successful login
-        try {
-          await registerFCMTokenAfterLogin(userData._id);
-        } catch (fcmError) {
-          console.error('Error registering FCM token after login:', fcmError);
-        }
+        // FCM registration removed per request
 
         // Save or clear credentials depending on remember setting
         await saveCredentialsIfRemembered(email.trim().toLowerCase(), password.trim());
