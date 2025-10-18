@@ -782,12 +782,12 @@ export default function PrincipalMeeting() {
           currentUser={{ name: user?.name || user?.username || 'Host' }}
           credentials={{
             apiKey: 'mmhfdzb5evj2',
-            token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL3Byb250by5nZXRzdHJlYW0uaW8iLCJzdWIiOiJ1c2VyL0VnZ3BsYW50X1NveWJlYW4iLCJ1c2VyX2lkIjoiRWdncGxhbnRfU295YmVhbiIsInZhbGlkaXR5X2luX3NlY29uZHMiOjYwNDgwMCwiaWF0IjoxNzYwNDE1MDc1LCJleHAiOjE3NjEwMTk4NzV9.0Adc50Cb7YtqyV1OE-SdlsFQqsv-G9aJmo5s-FBTSxs',
-            userId: 'Eggplant_Soybean',
-            callId: 'JMXS39xMSEetmwEJcTl8y',
+            token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL3Byb250by5nZXRzdHJlYW0uaW8iLCJzdWIiOiJ1c2VyL1J1bWJsaW5nX0JsYXJuZXkiLCJ1c2VyX2lkIjoiUnVtYmxpbmdfQmxhcm5leSIsInZhbGlkaXR5X2luX3NlY29uZHMiOjYwNDgwMCwiaWF0IjoxNzYwNzU3NDM2LCJleHAiOjE3NjEzNjIyMzZ9.j2T4EL4Tt1LwiYid_7-D44RURuNaTd2J-fhcqmwGldw',
+            userId: 'Rumbling_Blarney',
+            callId: 'AXr1sBv2OJ8UpSZauXYT8',
           }}
           isHost={true}
-          hostUserId={'Eggplant_Soybean'}
+          hostUserId={'Rumbling_Blarney'}
         />
       )}
       
