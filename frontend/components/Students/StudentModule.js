@@ -44,8 +44,8 @@ export default function StudentModule(){
     
     const [classID, setClassID] = useState(classId || null);
     const [classInfo, setClassInfo] = useState({
-        className: "Loading...",
-        classCode: "Loading..."
+        className: "",
+        classCode: ""
     });
     const [announcements, setAnnouncements] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -72,6 +72,19 @@ export default function StudentModule(){
             fetchAvailableClasses();
         }
     }, [classId]);
+
+    // Add navigation listener to refresh classwork when returning from quiz submission
+    useEffect(() => {
+        const unsubscribe = navigation.addListener('focus', () => {
+            // Refresh classwork when screen comes into focus (e.g., returning from quiz)
+            if (classID) {
+                console.log('StudentModule: Screen focused, refreshing classwork');
+                fetchClasswork(classID);
+            }
+        });
+
+        return unsubscribe;
+    }, [navigation, classID]);
 
     // Socket integration for real-time updates
     useEffect(() => {

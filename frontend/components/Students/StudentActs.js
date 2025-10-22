@@ -470,6 +470,19 @@ export default function StudentActs() {
     }
   }, [user]);
 
+  // Add navigation listener to refresh activities when returning from quiz submission
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      // Refresh activities when screen comes into focus (e.g., returning from quiz)
+      if (user && user._id) {
+        console.log('StudentActs: Screen focused, refreshing activities');
+        fetchActivities();
+      }
+    });
+
+    return unsubscribe;
+  }, [navigation, user]);
+
   // Add a timeout to prevent infinite loading
   useEffect(() => {
     const timeout = setTimeout(() => {

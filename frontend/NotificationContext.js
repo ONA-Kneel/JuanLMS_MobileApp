@@ -22,6 +22,7 @@ export const NotificationProvider = ({ children }) => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [fcmToken, setFcmToken] = useState(null);
+  const [lastSeenNotificationId, setLastSeenNotificationId] = useState(null);
   
   // Popup notification state
   const [popupNotification, setPopupNotification] = useState({
@@ -106,6 +107,12 @@ export const NotificationProvider = ({ children }) => {
   useEffect(() => {
     const initializeNotifications = async () => {
       try {
+        // Load last seen id to avoid spamming popups on first run
+        try {
+          const storedLast = await AsyncStorage.getItem('lastSeenNotificationId');
+          if (storedLast) setLastSeenNotificationId(storedLast);
+        } catch {}
+
         const user = await AsyncStorage.getItem('user');
         if (user) {
           const userData = JSON.parse(user);
@@ -114,7 +121,7 @@ export const NotificationProvider = ({ children }) => {
           const userId = userData._id || userData.userID;
           if (userId) {
             console.log('Using user ID for notifications:', userId);
-            await fetchNotifications(userId);
+            await fetchNotifications(userId, { triggerPopups: true });
           }
         }
       } catch (error) {
@@ -132,23 +139,7 @@ export const NotificationProvider = ({ children }) => {
           const userData = JSON.parse(user);
           const userId = userData._id || userData.userID;
           if (userId) {
-            // Fetch latest notifications
-            const before = notifications?.[0]?._id;
-            await fetchNotifications(userId);
-            // If new items arrived, show a popup for important types
-            const after = notifications?.[0]?._id;
-            if (before && after && before !== after) {
-              const latest = notifications[0];
-              const type = latest?.type || 'notification';
-              if (['assignment', 'quiz', 'announcement', 'activity'].includes(type)) {
-                const title = latest?.title || 'New notification';
-                const message = latest?.message || '';
-                showPopupNotification(title, message, type, {
-                  screen: 'NotificationsScreen',
-                  params: undefined,
-                });
-              }
-            }
+            await fetchNotifications(userId, { triggerPopups: true });
           }
         }
       } catch (error) {
@@ -350,7 +341,7 @@ export const NotificationProvider = ({ children }) => {
   // API base URL handled by apiUtils
 
   // Fetch notifications for a user
-  const fetchNotifications = async (userId) => {
+  const fetchNotifications = async (userId, options = {}) => {
     try {
       setLoading(true);
       const token = await AsyncStorage.getItem('jwtToken');
@@ -381,6 +372,34 @@ export const NotificationProvider = ({ children }) => {
       console.log(`Setting notifications:`, notificationsArray.length, 'items');
       setNotifications(notificationsArray);
       updateUnreadCount(notificationsArray);
+
+      // Trigger in-app popups for any new items since last seen
+      if (options.triggerPopups) {
+        try {
+          const newest = notificationsArray[0];
+          if (newest && newest._id && newest._id !== lastSeenNotificationId) {
+            // Find all notifications newer than lastSeenNotificationId
+            const newItems = lastSeenNotificationId
+              ? notificationsArray.filter(n => n._id !== lastSeenNotificationId)
+              : notificationsArray.slice(0, 1);
+            for (const item of newItems.reverse()) {
+              const type = item?.type || 'notification';
+              if (['assignment', 'quiz', 'announcement', 'activity'].includes(type)) {
+                const title = item?.title || 'New notification';
+                const message = item?.message || '';
+                showPopupNotification(title, message, type, {
+                  screen: 'NotificationsScreen',
+                  params: undefined,
+                });
+              }
+            }
+            setLastSeenNotificationId(newest._id);
+            try { await AsyncStorage.setItem('lastSeenNotificationId', newest._id); } catch {}
+          }
+        } catch (popupErr) {
+          console.log('Popup trigger error:', popupErr);
+        }
+      }
     } catch (error) {
       console.error('Error fetching notifications:', error);
       console.log('Server may be unavailable. Setting empty notifications.');

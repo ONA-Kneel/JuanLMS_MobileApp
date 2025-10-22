@@ -91,20 +91,48 @@ const QuizView = React.memo(function QuizView() {
     }
     
     if (quizId) {
-      fetchQuiz();
+      // Check AsyncStorage flag first to prevent re-entry
+      const checkSubmissionFlag = async () => {
+        try {
+          const submittedKey = `quiz-submitted-${quizId}-${user?._id}`;
+          const isSubmitted = await AsyncStorage.getItem(submittedKey);
+          if (isSubmitted === 'true' && !review) {
+            console.log('Quiz already submitted (AsyncStorage flag), preventing re-entry');
+            Alert.alert(
+              'Already Submitted',
+              'You have already submitted this quiz. Returning to activities.',
+              [ { text: 'OK', onPress: () => navigation.goBack() } ],
+              { cancelable: false }
+            );
+            return;
+          }
+        } catch {}
+        fetchQuiz();
+      };
+      checkSubmissionFlag();
     }
-  }, [quizId, review]);
+  }, [quizId, review, user?._id]);
 
   useEffect(() => {
     if (quiz && !review) {
       const duration = (quiz.timing?.timeLimit ? quiz.timing.timeLimit * 60 : 0) || (quiz.timeLimit ? quiz.timeLimit * 60 : 0);
       if (duration > 0) {
-        setTimeRemaining(duration);
-        
-        // Auto-start timer immediately when quiz loads (like web app)
-        console.log('Starting timer for quiz:', quizId, 'duration:', duration, 'seconds');
-        startTimer(quizId, duration, handleTimeUp);
-        setQuizStarted(true); // Mark quiz as started
+        // Do not start timer if already submitted (client hint)
+        try {
+          const submittedKey = `quiz-submitted-${quizId}-${user?._id}`;
+          AsyncStorage.getItem(submittedKey).then(val => {
+            if (val === 'true') return; // skip starting timer
+            setTimeRemaining(duration);
+            console.log('Starting timer for quiz:', quizId, 'duration:', duration, 'seconds');
+            startTimer(quizId, duration, handleTimeUp);
+            setQuizStarted(true);
+          });
+        } catch {
+          setTimeRemaining(duration);
+          console.log('Starting timer for quiz:', quizId, 'duration:', duration, 'seconds');
+          startTimer(quizId, duration, handleTimeUp);
+          setQuizStarted(true);
+        }
       }
     }
     
@@ -124,14 +152,7 @@ const QuizView = React.memo(function QuizView() {
     } catch (e) {
       // submitQuiz already alerts on error; ensure we still navigate back
     } finally {
-      try {
-        Alert.alert(
-          '⏰ Time\'s Up!',
-          'Your quiz time expired and we auto-submitted your current answers.',
-          [ { text: 'OK', onPress: () => navigation.goBack() } ],
-          { cancelable: false }
-        );
-      } catch {}
+      // No extra alert here; submitQuiz handles user feedback/navigation
     }
   };
 
@@ -380,6 +401,11 @@ const QuizView = React.memo(function QuizView() {
           if (previousPayload && (previousPayload.score !== undefined || previousPayload.submittedAt)) {
             hasPreviousSubmission = true;
             setIsReviewMode(true);
+            
+            // Also set the AsyncStorage flag as a backup
+            try {
+              await AsyncStorage.setItem(`quiz-submitted-${quizId}-${user?._id}`, 'true');
+            } catch {}
           }
         } catch {}
       }
@@ -664,8 +690,9 @@ const QuizView = React.memo(function QuizView() {
         // For the backend submission, we need to send answers in the format:
         // [{ questionId: "id1", answer: "value1" }, { questionId: "id2", answer: "value2" }]
         // Preserve explicit false/0 answers; only default when value is truly missing
-        const normalizedAnswer = (answer === undefined || answer === null)
-          ? (question.type === 'multiple' ? [] : '')
+        // For unanswered items: use [] for multiple-choice, and "No Answer" for single-answer types
+        const normalizedAnswer = (answer === undefined || answer === null || (Array.isArray(answer) && answer.length === 0) || (typeof answer === 'string' && answer.length === 0))
+          ? (question.type === 'multiple' ? [] : 'No Answer')
           : answer;
         const formattedAnswer = {
           questionId: question._id,
@@ -729,7 +756,7 @@ const QuizView = React.memo(function QuizView() {
         }))
       });
       
-      const response = await fetch(`${API_BASE}/api/quizzes/${quizId}/submit`, {
+      let response = await fetch(`${API_BASE}/api/quizzes/${quizId}/submit`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -737,6 +764,19 @@ const QuizView = React.memo(function QuizView() {
         },
         body: JSON.stringify(requestBody)
       });
+
+      // Retry without /api prefix if 404 (some deployments mount at root)
+      if (response.status === 404) {
+        console.warn('Submit returned 404 with /api prefix. Retrying without /api...');
+        response = await fetch(`${API_BASE}/quizzes/${quizId}/submit`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify(requestBody)
+        });
+      }
 
       if (!response.ok) {
         let errorText = '';
@@ -749,11 +789,8 @@ const QuizView = React.memo(function QuizView() {
 
         // Gracefully handle already-submitted case as success, navigate back
         if (response.status === 400 && typeof serverMessage === 'string' && serverMessage.toLowerCase().includes('already submitted')) {
-          Alert.alert(
-            'Quiz Already Submitted',
-            'Your quiz submission was already recorded. Returning to activities.',
-            [ { text: 'OK', onPress: () => navigation.goBack() } ]
-          );
+          try { await AsyncStorage.setItem(`quiz-submitted-${quizId}-${user._id}`, 'true'); } catch {}
+          Alert.alert('Quiz Already Submitted', 'Your quiz submission was already recorded. Returning to activities.', [ { text: 'OK', onPress: () => navigation.goBack() } ]);
           return; // treat as handled
         }
 
@@ -790,21 +827,19 @@ const QuizView = React.memo(function QuizView() {
       });
 
       // Quiz submitted successfully
+      try { await AsyncStorage.setItem(`quiz-submitted-${quizId}-${user._id}`, 'true'); } catch {}
+
+      // Verify server stored response (best effort)
+      try {
+        const verifyRes = await fetch(`${API_BASE}/api/quizzes/${quizId}/myscore?studentId=${user._id}&revealAnswers=true`, { headers: { Authorization: `Bearer ${token}` } });
+        if (!verifyRes.ok && verifyRes.status === 404) {
+          await fetch(`${API_BASE}/quizzes/${quizId}/myscore?studentId=${user._id}&revealAnswers=true`, { headers: { Authorization: `Bearer ${token}` } });
+        }
+      } catch {}
       
       // Show different messages based on submission type
       if (isAutoSubmit) {
-        Alert.alert(
-          '⏰ Quiz Auto-Submitted',
-          'Your quiz has been automatically submitted due to time expiry.\n\nYour answers have been saved and will be reviewed by faculty.',
-          [
-            {
-              text: 'OK',
-              onPress: () => {
-                navigation.goBack();
-              }
-            }
-          ]
-        );
+        navigation.goBack();
       } else {
         // Per requirement: no results/reveal dialogs. Show simple message and return.
         Alert.alert(
