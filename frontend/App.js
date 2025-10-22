@@ -4,6 +4,7 @@ import { View, ActivityIndicator, PermissionsAndroid, Alert } from 'react-native
 
 //folders
 import SplashScreen from './components/SplashScreen';
+import PopupNotification from './components/PopupNotification';
 
 //Navigation
 import { NavigationContainer } from '@react-navigation/native';
@@ -99,7 +100,7 @@ import PrincipalGrades from './components/Principal/PrincipalGrades';
 //chats
 import { ChatProvider } from './ChatContext';
 import { UserProvider } from './components/UserContext';
-import { NotificationProvider } from './NotificationContext';
+import { NotificationProvider, useNotifications } from './NotificationContext';
 import { AnnouncementProvider } from './AnnouncementContext';
 import { TimerProvider } from './TimerContext';
 
@@ -227,6 +228,23 @@ function PrincipalTabs() {
 
 //Specific Screen Change
 const Screens = createNativeStackNavigator();
+
+// PopupNotificationWrapper component to handle popup notifications globally
+function PopupNotificationWrapper() {
+  const { popupNotification, hidePopupNotification, handlePopupNotificationPress } = useNotifications();
+  
+  return (
+    <PopupNotification
+      visible={popupNotification.visible}
+      title={popupNotification.title}
+      message={popupNotification.message}
+      type={popupNotification.type}
+      onClose={hidePopupNotification}
+      onPress={handlePopupNotificationPress}
+    />
+  );
+}
+
 export default function App() {
   const [fontsLoaded] = useFonts({
     'Poppins-Regular': require('./assets/fonts/Poppins-Regular.ttf'),
@@ -336,6 +354,7 @@ export default function App() {
 
           </Screens.Navigator>
         </NavigationContainer>
+        <PopupNotificationWrapper />
               </TimerProvider>
             </NotificationProvider>
           </UserProvider>

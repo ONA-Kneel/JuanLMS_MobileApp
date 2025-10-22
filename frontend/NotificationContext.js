@@ -22,6 +22,49 @@ export const NotificationProvider = ({ children }) => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [fcmToken, setFcmToken] = useState(null);
+  
+  // Popup notification state
+  const [popupNotification, setPopupNotification] = useState({
+    visible: false,
+    title: '',
+    message: '',
+    type: 'notification',
+    data: null,
+  });
+
+  // Function to show popup notification
+  const showPopupNotification = (title, message, type = 'notification', data = null) => {
+    setPopupNotification({
+      visible: true,
+      title,
+      message,
+      type,
+      data,
+    });
+  };
+
+  // Function to hide popup notification
+  const hidePopupNotification = () => {
+    setPopupNotification(prev => ({
+      ...prev,
+      visible: false,
+    }));
+  };
+
+  // Function to handle popup notification press
+  const handlePopupNotificationPress = () => {
+    // Close popup first
+    hidePopupNotification();
+    
+    // Navigate based on notification type and data
+    if (popupNotification.data) {
+      const { screen, params } = popupNotification.data;
+      if (screen) {
+        // This will be handled by the component that uses this context
+        console.log('Navigate to:', screen, params);
+      }
+    }
+  };
 
   // Check if Firebase is initialized
   const checkFirebaseInitialization = () => {
@@ -89,7 +132,23 @@ export const NotificationProvider = ({ children }) => {
           const userData = JSON.parse(user);
           const userId = userData._id || userData.userID;
           if (userId) {
+            // Fetch latest notifications
+            const before = notifications?.[0]?._id;
             await fetchNotifications(userId);
+            // If new items arrived, show a popup for important types
+            const after = notifications?.[0]?._id;
+            if (before && after && before !== after) {
+              const latest = notifications[0];
+              const type = latest?.type || 'notification';
+              if (['assignment', 'quiz', 'announcement', 'activity'].includes(type)) {
+                const title = latest?.title || 'New notification';
+                const message = latest?.message || '';
+                showPopupNotification(title, message, type, {
+                  screen: 'NotificationsScreen',
+                  params: undefined,
+                });
+              }
+            }
           }
         }
       } catch (error) {
@@ -187,12 +246,24 @@ export const NotificationProvider = ({ children }) => {
           console.log('Foreground FCM message:', remoteMessage);
           const title = remoteMessage?.notification?.title || 'New notification';
           const body = remoteMessage?.notification?.body || '';
-          Toast.show(`${title}${body ? ': ' + body : ''}`, {
-            duration: Toast.durations.SHORT,
-            position: Toast.positions.TOP,
-          });
+          const data = remoteMessage?.data || {};
+          const type = data?.type || 'notification';
+          
+          // Show popup for important notification types
+          if (['assignment', 'quiz', 'announcement', 'activity'].includes(type)) {
+            showPopupNotification(title, body, type, {
+              screen: data?.screen || 'NotificationsScreen',
+              params: data?.params ? JSON.parse(data.params) : undefined,
+            });
+          } else {
+            // Fallback to Toast for other types
+            Toast.show(`${title}${body ? ': ' + body : ''}`, {
+              duration: Toast.durations.SHORT,
+              position: Toast.positions.TOP,
+            });
+          }
         } catch (e) {
-          console.log('Toast error:', e);
+          console.log('Notification error:', e);
         }
       });
       return unsubscribeOnMessage;
@@ -434,6 +505,11 @@ export const NotificationProvider = ({ children }) => {
     refreshNotifications,
     getCurrentUserId,
     registerFCMTokenAfterLogin,
+    // Popup notification functions
+    popupNotification,
+    showPopupNotification,
+    hidePopupNotification,
+    handlePopupNotificationPress,
   };
 
   return (

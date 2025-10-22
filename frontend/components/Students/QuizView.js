@@ -39,6 +39,7 @@ const QuizView = React.memo(function QuizView() {
   const [quizError, setQuizError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [showSubmitModal, setShowSubmitModal] = useState(false);
+  const [isAutoSubmitted, setIsAutoSubmitted] = useState(false); // Track if quiz was auto-submitted
   // Removed post-submit result/reveal popups per requirement
   const [showResultsModal, setShowResultsModal] = useState(false);
   const [showRevealModal, setShowRevealModal] = useState(false);
@@ -114,20 +115,24 @@ const QuizView = React.memo(function QuizView() {
     };
   }, [quiz, review]); // Remove quizStarted dependency
 
-  const handleTimeUp = () => {
-    Alert.alert(
-      'Time\'s Up!',
-      'The quiz time has expired. Your answers will be submitted automatically.',
-      [
-        {
-          text: 'OK',
-          onPress: () => {
-            // Auto-submit quiz
-            submitQuiz();
-          }
-        }
-      ]
-    );
+  const handleTimeUp = async () => {
+    console.log('Timer expired for quiz:', quizId);
+    // Mark as auto-submitted and immediately submit without prompting
+    setIsAutoSubmitted(true);
+    try {
+      await submitQuiz(true);
+    } catch (e) {
+      // submitQuiz already alerts on error; ensure we still navigate back
+    } finally {
+      try {
+        Alert.alert(
+          '⏰ Time\'s Up!',
+          'Your quiz time expired and we auto-submitted your current answers.',
+          [ { text: 'OK', onPress: () => navigation.goBack() } ],
+          { cancelable: false }
+        );
+      } catch {}
+    }
   };
 
 
@@ -160,6 +165,18 @@ const QuizView = React.memo(function QuizView() {
     
     // Debug: Log timer state
     console.log('Timer render - remaining:', remaining, 'quizId:', quizId, 'hasTimer:', hasTimer);
+    
+    // If auto-submitted, show different message
+    if (isAutoSubmitted) {
+      return (
+        <View style={[styles.timerContainer, styles.timerAutoSubmitted]}>
+          <MaterialIcons name="timer-off" size={24} color="#ff9800" />
+          <Text style={styles.timerAutoSubmittedText}>
+            Quiz Auto-Submitted
+          </Text>
+        </View>
+      );
+    }
     
     return (
       <View style={[
@@ -354,6 +371,19 @@ const QuizView = React.memo(function QuizView() {
         timeLimitSeconds = quizData.timeLimit * 60;
       }
       
+      // If a previous submission exists, set review mode BEFORE setting quiz to avoid timer start
+      let hasPreviousSubmission = false;
+      let previousPayload = null;
+      if (responseResponse.status === 'fulfilled' && responseResponse.value.ok) {
+        try {
+          previousPayload = await responseResponse.value.json();
+          if (previousPayload && (previousPayload.score !== undefined || previousPayload.submittedAt)) {
+            hasPreviousSubmission = true;
+            setIsReviewMode(true);
+          }
+        } catch {}
+      }
+
       // Batch all state updates together for better performance
       setQuiz(quizData);
       setAnswers(initialAnswers);
@@ -386,8 +416,8 @@ const QuizView = React.memo(function QuizView() {
       }
 
       // Handle student response data (if exists)
-      if (responseResponse.status === 'fulfilled' && responseResponse.value.ok) {
-        const responseData = await responseResponse.value.json();
+      if (hasPreviousSubmission && previousPayload) {
+        const responseData = previousPayload;
         console.log('=== QUIZ RESPONSE DEBUG ===');
         console.log('Quiz response data:', responseData);
         
@@ -433,6 +463,15 @@ const QuizView = React.memo(function QuizView() {
             console.log('Setting review mode from quiz submission');
             setShowResultsModal(true);
             setIsReviewMode(true);
+            // Optional: prevent re-taking by informing and navigating back when not explicitly reviewing
+            try {
+              Alert.alert(
+                'Already Submitted',
+                'You have already submitted this quiz. Returning to activities.',
+                [ { text: 'OK', onPress: () => navigation.goBack() } ],
+                { cancelable: false }
+              );
+            } catch {}
           }
         }
       } else {
@@ -583,7 +622,7 @@ const QuizView = React.memo(function QuizView() {
   };
 
   // Common submission logic
-  const submitQuiz = async () => {
+  const submitQuiz = async (isAutoSubmit = false) => {
     const quizKey = `quiz-submission-${Date.now()}`;
     
     // Set submitting state
@@ -700,10 +739,25 @@ const QuizView = React.memo(function QuizView() {
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
+        let errorText = '';
+        let errorJson = null;
+        try { errorText = await response.text(); } catch {}
+        try { errorJson = JSON.parse(errorText); } catch {}
+        const serverMessage = errorJson?.error || errorJson?.message || errorText;
         console.error('Quiz submission failed:', response.status, response.statusText);
-        console.error('Error response:', errorText);
-        throw new Error(`Failed to submit quiz: ${response.status} ${response.statusText}`);
+        console.error('Error response:', serverMessage);
+
+        // Gracefully handle already-submitted case as success, navigate back
+        if (response.status === 400 && typeof serverMessage === 'string' && serverMessage.toLowerCase().includes('already submitted')) {
+          Alert.alert(
+            'Quiz Already Submitted',
+            'Your quiz submission was already recorded. Returning to activities.',
+            [ { text: 'OK', onPress: () => navigation.goBack() } ]
+          );
+          return; // treat as handled
+        }
+
+        throw new Error(serverMessage || `Failed to submit quiz: ${response.status}`);
       }
 
       const result = await response.json();
@@ -737,19 +791,35 @@ const QuizView = React.memo(function QuizView() {
 
       // Quiz submitted successfully
       
-      // Per requirement: no results/reveal dialogs. Show simple message and return.
-      Alert.alert(
-        'Quiz Submitted',
-        'Quiz is finished and will be reviewed by faculty.',
-        [
-          {
-            text: 'OK',
-            onPress: () => {
-              navigation.goBack();
+      // Show different messages based on submission type
+      if (isAutoSubmit) {
+        Alert.alert(
+          '⏰ Quiz Auto-Submitted',
+          'Your quiz has been automatically submitted due to time expiry.\n\nYour answers have been saved and will be reviewed by faculty.',
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                navigation.goBack();
+              }
             }
-          }
-        ]
-      );
+          ]
+        );
+      } else {
+        // Per requirement: no results/reveal dialogs. Show simple message and return.
+        Alert.alert(
+          'Quiz Submitted',
+          'Quiz is finished and will be reviewed by faculty.',
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                navigation.goBack();
+              }
+            }
+          ]
+        );
+      }
     } catch (error) {
       console.error('=== QUIZ SUBMISSION ERROR ===');
       console.error('Error submitting quiz:', error);
@@ -1442,6 +1512,15 @@ const styles = {
   timerCriticalText: {
     color: '#ffebee',
     fontWeight: '900',
+  },
+  timerAutoSubmitted: {
+    backgroundColor: 'rgba(255, 152, 0, 0.3)',
+  },
+  timerAutoSubmittedText: {
+    color: '#fff3e0',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginLeft: 4,
   },
   progressContainer: {
     backgroundColor: 'white',
