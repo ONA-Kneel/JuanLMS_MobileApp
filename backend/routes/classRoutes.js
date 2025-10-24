@@ -516,4 +516,182 @@ router.get('/debug/user/:userId', async (req, res) => {
     }
 });
 
+// Get classes pending confirmation for a faculty
+router.get('/pending-confirmation', async (req, res) => {
+    try {
+        const db = database.getDb();
+        const { facultyID } = req.query;
+        
+        console.log('Fetching pending confirmation classes for faculty:', facultyID);
+        
+        if (!facultyID) {
+            return res.status(400).json({ success: false, error: 'facultyID is required' });
+        }
+
+        // Get user details for debugging
+        const user = await db.collection('users').findOne({ _id: new ObjectId(facultyID) });
+        console.log('Faculty user found:', user ? {
+            _id: user._id,
+            userID: user.userID,
+            email: user.email,
+            firstname: user.firstname,
+            lastname: user.lastname
+        } : 'Not found');
+
+        let classes = [];
+        
+        // Try multiple approaches to find classes for this faculty
+        // Approach 1: Try with string direct match
+        classes = await db.collection('Classes')
+            .find({ 
+                "facultyID": facultyID,
+                "status": { $ne: "confirmed" } // Only get non-confirmed classes
+            })
+            .toArray();
+        console.log('Approach 1 (string direct match):', classes.length, 'classes found');
+
+        // Approach 2: Try with ObjectId conversion
+        if (classes.length === 0) {
+            try {
+                const objectId = new ObjectId(facultyID);
+                classes = await db.collection('Classes')
+                    .find({ 
+                        "facultyID": objectId,
+                        "status": { $ne: "confirmed" }
+                    })
+                    .toArray();
+                console.log('Approach 2 (ObjectId match):', classes.length, 'classes found');
+            } catch (e) {
+                console.log('Could not convert to ObjectId:', e.message);
+            }
+        }
+
+        // Approach 3: Try with userID if available
+        if (classes.length === 0 && user && user.userID) {
+            classes = await db.collection('Classes')
+                .find({ 
+                    "facultyID": user.userID,
+                    "status": { $ne: "confirmed" }
+                })
+                .toArray();
+            console.log('Approach 3 (userID match):', classes.length, 'classes found');
+        }
+
+        // Approach 4: Try with email if available
+        if (classes.length === 0 && user && user.email) {
+            classes = await db.collection('Classes')
+                .find({ 
+                    "facultyID": user.email,
+                    "status": { $ne: "confirmed" }
+                })
+                .toArray();
+            console.log('Approach 4 (email match):', classes.length, 'classes found');
+        }
+
+        // If still no results, try without status filter (for backward compatibility)
+        if (classes.length === 0) {
+            classes = await db.collection('Classes')
+                .find({ "facultyID": facultyID })
+                .toArray();
+            console.log('Fallback (without status filter):', classes.length, 'classes found');
+        }
+
+        // Populate member details for each class
+        const classesWithMembers = await Promise.all(classes.map(async (classData) => {
+            let members = [];
+            if (classData.members && classData.members.length > 0) {
+                try {
+                    members = await db.collection('users')
+                        .find({ userID: { $in: classData.members } })
+                        .toArray();
+                } catch (e) {
+                    console.log('Error fetching members for class:', classData.classID, e.message);
+                }
+            }
+            
+            return {
+                ...classData,
+                members: members,
+                className: classData.className || classData.name,
+                classCode: classData.classCode || classData.code
+            };
+        }));
+
+        console.log('Final pending classes found:', classesWithMembers.length);
+
+        res.json({ 
+            success: true, 
+            classes: classesWithMembers
+        });
+    } catch (err) {
+        console.error('Error fetching pending confirmation classes:', err);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// Confirm a class (PATCH endpoint)
+router.patch('/:classId/confirm', async (req, res) => {
+    try {
+        const db = database.getDb();
+        const { classId } = req.params;
+        const { classDesc, facultyID } = req.body;
+        
+        console.log('Confirming class:', classId, 'with description:', classDesc);
+        
+        if (!classId) {
+            return res.status(400).json({ success: false, error: 'classId is required' });
+        }
+
+        // Find the class
+        let classData = await db.collection('Classes').findOne({ classID: classId });
+        
+        if (!classData) {
+            try {
+                const objectId = new ObjectId(classId);
+                classData = await db.collection('Classes').findOne({ _id: objectId });
+            } catch (e) {
+                console.log('Could not convert to ObjectId:', e.message);
+            }
+        }
+
+        if (!classData) {
+            return res.status(404).json({ success: false, error: 'Class not found' });
+        }
+
+        // Update the class with confirmation status and description
+        const updateData = {
+            status: 'confirmed',
+            confirmedAt: new Date(),
+            confirmedBy: facultyID
+        };
+
+        if (classDesc) {
+            updateData.classDesc = classDesc;
+        }
+
+        const result = await db.collection('Classes').updateOne(
+            { classID: classId },
+            { $set: updateData }
+        );
+
+        if (result.matchedCount === 0) {
+            return res.status(404).json({ success: false, error: 'Class not found' });
+        }
+
+        console.log('Class confirmed successfully:', classId);
+
+        res.json({ 
+            success: true, 
+            message: 'Class confirmed successfully',
+            class: {
+                ...classData,
+                ...updateData
+            }
+        });
+    } catch (err) {
+        console.error('Error confirming class:', err);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
 export default router; 

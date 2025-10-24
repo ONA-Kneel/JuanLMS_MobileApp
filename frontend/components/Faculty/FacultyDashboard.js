@@ -502,6 +502,18 @@ export default function FacultyDashboard() {
                }}>
                <Text style={{ color: '#fff', fontFamily: 'Poppins-Bold' }}>Create Your First Class</Text>
              </TouchableOpacity>
+             
+             <TouchableOpacity 
+               onPress={() => navigation.navigate('ConfirmClasses')}
+               style={{ 
+                 marginTop: 10, 
+                 backgroundColor: '#00418b', 
+                 paddingHorizontal: 20, 
+                 paddingVertical: 10, 
+                 borderRadius: 8 
+               }}>
+               <Text style={{ color: '#fff', fontFamily: 'Poppins-Bold' }}>Confirm Classes</Text>
+             </TouchableOpacity>
            </View>
         ) : (
           <>
@@ -598,6 +610,21 @@ export default function FacultyDashboard() {
                 </Text>
               </TouchableOpacity>
             )}
+            
+            {/* Confirm Classes Button */}
+            <TouchableOpacity 
+              onPress={() => navigation.navigate('ConfirmClasses')}
+              style={{ 
+                alignItems: 'center', 
+                padding: 16, 
+                backgroundColor: '#00418b', 
+                borderRadius: 12, 
+                marginTop: 8 
+              }}>
+              <Text style={{ color: '#fff', fontFamily: 'Poppins-Bold' }}>
+                Confirm Classes
+              </Text>
+            </TouchableOpacity>
           </>
         )}
       </ScrollView>

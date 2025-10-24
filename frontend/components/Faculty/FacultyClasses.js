@@ -339,33 +339,70 @@ export default function FacultyClasses() {
         )} */}
 
         {/* Action Buttons */}
-        <View style={{ marginBottom: 24, gap: 12 }}>
+        <View style={{ 
+          marginBottom: 24, 
+          gap: 12,
+          backgroundColor: '#fff',
+          padding: 20,
+          borderRadius: 15,
+          marginHorizontal: 15,
+          elevation: 3,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.1,
+          shadowRadius: 4,
+        }}>
+          <Text style={{ 
+            fontSize: 16, 
+            fontWeight: 'bold', 
+            marginBottom: 10, 
+            fontFamily: 'Poppins-Bold',
+            color: '#333',
+            textAlign: 'center'
+          }}>
+            Quick Actions
+          </Text>
+          
           <TouchableOpacity 
-            onPress={() => navigation.navigate('ConfirmClasses')}
+            onPress={() => {
+              console.log('Confirm Classes button pressed');
+              navigation.navigate('ConfirmClasses');
+            }}
             style={{
-              backgroundColor: '#1976D2',
+              backgroundColor: '#00418b', // Changed to match app theme
               borderRadius: 12,
-              padding: 16,
+              padding: 20, // Increased padding for better visibility
               flexDirection: 'row',
               alignItems: 'center',
               justifyContent: 'center',
-              elevation: 3,
+              elevation: 5, // Increased elevation
               shadowColor: '#000',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.1,
-              shadowRadius: 4,
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.3,
+              shadowRadius: 6,
+              marginVertical: 10, // Added margin for better spacing
             }}
           >
-            <Icon name="check-circle" size={24} color="#fff" style={{ marginRight: 8 }} />
+            <Icon name="check-circle" size={28} color="#fff" style={{ marginRight: 12 }} />
             <Text style={{ 
               color: '#fff', 
-              fontSize: 16, 
+              fontSize: 18, // Increased font size
               fontWeight: 'bold',
               fontFamily: 'Poppins-Bold'
             }}>
-              Confirm Classes
+              CONFIRM CLASSES
             </Text>
           </TouchableOpacity>
+          
+          {/* Debug info */}
+          <Text style={{ 
+            fontSize: 12, 
+            color: '#666', 
+            textAlign: 'center',
+            marginTop: 5
+          }}>
+            Debug: Button should be visible above
+          </Text>
         </View>
 
         {/* Your Classes Section */}

@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
-import { useUser } from '../../UserContext';
+import { useUser } from '../UserContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNotifications } from '../../NotificationContext';
 import NotificationCenter from '../NotificationCenter';
@@ -23,21 +23,16 @@ const { width } = Dimensions.get('window');
 
 let StreamMeetingRoomNative = null;
 let SimpleStreamMeetingRoom = null;
-let StreamMeetingRoomIOS = null;
-
 if (Platform.OS !== 'web') {
   try {
     StreamMeetingRoomNative = require('../Meeting/StreamMeetingRoomNative').default;
     SimpleStreamMeetingRoom = require('../Meeting/SimpleStreamMeetingRoom').default;
-    if (Platform.OS === 'ios') {
-      StreamMeetingRoomIOS = require('../Meeting/StreamMeetingRoomIOS').default;
-    }
   } catch (e) { /* noop on web */ }
 }
 
 export default function VPEMeeting() {
   const navigation = useNavigation();
-  const { user, loading: userLoading } = useUser();
+  const { user } = useUser();
   const { unreadCount } = useNotifications();
   const [meetings, setMeetings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -57,30 +52,6 @@ export default function VPEMeeting() {
   
   // Notification states
   const [showNotificationCenter, setShowNotificationCenter] = useState(false);
-
-  // Add safety check to prevent white screen when user is null (during logout)
-  // This must be placed AFTER all hooks to avoid "Rendered fewer hooks than expected" error
-  if (userLoading) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f7f9fa' }}>
-        <ActivityIndicator size="large" color="#00418b" />
-        <Text style={{ marginTop: 16, fontSize: 16, color: '#666', fontFamily: 'Poppins-Regular' }}>
-          Loading user data...
-        </Text>
-      </View>
-    );
-  }
-
-  if (!user) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f7f9fa' }}>
-        <ActivityIndicator size="large" color="#00418b" />
-        <Text style={{ marginTop: 16, fontSize: 16, color: '#666', fontFamily: 'Poppins-Regular' }}>
-          Redirecting to login...
-        </Text>
-      </View>
-    );
-  }
 
   useEffect(() => {
     fetchAllMeetings();
@@ -293,18 +264,12 @@ export default function VPEMeeting() {
                 return;
               }
             }
-            // iOS permissions are handled automatically by the Stream Video SDK
           } catch (e) { /* ignore */ }
-          
-          // Use appropriate meeting room based on platform
-          if (Platform.OS === 'ios' && StreamMeetingRoomIOS) {
-            setActiveMeeting(enriched);
-          } else if (StreamMeetingRoomNative || SimpleStreamMeetingRoom) {
-            setActiveMeeting(enriched);
-          } else {
+          if (!StreamMeetingRoomNative && !SimpleStreamMeetingRoom) {
             Alert.alert('Meeting', 'Native meeting module is unavailable. Make sure you run a development build (not Expo Go).');
             return;
           }
+          setActiveMeeting(enriched);
         }
       } else {
         const result = await response.json();
@@ -813,41 +778,14 @@ export default function VPEMeeting() {
           })}
         </View>
       </View>
-      {/* iOS Native SDK */}
-      {activeMeeting && Platform.OS === 'ios' && StreamMeetingRoomIOS && (
-        <StreamMeetingRoomIOS
-          isOpen={!!activeMeeting}
-          onClose={() => setActiveMeeting(null)}
-          onLeave={() => setActiveMeeting(null)}
-          meetingData={activeMeeting}
-          currentUser={{ name: user?.name || user?.username || 'Host' }}
-          credentials={{
-            apiKey: 'mmhfdzb5evj2',
-            token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL3Byb250by5nZXRzdHJlYW0uaW8iLCJzdWIiOiJ1c2VyL0VnZ3BsYW50X1NveWJlYW4iLCJ1c2VyX2lkIjoiRWdncGxhbnRfU295YmVhbiIsInZhbGlkaXR5X2luX3NlY29uZHMiOjYwNDgwMCwiaWF0IjoxNzYwNDE1MDc1LCJleHAiOjE3NjEwMTk4NzV9.0Adc50Cb7YtqyV1OE-SdlsFQqsv-G9aJmo5s-FBTSxs',
-            userId: 'Eggplant_Soybean',
-            callId: 'JMXS39xMSEetmwEJcTl8y',
-          }}
-          isHost={true}
-          hostUserId={'Eggplant_Soybean'}
-        />
-      )}
-      
-      {/* React Native SDK for Android */}
-      {activeMeeting && Platform.OS !== 'web' && Platform.OS !== 'ios' && SimpleStreamMeetingRoom && (
+      {activeMeeting && Platform.OS !== 'web' && SimpleStreamMeetingRoom && (
         <SimpleStreamMeetingRoom
           isOpen={!!activeMeeting}
           onClose={() => setActiveMeeting(null)}
           onLeave={() => setActiveMeeting(null)}
           meetingData={activeMeeting}
-          currentUser={{ name: user?.name || user?.username || 'Host' }}
-          credentials={{
-            apiKey: 'mmhfdzb5evj2',
-            token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL3Byb250by5nZXRzdHJlYW0uaW8iLCJzdWIiOiJ1c2VyL0VnZ3BsYW50X1NveWJlYW4iLCJ1c2VyX2lkIjoiRWdncGxhbnRfU295YmVhbiIsInZhbGlkaXR5X2luX3NlY29uZHMiOjYwNDgwMCwiaWF0IjoxNzYwNDE1MDc1LCJleHAiOjE3NjEwMTk4NzV9.0Adc50Cb7YtqyV1OE-SdlsFQqsv-G9aJmo5s-FBTSxs',
-            userId: 'Eggplant_Soybean',
-            callId: 'JMXS39xMSEetmwEJcTl8y',
-          }}
           isHost={true}
-          hostUserId={'Eggplant_Soybean'}
+          hostUserId={userInfo.name}
         />
       )}
       

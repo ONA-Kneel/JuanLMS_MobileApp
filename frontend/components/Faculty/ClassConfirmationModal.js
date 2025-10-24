@@ -32,18 +32,19 @@ export default function ClassConfirmationModal({
             setLoading(true);
             const headers = await getAuthHeaders();
 
-            // Create form data for the confirmation request
-            const formData = new FormData();
-            formData.append('classDesc', classDesc);
-            formData.append('facultyID', user._id);
+            // Create JSON data for the confirmation request
+            const requestData = {
+                classDesc: classDesc,
+                facultyID: user._id
+            };
 
             const response = await fetch(`${API_BASE}/api/classes/${classData.classID}/confirm`, {
                 method: 'PATCH',
                 headers: {
                     ...headers,
-                    'Content-Type': 'multipart/form-data',
+                    'Content-Type': 'application/json',
                 },
-                body: formData
+                body: JSON.stringify(requestData)
             });
 
             if (response.ok) {

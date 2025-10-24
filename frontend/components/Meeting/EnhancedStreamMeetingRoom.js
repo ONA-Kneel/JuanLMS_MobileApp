@@ -24,8 +24,17 @@ import {
   useCallReactionState,
 } from '@stream-io/video-react-native-sdk';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width, height } = Dimensions.get('window');
+
+// Generate call ID from meeting data
+const generateCallId = (meetingData) => {
+  if (meetingData?.meetingId) return String(meetingData.meetingId);
+  if (meetingData?._id) return String(meetingData._id);
+  if (meetingData?.title) return String(meetingData.title).replace(/\s+/g, '-').toLowerCase();
+  return `meeting-${Date.now()}`;
+};
 
 export default function EnhancedStreamMeetingRoom({
   isOpen,
@@ -47,145 +56,211 @@ export default function EnhancedStreamMeetingRoom({
   const [showSettings, setShowSettings] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [showConfirmLeave, setShowConfirmLeave] = useState(false);
+  const [showPermissionModal, setShowPermissionModal] = useState(false);
   const [participantCount, setParticipantCount] = useState(0);
   const [isRecording, setIsRecording] = useState(false);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
-  const [isVideoOn, setIsVideoOn] = useState(true);
+  const [isVideoOn, setIsVideoOn] = useState(false); // Start with video off
   const [layout, setLayout] = useState('grid'); // grid, spotlight, speaker
   const [reactions, setReactions] = useState([]);
   const [chatMessages, setChatMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
+  const [hostPresent, setHostPresent] = useState(true);
+  
+  // Credential fetching state
+  const [streamCredentials, setStreamCredentials] = useState(null);
+  const [isLoadingCredentials, setIsLoadingCredentials] = useState(false);
 
-  // Initialize Stream.io client with enhanced error handling
+  // Fetch Stream credentials from backend
   useEffect(() => {
-    if (!isOpen || !credentials) return;
+    const fetchCredentials = async () => {
+      if (!isOpen || !meetingData) return;
+      
+      setIsLoadingCredentials(true);
+      try {
+        const callId = generateCallId(meetingData);
+        
+        const token = await AsyncStorage.getItem('token');
+        const response = await fetch('https://juanlms-webapp-server.onrender.com/api/meetings/stream-credentials', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ callId })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          setStreamCredentials(data);
+          console.log('[STREAM-CREDS] Successfully fetched credentials from backend');
+        } else {
+          console.error('[STREAM-CREDS] Failed to fetch credentials:', data.message);
+          setError(data.message || 'Failed to get Stream credentials');
+        }
+      } catch (error) {
+        console.error('[STREAM-CREDS] Error fetching credentials:', error);
+        setError('Failed to connect to Stream service');
+      } finally {
+        setIsLoadingCredentials(false);
+      }
+    };
+    
+    fetchCredentials();
+  }, [isOpen, meetingData]);
+
+  // Use provided credentials or fetched credentials
+  const finalCredentials = useMemo(() => {
+    return credentials || streamCredentials;
+  }, [credentials, streamCredentials]);
+
+  // Determine callId preference: explicit credentials.callId, then meetingData.meetingId/_id, then parsed from roomUrl
+  const resolvedCallId = useMemo(() => {
+    if (finalCredentials?.callId) return String(finalCredentials.callId);
+    if (meetingData?.meetingId) return String(meetingData.meetingId);
+    if (meetingData?._id) return String(meetingData._id);
+    try {
+      if (meetingData?.roomUrl) {
+        const url = new URL(meetingData.roomUrl);
+        const path = url.pathname || '';
+        const name = path.startsWith('/') ? path.slice(1) : path;
+        if (name) return decodeURIComponent(name);
+      }
+    } catch (e) {
+      console.debug('EnhancedStreamMeetingRoom: failed to parse roomUrl', e);
+    }
+    return generateCallId(meetingData);
+  }, [finalCredentials?.callId, meetingData]);
+
+  const userInfo = useMemo(() => {
+    // Use the generated stream credentials userInfo, with fallback
+    const streamUserInfo = finalCredentials?.userInfo;
+    if (streamUserInfo && streamUserInfo.name) {
+      console.log('[EnhancedStreamMeetingRoom] Using userInfo from backend:', streamUserInfo);
+      return streamUserInfo;
+    }
+    
+    // Fallback: get user info from currentUser prop
+    const fallbackUserInfo = {
+      id: finalCredentials?.userId || currentUser?.id || 'user',
+      name: currentUser?.name || `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim() || 'User',
+      email: currentUser?.email || ''
+    };
+    console.log('[EnhancedStreamMeetingRoom] Using fallback userInfo:', fallbackUserInfo);
+    return fallbackUserInfo;
+  }, [finalCredentials, currentUser]);
+
+  // Initialize Stream.io client
+  useEffect(() => {
+    if (!isOpen || !finalCredentials) return;
 
     const initClient = async () => {
       try {
         setIsConnecting(true);
         setError(null);
 
-        // Validate credentials before proceeding
-        if (!credentials.apiKey || !credentials.userId || !credentials.token) {
-          throw new Error('Invalid meeting credentials provided');
+        if (isLoadingCredentials) {
+          setError('Loading Stream credentials...');
+          return;
+        }
+        if (!finalCredentials) {
+          setError('Failed to load Stream credentials');
+          return;
+        }
+        if (!finalCredentials.apiKey || !finalCredentials.token || !finalCredentials.userId) {
+          setError('Missing Stream credentials');
+          return;
+        }
+        if (!resolvedCallId) {
+          setError('Missing callId');
+          return;
         }
 
-        console.log('Initializing Stream client with credentials:', {
-          hasApiKey: !!credentials.apiKey,
-          hasUserId: !!credentials.userId,
-          hasToken: !!credentials.token,
-          hasCallId: !!credentials.callId
-        });
-
         const streamClient = new StreamVideoClient({
-          apiKey: credentials.apiKey,
-          user: {
-            id: credentials.userId,
-            name: currentUser?.name || currentUser?.firstName + ' ' + currentUser?.lastName || 'User',
-            image: currentUser?.profilePic || null,
-          },
-          token: credentials.token,
+          apiKey: finalCredentials.apiKey,
+          user: userInfo,
+          token: finalCredentials.token,
         });
 
         setClient(streamClient);
 
-        // Create call with timeout
-        const callInstance = streamClient.call('default', credentials.callId);
+        // Create call
+        const callInstance = streamClient.call('default', resolvedCallId);
         
-        // Set up error handlers before joining
-        callInstance.on('call.error', (error) => {
-          console.error('Stream call error:', error);
-          setError(`Call error: ${error.message || 'Unknown error occurred'}`);
-        });
+        // Ensure mic and camera are disabled at start for the local user
+        try {
+          if (callInstance.microphone && typeof callInstance.microphone.setEnabled === 'function') {
+            await callInstance.microphone.setEnabled(false);
+          }
+        } catch (e) { console.debug('EnhancedStreamMeetingRoom: pre-join mic disable error', e); }
+        try {
+          if (callInstance.camera && typeof callInstance.camera.setEnabled === 'function') {
+            await callInstance.camera.setEnabled(false);
+          }
+        } catch (e) { console.debug('EnhancedStreamMeetingRoom: pre-join camera disable error', e); }
 
-        // Join call with timeout
-        const joinPromise = callInstance.join({ create: true });
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Call join timeout after 30 seconds')), 30000)
-        );
+        await callInstance.join({ create: true });
+
+        // Double-check post-join that tracks remain disabled
+        try {
+          if (callInstance.microphone && typeof callInstance.microphone.setEnabled === 'function') {
+            await callInstance.microphone.setEnabled(false);
+          }
+        } catch (e) { console.debug('EnhancedStreamMeetingRoom: post-join mic disable error', e); }
+        try {
+          if (callInstance.camera && typeof callInstance.camera.setEnabled === 'function') {
+            await callInstance.camera.setEnabled(false);
+          }
+        } catch (e) { console.debug('EnhancedStreamMeetingRoom: post-join camera disable error', e); }
         
-        await Promise.race([joinPromise, timeoutPromise]);
+        setIsMuted(true);
+        setIsVideoOn(false);
         setCall(callInstance);
 
-        // Set up call event listeners with error handling
+        // Set up call event listeners
         callInstance.on('call.updated', (event) => {
-          try {
-            console.log('Call updated:', event);
-          } catch (err) {
-            console.error('Error in call.updated handler:', err);
-          }
+          console.log('Call updated:', event);
         });
 
         callInstance.on('call.ended', () => {
-          try {
-            console.log('Call ended');
-            onLeave?.();
-          } catch (err) {
-            console.error('Error in call.ended handler:', err);
-          }
+          console.log('Call ended');
+          onLeave?.();
         });
 
         callInstance.on('call.recording.started', () => {
-          try {
-            setIsRecording(true);
-          } catch (err) {
-            console.error('Error setting recording state:', err);
-          }
+          setIsRecording(true);
         });
 
         callInstance.on('call.recording.stopped', () => {
-          try {
-            setIsRecording(false);
-          } catch (err) {
-            console.error('Error setting recording state:', err);
-          }
+          setIsRecording(false);
         });
 
         callInstance.on('call.screen_share.started', () => {
-          try {
-            setIsScreenSharing(true);
-          } catch (err) {
-            console.error('Error setting screen share state:', err);
-          }
+          setIsScreenSharing(true);
         });
 
         callInstance.on('call.screen_share.stopped', () => {
-          try {
-            setIsScreenSharing(false);
-          } catch (err) {
-            console.error('Error setting screen share state:', err);
-          }
+          setIsScreenSharing(false);
         });
 
         callInstance.on('call.reaction', (event) => {
-          try {
-            setReactions(prev => [...prev, event]);
-            // Remove reaction after 3 seconds
-            setTimeout(() => {
-              setReactions(prev => prev.filter(r => r.id !== event.id));
-            }, 3000);
-          } catch (err) {
-            console.error('Error handling reaction:', err);
-          }
+          setReactions(prev => [...prev, event]);
+          // Remove reaction after 3 seconds
+          setTimeout(() => {
+            setReactions(prev => prev.filter(r => r.id !== event.id));
+          }, 3000);
         });
 
         callInstance.on('call.chat', (event) => {
-          try {
-            setChatMessages(prev => [...prev, event]);
-          } catch (err) {
-            console.error('Error handling chat message:', err);
-          }
+          setChatMessages(prev => [...prev, event]);
         });
 
-        // Set up participant count tracking with error handling
+        // Set up participant count tracking
         const updateParticipantCount = () => {
-          try {
-            const count = callInstance.state?.participants?.length || 0;
-            setParticipantCount(count);
-          } catch (err) {
-            console.error('Error updating participant count:', err);
-          }
+          const count = callInstance.state.participants?.length || 0;
+          setParticipantCount(count);
         };
 
         callInstance.on('call.participant_joined', updateParticipantCount);
@@ -195,22 +270,7 @@ export default function EnhancedStreamMeetingRoom({
 
       } catch (err) {
         console.error('Error initializing Stream client:', err);
-        
-        // Provide more specific error messages
-        let errorMessage = 'Failed to initialize meeting';
-        if (err.message) {
-          if (err.message.includes('timeout')) {
-            errorMessage = 'Connection timeout. Please check your internet connection and try again.';
-          } else if (err.message.includes('credentials')) {
-            errorMessage = 'Invalid meeting credentials. Please contact the meeting organizer.';
-          } else if (err.message.includes('network')) {
-            errorMessage = 'Network error. Please check your internet connection.';
-          } else {
-            errorMessage = `Meeting error: ${err.message}`;
-          }
-        }
-        
-        setError(errorMessage);
+        setError(err.message || 'Failed to initialize meeting');
       } finally {
         setIsConnecting(false);
       }
@@ -219,18 +279,57 @@ export default function EnhancedStreamMeetingRoom({
     initClient();
 
     return () => {
-      try {
-        if (call) {
-          call.leave().catch(err => console.error('Error leaving call during cleanup:', err));
-        }
-        if (client) {
-          client.disconnectUser().catch(err => console.error('Error disconnecting client during cleanup:', err));
-        }
-      } catch (err) {
-        console.error('Error during Stream cleanup:', err);
+      if (call) {
+        call.leave();
+      }
+      if (client) {
+        client.disconnectUser();
       }
     };
-  }, [isOpen, credentials]);
+  }, [isOpen, finalCredentials, resolvedCallId, userInfo, isLoadingCredentials]);
+
+  // Watch for host presence for students; show overlay until host joins
+  useEffect(() => {
+    if (!call || isHost !== false || !hostUserId) return;
+    const updatePresence = () => {
+      try {
+        const participants = Array.from(call.state?.participants || []);
+        const list = participants.map((p) => p.userId || p?.user?.id).filter(Boolean);
+        const present = list.some((id) => String(id) === String(hostUserId));
+        setHostPresent(present);
+      } catch (err) {
+        void err;
+      }
+    };
+    updatePresence();
+    const interval = setInterval(updatePresence, 1500);
+    return () => clearInterval(interval);
+  }, [hostUserId, isHost, call]);
+
+  // If call ends (host clicked end for everyone), auto leave/redirect
+  useEffect(() => {
+    if (!call) return;
+    let endedInterval;
+    try {
+      if (typeof call.on === 'function') {
+        call.on('call.ended', handleLeave);
+        call.on('ended', handleLeave);
+      }
+    } catch (err) { void err; }
+    endedInterval = setInterval(() => {
+      try {
+        const ended = !!(call.state?.call?.ended || call.state?.ended || call.state?.status === 'ended');
+        if (ended) {
+          clearInterval(endedInterval);
+          handleLeave();
+        }
+      } catch (err) { void err; }
+    }, 1500);
+    return () => {
+      clearInterval(endedInterval);
+      try { if (typeof call.off === 'function') { call.off('call.ended', handleLeave); call.off('ended', handleLeave); } } catch (err) { void err; }
+    };
+  }, [handleLeave, call]);
 
   const handleLeave = useCallback(async () => {
     try {
@@ -240,12 +339,7 @@ export default function EnhancedStreamMeetingRoom({
       onLeave?.();
     } catch (err) {
       console.error('Error leaving call:', err);
-      // Always call onLeave even if there's an error
-      try {
-        onLeave?.();
-      } catch (onLeaveErr) {
-        console.error('Error in onLeave callback:', onLeaveErr);
-      }
+      onLeave?.();
     }
   }, [call, onLeave]);
 
@@ -257,12 +351,7 @@ export default function EnhancedStreamMeetingRoom({
       onLeave?.();
     } catch (err) {
       console.error('Error ending call:', err);
-      // Always call onLeave even if there's an error
-      try {
-        onLeave?.();
-      } catch (onLeaveErr) {
-        console.error('Error in onLeave callback:', onLeaveErr);
-      }
+      onLeave?.();
     }
   }, [call, isHost, onLeave]);
 
@@ -295,16 +384,6 @@ export default function EnhancedStreamMeetingRoom({
         return;
       }
 
-      // Disable screen sharing on iOS devices
-      if (Platform.OS === 'ios') {
-        Alert.alert(
-          'Screen Sharing Not Available',
-          'Screen sharing is not supported on iOS devices. Please use Android or web for screen sharing features.',
-          [{ text: 'OK' }]
-        );
-        return;
-      }
-
       if (Platform.OS === 'web') {
         // For web, use the standard screen share
         if (isScreenSharing) {
@@ -313,7 +392,7 @@ export default function EnhancedStreamMeetingRoom({
           await call.startScreenShare();
         }
       } else {
-        // For Android devices, check permissions first
+        // For mobile devices, check permissions first
         if (Platform.OS === 'android') {
           const { PermissionsAndroid } = require('react-native');
           const granted = await PermissionsAndroid.request(
@@ -459,52 +538,64 @@ export default function EnhancedStreamMeetingRoom({
           <View style={styles.container}>
             {/* Main Call Content */}
             <View style={styles.callContent}>
-              {layout === 'grid' && (
-                <CallParticipantsGrid
-                  style={styles.participantsGrid}
-                  ParticipantView={({ participant }) => (
-                    <View style={styles.participantView}>
-                      <Text style={styles.participantName}>
-                        {participant.name || 'Unknown'}
-                      </Text>
-                      {participant.isSpeaking && (
-                        <View style={styles.speakingIndicator} />
+              {!hostPresent ? (
+                <View style={styles.waitingHost}>
+                  <View style={styles.waitingCard}>
+                    <Icon name="account-clock" size={64} color="#6B7280" />
+                    <Text style={styles.waitingTitle}>Host is not yet present</Text>
+                    <Text style={styles.waitingSub}>Please wait for the host to join this meeting.</Text>
+                  </View>
+                </View>
+              ) : (
+                <>
+                  {layout === 'grid' && (
+                    <CallParticipantsGrid
+                      style={styles.participantsGrid}
+                      ParticipantView={({ participant }) => (
+                        <View style={styles.participantView}>
+                          <Text style={styles.participantName}>
+                            {participant.name || 'Unknown'}
+                          </Text>
+                          {participant.isSpeaking && (
+                            <View style={styles.speakingIndicator} />
+                          )}
+                        </View>
                       )}
-                    </View>
+                    />
                   )}
-                />
-              )}
-              
-              {layout === 'spotlight' && (
-                <CallParticipantsSpotlight
-                  style={styles.participantsSpotlight}
-                  ParticipantView={({ participant }) => (
-                    <View style={styles.participantView}>
-                      <Text style={styles.participantName}>
-                        {participant.name || 'Unknown'}
-                      </Text>
-                      {participant.isSpeaking && (
-                        <View style={styles.speakingIndicator} />
+                  
+                  {layout === 'spotlight' && (
+                    <CallParticipantsSpotlight
+                      style={styles.participantsSpotlight}
+                      ParticipantView={({ participant }) => (
+                        <View style={styles.participantView}>
+                          <Text style={styles.participantName}>
+                            {participant.name || 'Unknown'}
+                          </Text>
+                          {participant.isSpeaking && (
+                            <View style={styles.speakingIndicator} />
+                          )}
+                        </View>
                       )}
-                    </View>
+                    />
                   )}
-                />
-              )}
-              
-              {layout === 'speaker' && (
-                <SpeakerLayout
-                  style={styles.speakerLayout}
-                  ParticipantView={({ participant }) => (
-                    <View style={styles.participantView}>
-                      <Text style={styles.participantName}>
-                        {participant.name || 'Unknown'}
-                      </Text>
-                      {participant.isSpeaking && (
-                        <View style={styles.speakingIndicator} />
+                  
+                  {layout === 'speaker' && (
+                    <SpeakerLayout
+                      style={styles.speakerLayout}
+                      ParticipantView={({ participant }) => (
+                        <View style={styles.participantView}>
+                          <Text style={styles.participantName}>
+                            {participant.name || 'Unknown'}
+                          </Text>
+                          {participant.isSpeaking && (
+                            <View style={styles.speakingIndicator} />
+                          )}
+                        </View>
                       )}
-                    </View>
+                    />
                   )}
-                />
+                </>
               )}
             </View>
 
@@ -949,6 +1040,33 @@ const styles = StyleSheet.create({
   },
   callContent: {
     flex: 1,
+  },
+  waitingHost: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#1a1a1a',
+  },
+  waitingCard: {
+    backgroundColor: '#2a2a2a',
+    borderRadius: 16,
+    padding: 32,
+    alignItems: 'center',
+    maxWidth: 300,
+  },
+  waitingTitle: {
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: '600',
+    marginTop: 16,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  waitingSub: {
+    color: '#9CA3AF',
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 20,
   },
   participantsGrid: {
     flex: 1,
