@@ -755,10 +755,9 @@ const FacultyActs = () => {
               placeholder="Search activities..."
               value={searchQuery}
               onChangeText={setSearchQuery}
+              placeholderTextColor="#999"
             />
           </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            </View>
         </View>
 
         {/* Activities List */}
