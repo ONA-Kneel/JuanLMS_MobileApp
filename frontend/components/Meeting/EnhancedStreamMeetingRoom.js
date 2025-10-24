@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import { Modal, View, Text, TouchableOpacity, ActivityIndicator, StyleSheet, Platform, Alert, Dimensions, ScrollView } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, ActivityIndicator, StyleSheet, Platform, Alert, Dimensions, ScrollView, TextInput } from 'react-native';
 import {
   StreamVideo,
   StreamVideoClient,
@@ -24,8 +24,17 @@ import {
   useCallReactionState,
 } from '@stream-io/video-react-native-sdk';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width, height } = Dimensions.get('window');
+
+// Generate call ID from meeting data
+const generateCallId = (meetingData) => {
+  if (meetingData?.meetingId) return String(meetingData.meetingId);
+  if (meetingData?._id) return String(meetingData._id);
+  if (meetingData?.title) return String(meetingData.title).replace(/\s+/g, '-').toLowerCase();
+  return `meeting-${Date.now()}`;
+};
 
 export default function EnhancedStreamMeetingRoom({
   isOpen,
@@ -47,40 +56,167 @@ export default function EnhancedStreamMeetingRoom({
   const [showSettings, setShowSettings] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const [showConfirmLeave, setShowConfirmLeave] = useState(false);
+  const [showPermissionModal, setShowPermissionModal] = useState(false);
   const [participantCount, setParticipantCount] = useState(0);
   const [isRecording, setIsRecording] = useState(false);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
-  const [isVideoOn, setIsVideoOn] = useState(true);
+  const [isVideoOn, setIsVideoOn] = useState(false); // Start with video off
   const [layout, setLayout] = useState('grid'); // grid, spotlight, speaker
   const [reactions, setReactions] = useState([]);
   const [chatMessages, setChatMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
+  const [hostPresent, setHostPresent] = useState(true);
+  
+  // Credential fetching state
+  const [streamCredentials, setStreamCredentials] = useState(null);
+  const [isLoadingCredentials, setIsLoadingCredentials] = useState(false);
+
+  // Fetch Stream credentials from backend
+  useEffect(() => {
+    const fetchCredentials = async () => {
+      if (!isOpen || !meetingData) return;
+      
+      setIsLoadingCredentials(true);
+      try {
+        const callId = generateCallId(meetingData);
+        
+        const token = await AsyncStorage.getItem('token');
+        const response = await fetch('https://juanlms-webapp-server.onrender.com/api/meetings/stream-credentials', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ callId })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          setStreamCredentials(data);
+          console.log('[STREAM-CREDS] Successfully fetched credentials from backend');
+        } else {
+          console.error('[STREAM-CREDS] Failed to fetch credentials:', data.message);
+          setError(data.message || 'Failed to get Stream credentials');
+        }
+      } catch (error) {
+        console.error('[STREAM-CREDS] Error fetching credentials:', error);
+        setError('Failed to connect to Stream service');
+      } finally {
+        setIsLoadingCredentials(false);
+      }
+    };
+    
+    fetchCredentials();
+  }, [isOpen, meetingData]);
+
+  // Use provided credentials or fetched credentials
+  const finalCredentials = useMemo(() => {
+    return credentials || streamCredentials;
+  }, [credentials, streamCredentials]);
+
+  // Determine callId preference: explicit credentials.callId, then meetingData.meetingId/_id, then parsed from roomUrl
+  const resolvedCallId = useMemo(() => {
+    if (finalCredentials?.callId) return String(finalCredentials.callId);
+    if (meetingData?.meetingId) return String(meetingData.meetingId);
+    if (meetingData?._id) return String(meetingData._id);
+    try {
+      if (meetingData?.roomUrl) {
+        const url = new URL(meetingData.roomUrl);
+        const path = url.pathname || '';
+        const name = path.startsWith('/') ? path.slice(1) : path;
+        if (name) return decodeURIComponent(name);
+      }
+    } catch (e) {
+      console.debug('EnhancedStreamMeetingRoom: failed to parse roomUrl', e);
+    }
+    return generateCallId(meetingData);
+  }, [finalCredentials?.callId, meetingData]);
+
+  const userInfo = useMemo(() => {
+    // Use the generated stream credentials userInfo, with fallback
+    const streamUserInfo = finalCredentials?.userInfo;
+    if (streamUserInfo && streamUserInfo.name) {
+      console.log('[EnhancedStreamMeetingRoom] Using userInfo from backend:', streamUserInfo);
+      return streamUserInfo;
+    }
+    
+    // Fallback: get user info from currentUser prop
+    const fallbackUserInfo = {
+      id: finalCredentials?.userId || currentUser?.id || 'user',
+      name: currentUser?.name || `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim() || 'User',
+      email: currentUser?.email || ''
+    };
+    console.log('[EnhancedStreamMeetingRoom] Using fallback userInfo:', fallbackUserInfo);
+    return fallbackUserInfo;
+  }, [finalCredentials, currentUser]);
 
   // Initialize Stream.io client
   useEffect(() => {
-    if (!isOpen || !credentials) return;
+    if (!isOpen || !finalCredentials) return;
 
     const initClient = async () => {
       try {
         setIsConnecting(true);
         setError(null);
 
+        if (isLoadingCredentials) {
+          setError('Loading Stream credentials...');
+          return;
+        }
+        if (!finalCredentials) {
+          setError('Failed to load Stream credentials');
+          return;
+        }
+        if (!finalCredentials.apiKey || !finalCredentials.token || !finalCredentials.userId) {
+          setError('Missing Stream credentials');
+          return;
+        }
+        if (!resolvedCallId) {
+          setError('Missing callId');
+          return;
+        }
+
         const streamClient = new StreamVideoClient({
-          apiKey: credentials.apiKey,
-          user: {
-            id: credentials.userId,
-            name: currentUser?.name || 'User',
-            image: currentUser?.profilePic || null,
-          },
-          token: credentials.token,
+          apiKey: finalCredentials.apiKey,
+          user: userInfo,
+          token: finalCredentials.token,
         });
 
         setClient(streamClient);
 
         // Create call
-        const callInstance = streamClient.call('default', credentials.callId);
+        const callInstance = streamClient.call('default', resolvedCallId);
+        
+        // Ensure mic and camera are disabled at start for the local user
+        try {
+          if (callInstance.microphone && typeof callInstance.microphone.setEnabled === 'function') {
+            await callInstance.microphone.setEnabled(false);
+          }
+        } catch (e) { console.debug('EnhancedStreamMeetingRoom: pre-join mic disable error', e); }
+        try {
+          if (callInstance.camera && typeof callInstance.camera.setEnabled === 'function') {
+            await callInstance.camera.setEnabled(false);
+          }
+        } catch (e) { console.debug('EnhancedStreamMeetingRoom: pre-join camera disable error', e); }
+
         await callInstance.join({ create: true });
+
+        // Double-check post-join that tracks remain disabled
+        try {
+          if (callInstance.microphone && typeof callInstance.microphone.setEnabled === 'function') {
+            await callInstance.microphone.setEnabled(false);
+          }
+        } catch (e) { console.debug('EnhancedStreamMeetingRoom: post-join mic disable error', e); }
+        try {
+          if (callInstance.camera && typeof callInstance.camera.setEnabled === 'function') {
+            await callInstance.camera.setEnabled(false);
+          }
+        } catch (e) { console.debug('EnhancedStreamMeetingRoom: post-join camera disable error', e); }
+        
+        setIsMuted(true);
+        setIsVideoOn(false);
         setCall(callInstance);
 
         // Set up call event listeners
@@ -150,7 +286,50 @@ export default function EnhancedStreamMeetingRoom({
         client.disconnectUser();
       }
     };
-  }, [isOpen, credentials]);
+  }, [isOpen, finalCredentials, resolvedCallId, userInfo, isLoadingCredentials]);
+
+  // Watch for host presence for students; show overlay until host joins
+  useEffect(() => {
+    if (!call || isHost !== false || !hostUserId) return;
+    const updatePresence = () => {
+      try {
+        const participants = Array.from(call.state?.participants || []);
+        const list = participants.map((p) => p.userId || p?.user?.id).filter(Boolean);
+        const present = list.some((id) => String(id) === String(hostUserId));
+        setHostPresent(present);
+      } catch (err) {
+        void err;
+      }
+    };
+    updatePresence();
+    const interval = setInterval(updatePresence, 1500);
+    return () => clearInterval(interval);
+  }, [hostUserId, isHost, call]);
+
+  // If call ends (host clicked end for everyone), auto leave/redirect
+  useEffect(() => {
+    if (!call) return;
+    let endedInterval;
+    try {
+      if (typeof call.on === 'function') {
+        call.on('call.ended', handleLeave);
+        call.on('ended', handleLeave);
+      }
+    } catch (err) { void err; }
+    endedInterval = setInterval(() => {
+      try {
+        const ended = !!(call.state?.call?.ended || call.state?.ended || call.state?.status === 'ended');
+        if (ended) {
+          clearInterval(endedInterval);
+          handleLeave();
+        }
+      } catch (err) { void err; }
+    }, 1500);
+    return () => {
+      clearInterval(endedInterval);
+      try { if (typeof call.off === 'function') { call.off('call.ended', handleLeave); call.off('ended', handleLeave); } } catch (err) { void err; }
+    };
+  }, [handleLeave, call]);
 
   const handleLeave = useCallback(async () => {
     try {
@@ -359,52 +538,64 @@ export default function EnhancedStreamMeetingRoom({
           <View style={styles.container}>
             {/* Main Call Content */}
             <View style={styles.callContent}>
-              {layout === 'grid' && (
-                <CallParticipantsGrid
-                  style={styles.participantsGrid}
-                  ParticipantView={({ participant }) => (
-                    <View style={styles.participantView}>
-                      <Text style={styles.participantName}>
-                        {participant.name || 'Unknown'}
-                      </Text>
-                      {participant.isSpeaking && (
-                        <View style={styles.speakingIndicator} />
+              {!hostPresent ? (
+                <View style={styles.waitingHost}>
+                  <View style={styles.waitingCard}>
+                    <Icon name="account-clock" size={64} color="#6B7280" />
+                    <Text style={styles.waitingTitle}>Host is not yet present</Text>
+                    <Text style={styles.waitingSub}>Please wait for the host to join this meeting.</Text>
+                  </View>
+                </View>
+              ) : (
+                <>
+                  {layout === 'grid' && (
+                    <CallParticipantsGrid
+                      style={styles.participantsGrid}
+                      ParticipantView={({ participant }) => (
+                        <View style={styles.participantView}>
+                          <Text style={styles.participantName}>
+                            {participant.name || 'Unknown'}
+                          </Text>
+                          {participant.isSpeaking && (
+                            <View style={styles.speakingIndicator} />
+                          )}
+                        </View>
                       )}
-                    </View>
+                    />
                   )}
-                />
-              )}
-              
-              {layout === 'spotlight' && (
-                <CallParticipantsSpotlight
-                  style={styles.participantsSpotlight}
-                  ParticipantView={({ participant }) => (
-                    <View style={styles.participantView}>
-                      <Text style={styles.participantName}>
-                        {participant.name || 'Unknown'}
-                      </Text>
-                      {participant.isSpeaking && (
-                        <View style={styles.speakingIndicator} />
+                  
+                  {layout === 'spotlight' && (
+                    <CallParticipantsSpotlight
+                      style={styles.participantsSpotlight}
+                      ParticipantView={({ participant }) => (
+                        <View style={styles.participantView}>
+                          <Text style={styles.participantName}>
+                            {participant.name || 'Unknown'}
+                          </Text>
+                          {participant.isSpeaking && (
+                            <View style={styles.speakingIndicator} />
+                          )}
+                        </View>
                       )}
-                    </View>
+                    />
                   )}
-                />
-              )}
-              
-              {layout === 'speaker' && (
-                <SpeakerLayout
-                  style={styles.speakerLayout}
-                  ParticipantView={({ participant }) => (
-                    <View style={styles.participantView}>
-                      <Text style={styles.participantName}>
-                        {participant.name || 'Unknown'}
-                      </Text>
-                      {participant.isSpeaking && (
-                        <View style={styles.speakingIndicator} />
+                  
+                  {layout === 'speaker' && (
+                    <SpeakerLayout
+                      style={styles.speakerLayout}
+                      ParticipantView={({ participant }) => (
+                        <View style={styles.participantView}>
+                          <Text style={styles.participantName}>
+                            {participant.name || 'Unknown'}
+                          </Text>
+                          {participant.isSpeaking && (
+                            <View style={styles.speakingIndicator} />
+                          )}
+                        </View>
                       )}
-                    </View>
+                    />
                   )}
-                />
+                </>
               )}
             </View>
 
@@ -849,6 +1040,33 @@ const styles = StyleSheet.create({
   },
   callContent: {
     flex: 1,
+  },
+  waitingHost: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#1a1a1a',
+  },
+  waitingCard: {
+    backgroundColor: '#2a2a2a',
+    borderRadius: 16,
+    padding: 32,
+    alignItems: 'center',
+    maxWidth: 300,
+  },
+  waitingTitle: {
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: '600',
+    marginTop: 16,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  waitingSub: {
+    color: '#9CA3AF',
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 20,
   },
   participantsGrid: {
     flex: 1,

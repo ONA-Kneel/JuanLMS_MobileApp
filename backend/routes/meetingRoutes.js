@@ -1,70 +1,106 @@
 import express from 'express';
+import Meeting from '../models/Meeting.js';
+import Notification from '../models/Notification.js';
+import User from '../models/User.js';
+import Class from '../models/Class.js';
 import { authenticateToken } from '../middleware/authMiddleware.js';
+import { getIO } from '../server.js';
 import jwt from 'jsonwebtoken';
 
 const router = express.Router();
 
-// Stream.io configuration
-const STREAM_API_KEY = process.env.STREAM_API_KEY || 'mmhfdzb5evj2';
-const STREAM_SECRET = process.env.STREAM_SECRET || 'your-stream-secret';
-const STREAM_BASE_URL = process.env.STREAM_BASE_URL || 'https://video.stream.io';
+const JITSI_DOMAIN = process.env.JITSI_DOMAIN || 'meet.jit.si';
+const JITSI_USE_JWT = (process.env.JITSI_USE_JWT || 'false').toLowerCase() === 'true';
+const JITSI_APP_ID = process.env.JITSI_APP_ID || '';
+const JITSI_SECRET = process.env.JITSI_SECRET || '';
 
-// Mock meetings data (replace with actual database integration)
-let meetings = [
-  {
-    _id: '1',
-    classID: 'class1',
-    title: 'Sample Meeting 1',
-    description: 'This is a sample meeting',
-    scheduledTime: new Date(Date.now() + 24 * 60 * 60 * 1000), // Tomorrow
-    duration: 60,
-    createdBy: 'user1',
-    participants: ['user1', 'user2'],
-    meetingType: 'scheduled',
-    status: 'scheduled',
-    createdAt: new Date(),
-  },
-  {
-    _id: '2',
-    classID: 'class2',
-    title: 'Sample Meeting 2',
-    description: 'Another sample meeting',
-    scheduledTime: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000), // Day after tomorrow
-    duration: 90,
-    createdBy: 'user2',
-    participants: ['user2', 'user3'],
-    meetingType: 'instant',
-    status: 'scheduled',
-    createdAt: new Date(),
-  }
-];
+// Stream Video configuration
+const STREAM_API_KEY = process.env.STREAM_API_KEY || 'veyeuctsfcqt';
+const STREAM_API_SECRET = process.env.STREAM_API_SECRET || 'gz28qmg9emda57vfejtcmgd26yxeze4yeeqfqf2kvtue4vjwsss7pjy2btnrn286';
 
-// Helper function to generate Stream.io token
-const generateStreamToken = (userId, userName) => {
+// Helper function to create Stream Video JWT token
+const createStreamVideoToken = (userId, expiresInSeconds = 3600) => {
+  const now = Math.floor(Date.now() / 1000);
+  
+  // Try the minimal payload structure first
   const payload = {
+    iss: STREAM_API_KEY,
+    sub: userId,
     user_id: userId,
-    exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24, // 24 hours
-    iat: Math.floor(Date.now() / 1000),
+    iat: now,
+    exp: now + expiresInSeconds
   };
   
-  return jwt.sign(payload, STREAM_SECRET);
+  console.log(`[STREAM-CREDS] Creating JWT with payload:`, payload);
+  console.log(`[STREAM-CREDS] Using secret: ${STREAM_API_SECRET.substring(0, 10)}...`);
+  console.log(`[STREAM-CREDS] API Key: ${STREAM_API_KEY}`);
+  
+  return jwt.sign(payload, STREAM_API_SECRET, { algorithm: 'HS256' });
 };
 
-// Helper function to build room name from meeting
-const buildRoomName = (meeting) => {
-  const base = (meeting?.title || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-  const suffix = String(meeting._id).slice(-6);
-  return base ? `${base}-${suffix}` : String(meeting._id);
-};
-
-// GET /api/meetings - Get all meetings
-router.get('/', authenticateToken, async (req, res) => {
+// POST /api/meetings/stream-credentials - Generate Stream Video credentials
+router.post('/stream-credentials', authenticateToken, async (req, res) => {
   try {
-    console.log('[MEETINGS] Fetching all meetings for user:', req.user._id);
-    res.json(meetings);
+    const { callId } = req.body;
+    
+    if (!callId) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'callId is required' 
+      });
+    }
+
+    // Get user information
+    const userId = String(req.user._id);
+    
+    // Debug: Log the user object to see what fields are available
+    console.log(`[STREAM-CREDS] User object:`, {
+      _id: req.user._id,
+      name: req.user.name,
+      email: req.user.email,
+      role: req.user.role
+    });
+    
+    const userName = req.user.name || 'User';
+    const userEmail = req.user.email || '';
+
+    console.log(`[STREAM-CREDS] Generating credentials for user: ${userId}, name: ${userName}, callId: ${callId}`);
+
+    // Create a JWT token for the user (valid for 1 hour)
+    const token = createStreamVideoToken(userId, 3600);
+    
+    // Debug: Log the generated token and its parts
+    console.log(`[STREAM-CREDS] Generated token: ${token}`);
+    try {
+      const decoded = jwt.decode(token, { complete: true });
+      console.log(`[STREAM-CREDS] Token header:`, decoded.header);
+      console.log(`[STREAM-CREDS] Token payload:`, decoded.payload);
+    } catch (err) {
+      console.error(`[STREAM-CREDS] Error decoding token:`, err);
+    }
+
+    const credentials = {
+      success: true,
+      apiKey: STREAM_API_KEY,
+      token,
+      userId,
+      callId: String(callId),
+      userInfo: {
+        id: userId,
+        name: userName,
+        email: userEmail
+      }
+    };
+
+    console.log(`[STREAM-CREDS] Successfully generated credentials for user: ${userId}`);
+    res.json(credentials);
   } catch (err) {
-    console.error('Error fetching meetings:', err);
-    res.status(500).json({ error: 'Failed to fetch meetings' });
+    console.error('[STREAM-CREDS] Error generating Stream credentials:', err);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to create Stream credentials',
+      error: err.message 
+    });
   }
 });
 
@@ -72,13 +108,53 @@ router.get('/', authenticateToken, async (req, res) => {
 router.get('/class/:classID', authenticateToken, async (req, res) => {
   try {
     const { classID } = req.params;
-    console.log('[MEETINGS] Fetching meetings for class:', classID);
+    console.log(`[MEETINGS] Fetching meetings for classID: ${classID}`);
     
-    const classMeetings = meetings.filter(meeting => meeting.classID === classID);
-    res.json(classMeetings);
+    const meetings = await Meeting.find({ classID });
+    
+    // Deduplicate meetings by _id to prevent duplicates
+    const uniqueMeetings = meetings.filter((meeting, index, self) => 
+      index === self.findIndex(m => m._id.toString() === meeting._id.toString())
+    );
+    
+    console.log(`[MEETINGS] Found ${meetings.length} meetings, ${uniqueMeetings.length} unique after deduplication`);
+    res.json(uniqueMeetings);
   } catch (err) {
-    console.error('Error fetching class meetings:', err);
-    res.status(500).json({ error: 'Failed to fetch class meetings' });
+    console.error('Error fetching meetings:', err);
+    res.status(500).json({ error: 'Failed to fetch meetings' });
+  }
+});
+
+// GET /api/meetings/direct-invite - Get all direct invitation meetings
+router.get('/direct-invite', authenticateToken, async (req, res) => {
+  try {
+    console.log('[MEETINGS] User role:', req.user.role, 'User ID:', req.user._id);
+    // VPE, Principal, and Students can access direct invitation meetings
+    if (!['vpe', 'principal', 'vice president of education', 'students', 'student'].includes(req.user.role)) {
+      console.log('[MEETINGS] Access denied for role:', req.user.role);
+      return res.status(403).json({ error: 'Access denied. Only VPE, Principal, and Students can view direct invitation meetings.' });
+    }
+
+    const meetings = await Meeting.find({ 
+      isDirectInvite: true,
+      $or: [
+        { createdBy: req.user._id }, // Meetings created by the current user
+        { 'invitedUsers.userId': req.user._id } // Meetings where current user is invited
+      ]
+    }).populate('createdBy', 'firstName lastName email role')
+      .populate('invitedUsers.userId', 'firstName lastName email role')
+      .sort({ createdAt: -1 });
+
+    // Deduplicate meetings by _id to prevent duplicates
+    const uniqueMeetings = meetings.filter((meeting, index, self) => 
+      index === self.findIndex(m => m._id.toString() === meeting._id.toString())
+    );
+    
+    console.log(`[MEETINGS] Found ${meetings.length} direct-invite meetings, ${uniqueMeetings.length} unique after deduplication`);
+    res.json(uniqueMeetings);
+  } catch (err) {
+    console.error('Error fetching direct invitation meetings:', err);
+    res.status(500).json({ error: 'Failed to fetch direct invitation meetings' });
   }
 });
 
@@ -86,28 +162,68 @@ router.get('/class/:classID', authenticateToken, async (req, res) => {
 router.post('/', authenticateToken, async (req, res) => {
   try {
     const { classID, title, description, scheduledTime, duration, meetingType } = req.body;
-    
     if (!classID || !title || !meetingType) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
-
-    const newMeeting = {
-      _id: String(meetings.length + 1),
+    const newMeeting = new Meeting({
       classID,
       title,
-      description: description || '',
-      scheduledTime: scheduledTime ? new Date(scheduledTime) : new Date(),
-      duration: duration || null,
-      createdBy: req.user._id,
-      participants: [req.user._id],
+      description,
+      scheduledTime,
+      duration,
       meetingType,
+      createdBy: req.user._id,
       status: 'scheduled',
-      createdAt: new Date(),
-    };
+      createdAt: new Date()
+    });
+    await newMeeting.save();
 
-    meetings.push(newMeeting);
-    
-    console.log('[MEETINGS] Created new meeting:', newMeeting._id);
+    // Create notifications for class members
+    try {
+      console.log(`[MEETING] Creating notifications for class: ${classID}`);
+      
+      // Get class members
+      const classData = await Class.findById(classID);
+      if (classData && classData.members) {
+        console.log(`[MEETING] Found ${classData.members.length} class members to notify`);
+        
+        // Create notifications for each class member
+        const notifications = [];
+        for (const memberId of classData.members) {
+          const notification = new Notification({
+            recipientId: memberId,
+            type: 'meeting',
+            title: `New Meeting: ${title}`,
+            message: `A new meeting "${title}" has been scheduled for your class`,
+            priority: 'normal',
+            classID: classID,
+            relatedItemId: newMeeting._id,
+            timestamp: new Date()
+          });
+          
+          await notification.save();
+          notifications.push(notification);
+        }
+
+        console.log(`[MEETING] Created ${notifications.length} notifications`);
+
+        // Emit real-time notifications to all class members
+        const io = getIO();
+        if (io) {
+          for (const notification of notifications) {
+            io.to(`user_${notification.recipientId}`).emit('newNotification', {
+              notification,
+              timestamp: new Date().toISOString()
+            });
+          }
+          console.log(`[MEETING] Emitted real-time notifications to ${notifications.length} class members`);
+        }
+      }
+    } catch (notificationError) {
+      console.error('[MEETING] Error creating notifications:', notificationError);
+      // Don't fail the meeting creation if notifications fail
+    }
+
     res.status(201).json(newMeeting);
   } catch (err) {
     console.error('Error creating meeting:', err);
@@ -115,24 +231,104 @@ router.post('/', authenticateToken, async (req, res) => {
   }
 });
 
+// POST /api/meetings/direct-invite - Create a meeting with direct user invitations
+router.post('/direct-invite', authenticateToken, async (req, res) => {
+  try {
+    const { classID, title, description, scheduledTime, duration, meetingType, invitedUsers } = req.body;
+    
+    // Validate required fields
+    if (!title || !meetingType) {
+      return res.status(400).json({ error: 'Missing required fields: title and meetingType' });
+    }
+
+    if (!invitedUsers || !Array.isArray(invitedUsers) || invitedUsers.length === 0) {
+      return res.status(400).json({ error: 'At least one user must be invited' });
+    }
+
+    // Validate user roles - VPE, Principal, and Students can create direct invitation meetings
+    if (!['vpe', 'principal', 'vice president of education', 'students', 'student'].includes(req.user.role)) {
+      return res.status(403).json({ error: 'Only VPE, Principal, and Students can create direct invitation meetings' });
+    }
+
+    const newMeeting = new Meeting({
+      classID: classID || 'direct-invite', // Use direct-invite as default for direct invitations
+      title,
+      description,
+      scheduledTime,
+      duration,
+      meetingType,
+      createdBy: req.user._id,
+      status: 'scheduled',
+      createdAt: new Date(),
+      invitedUsers: invitedUsers.map(user => ({
+        userId: user.userId,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        invitedAt: new Date()
+      })),
+      isDirectInvite: true // Flag to identify direct invitation meetings
+    });
+
+    await newMeeting.save();
+    
+    console.log(`[MEETINGS] Direct invitation meeting created by ${req.user.role}:`, {
+      meetingId: newMeeting._id,
+      title: newMeeting.title,
+      invitedUsers: newMeeting.invitedUsers.length
+    });
+
+    // Create notifications for invited users
+    try {
+      console.log(`[MEETING] Creating notifications for ${newMeeting.invitedUsers.length} invited users`);
+      
+      const notifications = [];
+      for (const invitedUser of newMeeting.invitedUsers) {
+        const notification = new Notification({
+          recipientId: invitedUser.userId,
+          type: 'meeting_invitation',
+          title: `Meeting Invitation: ${title}`,
+          message: `You have been invited to a meeting: "${title}"`,
+          priority: 'high',
+          relatedItemId: newMeeting._id,
+          timestamp: new Date()
+        });
+        
+        await notification.save();
+        notifications.push(notification);
+      }
+
+      console.log(`[MEETING] Created ${notifications.length} invitation notifications`);
+
+      // Emit real-time notifications to all invited users
+      const io = getIO();
+      if (io) {
+        for (const notification of notifications) {
+          io.to(`user_${notification.recipientId}`).emit('newNotification', {
+            notification,
+            timestamp: new Date().toISOString()
+          });
+        }
+        console.log(`[MEETING] Emitted real-time notifications to ${notifications.length} invited users`);
+      }
+    } catch (notificationError) {
+      console.error('[MEETING] Error creating invitation notifications:', notificationError);
+      // Don't fail the meeting creation if notifications fail
+    }
+
+    res.status(201).json(newMeeting);
+  } catch (err) {
+    console.error('Error creating direct invitation meeting:', err);
+    res.status(500).json({ error: 'Failed to create direct invitation meeting' });
+  }
+});
+
 // DELETE /api/meetings/:meetingID - Delete a meeting
 router.delete('/:meetingID', authenticateToken, async (req, res) => {
   try {
     const { meetingID } = req.params;
-    console.log('[MEETINGS] Deleting meeting:', meetingID);
-    
-    const meetingIndex = meetings.findIndex(meeting => meeting._id === meetingID);
-    
-    if (meetingIndex === -1) {
-      return res.status(404).json({ error: 'Meeting not found' });
-    }
-
-    // Check if user is the creator
-    if (meetings[meetingIndex].createdBy !== req.user._id) {
-      return res.status(403).json({ error: 'Not authorized to delete this meeting' });
-    }
-
-    meetings.splice(meetingIndex, 1);
+    const deleted = await Meeting.findByIdAndDelete(meetingID);
+    if (!deleted) return res.status(404).json({ error: 'Meeting not found' });
     res.json({ success: true });
   } catch (err) {
     console.error('Error deleting meeting:', err);
@@ -140,45 +336,28 @@ router.delete('/:meetingID', authenticateToken, async (req, res) => {
   }
 });
 
-// POST /api/meetings/:meetingID/join - Join a meeting
+// Helper: build room name from meeting
+function buildRoomName(meeting) {
+  // Use human-friendly slug if title available, else fallback to id
+  const base = (meeting?.title || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+  const suffix = String(meeting._id).slice(-6);
+  return base ? `${base}-${suffix}` : String(meeting._id);
+}
+
+// POST /api/meetings/:meetingID/join - Join a meeting (Stream.io)
 router.post('/:meetingID/join', authenticateToken, async (req, res) => {
   try {
     const { meetingID } = req.params;
-    console.log('[MEETINGS] Joining meeting:', meetingID);
-    
-    const meeting = meetings.find(m => m._id === meetingID);
-    
-    if (!meeting) {
-      return res.status(404).json({ error: 'Meeting not found' });
-    }
+    const meeting = await Meeting.findById(meetingID);
+    if (!meeting) return res.status(404).json({ error: 'Meeting not found' });
 
-    const roomName = buildRoomName(meeting);
-    const streamToken = generateStreamToken(req.user._id, req.user.name || 'User');
-    
-    // Generate Stream.io room URL
-    const roomUrl = `${STREAM_BASE_URL}/call/${roomName}`;
-    
-    // Add user to participants if not already present
-    if (!meeting.participants.includes(req.user._id)) {
-      meeting.participants.push(req.user._id);
-    }
-
-    // Update meeting status to ongoing if it's an instant meeting
-    if (meeting.meetingType === 'instant' && meeting.status === 'scheduled') {
-      meeting.status = 'ongoing';
-    }
-
-    res.json({
-      roomUrl,
-      streamToken,
-      callId: roomName,
-      meetingId: meetingID,
-      credentials: {
-        apiKey: STREAM_API_KEY,
-        token: streamToken,
-        userId: req.user._id,
-        callId: roomName,
-      }
+    // For Stream.io, we don't need a roomUrl - the frontend will use the meeting ID as callId
+    // The Stream credentials will be fetched separately via /stream-credentials endpoint
+    res.json({ 
+      success: true,
+      meetingId: meeting._id,
+      callId: String(meeting._id), // Use meeting ID as Stream call ID
+      message: 'Meeting ready for Stream.io connection'
     });
   } catch (err) {
     console.error('Error joining meeting:', err);
@@ -186,26 +365,9 @@ router.post('/:meetingID/join', authenticateToken, async (req, res) => {
   }
 });
 
-// POST /api/meetings/:meetingID/leave - Leave a meeting
+// POST /api/meetings/:meetingID/leave - Leave a meeting (dummy, for now)
 router.post('/:meetingID/leave', authenticateToken, async (req, res) => {
   try {
-    const { meetingID } = req.params;
-    console.log('[MEETINGS] Leaving meeting:', meetingID);
-    
-    const meeting = meetings.find(m => m._id === meetingID);
-    
-    if (!meeting) {
-      return res.status(404).json({ error: 'Meeting not found' });
-    }
-
-    // Remove user from participants
-    meeting.participants = meeting.participants.filter(id => id !== req.user._id);
-    
-    // If no participants left and it's an instant meeting, mark as ended
-    if (meeting.participants.length === 0 && meeting.meetingType === 'instant') {
-      meeting.status = 'ended';
-    }
-
     res.json({ success: true });
   } catch (err) {
     console.error('Error leaving meeting:', err);
@@ -213,108 +375,29 @@ router.post('/:meetingID/leave', authenticateToken, async (req, res) => {
   }
 });
 
-// POST /api/meetings/:meetingID/end - End meeting for all participants
-router.post('/:meetingID/end', authenticateToken, async (req, res) => {
+// GET /api/meetings/invited - Get meetings where current user is invited
+router.get('/invited', authenticateToken, async (req, res) => {
   try {
-    const { meetingID } = req.params;
-    console.log('[MEETINGS] Ending meeting for all:', meetingID);
+    console.log('[MEETINGS] Getting invited meetings for user:', req.user._id, 'role:', req.user.role);
     
-    const meeting = meetings.find(m => m._id === meetingID);
+    const meetings = await Meeting.find({ 
+      isDirectInvite: true,
+      'invitedUsers.userId': req.user._id
+    })
+    .populate('createdBy', 'firstName lastName email role')
+    .populate('invitedUsers.userId', 'firstName lastName email role')
+    .sort({ createdAt: -1 });
+
+    // Deduplicate meetings by _id to prevent duplicates
+    const uniqueMeetings = meetings.filter((meeting, index, self) => 
+      index === self.findIndex(m => m._id.toString() === meeting._id.toString())
+    );
     
-    if (!meeting) {
-      return res.status(404).json({ error: 'Meeting not found' });
-    }
-
-    // Check if user is the creator
-    if (meeting.createdBy !== req.user._id) {
-      return res.status(403).json({ error: 'Not authorized to end this meeting' });
-    }
-
-    meeting.status = 'ended';
-    meeting.participants = [];
-
-    res.json({ success: true });
-  } catch (err) {
-    console.error('Error ending meeting:', err);
-    res.status(500).json({ error: 'Failed to end meeting' });
-  }
-});
-
-// GET /api/meetings/:meetingID/status - Get meeting status
-router.get('/:meetingID/status', authenticateToken, async (req, res) => {
-  try {
-    const { meetingID } = req.params;
-    
-    const meeting = meetings.find(m => m._id === meetingID);
-    
-    if (!meeting) {
-      return res.status(404).json({ error: 'Meeting not found' });
-    }
-
-    res.json({
-      meetingId: meetingID,
-      status: meeting.status,
-      participants: meeting.participants,
-      participantCount: meeting.participants.length,
-      isCurrentlyActive: meeting.status === 'ongoing',
-    });
-  } catch (err) {
-    console.error('Error getting meeting status:', err);
-    res.status(500).json({ error: 'Failed to get meeting status' });
-  }
-});
-
-// POST /api/meetings/:meetingID/start-recording - Start recording
-router.post('/:meetingID/start-recording', authenticateToken, async (req, res) => {
-  try {
-    const { meetingID } = req.params;
-    
-    const meeting = meetings.find(m => m._id === meetingID);
-    
-    if (!meeting) {
-      return res.status(404).json({ error: 'Meeting not found' });
-    }
-
-    // Check if user is the creator
-    if (meeting.createdBy !== req.user._id) {
-      return res.status(403).json({ error: 'Not authorized to start recording' });
-    }
-
-    // In a real implementation, you would start recording via Stream.io API
-    meeting.isRecording = true;
-    meeting.recordingStartedAt = new Date();
-
-    res.json({ success: true, recordingId: `rec_${meetingID}_${Date.now()}` });
-  } catch (err) {
-    console.error('Error starting recording:', err);
-    res.status(500).json({ error: 'Failed to start recording' });
-  }
-});
-
-// POST /api/meetings/:meetingID/stop-recording - Stop recording
-router.post('/:meetingID/stop-recording', authenticateToken, async (req, res) => {
-  try {
-    const { meetingID } = req.params;
-    
-    const meeting = meetings.find(m => m._id === meetingID);
-    
-    if (!meeting) {
-      return res.status(404).json({ error: 'Meeting not found' });
-    }
-
-    // Check if user is the creator
-    if (meeting.createdBy !== req.user._id) {
-      return res.status(403).json({ error: 'Not authorized to stop recording' });
-    }
-
-    // In a real implementation, you would stop recording via Stream.io API
-    meeting.isRecording = false;
-    meeting.recordingStoppedAt = new Date();
-
-    res.json({ success: true });
-  } catch (err) {
-    console.error('Error stopping recording:', err);
-    res.status(500).json({ error: 'Failed to stop recording' });
+    console.log(`[MEETINGS] Found ${meetings.length} invited meetings, ${uniqueMeetings.length} unique after deduplication`);
+    res.json(uniqueMeetings);
+  } catch (error) {
+    console.error('[MEETINGS] Error fetching invited meetings:', error);
+    res.status(500).json({ error: 'Failed to fetch invited meetings' });
   }
 });
 

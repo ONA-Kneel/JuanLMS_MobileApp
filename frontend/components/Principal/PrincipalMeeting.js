@@ -779,15 +779,8 @@ export default function PrincipalMeeting() {
           onClose={() => setActiveMeeting(null)}
           onLeave={() => setActiveMeeting(null)}
           meetingData={activeMeeting}
-          currentUser={{ name: user?.name || user?.username || 'Host' }}
-          credentials={{
-            apiKey: 'mmhfdzb5evj2',
-            token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL3Byb250by5nZXRzdHJlYW0uaW8iLCJzdWIiOiJ1c2VyL1J1bWJsaW5nX0JsYXJuZXkiLCJ1c2VyX2lkIjoiUnVtYmxpbmdfQmxhcm5leSIsInZhbGlkaXR5X2luX3NlY29uZHMiOjYwNDgwMCwiaWF0IjoxNzYwNzU3NDM2LCJleHAiOjE3NjEzNjIyMzZ9.j2T4EL4Tt1LwiYid_7-D44RURuNaTd2J-fhcqmwGldw',
-            userId: 'Rumbling_Blarney',
-            callId: 'AXr1sBv2OJ8UpSZauXYT8',
-          }}
           isHost={true}
-          hostUserId={'Rumbling_Blarney'}
+          hostUserId={userInfo.name}
         />
       )}
       

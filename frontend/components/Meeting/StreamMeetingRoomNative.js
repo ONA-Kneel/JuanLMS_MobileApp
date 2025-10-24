@@ -9,6 +9,15 @@ import {
 } from '@stream-io/video-react-native-sdk';
 import InCallManager from 'react-native-incall-manager';
 import NetInfo from '@react-native-community/netinfo';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// Generate call ID from meeting data
+const generateCallId = (meetingData) => {
+  if (meetingData?.meetingId) return String(meetingData.meetingId);
+  if (meetingData?._id) return String(meetingData._id);
+  if (meetingData?.title) return String(meetingData.title).replace(/\s+/g, '-').toLowerCase();
+  return `meeting-${Date.now()}`;
+};
 
 // A minimal Stream video meeting room for React Native.
 // Props:
@@ -34,14 +43,64 @@ export default function StreamMeetingRoomNative({
 	const [call, setCall] = useState(null);
 	const [isJoining, setIsJoining] = useState(false);
 	const [error, setError] = useState('');
+	const [hostPresent, setHostPresent] = useState(true);
+	
+	// Credential fetching state
+	const [streamCredentials, setStreamCredentials] = useState(null);
+	const [isLoadingCredentials, setIsLoadingCredentials] = useState(false);
 
-	const apiKey = credentials?.apiKey;
-	const userToken = credentials?.token;
-	const userId = credentials?.userId;
 	const [isOffline, setIsOffline] = useState(false);
 
+	// Fetch Stream credentials from backend
+	useEffect(() => {
+		const fetchCredentials = async () => {
+			if (!isOpen || !meetingData) return;
+			
+			setIsLoadingCredentials(true);
+			try {
+				const callId = generateCallId(meetingData);
+				
+				const token = await AsyncStorage.getItem('token');
+				const response = await fetch('https://juanlms-webapp-server.onrender.com/api/meetings/stream-credentials', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+						'Authorization': `Bearer ${token}`
+					},
+					body: JSON.stringify({ callId })
+				});
+				
+				const data = await response.json();
+				
+				if (data.success) {
+					setStreamCredentials(data);
+					console.log('[STREAM-CREDS] Successfully fetched credentials from backend');
+				} else {
+					console.error('[STREAM-CREDS] Failed to fetch credentials:', data.message);
+					setError(data.message || 'Failed to get Stream credentials');
+				}
+			} catch (error) {
+				console.error('[STREAM-CREDS] Error fetching credentials:', error);
+				setError('Failed to connect to Stream service');
+			} finally {
+				setIsLoadingCredentials(false);
+			}
+		};
+		
+		fetchCredentials();
+	}, [isOpen, meetingData]);
+
+	// Use provided credentials or fetched credentials
+	const finalCredentials = useMemo(() => {
+		return credentials || streamCredentials;
+	}, [credentials, streamCredentials]);
+
+	const apiKey = finalCredentials?.apiKey;
+	const userToken = finalCredentials?.token;
+	const userId = finalCredentials?.userId;
+
 	const resolvedCallId = useMemo(() => {
-		if (credentials?.callId) return String(credentials.callId);
+		if (finalCredentials?.callId) return String(finalCredentials.callId);
 		if (meetingData?.meetingId) return String(meetingData.meetingId);
 		if (meetingData?._id) return String(meetingData._id);
 		try {
@@ -52,15 +111,28 @@ export default function StreamMeetingRoomNative({
 				if (name) return decodeURIComponent(name);
 			}
 		} catch (e) {
-			// ignore url parse error
+			console.debug('StreamMeetingRoomNative: failed to parse roomUrl', e);
 		}
-		return '';
-	}, [credentials?.callId, meetingData]);
+		return generateCallId(meetingData);
+	}, [finalCredentials?.callId, meetingData]);
 
 	const userInfo = useMemo(() => {
-		const displayName = currentUser?.name || userId || 'User';
-		return { id: String(userId || 'anonymous_user'), name: String(displayName) };
-	}, [currentUser?.name, userId]);
+		// Use the generated stream credentials userInfo, with fallback
+		const streamUserInfo = finalCredentials?.userInfo;
+		if (streamUserInfo && streamUserInfo.name) {
+			console.log('[StreamMeetingRoomNative] Using userInfo from backend:', streamUserInfo);
+			return streamUserInfo;
+		}
+		
+		// Fallback: get user info from currentUser prop
+		const displayName = currentUser?.name || `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim() || 'User';
+		const fallbackUserInfo = { 
+			id: String(userId || 'anonymous_user'), 
+			name: String(displayName) 
+		};
+		console.log('[StreamMeetingRoomNative] Using fallback userInfo:', fallbackUserInfo);
+		return fallbackUserInfo;
+	}, [finalCredentials, currentUser, userId]);
 
 	const cleanup = useCallback(async (c, cl) => {
 		try { if (cl) await cl.leave(); } catch {}
@@ -72,6 +144,14 @@ export default function StreamMeetingRoomNative({
 		let netUnsubscribe = null;
 		const join = async () => {
 			if (!isOpen) return;
+			if (isLoadingCredentials) {
+				setError('Loading Stream credentials...');
+				return;
+			}
+			if (!finalCredentials) {
+				setError('Failed to load Stream credentials');
+				return;
+			}
 			if (!apiKey || !userToken || !userId) {
 				setError('Missing Stream credentials');
 				return;
@@ -95,9 +175,17 @@ export default function StreamMeetingRoomNative({
 				await c.connectUser(userInfo, userToken);
 				if (cancelled) return;
                 const callInstance = c.call('default', resolvedCallId);
-                await callInstance.join({ create: true });
+                
+                // Ensure mic and camera are disabled at start for the local user
                 try { await callInstance.microphone?.disable?.(); } catch {}
                 try { await callInstance.camera?.disable?.(); } catch {}
+                
+                await callInstance.join({ create: true });
+                
+                // Double-check post-join that tracks remain disabled
+                try { await callInstance.microphone?.disable?.(); } catch {}
+                try { await callInstance.camera?.disable?.(); } catch {}
+                
 				if (cancelled) {
 					await cleanup(c, callInstance);
 					return;
@@ -116,7 +204,50 @@ export default function StreamMeetingRoomNative({
 			cleanup(client, call);
 			try { if (netUnsubscribe) netUnsubscribe(); } catch {}
 		};
-	}, [apiKey, userToken, userId, resolvedCallId, userInfo, isOpen]);
+	}, [apiKey, userToken, userId, resolvedCallId, userInfo, isOpen, finalCredentials, isLoadingCredentials]);
+
+	// Watch for host presence for students; show overlay until host joins
+	useEffect(() => {
+		if (!call || isHost !== false || !hostUserId) return;
+		const updatePresence = () => {
+			try {
+				const participants = Array.from(call.state?.participants || []);
+				const list = participants.map((p) => p.userId || p?.user?.id).filter(Boolean);
+				const present = list.some((id) => String(id) === String(hostUserId));
+				setHostPresent(present);
+			} catch (err) {
+				void err;
+			}
+		};
+		updatePresence();
+		const interval = setInterval(updatePresence, 1500);
+		return () => clearInterval(interval);
+	}, [hostUserId, isHost, call]);
+
+	// If call ends (host clicked end for everyone), auto leave/redirect
+	useEffect(() => {
+		if (!call) return;
+		let endedInterval;
+		try {
+			if (typeof call.on === 'function') {
+				call.on('call.ended', handleLeave);
+				call.on('ended', handleLeave);
+			}
+		} catch (err) { void err; }
+		endedInterval = setInterval(() => {
+			try {
+				const ended = !!(call.state?.call?.ended || call.state?.ended || call.state?.status === 'ended');
+				if (ended) {
+					clearInterval(endedInterval);
+					handleLeave();
+				}
+			} catch (err) { void err; }
+		}, 1500);
+		return () => {
+			clearInterval(endedInterval);
+			try { if (typeof call.off === 'function') { call.off('call.ended', handleLeave); call.off('ended', handleLeave); } } catch (err) { void err; }
+		};
+	}, [handleLeave, call]);
 
 	const handleLeave = useCallback(async () => {
 		await cleanup(client, call);
@@ -154,6 +285,14 @@ export default function StreamMeetingRoomNative({
 							<View style={styles.center}>
 								<ActivityIndicator size="large" color="#2563EB" />
 								<Text style={styles.infoText}>Joining meeting...</Text>
+							</View>
+						) : !hostPresent ? (
+							<View style={styles.waitingHost}>
+								<View style={styles.waitingCard}>
+									<Text style={styles.waitingIcon}>⏰</Text>
+									<Text style={styles.waitingTitle}>Host is not yet present</Text>
+									<Text style={styles.waitingSub}>Please wait for the host to join this meeting.</Text>
+								</View>
 							</View>
 						) : (
 							<StreamVideo client={client}>
@@ -209,6 +348,36 @@ const styles = StyleSheet.create({
 	body: {
 		flex: 1,
 		backgroundColor: '#000',
+	},
+	waitingHost: {
+		flex: 1,
+		justifyContent: 'center',
+		alignItems: 'center',
+		backgroundColor: '#1a1a1a',
+	},
+	waitingCard: {
+		backgroundColor: '#2a2a2a',
+		borderRadius: 16,
+		padding: 32,
+		alignItems: 'center',
+		maxWidth: 300,
+	},
+	waitingIcon: {
+		fontSize: 48,
+		marginBottom: 16,
+	},
+	waitingTitle: {
+		color: '#fff',
+		fontSize: 20,
+		fontWeight: '600',
+		marginBottom: 8,
+		textAlign: 'center',
+	},
+	waitingSub: {
+		color: '#9CA3AF',
+		fontSize: 14,
+		textAlign: 'center',
+		lineHeight: 20,
 	},
 	offlineBanner: {
 		backgroundColor: '#ef4444',
