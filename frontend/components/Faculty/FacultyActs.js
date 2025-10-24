@@ -172,7 +172,6 @@ const FacultyActs = () => {
   const [gradedActivities, setGradedActivities] = useState([]);
   const [readyToGradeActivities, setReadyToGradeActivities] = useState([]);
   const [filterModalVisible, setFilterModalVisible] = useState(false);
-  const [createMenuVisible, setCreateMenuVisible] = useState(false);
 
   useEffect(() => {
     fetchActivities();
@@ -759,23 +758,6 @@ const FacultyActs = () => {
             />
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              
-              <TouchableOpacity 
-                style={styles.createButton}
-                onPress={() => setCreateMenuVisible(v => !v)}
-              >
-                <MaterialIcons name="add" size={20} color="#fff" />
-              </TouchableOpacity>
-              {createMenuVisible && (
-            <View style={styles.createMenu}>
-              <TouchableOpacity style={styles.createMenuItem} onPress={() => { setCreateMenuVisible(false); navigation.navigate('CreateAssignment'); }}>
-                <Text style={styles.createMenuItemText}>Assignment</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.createMenuItem} onPress={() => { setCreateMenuVisible(false); navigation.navigate('CreateQuiz'); }}>
-                <Text style={styles.createMenuItemText}>Quiz</Text>
-              </TouchableOpacity>
-            </View>
-          )}
             </View>
         </View>
 
@@ -790,14 +772,6 @@ const FacultyActs = () => {
                 : 'Create your first activity to get started'
               }
             </Text>
-            {!searchQuery && selectedFilter === 'all' && (
-              <TouchableOpacity 
-                style={styles.emptyCreateButton}
-                onPress={() => navigation.navigate('CAct')}
-              >
-                <Text style={styles.emptyCreateButtonText}>Create Activity</Text>
-              </TouchableOpacity>
-            )}
           </View>
         ) : (
           <View style={styles.activitiesList}>
@@ -981,12 +955,6 @@ const styles = {
     paddingVertical: 8,
     borderRadius: 20,
     marginRight: 8,
-  },
-  createButton: {
-    backgroundColor: '#00418B',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
   },
   activityTabsContainer: {
     paddingVertical: 16,
@@ -1188,19 +1156,6 @@ const styles = {
     marginTop: 8,
     fontFamily: 'Poppins-Regular',
   },
-  emptyCreateButton: {
-    backgroundColor: '#00418b',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
-    marginTop: 16,
-  },
-  emptyCreateButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-    fontFamily: 'Poppins-Medium',
-  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -1276,32 +1231,6 @@ const styles = {
     fontSize: 16,
     fontWeight: '600',
     fontFamily: 'Poppins-Medium',
-  },
-  createMenu: {
-    position: 'absolute',
-    right: 12,
-    top: 50,
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    paddingVertical: 6,
-    width: 160,
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    zIndex: 30,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-  },
-  createMenuItem: {
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  createMenuItemText: {
-    fontSize: 14,
-    color: '#333',
-    fontFamily: 'Poppins-Regular',
   },
 };
 
