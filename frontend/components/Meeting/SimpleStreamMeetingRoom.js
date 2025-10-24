@@ -251,6 +251,9 @@ export default function SimpleStreamMeetingRoom({
         callInstance.on('call.updated', (event) => {
           console.log('Call updated:', event);
           console.log('Call status:', event.call.state.status);
+          console.log('Call state:', callInstance.state);
+          console.log('Participants:', callInstance.state.participants);
+          console.log('Screen sharing state:', callInstance.state.screenShare);
           // Reset connecting state when call is updated (connected)
           if (event.call.state.status === 'joined' || event.call.state.status === 'active') {
             setIsConnecting(false);
@@ -285,11 +288,13 @@ export default function SimpleStreamMeetingRoom({
         callInstance.on('call.screen_share.started', () => {
           setIsScreenSharing(true);
           setLayout('spotlight'); // Switch to spotlight when screen sharing starts
+          console.log('[SimpleStreamMeetingRoom] Screen sharing started - switched to spotlight layout');
         });
 
         callInstance.on('call.screen_share.stopped', () => {
           setIsScreenSharing(false);
           setLayout('grid'); // Switch back to grid when screen sharing stops
+          console.log('[SimpleStreamMeetingRoom] Screen sharing stopped - switched to grid layout');
         });
 
         // Listen for microphone and camera state changes to keep UI in sync
@@ -360,7 +365,14 @@ export default function SimpleStreamMeetingRoom({
     };
   }, [isOpen, finalCredentials, resolvedCallId, userInfo, isLoadingCredentials]);
 
-  // Host presence detection removed - always show meeting content
+  // Track screen sharing state changes
+  useEffect(() => {
+    if (call) {
+      console.log('[SimpleStreamMeetingRoom] Screen sharing state changed:', isScreenSharing);
+      console.log('[SimpleStreamMeetingRoom] Current layout:', layout);
+      console.log('[SimpleStreamMeetingRoom] Call participants:', call.state.participants);
+    }
+  }, [isScreenSharing, layout, call]);
 
   // If call ends (host clicked end for everyone), auto leave/redirect
   useEffect(() => {
@@ -667,19 +679,24 @@ export default function SimpleStreamMeetingRoom({
           <View style={styles.container}>
             {/* Main Call Content */}
             <View style={styles.callContent}>
-              <>
-                {layout === 'grid' && (
-                  <CallParticipantsGrid
-                    style={styles.participantsGrid}
-                  />
-                )}
-                
-                {layout === 'spotlight' && (
-                  <CallParticipantsSpotlight
-                    style={styles.participantsSpotlight}
-                  />
-                )}
-              </>
+              {isScreenSharing ? (
+                // Use CallContent for screen sharing to ensure proper display
+                <CallContent />
+              ) : (
+                <>
+                  {layout === 'grid' && (
+                    <CallParticipantsGrid
+                      style={styles.participantsGrid}
+                    />
+                  )}
+                  
+                  {layout === 'spotlight' && (
+                    <CallParticipantsSpotlight
+                      style={styles.participantsSpotlight}
+                    />
+                  )}
+                </>
+              )}
             </View>
 
             {/* Top Controls */}
@@ -689,6 +706,12 @@ export default function SimpleStreamMeetingRoom({
                 <Text style={styles.participantCount}>
                   {participantCount} participant{participantCount !== 1 ? 's' : ''}
                 </Text>
+                {isScreenSharing && (
+                  <View style={styles.screenShareIndicator}>
+                    <Icon name="monitor" size={16} color="#10B981" />
+                    <Text style={styles.screenShareText}>Screen sharing active</Text>
+                  </View>
+                )}
               </View>
               
               <View style={styles.topButtons}>
@@ -1120,6 +1143,21 @@ const styles = StyleSheet.create({
   participantCount: {
     color: '#ccc',
     fontSize: 14,
+  },
+  screenShareIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  screenShareText: {
+    fontSize: 10,
+    color: '#10B981',
+    marginLeft: 4,
+    fontWeight: '600',
   },
   topButtons: {
     flexDirection: 'row',
