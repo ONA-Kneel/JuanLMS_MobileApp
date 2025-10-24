@@ -172,6 +172,7 @@ export default function StreamMeetingRoomNative({
 				});
 
 				const c = new StreamVideoClient({ apiKey });
+				console.log('[StreamMeetingRoomNative] Connecting user with info:', userInfo);
 				await c.connectUser(userInfo, userToken);
 				if (cancelled) return;
                 const callInstance = c.call('default', resolvedCallId);
@@ -208,15 +209,29 @@ export default function StreamMeetingRoomNative({
 
 	// Watch for host presence for students; show overlay until host joins
 	useEffect(() => {
-		if (!call || isHost !== false || !hostUserId) return;
+		if (!call) return;
+		
+		// If current user is the host, always show as present
+		if (isHost === true) {
+			setHostPresent(true);
+			return;
+		}
+		
+		// For non-hosts, check if the host is present
+		if (!hostUserId) {
+			setHostPresent(true); // If no host specified, show meeting
+			return;
+		}
+		
 		const updatePresence = () => {
 			try {
 				const participants = Array.from(call.state?.participants || []);
 				const list = participants.map((p) => p.userId || p?.user?.id).filter(Boolean);
 				const present = list.some((id) => String(id) === String(hostUserId));
 				setHostPresent(present);
+				console.log('[Host Presence] Participants:', list, 'Host ID:', hostUserId, 'Present:', present);
 			} catch (err) {
-				void err;
+				console.error('[Host Presence] Error:', err);
 			}
 		};
 		updatePresence();
