@@ -60,13 +60,12 @@ export default function EnhancedStreamMeetingRoom({
   const [participantCount, setParticipantCount] = useState(0);
   const [isRecording, setIsRecording] = useState(false);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
+  const [isMuted, setIsMuted] = useState(true); // Start muted
   const [isVideoOn, setIsVideoOn] = useState(false); // Start with video off
-  const [layout, setLayout] = useState('grid'); // grid, spotlight, speaker
+  const [layout, setLayout] = useState('spotlight'); // Default to spotlight for better screen sharing visibility
   const [reactions, setReactions] = useState([]);
   const [chatMessages, setChatMessages] = useState([]);
   const [newMessage, setNewMessage] = useState('');
-  const [hostPresent, setHostPresent] = useState(true);
   
   // Credential fetching state
   const [streamCredentials, setStreamCredentials] = useState(null);
@@ -194,11 +193,13 @@ export default function EnhancedStreamMeetingRoom({
         try {
           if (callInstance.microphone && typeof callInstance.microphone.setEnabled === 'function') {
             await callInstance.microphone.setEnabled(false);
+            console.log('[EnhancedStreamMeetingRoom] Microphone disabled before join');
           }
         } catch (e) { console.debug('EnhancedStreamMeetingRoom: pre-join mic disable error', e); }
         try {
           if (callInstance.camera && typeof callInstance.camera.setEnabled === 'function') {
             await callInstance.camera.setEnabled(false);
+            console.log('[EnhancedStreamMeetingRoom] Camera disabled before join');
           }
         } catch (e) { console.debug('EnhancedStreamMeetingRoom: pre-join camera disable error', e); }
 
@@ -208,16 +209,20 @@ export default function EnhancedStreamMeetingRoom({
         try {
           if (callInstance.microphone && typeof callInstance.microphone.setEnabled === 'function') {
             await callInstance.microphone.setEnabled(false);
+            console.log('[EnhancedStreamMeetingRoom] Microphone disabled after join');
           }
         } catch (e) { console.debug('EnhancedStreamMeetingRoom: post-join mic disable error', e); }
         try {
           if (callInstance.camera && typeof callInstance.camera.setEnabled === 'function') {
             await callInstance.camera.setEnabled(false);
+            console.log('[EnhancedStreamMeetingRoom] Camera disabled after join');
           }
         } catch (e) { console.debug('EnhancedStreamMeetingRoom: post-join camera disable error', e); }
         
+        // Set state to reflect muted and video off
         setIsMuted(true);
         setIsVideoOn(false);
+        console.log('[EnhancedStreamMeetingRoom] User joined with mic muted and camera off');
         setCall(callInstance);
 
         // Set up call event listeners
@@ -240,10 +245,23 @@ export default function EnhancedStreamMeetingRoom({
 
         callInstance.on('call.screen_share.started', () => {
           setIsScreenSharing(true);
+          setLayout('spotlight'); // Switch to spotlight when screen sharing starts
         });
 
         callInstance.on('call.screen_share.stopped', () => {
           setIsScreenSharing(false);
+          setLayout('grid'); // Switch back to grid when screen sharing stops
+        });
+
+        // Listen for microphone and camera state changes to keep UI in sync
+        callInstance.on('call.microphone_changed', (event) => {
+          console.log('Microphone state changed:', event);
+          setIsMuted(!event.enabled);
+        });
+
+        callInstance.on('call.camera_changed', (event) => {
+          console.log('Camera state changed:', event);
+          setIsVideoOn(event.enabled);
         });
 
         callInstance.on('call.reaction', (event) => {
@@ -289,37 +307,7 @@ export default function EnhancedStreamMeetingRoom({
     };
   }, [isOpen, finalCredentials, resolvedCallId, userInfo, isLoadingCredentials]);
 
-  // Watch for host presence for students; show overlay until host joins
-  useEffect(() => {
-    if (!call) return;
-    
-    // If current user is the host, always show as present
-    if (isHost === true) {
-      setHostPresent(true);
-      return;
-    }
-    
-    // For non-hosts, check if the host is present
-    if (!hostUserId) {
-      setHostPresent(true); // If no host specified, show meeting
-      return;
-    }
-    
-    const updatePresence = () => {
-      try {
-        const participants = Array.from(call.state?.participants || []);
-        const list = participants.map((p) => p.userId || p?.user?.id).filter(Boolean);
-        const present = list.some((id) => String(id) === String(hostUserId));
-        setHostPresent(present);
-        console.log('[Host Presence] Participants:', list, 'Host ID:', hostUserId, 'Present:', present);
-      } catch (err) {
-        console.error('[Host Presence] Error:', err);
-      }
-    };
-    updatePresence();
-    const interval = setInterval(updatePresence, 1500);
-    return () => clearInterval(interval);
-  }, [hostUserId, isHost, call]);
+  // Host presence detection removed - always show meeting content
 
   // If call ends (host clicked end for everyone), auto leave/redirect
   useEffect(() => {
@@ -553,65 +541,55 @@ export default function EnhancedStreamMeetingRoom({
           <View style={styles.container}>
             {/* Main Call Content */}
             <View style={styles.callContent}>
-              {!hostPresent ? (
-                <View style={styles.waitingHost}>
-                  <View style={styles.waitingCard}>
-                    <Icon name="account-clock" size={64} color="#6B7280" />
-                    <Text style={styles.waitingTitle}>Host is not yet present</Text>
-                    <Text style={styles.waitingSub}>Please wait for the host to join this meeting.</Text>
-                  </View>
-                </View>
-              ) : (
-                <>
-                  {layout === 'grid' && (
-                    <CallParticipantsGrid
-                      style={styles.participantsGrid}
-                      ParticipantView={({ participant }) => (
-                        <View style={styles.participantView}>
-                          <Text style={styles.participantName}>
-                            {participant.name || participant.user?.name || 'User'}
-                          </Text>
-                          {participant.isSpeaking && (
-                            <View style={styles.speakingIndicator} />
-                          )}
-                        </View>
-                      )}
-                    />
-                  )}
-                  
-                  {layout === 'spotlight' && (
-                    <CallParticipantsSpotlight
-                      style={styles.participantsSpotlight}
-                      ParticipantView={({ participant }) => (
-                        <View style={styles.participantView}>
-                          <Text style={styles.participantName}>
-                            {participant.name || participant.user?.name || 'User'}
-                          </Text>
-                          {participant.isSpeaking && (
-                            <View style={styles.speakingIndicator} />
-                          )}
-                        </View>
-                      )}
-                    />
-                  )}
-                  
-                  {layout === 'speaker' && (
-                    <SpeakerLayout
-                      style={styles.speakerLayout}
-                      ParticipantView={({ participant }) => (
-                        <View style={styles.participantView}>
-                          <Text style={styles.participantName}>
-                            {participant.name || participant.user?.name || 'User'}
-                          </Text>
-                          {participant.isSpeaking && (
-                            <View style={styles.speakingIndicator} />
-                          )}
-                        </View>
-                      )}
-                    />
-                  )}
-                </>
-              )}
+              <>
+                {layout === 'grid' && (
+                  <CallParticipantsGrid
+                    style={styles.participantsGrid}
+                    ParticipantView={({ participant }) => (
+                      <View style={styles.participantView}>
+                        <Text style={styles.participantName}>
+                          {participant.name || participant.user?.name || 'User'}
+                        </Text>
+                        {participant.isSpeaking && (
+                          <View style={styles.speakingIndicator} />
+                        )}
+                      </View>
+                    )}
+                  />
+                )}
+                
+                {layout === 'spotlight' && (
+                  <CallParticipantsSpotlight
+                    style={styles.participantsSpotlight}
+                    ParticipantView={({ participant }) => (
+                      <View style={styles.participantView}>
+                        <Text style={styles.participantName}>
+                          {participant.name || participant.user?.name || 'User'}
+                        </Text>
+                        {participant.isSpeaking && (
+                          <View style={styles.speakingIndicator} />
+                        )}
+                      </View>
+                    )}
+                  />
+                )}
+                
+                {layout === 'speaker' && (
+                  <SpeakerLayout
+                    style={styles.speakerLayout}
+                    ParticipantView={({ participant }) => (
+                      <View style={styles.participantView}>
+                        <Text style={styles.participantName}>
+                          {participant.name || participant.user?.name || 'User'}
+                        </Text>
+                        {participant.isSpeaking && (
+                          <View style={styles.speakingIndicator} />
+                        )}
+                      </View>
+                    )}
+                  />
+                )}
+              </>
             </View>
 
             {/* Top Controls */}

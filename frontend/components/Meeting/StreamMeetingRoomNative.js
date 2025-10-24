@@ -43,13 +43,11 @@ export default function StreamMeetingRoomNative({
 	const [call, setCall] = useState(null);
 	const [isJoining, setIsJoining] = useState(false);
 	const [error, setError] = useState('');
-	const [hostPresent, setHostPresent] = useState(true);
+	const [isOffline, setIsOffline] = useState(false);
 	
 	// Credential fetching state
 	const [streamCredentials, setStreamCredentials] = useState(null);
 	const [isLoadingCredentials, setIsLoadingCredentials] = useState(false);
-
-	const [isOffline, setIsOffline] = useState(false);
 
 	// Fetch Stream credentials from backend
 	useEffect(() => {
@@ -178,14 +176,28 @@ export default function StreamMeetingRoomNative({
                 const callInstance = c.call('default', resolvedCallId);
                 
                 // Ensure mic and camera are disabled at start for the local user
-                try { await callInstance.microphone?.disable?.(); } catch {}
-                try { await callInstance.camera?.disable?.(); } catch {}
+                try { 
+                    await callInstance.microphone?.disable?.(); 
+                    console.log('[StreamMeetingRoomNative] Microphone disabled before join');
+                } catch {}
+                try { 
+                    await callInstance.camera?.disable?.(); 
+                    console.log('[StreamMeetingRoomNative] Camera disabled before join');
+                } catch {}
                 
                 await callInstance.join({ create: true });
                 
                 // Double-check post-join that tracks remain disabled
-                try { await callInstance.microphone?.disable?.(); } catch {}
-                try { await callInstance.camera?.disable?.(); } catch {}
+                try { 
+                    await callInstance.microphone?.disable?.(); 
+                    console.log('[StreamMeetingRoomNative] Microphone disabled after join');
+                } catch {}
+                try { 
+                    await callInstance.camera?.disable?.(); 
+                    console.log('[StreamMeetingRoomNative] Camera disabled after join');
+                } catch {}
+                
+                console.log('[StreamMeetingRoomNative] User joined with mic muted and camera off');
                 
 				if (cancelled) {
 					await cleanup(c, callInstance);
@@ -207,37 +219,7 @@ export default function StreamMeetingRoomNative({
 		};
 	}, [apiKey, userToken, userId, resolvedCallId, userInfo, isOpen, finalCredentials, isLoadingCredentials]);
 
-	// Watch for host presence for students; show overlay until host joins
-	useEffect(() => {
-		if (!call) return;
-		
-		// If current user is the host, always show as present
-		if (isHost === true) {
-			setHostPresent(true);
-			return;
-		}
-		
-		// For non-hosts, check if the host is present
-		if (!hostUserId) {
-			setHostPresent(true); // If no host specified, show meeting
-			return;
-		}
-		
-		const updatePresence = () => {
-			try {
-				const participants = Array.from(call.state?.participants || []);
-				const list = participants.map((p) => p.userId || p?.user?.id).filter(Boolean);
-				const present = list.some((id) => String(id) === String(hostUserId));
-				setHostPresent(present);
-				console.log('[Host Presence] Participants:', list, 'Host ID:', hostUserId, 'Present:', present);
-			} catch (err) {
-				console.error('[Host Presence] Error:', err);
-			}
-		};
-		updatePresence();
-		const interval = setInterval(updatePresence, 1500);
-		return () => clearInterval(interval);
-	}, [hostUserId, isHost, call]);
+	// Host presence detection removed - always show meeting content
 
 	// If call ends (host clicked end for everyone), auto leave/redirect
 	useEffect(() => {
@@ -300,14 +282,6 @@ export default function StreamMeetingRoomNative({
 							<View style={styles.center}>
 								<ActivityIndicator size="large" color="#2563EB" />
 								<Text style={styles.infoText}>Joining meeting...</Text>
-							</View>
-						) : !hostPresent ? (
-							<View style={styles.waitingHost}>
-								<View style={styles.waitingCard}>
-									<Text style={styles.waitingIcon}>⏰</Text>
-									<Text style={styles.waitingTitle}>Host is not yet present</Text>
-									<Text style={styles.waitingSub}>Please wait for the host to join this meeting.</Text>
-								</View>
 							</View>
 						) : (
 							<StreamVideo client={client}>
