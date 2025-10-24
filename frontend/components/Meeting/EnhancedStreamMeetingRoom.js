@@ -183,6 +183,7 @@ export default function EnhancedStreamMeetingRoom({
           user: userInfo,
           token: finalCredentials.token,
         });
+        console.log('[EnhancedStreamMeetingRoom] Created client with user:', userInfo);
 
         setClient(streamClient);
 
@@ -290,15 +291,29 @@ export default function EnhancedStreamMeetingRoom({
 
   // Watch for host presence for students; show overlay until host joins
   useEffect(() => {
-    if (!call || isHost !== false || !hostUserId) return;
+    if (!call) return;
+    
+    // If current user is the host, always show as present
+    if (isHost === true) {
+      setHostPresent(true);
+      return;
+    }
+    
+    // For non-hosts, check if the host is present
+    if (!hostUserId) {
+      setHostPresent(true); // If no host specified, show meeting
+      return;
+    }
+    
     const updatePresence = () => {
       try {
         const participants = Array.from(call.state?.participants || []);
         const list = participants.map((p) => p.userId || p?.user?.id).filter(Boolean);
         const present = list.some((id) => String(id) === String(hostUserId));
         setHostPresent(present);
+        console.log('[Host Presence] Participants:', list, 'Host ID:', hostUserId, 'Present:', present);
       } catch (err) {
-        void err;
+        console.error('[Host Presence] Error:', err);
       }
     };
     updatePresence();
@@ -554,7 +569,7 @@ export default function EnhancedStreamMeetingRoom({
                       ParticipantView={({ participant }) => (
                         <View style={styles.participantView}>
                           <Text style={styles.participantName}>
-                            {participant.name || 'Unknown'}
+                            {participant.name || participant.user?.name || 'User'}
                           </Text>
                           {participant.isSpeaking && (
                             <View style={styles.speakingIndicator} />
@@ -570,7 +585,7 @@ export default function EnhancedStreamMeetingRoom({
                       ParticipantView={({ participant }) => (
                         <View style={styles.participantView}>
                           <Text style={styles.participantName}>
-                            {participant.name || 'Unknown'}
+                            {participant.name || participant.user?.name || 'User'}
                           </Text>
                           {participant.isSpeaking && (
                             <View style={styles.speakingIndicator} />
@@ -586,7 +601,7 @@ export default function EnhancedStreamMeetingRoom({
                       ParticipantView={({ participant }) => (
                         <View style={styles.participantView}>
                           <Text style={styles.participantName}>
-                            {participant.name || 'Unknown'}
+                            {participant.name || participant.user?.name || 'User'}
                           </Text>
                           {participant.isSpeaking && (
                             <View style={styles.speakingIndicator} />
@@ -756,16 +771,23 @@ export default function EnhancedStreamMeetingRoom({
                   </View>
                   <ScrollView style={styles.participantsList}>
                     {call && call.state.participants && call.state.participants.length > 0 ? (
-                      call.state.participants.map((participant, index) => (
+                      call.state.participants.map((participant, index) => {
+                        console.log('[EnhancedStreamMeetingRoom] Participant data:', {
+                          userId: participant.userId,
+                          name: participant.name,
+                          user: participant.user,
+                          isLocal: participant.isLocal
+                        });
+                        return (
                         <View key={participant.userId || index} style={styles.participantItem}>
                           <View style={styles.participantAvatar}>
                             <Text style={styles.participantAvatarText}>
-                              {(participant.user?.name || 'User')[0].toUpperCase()}
+                              {(participant.user?.name || participant.name || 'User')[0].toUpperCase()}
                             </Text>
                           </View>
                           <View style={styles.participantInfo}>
                             <Text style={styles.participantName}>
-                              {participant.user?.name || 'Unknown User'}
+                              {participant.user?.name || participant.name || 'User'}
                             </Text>
                             <Text style={styles.participantStatus}>
                               {participant.isSpeaking ? 'Speaking' : 
@@ -785,7 +807,8 @@ export default function EnhancedStreamMeetingRoom({
                             )}
                           </View>
                         </View>
-                      ))
+                        );
+                      })
                     ) : (
                       <View style={styles.noParticipants}>
                         <Text style={styles.noParticipantsText}>No participants found</Text>
