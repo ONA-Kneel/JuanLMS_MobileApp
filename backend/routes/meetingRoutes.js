@@ -51,11 +51,11 @@ router.post('/stream-credentials', authenticateToken, async (req, res) => {
     }
 
     // Get user information
-    const userId = String(req.user._id);
+    const userId = String(req.user.id);
     
     // Debug: Log the user object to see what fields are available
     console.log(`[STREAM-CREDS] User object:`, {
-      _id: req.user._id,
+      id: req.user.id,
       name: req.user.name,
       email: req.user.email,
       role: req.user.role
@@ -128,7 +128,7 @@ router.get('/class/:classID', authenticateToken, async (req, res) => {
 // GET /api/meetings/direct-invite - Get all direct invitation meetings
 router.get('/direct-invite', authenticateToken, async (req, res) => {
   try {
-    console.log('[MEETINGS] User role:', req.user.role, 'User ID:', req.user._id);
+    console.log('[MEETINGS] User role:', req.user.role, 'User ID:', req.user.id);
     // VPE, Principal, and Students can access direct invitation meetings
     if (!['vpe', 'principal', 'vice president of education', 'students', 'student'].includes(req.user.role)) {
       console.log('[MEETINGS] Access denied for role:', req.user.role);
@@ -138,8 +138,8 @@ router.get('/direct-invite', authenticateToken, async (req, res) => {
     const meetings = await Meeting.find({ 
       isDirectInvite: true,
       $or: [
-        { createdBy: req.user._id }, // Meetings created by the current user
-        { 'invitedUsers.userId': req.user._id } // Meetings where current user is invited
+        { createdBy: req.user.id }, // Meetings created by the current user
+        { 'invitedUsers.userId': req.user.id } // Meetings where current user is invited
       ]
     }).populate('createdBy', 'firstName lastName email role')
       .populate('invitedUsers.userId', 'firstName lastName email role')
@@ -172,7 +172,7 @@ router.post('/', authenticateToken, async (req, res) => {
       scheduledTime,
       duration,
       meetingType,
-      createdBy: req.user._id,
+      createdBy: req.user.id,
       status: 'scheduled',
       createdAt: new Date()
     });
@@ -257,7 +257,7 @@ router.post('/direct-invite', authenticateToken, async (req, res) => {
       scheduledTime,
       duration,
       meetingType,
-      createdBy: req.user._id,
+      createdBy: req.user.id,
       status: 'scheduled',
       createdAt: new Date(),
       invitedUsers: invitedUsers.map(user => ({
@@ -378,11 +378,11 @@ router.post('/:meetingID/leave', authenticateToken, async (req, res) => {
 // GET /api/meetings/invited - Get meetings where current user is invited
 router.get('/invited', authenticateToken, async (req, res) => {
   try {
-    console.log('[MEETINGS] Getting invited meetings for user:', req.user._id, 'role:', req.user.role);
+    console.log('[MEETINGS] Getting invited meetings for user:', req.user.id, 'role:', req.user.role);
     
     const meetings = await Meeting.find({ 
       isDirectInvite: true,
-      'invitedUsers.userId': req.user._id
+      'invitedUsers.userId': req.user.id
     })
     .populate('createdBy', 'firstName lastName email role')
     .populate('invitedUsers.userId', 'firstName lastName email role')

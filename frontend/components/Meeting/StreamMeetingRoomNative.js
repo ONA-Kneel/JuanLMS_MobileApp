@@ -60,7 +60,7 @@ export default function StreamMeetingRoomNative({
 			try {
 				const callId = generateCallId(meetingData);
 				
-				const token = await AsyncStorage.getItem('token');
+				const token = await AsyncStorage.getItem('jwtToken');
 				const response = await fetch('https://juanlms-webapp-server.onrender.com/api/meetings/stream-credentials', {
 					method: 'POST',
 					headers: {

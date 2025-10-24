@@ -41,7 +41,7 @@ export const generateStreamCredentials = async (userInfo) => {
   let userId, displayName, email;
   
   try {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('jwtToken');
     if (token) {
       const payload = JSON.parse(atob(token.split('.')[1]));
       userId = payload.userId || payload._id || payload.username;
