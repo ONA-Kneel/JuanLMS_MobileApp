@@ -11,6 +11,7 @@ import {
   Platform,
   PermissionsAndroid,
   Image,
+  TextInput,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
@@ -685,10 +686,18 @@ export default function PrincipalMeeting() {
         {/* Search Bar */}
         <View style={styles.searchRow}>
           <Icon name="magnify" size={18} color="#6B7280" />
-          <Text style={styles.searchPlaceholder}>{searchTerm || 'Search users by name, email, or role...'}</Text>
-          <TouchableOpacity onPress={() => setSearchTerm(prompt('Search', searchTerm) || '')}>
-            <Text style={{ color: '#2563EB', fontWeight: '500' }}>Edit</Text>
-          </TouchableOpacity>
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search users by name, email, or role..."
+            placeholderTextColor="#9CA3AF"
+            value={searchTerm}
+            onChangeText={setSearchTerm}
+          />
+          {searchTerm.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchTerm('')}>
+              <Icon name="close-circle" size={18} color="#6B7280" />
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Selected Users */}
@@ -883,7 +892,6 @@ const styles = StyleSheet.create({
   searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     backgroundColor: '#F9FAFB',
     borderWidth: 1,
     borderColor: '#E5E7EB',
@@ -891,12 +899,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     marginTop: 8,
+    gap: 8,
   },
-  searchPlaceholder: {
-    color: '#6B7280',
+  searchInput: {
     flex: 1,
-    marginLeft: 8,
-    marginRight: 8,
+    fontSize: 14,
+    color: '#111827',
+    paddingVertical: 0,
   },
   chip: {
     flexDirection: 'row',

@@ -993,14 +993,18 @@ export default function StudentMeeting() {
             {/* Search Bar */}
             <View style={styles.searchRow}>
               <Icon name="magnify" size={18} color="#6B7280" />
-              <Text style={styles.searchPlaceholder}>{searchTerm || 'Search students by name or email...'}</Text>
-              <TouchableOpacity onPress={() => {
-                Alert.prompt('Search', 'Search students:', (text) => {
-                  setSearchTerm(text || '');
-                }, 'plain-text', searchTerm);
-              }}>
-                <Text style={{ color: '#2563EB', fontWeight: '500' }}>Edit</Text>
-              </TouchableOpacity>
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search students by name or email..."
+                placeholderTextColor="#9CA3AF"
+                value={searchTerm}
+                onChangeText={setSearchTerm}
+              />
+              {searchTerm.length > 0 && (
+                <TouchableOpacity onPress={() => setSearchTerm('')}>
+                  <Icon name="close-circle" size={18} color="#6B7280" />
+                </TouchableOpacity>
+              )}
             </View>
 
             {/* Selected Users */}
@@ -1674,10 +1678,11 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 16,
   },
-  searchPlaceholder: {
+  searchInput: {
     flex: 1,
     fontSize: 14,
-    color: '#6B7280',
+    color: '#111827',
+    paddingVertical: 0,
   },
   selectedTitle: {
     fontSize: 14,
