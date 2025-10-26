@@ -656,7 +656,7 @@ export default function FacultyMeeting() {
         {/* Create Meeting Modal */}
       <Modal
         visible={showCreateModal}
-        animationType="slide"
+        animationType="fade"
         transparent={true}
         onRequestClose={() => setShowCreateModal(false)}
       >

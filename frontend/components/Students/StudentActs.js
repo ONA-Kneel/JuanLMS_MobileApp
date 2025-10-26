@@ -1665,7 +1665,7 @@ export default function StudentActs() {
       <Modal
         visible={showActivityModal}
         transparent
-        animationType="slide"
+        animationType="fade"
         onRequestClose={() => setShowActivityModal(false)}
       >
         <View style={styles.modalOverlay}>
@@ -1802,7 +1802,7 @@ export default function StudentActs() {
          <Modal
            visible={showReplacementModal}
            transparent
-           animationType="slide"
+           animationType="fade"
            onRequestClose={() => setShowReplacementModal(false)}
          >
           <View style={styles.modalOverlay}>

@@ -302,7 +302,7 @@ export default function VPEProfile() {
       {/* Edit Profile Modal */}
       <Modal
         visible={isEditModalVisible}
-        animationType="slide"
+        animationType="fade"
         transparent={true}
       >
         <View style={styles.modalContainer}>

@@ -117,8 +117,8 @@ function StudentTabs() {
       <Tabs.Screen name="StudentDashboard" component={StudentDashboard} />
       <Tabs.Screen name="SActs" component={StudentActs} />
       <Tabs.Screen name="SCalendar" component={StudentCalendar} />
-      <Tabs.Screen name="SGrade" component={StudentGrades} />
       <Tabs.Screen name="SChat" component={StudentChats} />
+      <Tabs.Screen name="SGrade" component={StudentGrades} />
       <Tabs.Screen name="SMeeting" component={StudentMeeting} />
     </Tabs.Navigator>
   );
@@ -131,9 +131,9 @@ function StudentTabs() {
 const facultyNavItems = [
   { label: 'Dashboard', icon: 'view-dashboard', route: 'FDashboard' },
   { label: 'Activities', icon: 'file-document', route: 'FActs' },
-  { label: 'Grades', icon: 'star', route: 'FGrades' },
   { label: 'Calendar', icon: 'calendar', route: 'FCalendar' },
   { label: 'Chats', icon: 'chat', route: 'FChat' },
+  { label: 'Grades', icon: 'star', route: 'FGrades' },
   { label: 'Meetings', icon: 'video', route: 'FMeeting' },
 ];
 
@@ -145,9 +145,9 @@ function FacultyTabs() {
     >
       <Tabs.Screen name="FDashboard" component={FacultyDashboard} />
       <Tabs.Screen name="FActs" component={FacultyActs} />
-      <Tabs.Screen name="FGrades" component={FacultyGrades} />
       <Tabs.Screen name="FCalendar" component={FacultyCalendar} />
       <Tabs.Screen name="FChat" component={FacultyChats} />
+      <Tabs.Screen name="FGrades" component={FacultyGrades} />
       <Tabs.Screen name="FMeeting" component={FacultyMeeting} />
     </Tabs.Navigator>
   );

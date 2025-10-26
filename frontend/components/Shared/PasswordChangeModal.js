@@ -76,7 +76,7 @@ export default function PasswordChangeModal({ visible, onClose, userId }) {
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={resetAndClose}>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={resetAndClose}>
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.4)', padding: 16 }}>
         <View style={{ width: '95%', maxWidth: 420, backgroundColor: 'white', borderRadius: 16, padding: 20 }}>
           <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 12 }}>Change Password</Text>

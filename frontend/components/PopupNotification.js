@@ -120,7 +120,7 @@ export default function PopupNotification({
     <Modal
       visible={visible}
       transparent={true}
-      animationType="none"
+      animationType="fade"
       onRequestClose={handleClose}
     >
       <Animated.View 

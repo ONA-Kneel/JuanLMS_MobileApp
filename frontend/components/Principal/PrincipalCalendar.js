@@ -68,6 +68,14 @@ export default function PrincipalCalendar() {
   const isFocused = useIsFocused();
   const navigation = useNavigation();
   const { user } = useUser();
+
+  const resolveProfileUri = () => {
+    const API_BASE = 'https://juanlms-webapp-server.onrender.com';
+    const uri = user?.profilePic || user?.profilePicture;
+    if (!uri) return null;
+    if (typeof uri === 'string' && uri.startsWith('/uploads/')) return API_BASE + uri;
+    return uri;
+  };
   const [currentDate, setCurrentDate] = useState(getCurrentDate());
   const [selectedDate, setSelectedDate] = useState(getCurrentDate());
   const [events, setEvents] = useState([]);
@@ -325,9 +333,9 @@ export default function PrincipalCalendar() {
             </Text>
           </View>
           <TouchableOpacity onPress={() => navigation.navigate('PrincipalProfile')}>
-            {user?.profilePicture ? (
+            {resolveProfileUri() ? (
               <Image 
-                source={{ uri: user.profilePicture }} 
+                source={{ uri: resolveProfileUri() }} 
                 style={styles.profileImage}
                 resizeMode="cover"
               />

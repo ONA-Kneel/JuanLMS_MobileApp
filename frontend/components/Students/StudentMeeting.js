@@ -1105,7 +1105,7 @@ export default function StudentMeeting() {
     
       {/* Input Modals */}
       {/* Title Input Modal */}
-      <Modal visible={showTitleModal} transparent animationType="slide">
+      <Modal visible={showTitleModal} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Meeting Title</Text>
@@ -1129,7 +1129,7 @@ export default function StudentMeeting() {
       </Modal>
 
       {/* Description Input Modal */}
-      <Modal visible={showDescriptionModal} transparent animationType="slide">
+      <Modal visible={showDescriptionModal} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Meeting Description</Text>
@@ -1154,7 +1154,7 @@ export default function StudentMeeting() {
       </Modal>
 
       {/* Date Input Modal */}
-      <Modal visible={showDateModal} transparent animationType="slide">
+      <Modal visible={showDateModal} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Meeting Date</Text>
@@ -1178,7 +1178,7 @@ export default function StudentMeeting() {
       </Modal>
 
       {/* Time Input Modal */}
-      <Modal visible={showTimeModal} transparent animationType="slide">
+      <Modal visible={showTimeModal} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Meeting Time</Text>
@@ -1202,7 +1202,7 @@ export default function StudentMeeting() {
       </Modal>
 
       {/* Duration Input Modal */}
-      <Modal visible={showDurationModal} transparent animationType="slide">
+      <Modal visible={showDurationModal} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Meeting Duration</Text>

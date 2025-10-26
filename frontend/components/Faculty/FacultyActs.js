@@ -808,7 +808,7 @@ const FacultyActs = () => {
       {/* Edit Modal */}
       <Modal
         visible={editModalVisible}
-        animationType="slide"
+        animationType="fade"
         transparent={true}
         onRequestClose={() => setEditModalVisible(false)}
       >

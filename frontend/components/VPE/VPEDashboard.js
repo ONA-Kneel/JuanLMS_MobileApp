@@ -27,6 +27,14 @@ export default function VPEDashboard() {
   const [currentTerm, setCurrentTerm] = useState('Term 1');
   const [academicContext, setAcademicContext] = useState('2025-2026 | Term 1');
 
+  const resolveProfileUri = () => {
+    const API_BASE = 'https://juanlms-webapp-server.onrender.com';
+    const uri = user?.profilePic || user?.profilePicture;
+    if (!uri) return null;
+    if (typeof uri === 'string' && uri.startsWith('/uploads/')) return API_BASE + uri;
+    return uri;
+  };
+
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentDateTime(new Date());
@@ -209,9 +217,9 @@ export default function VPEDashboard() {
               )}
             </TouchableOpacity>
             <TouchableOpacity onPress={() => navigateToScreen('VPEProfile')}>
-              {user?.profilePicture ? (
+              {resolveProfileUri() ? (
                 <Image 
-                  source={{ uri: user.profilePicture }} 
+                  source={{ uri: resolveProfileUri() }} 
                   style={styles.profileImage}
                   resizeMode="cover"
                 />
