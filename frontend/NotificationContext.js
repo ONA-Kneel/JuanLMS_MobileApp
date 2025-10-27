@@ -130,24 +130,11 @@ export const NotificationProvider = ({ children }) => {
       
       if (!token || !userId) return;
       
-      // Primary attempt with /api prefix
-      let data;
-      try {
-        console.log(`Fetching notifications for user: ${userId}`);
-        console.log(`User ID type:`, typeof userId);
-        data = await apiGet(`/api/notifications/${userId}`);
-        console.log(`API response data:`, data);
-      } catch (err) {
-        console.log(`API error:`, err.status, err.message);
-        // If 404, retry without /api for deployments that mount routes at root
-        if (err && err.status === 404) {
-          console.log('Retrying without /api prefix...');
-          data = await apiGet(`/notifications/${userId}`);
-          console.log(`Fallback response data:`, data);
-        } else {
-          throw err;
-        }
-      }
+      // apiUtils.js handles automatic retry with fallback URLs
+      console.log(`Fetching notifications for user: ${userId}`);
+      console.log(`User ID type:`, typeof userId);
+      const data = await apiGet(`/api/notifications/${userId}`);
+      console.log(`API response data:`, data);
       
       // Ensure data is an array
       const notificationsArray = Array.isArray(data) ? data : [];
@@ -199,16 +186,8 @@ export const NotificationProvider = ({ children }) => {
       
       if (!token) return false;
       
-      let updated;
-      try {
-        updated = await apiPatch(`/api/notifications/${notificationId}/read`);
-      } catch (err) {
-        if (err && err.status === 404) {
-          updated = await apiPatch(`/notifications/${notificationId}/read`);
-        } else {
-          throw err;
-        }
-      }
+      // apiUtils.js handles automatic retry with fallback URLs
+      const updated = await apiPatch(`/api/notifications/${notificationId}/read`);
       if (updated) {
         setNotifications(prev => 
           prev.map(n => 
@@ -234,16 +213,8 @@ export const NotificationProvider = ({ children }) => {
       
       if (!token || !userId) return false;
       
-      let result;
-      try {
-        result = await apiPatch(`/api/notifications/${userId}/read-all`);
-      } catch (err) {
-        if (err && err.status === 404) {
-          result = await apiPatch(`/notifications/${userId}/read-all`);
-        } else {
-          throw err;
-        }
-      }
+      // apiUtils.js handles automatic retry with fallback URLs
+      const result = await apiPatch(`/api/notifications/${userId}/read-all`);
       if (result?.success || result?.updatedCount >= 0) {
         setNotifications(prev => prev.map(n => ({ ...n, read: true })));
         setUnreadCount(0);

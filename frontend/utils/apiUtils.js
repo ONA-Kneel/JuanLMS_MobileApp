@@ -57,7 +57,8 @@ export const apiRequest = async (method, endpoint, data = null, customHeaders = 
     if (response.status === 404 && endpoint.startsWith('/api/')) {
       const fallbackEndpoint = endpoint.replace('/api/', '/');
       const fallbackUrl = `${getApiBaseUrl()}${fallbackEndpoint}`;
-      console.warn(`API ${method} ${url} returned 404. Retrying as ${fallbackUrl}`);
+      // Use console.log instead of console.warn to reduce noise for expected fallback behavior
+      console.log(`API ${method} ${url} returned 404. Retrying as ${fallbackUrl}`);
       response = await makeFetch(fallbackUrl);
       finalUrl = fallbackUrl;
     }
