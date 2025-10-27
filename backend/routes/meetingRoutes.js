@@ -66,8 +66,8 @@ router.post('/stream-credentials', authenticateToken, async (req, res) => {
 
     console.log(`[STREAM-CREDS] Generating credentials for user: ${userId}, name: ${userName}, callId: ${callId}`);
 
-    // Create a JWT token for the user (valid for 1 hour)
-    const token = createStreamVideoToken(userId, 3600);
+    // Create a JWT token for the user (valid for 24 hours to prevent expiration during long meetings)
+    const token = createStreamVideoToken(userId, 86400);
     
     // Debug: Log the generated token and its parts
     console.log(`[STREAM-CREDS] Generated token: ${token}`);

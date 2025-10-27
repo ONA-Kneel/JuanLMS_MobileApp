@@ -71,9 +71,9 @@ export default function SimpleStreamMeetingRoom({
   const [streamCredentials, setStreamCredentials] = useState(null);
   const [isLoadingCredentials, setIsLoadingCredentials] = useState(false);
 
-  // Fetch Stream credentials from backend
+  // Fetch Stream credentials from backend with retry logic
   useEffect(() => {
-    const fetchCredentials = async () => {
+    const fetchCredentials = async (retryCount = 0) => {
       if (!isOpen || !meetingData) return;
       
       setIsLoadingCredentials(true);
@@ -81,6 +81,12 @@ export default function SimpleStreamMeetingRoom({
         const callId = generateCallId(meetingData);
         
         const token = await AsyncStorage.getItem('jwtToken');
+        if (!token) {
+          setError('No authentication token found. Please log in again.');
+          setIsLoadingCredentials(false);
+          return;
+        }
+        
         const response = await fetch('https://juanlms-webapp-server.onrender.com/api/meetings/stream-credentials', {
           method: 'POST',
           headers: {
@@ -89,6 +95,18 @@ export default function SimpleStreamMeetingRoom({
           },
           body: JSON.stringify({ callId })
         });
+        
+        // Handle 401 Unauthorized - token expired
+        if (response.status === 401) {
+          console.warn('[STREAM-CREDS] Token expired, user needs to re-authenticate');
+          setError('Your session has expired. Please close and rejoin the meeting.');
+          setIsLoadingCredentials(false);
+          return;
+        }
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
         
         const data = await response.json();
         
@@ -101,7 +119,13 @@ export default function SimpleStreamMeetingRoom({
         }
       } catch (error) {
         console.error('[STREAM-CREDS] Error fetching credentials:', error);
-        setError('Failed to connect to Stream service');
+        // Retry once if it's a network error
+        if (retryCount === 0 && (error.message.includes('Network') || error.message.includes('fetch'))) {
+          console.log('[STREAM-CREDS] Retrying credential fetch...');
+          setTimeout(() => fetchCredentials(1), 1000);
+          return;
+        }
+        setError('Failed to connect to Stream service. Please try again.');
       } finally {
         setIsLoadingCredentials(false);
       }
@@ -331,6 +355,27 @@ export default function SimpleStreamMeetingRoom({
 
         updateParticipantCount();
 
+        // Listen for connection errors, especially token expiration
+        callInstance.on('connection.changed', (event) => {
+          console.log('[SimpleStreamMeetingRoom] Connection changed:', event);
+          if (event.online === false) {
+            console.warn('[SimpleStreamMeetingRoom] Connection lost');
+          }
+        });
+
+        // Listen for errors from the call
+        callInstance.on('error', (err) => {
+          console.error('[SimpleStreamMeetingRoom] Call error:', err);
+          const errorCode = err.code || err.StatusCode;
+          const errorMessage = err.message || '';
+          
+          if (errorCode === 40 || errorCode === 401 || errorMessage.includes('token is expired') || errorMessage.includes('AuthErrorTokenExpired')) {
+            console.warn('[SimpleStreamMeetingRoom] Token expired during call');
+            setError('Your session has expired. Please close and rejoin the meeting.');
+            setIsConnecting(false);
+          }
+        });
+
         // Set a timeout to ensure connecting state is reset
         setTimeout(() => {
           setIsConnecting(false);
@@ -338,7 +383,17 @@ export default function SimpleStreamMeetingRoom({
 
       } catch (err) {
         console.error('Error initializing Stream client:', err);
-        setError(err.message || 'Failed to initialize meeting');
+        
+        // Check if error is related to token expiration
+        const errorMessage = err.message || '';
+        const errorCode = err.code || err.StatusCode;
+        
+        if (errorCode === 40 || errorCode === 401 || errorMessage.includes('token is expired') || errorMessage.includes('AuthErrorTokenExpired')) {
+          console.warn('[STREAM-CREDS] Stream token expired, user needs fresh credentials');
+          setError('Authentication expired. Please close and rejoin the meeting with fresh credentials.');
+        } else {
+          setError(err.message || 'Failed to initialize meeting');
+        }
       } finally {
         // Don't set isConnecting to false here as we want to wait for the call to join
         // setIsConnecting(false);
