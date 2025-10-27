@@ -368,7 +368,7 @@ export default function GroupManagement() {
       <Modal
         visible={showUserSearch}
         transparent={true}
-        animationType="slide"
+        animationType="fade"
         onRequestClose={() => setShowUserSearch(false)}
       >
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' }}>

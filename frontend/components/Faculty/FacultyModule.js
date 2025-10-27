@@ -466,7 +466,7 @@ export default function FacultyModule() {
                         {/* Create Announcement Modal */}
                         <Modal
                             visible={showCreateAnnouncementModal}
-                            animationType="slide"
+                            animationType="fade"
                             transparent={true}
                             onRequestClose={() => setShowCreateAnnouncementModal(false)}
                         >
@@ -513,7 +513,7 @@ export default function FacultyModule() {
                         {/* Edit Announcement Modal */}
                         <Modal
                             visible={showEditModal}
-                            animationType="slide"
+                            animationType="fade"
                             transparent={true}
                             onRequestClose={() => setShowEditModal(false)}
                         >
@@ -1012,7 +1012,7 @@ export default function FacultyModule() {
             {/* Edit Module Modal */}
             <Modal
                 visible={showEditModuleModal}
-                animationType="slide"
+                animationType="fade"
                 transparent={true}
                 onRequestClose={() => setShowEditModuleModal(false)}
             >
@@ -1104,7 +1104,7 @@ export default function FacultyModule() {
             {/* Add Material Modal */}
             <Modal
                 visible={showAddModuleModal}
-                animationType="slide"
+                animationType="fade"
                 transparent={true}
                 onRequestClose={() => setShowAddModuleModal(false)}
             >

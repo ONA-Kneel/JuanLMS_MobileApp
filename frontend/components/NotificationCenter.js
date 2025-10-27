@@ -253,7 +253,7 @@ export default function NotificationCenter({ visible, onClose }) {
   // Show error state if there's an error
   if (hasError) {
     return (
-      <Modal visible={visible} animationType="slide" transparent={true} onRequestClose={onClose}>
+      <Modal visible={visible} animationType="fade" transparent={true} onRequestClose={onClose}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.header}>
@@ -296,7 +296,7 @@ export default function NotificationCenter({ visible, onClose }) {
   }
 
   return (
-    <Modal visible={visible} animationType="slide" transparent={true} onRequestClose={onClose}>
+    <Modal visible={visible} animationType="fade" transparent={true} onRequestClose={onClose}>
       <View style={styles.modalOverlay}>
         <View style={styles.modalContent}>
           {/* Header */}
@@ -455,7 +455,7 @@ export default function NotificationCenter({ visible, onClose }) {
   } catch (error) {
     console.error('Error in NotificationCenter:', error);
     return (
-      <Modal visible={visible} animationType="slide" transparent={true} onRequestClose={onClose}>
+      <Modal visible={visible} animationType="fade" transparent={true} onRequestClose={onClose}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.header}>

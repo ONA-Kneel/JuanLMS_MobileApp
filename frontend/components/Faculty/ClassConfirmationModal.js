@@ -73,7 +73,7 @@ export default function ClassConfirmationModal({
     return (
         <Modal
             visible={visible}
-            animationType="slide"
+            animationType="fade"
             transparent={true}
             onRequestClose={handleClose}
         >

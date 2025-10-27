@@ -6,8 +6,8 @@ const defaultNavItems = [
   { label: 'Dashboard', icon: 'view-dashboard', route: 'StudentDashboard' },
   { label: 'Activities', icon: 'file-document', route: 'SActs' },
   { label: 'Calendar', icon: 'calendar', route: 'SCalendar' },
-  { label: 'Grades', icon: 'star', route: 'SGrade' },
   { label: 'Chats', icon: 'chat', route: 'SChat' },
+  { label: 'Grades', icon: 'star', route: 'SGrade' },
   { label: 'Meetings', icon: 'video', route: 'SMeeting' },
 ];
 

@@ -48,6 +48,14 @@ export default function VPEMeeting() {
   const [meetingDescription, setMeetingDescription] = useState('');
   const [meetingType, setMeetingType] = useState('instant'); // 'instant' | 'scheduled'
   const [scheduledDate, setScheduledDate] = useState(''); // YYYY-MM-DD
+
+  const resolveProfileUri = () => {
+    const API_BASE = 'https://juanlms-webapp-server.onrender.com';
+    const uri = user?.profilePic || user?.profilePicture;
+    if (!uri) return null;
+    if (typeof uri === 'string' && uri.startsWith('/uploads/')) return API_BASE + uri;
+    return uri;
+  };
   const [scheduledTime, setScheduledTime] = useState(''); // HH:mm
   const [duration, setDuration] = useState(''); // minutes
   
@@ -500,9 +508,9 @@ export default function VPEMeeting() {
                 )}
               </TouchableOpacity>
               <TouchableOpacity onPress={() => navigation.navigate('VPEProfile')}>
-                {user?.profilePicture ? (
+                {resolveProfileUri() ? (
                   <Image 
-                    source={{ uri: user.profilePicture }} 
+                    source={{ uri: resolveProfileUri() }} 
                     style={{ width: 36, height: 36, borderRadius: 18 }}
                     resizeMode="cover"
                   />

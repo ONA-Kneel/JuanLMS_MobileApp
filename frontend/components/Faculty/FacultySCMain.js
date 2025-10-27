@@ -67,14 +67,11 @@ export default function FacultySupportCenter() {
   };
 
   const resolveProfileUri = () => {
-    if (user?.profilePicture) {
-      if (user.profilePicture.startsWith('http')) {
-        return user.profilePicture;
-      } else {
-        return `http://192.168.1.100:3000/${user.profilePicture}`;
-      }
-    }
-    return null;
+    const API_BASE = 'https://juanlms-webapp-server.onrender.com';
+    const uri = user?.profilePic || user?.profilePicture;
+    if (!uri) return null;
+    if (typeof uri === 'string' && uri.startsWith('/uploads/')) return API_BASE + uri;
+    return uri;
   };
 
   useEffect(() => {
@@ -139,34 +136,38 @@ export default function FacultySupportCenter() {
   }
 
   return (
-    <ScrollView contentContainerStyle={{ flexGrow: 1 }} style={{ backgroundColor: '#f2f2f2' }}>
+    <View style={{ flex: 1, backgroundColor: '#f2f2f2' }}>
+      <ScrollView contentContainerStyle={{ paddingBottom: 80 }}>
       {/* Blue background */}
       <View style={styles.blueHeaderBackground} />
       {/* White card header */}
       <View style={styles.whiteHeaderCard}>
+        <TouchableOpacity
+          style={{ position: 'absolute', top: 20, left: 20, zIndex: 10 }}
+          onPress={() => navigation.goBack()}
+        >
+          <MaterialIcons name="arrow-back" size={28} color="#00418b" />
+        </TouchableOpacity>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <View>
             <Text style={styles.headerTitle}>
-              Support Center
+              Hello, <Text style={{ fontWeight: 'bold', fontFamily: 'Poppins-Bold' }}>{user?.firstname || 'Faculty'}!</Text>
             </Text>
             <Text style={styles.headerSubtitle}>{academicContext}</Text>
             <Text style={styles.headerSubtitle2}>{formatDateTime(currentDateTime)}</Text>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-              <MaterialIcons name="arrow-back" size={20} color="#00418b" />
-            </TouchableOpacity>
             <TouchableOpacity onPress={() => navigation.navigate('FProfile')}>
               {resolveProfileUri() ? (
                 <Image 
                   source={{ uri: resolveProfileUri() }} 
-                  style={{ width: 36, height: 36, borderRadius: 18, marginLeft: 8 }}
+                  style={{ width: 36, height: 36, borderRadius: 18 }}
                   resizeMode="cover"
                 />
               ) : (
                 <Image 
                   source={require('../../assets/profile-icon (2).png')} 
-                  style={{ width: 36, height: 36, borderRadius: 18, marginLeft: 8 }}
+                  style={{ width: 36, height: 36, borderRadius: 18 }}
                   resizeMode="cover"
                 />
               )}
@@ -174,63 +175,43 @@ export default function FacultySupportCenter() {
           </View>
         </View>
       </View>
-      {/* Submit a Ticket */}
-      <View style={[StudentSupportStyle.ticketCard, { position: 'relative' }]}> 
-        <Text style={StudentSupportStyle.ticketTitle}>How can we help you today?</Text>
-        <Text style={StudentSupportStyle.ticketSubtitle}>Submit a Ticket</Text>
-        <TextInput
-          style={StudentSupportStyle.ticketInput}
-          placeholder="Type your concern here"
-          placeholderTextColor="#666"
-          value={ticket}
-          onChangeText={setTicket}
-          multiline
+      {/* Header with Logo and Return Button */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 20, marginBottom: 10 }}>
+        <Image
+          source={require('../../assets/Logo3.svg')}
+          style={{ width: 150, height: 50 }}
+          resizeMode="contain"
         />
-        {/* Paperclip button at bottom left of card */}
+      </View>
+
+      {/* Card with plus button */}
+      <View style={{ backgroundColor: '#fff', borderRadius: 16, marginHorizontal: 16, marginBottom: 20, padding: 20, alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 4, elevation: 2 }}>
         <TouchableOpacity
-          style={{ position: 'absolute', left: 12, bottom: 12, zIndex: 2 }}
-          onPress={() => {}} // No upload, just a button
+          style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: '#00418b', justifyContent: 'center', alignItems: 'center', marginBottom: 10 }}
+          onPress={() => navigation.navigate('FacultySupportCenter')}
         >
-          <MaterialIcons name="attach-file" size={24} color="#1976d2" />
+          <Text style={{ fontSize: 32, color: '#fff', fontWeight: 'bold' }}>+</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={StudentSupportStyle.sendBtn} onPress={handleSendTicket}>
-          <MaterialIcons name="send" size={24} color="#00418b" />
-        </TouchableOpacity>
+        <Text style={{ fontSize: 16, color: '#00418b', fontFamily: 'Poppins-Bold' }}>Submit a Ticket</Text>
       </View>
-      {/* Active Ticket Lookup Section */}
-      <View style={[StudentSupportStyle.ticketCard, { marginTop: 10, marginBottom: 18 }]}> 
-        <Text style={{ fontWeight: 'bold', color: '#222', fontSize: 16, textAlign: 'center', marginBottom: 2 }}>
-          Have an active ticket?
-        </Text>
-        <Text style={{ fontSize: 13, color: '#888', textAlign: 'center', marginBottom: 10 }}>
-          Enter ticket number here
-        </Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
-          <TextInput
-            style={{
-              flex: 1,
-              borderWidth: 1,
-              borderColor: '#1976d2',
-              borderRadius: 8,
-              padding: 10,
-              backgroundColor: '#fff',
-              marginRight: 8,
-              fontSize: 15,
-            }}
-            placeholder="SJDDxxxxxxxxxx"
-            placeholderTextColor="#aaa"
-            value={activeTicketInput}
-            onChangeText={setActiveTicketInput}
-            autoCapitalize="characters"
-          />
-          <TouchableOpacity
-            style={{ backgroundColor: '#00418b', borderRadius: 8, padding: 10 }}
-            onPress={handleCheckTicket}
-          >
-            <MaterialIcons name="search" size={22} color="#fff" />
-          </TouchableOpacity>
+      {/* Active Requests/Problems List */}
+      <Text style={{ fontSize: 18, fontFamily: 'Poppins-Bold', color: '#222', marginHorizontal: 16, marginBottom: 10 }}>Active Request/Problem</Text>
+
+      <TouchableOpacity style={{ backgroundColor: '#fff', borderRadius: 12, marginHorizontal: 16, marginBottom: 10, padding: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 4, elevation: 2 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <MaterialIcons name="mail" size={24} color="#00418b" style={{ marginRight: 10 }} />
+          <Text style={{ fontSize: 16, fontFamily: 'Poppins-Bold', color: '#222' }}>Problem title</Text>
         </View>
-      </View>
+        <Text style={{ fontSize: 20, color: '#00418b' }}>✔✔</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity style={{ backgroundColor: '#fff', borderRadius: 12, marginHorizontal: 16, marginBottom: 10, padding: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 4, elevation: 2 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <MaterialIcons name="mail" size={24} color="#00418b" style={{ marginRight: 10 }} />
+          <Text style={{ fontSize: 16, fontFamily: 'Poppins-Bold', color: '#222' }}>Request Title</Text>
+        </View>
+        <Text style={{ fontSize: 20, color: '#00418b' }}>✔</Text>
+      </TouchableOpacity>
       {/* Modal for ticket lookup result */}
       <Modal
         visible={ticketLookupModal.visible}
@@ -279,97 +260,8 @@ export default function FacultySupportCenter() {
           </View>
         </View>
       </Modal>
-      {/* Common Questions */}
-      <Text style={StudentSupportStyle.commonTitle}>Common Questions</Text>
-      {/* Auto-scroll Q&A animation box at the top */}
-      <View style={{ height: QA_HEIGHT, overflow: 'hidden', marginHorizontal: 16, marginBottom: 16, borderWidth: 1, borderColor: '#1976d2', borderRadius: 10, backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center', position: 'relative' }} {...answerBoxProps}>
-        <Animated.View style={{ position: 'absolute', width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center', transform: [{ translateY: 0 }] }}>
-          <Text style={{ fontWeight: 'bold', color: '#00418b', marginBottom: 4, fontSize: 16, textAlign: 'center' }}>
-            {commonQuestions[currentIndex].question}
-          </Text>
-          <Text style={{ color: '#666', fontSize: 15, textAlign: 'center' }}>
-            {commonQuestions[currentIndex].answer}
-          </Text>
-        </Animated.View>
-      </View>
-      {/* Dropdown and static Q&A below the animation box */}
-      <View style={{ marginHorizontal: 16, marginBottom: 30 }}>
-        <TouchableOpacity
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            width: '100%',
-            paddingHorizontal: 16,
-            paddingVertical: 10,
-            borderWidth: 1,
-            borderColor: '#1976d2',
-            borderRadius: 10,
-            backgroundColor: '#fff',
-            marginBottom: 8,
-          }}
-          onPress={() => setShowDropdown(!showDropdown)}
-          activeOpacity={0.8}
-        >
-          <Text style={{ color: '#666', fontWeight: 'bold', fontSize: 15 }}>
-            {overlayIndex !== null ? commonQuestions[overlayIndex].question : 'Select a Question'}
-          </Text>
-          <MaterialIcons name={showDropdown ? 'arrow-drop-up' : 'arrow-drop-down'} size={24} color="#00418b" />
-        </TouchableOpacity>
-        {showDropdown && (
-          <View style={{
-            position: 'absolute',
-            top: 48,
-            left: 0,
-            right: 0,
-            backgroundColor: '#fff',
-            borderRadius: 10,
-            borderWidth: 1,
-            borderColor: '#1976d2',
-            zIndex: 10,
-            shadowColor: '#000',
-            shadowOpacity: 0.08,
-            shadowRadius: 8,
-            elevation: 4,
-            maxHeight: QA_HEIGHT * 3,
-            overflow: 'scroll',
-          }}>
-            {commonQuestions.map((q, idx) => (
-              <TouchableOpacity
-                key={idx}
-                style={{ padding: 12, borderBottomWidth: idx !== commonQuestions.length - 1 ? 1 : 0, borderBottomColor: '#eee' }}
-                onPress={() => { setOverlayIndex(idx); setShowDropdown(false); }}
-              >
-                <Text style={{ color: '#222', fontSize: 15 }}>{q.question}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
-        {overlayIndex !== null && (
-          <View style={{
-            marginTop: 8,
-            backgroundColor: '#fff',
-            borderRadius: 10,
-            borderWidth: 1,
-            borderColor: '#1976d2',
-            padding: 16,
-            shadowColor: '#000',
-            shadowOpacity: 0.08,
-            shadowRadius: 8,
-            elevation: 2,
-          }}>
-            <Text style={{ fontWeight: 'bold', color: '#00418b', marginBottom: 4, fontSize: 16, textAlign: 'center' }}>{commonQuestions[overlayIndex].question}</Text>
-            <Text style={{ color: '#666', fontSize: 15, textAlign: 'center' }}>{commonQuestions[overlayIndex].answer}</Text>
-            <TouchableOpacity
-              onPress={() => setOverlayIndex(null)}
-              style={{ position: 'absolute', top: 8, right: 8, backgroundColor: '#00418b', borderRadius: 12, padding: 4, zIndex: 30 }}
-            >
-              <MaterialIcons name="close" size={20} color="#fff" />
-            </TouchableOpacity>
-          </View>
-        )}
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 

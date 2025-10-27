@@ -511,7 +511,7 @@ export default function AssignmentDetail() {
       <Modal
         visible={showSuccessModal}
         transparent
-        animationType="slide"
+        animationType="fade"
         onRequestClose={() => {
           setShowSuccessModal(false);
           navigation.goBack();

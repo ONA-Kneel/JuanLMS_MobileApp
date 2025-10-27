@@ -329,7 +329,7 @@ export default function StudentsProfile() {
       {/* Edit Profile Modal */}
       <Modal
         visible={isEditModalVisible}
-        animationType="slide"
+        animationType="fade"
         transparent={true}
       >
         <View style={StudentsProfileStyle.modalContainer}>

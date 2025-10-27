@@ -1,7 +1,7 @@
 import { Text, TouchableOpacity, View, ScrollView, Image, Dimensions, ActivityIndicator, RefreshControl, Alert } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
-import { useUser } from '../../UserContext';
+import { useUser } from '../UserContext';
 import { useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import moment from 'moment';
@@ -13,7 +13,7 @@ const { width } = Dimensions.get('window');
 
 export default function VPEDashboard() {
   const navigation = useNavigation();
-  const { user, loading: userLoading } = useUser();
+  const { user } = useUser();
   const { unreadCount } = useNotifications();
   const { announcements, loading: loadingAnnouncements } = useAnnouncements();
   const [showNotificationCenter, setShowNotificationCenter] = useState(false);
@@ -27,29 +27,13 @@ export default function VPEDashboard() {
   const [currentTerm, setCurrentTerm] = useState('Term 1');
   const [academicContext, setAcademicContext] = useState('2025-2026 | Term 1');
 
-  // Add safety check to prevent white screen when user is null (during logout)
-  // This must be placed AFTER all hooks to avoid "Rendered fewer hooks than expected" error
-  if (userLoading) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f7f9fa' }}>
-        <ActivityIndicator size="large" color="#00418b" />
-        <Text style={{ marginTop: 16, fontSize: 16, color: '#666', fontFamily: 'Poppins-Regular' }}>
-          Loading user data...
-        </Text>
-      </View>
-    );
-  }
-
-  if (!user) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f7f9fa' }}>
-        <ActivityIndicator size="large" color="#00418b" />
-        <Text style={{ marginTop: 16, fontSize: 16, color: '#666', fontFamily: 'Poppins-Regular' }}>
-          Redirecting to login...
-        </Text>
-      </View>
-    );
-  }
+  const resolveProfileUri = () => {
+    const API_BASE = 'https://juanlms-webapp-server.onrender.com';
+    const uri = user?.profilePic || user?.profilePicture;
+    if (!uri) return null;
+    if (typeof uri === 'string' && uri.startsWith('/uploads/')) return API_BASE + uri;
+    return uri;
+  };
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -233,9 +217,9 @@ export default function VPEDashboard() {
               )}
             </TouchableOpacity>
             <TouchableOpacity onPress={() => navigateToScreen('VPEProfile')}>
-              {user?.profilePicture ? (
+              {resolveProfileUri() ? (
                 <Image 
-                  source={{ uri: user.profilePicture }} 
+                  source={{ uri: resolveProfileUri() }} 
                   style={styles.profileImage}
                   resizeMode="cover"
                 />

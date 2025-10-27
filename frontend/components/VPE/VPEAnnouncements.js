@@ -670,7 +670,7 @@ export default function VPEAnnouncements() {
   const renderCreateModal = () => (
     <Modal
       visible={showCreateModal}
-      animationType="slide"
+      animationType="fade"
       transparent={true}
       onRequestClose={() => {
         setShowCreateModal(false);
@@ -805,7 +805,7 @@ export default function VPEAnnouncements() {
   const renderEditModal = () => (
     <Modal
       visible={showEditModal}
-      animationType="slide"
+      animationType="fade"
       transparent={true}
       onRequestClose={() => {
         setShowEditModal(false);

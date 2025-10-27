@@ -198,7 +198,7 @@ export default function AdminProfile() {
       </View>
       <Modal
         visible={isEditModalVisible}
-        animationType="slide"
+        animationType="fade"
         transparent={true}
       >
         <View style={AdminProfileStyle.modalContainer}>
