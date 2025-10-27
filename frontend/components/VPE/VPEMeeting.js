@@ -264,7 +264,12 @@ export default function VPEMeeting() {
         description: meetingDescription.trim(),
         meetingType,
         classID: 'direct-invite',
-        participants: selectedUsers.map(u => u._id),
+        invitedUsers: selectedUsers.map(u => ({
+          userId: u._id,
+          email: u.email || '',
+          name: `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.name || '',
+          role: u.role || ''
+        })),
         scheduledTime: scheduledIso,
         duration: duration ? parseInt(duration) : null,
       };
