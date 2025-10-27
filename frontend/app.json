@@ -15,7 +15,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.kneelpngnbn.juanlms.mobileapp",
+      "bundleIdentifier": "com.sefgarcia8.juanlms.mobileapp",
       "buildNumber": "3",
       "deploymentTarget": "13.4",
       "bitcode": false,
