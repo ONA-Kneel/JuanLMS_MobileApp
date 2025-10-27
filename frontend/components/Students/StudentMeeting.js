@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -89,7 +89,8 @@ export default function StudentMeeting() {
       // Only fetch hosted meetings on load, users can be fetched when needed
       fetchHostedMeetings();
     }
-  }, [user]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?._id]);
   
   // Fetch users only when switching to host meeting tab
   useEffect(() => {
@@ -116,7 +117,7 @@ export default function StudentMeeting() {
     );
   }
 
-  const fetchClasses = async () => {
+  const fetchClasses = useCallback(async () => {
     if (!user || !user._id) {
       setLoading(false);
       return;
@@ -183,9 +184,9 @@ export default function StudentMeeting() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?._id]);
 
-  const fetchMeetings = async (classId) => {
+  const fetchMeetings = useCallback(async (classId) => {
     if (!classId) return;
     
     try {
@@ -195,7 +196,7 @@ export default function StudentMeeting() {
       console.error('Error fetching meetings:', error);
       setMeetings([]);
     }
-  };
+  }, []);
 
   const fetchAllUsers = async () => {
     try {

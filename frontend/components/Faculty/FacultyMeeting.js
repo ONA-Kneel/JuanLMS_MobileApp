@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -78,11 +78,7 @@ export default function FacultyMeeting() {
     return () => clearInterval(timer);
   }, []);
 
-  useEffect(() => {
-    fetchClasses();
-  }, []);
-
-  const fetchClasses = async () => {
+  const fetchClasses = useCallback(async () => {
     if (!user || !user._id) {
       setLoading(false);
       return;
@@ -148,9 +144,9 @@ export default function FacultyMeeting() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?._id]);
 
-  const fetchMeetings = async (classId) => {
+  const fetchMeetings = useCallback(async (classId) => {
     if (!classId) return;
     
     try {
@@ -160,7 +156,14 @@ export default function FacultyMeeting() {
       console.error('Error fetching meetings:', error);
       setMeetings([]);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (user?._id) {
+      fetchClasses();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?._id]);
 
   const handleCreateMeeting = async () => {
     if (!formData.title.trim()) {

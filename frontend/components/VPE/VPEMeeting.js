@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -73,23 +73,7 @@ export default function VPEMeeting() {
   const [showDurationModal, setShowDurationModal] = useState(false);
   const [tempInputValue, setTempInputValue] = useState('');
 
-  useEffect(() => {
-    fetchAllMeetings();
-    // Defer user fetching until needed (when user tries to create a meeting)
-  }, []);
-  
-  // Fetch users lazily when needed (when component mounts and users list is empty)
-  useEffect(() => {
-    if (user && user._id && allUsers.length === 0) {
-      // Small delay to let meetings load first
-      const timer = setTimeout(() => {
-        fetchAllUsers();
-      }, 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [user]);
-
-  const fetchAllMeetings = async () => {
+  const fetchAllMeetings = useCallback(async () => {
     if (!user || !user._id) {
       setLoading(false);
       return;
@@ -128,9 +112,9 @@ export default function VPEMeeting() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?._id]);
 
-  const fetchAllUsers = async () => {
+  const fetchAllUsers = useCallback(async () => {
     try {
       const users = await apiGet('/api/users/all').catch(() => []);
       const currentUserId = user?._id;
@@ -142,7 +126,26 @@ export default function VPEMeeting() {
       console.error('Error fetching users:', e);
       setAllUsers([]);
     }
-  };
+  }, [user?._id]);
+
+  useEffect(() => {
+    if (user?._id) {
+      fetchAllMeetings();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?._id]);
+  
+  // Fetch users lazily when needed (when component mounts and users list is empty)
+  useEffect(() => {
+    if (user && user._id && allUsers.length === 0) {
+      // Small delay to let meetings load first
+      const timer = setTimeout(() => {
+        fetchAllUsers();
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?._id, allUsers.length]);
 
   const toggleUserSelection = (u) => {
     setSelectedUsers(prev => {
