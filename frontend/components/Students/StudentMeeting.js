@@ -21,6 +21,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNotifications } from '../../NotificationContext';
 import NotificationCenter from '../NotificationCenter';
 import InvitedMeetings from '../Meeting/InvitedMeetings';
+import { apiGet } from '../../utils/apiUtils';
 let StreamMeetingRoomNative = null;
 let SimpleStreamMeetingRoom = null;
 if (Platform.OS !== 'web') {
@@ -123,33 +124,27 @@ export default function StudentMeeting() {
 
     setLoading(true);
     try {
-      const token = await AsyncStorage.getItem('jwtToken');
-      
-      // Fetch academic year and classes in parallel
-      const [academicResponse, classesResponse] = await Promise.all([
-        fetch('https://juanlms-webapp-server.onrender.com/api/academic-year/active', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        }),
-        fetch('https://juanlms-webapp-server.onrender.com/classes/my-classes', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        })
+      // Fetch academic year and classes in parallel with proper error handling
+      const [academicData, classesData] = await Promise.allSettled([
+        apiGet('/api/academic-year/active').catch(() => null),
+        apiGet('/api/classes/my-classes').catch(() => [])
       ]);
 
       let activeYear = '2025-2026';
       let activeTerm = 'Term 1';
       
-      if (academicResponse.ok) {
-        const academicData = await academicResponse.json();
-        if (academicData.success && academicData.academicYear) {
-          activeYear = academicData.academicYear.year;
-          activeTerm = academicData.academicYear.currentTerm;
+      if (academicData.status === 'fulfilled' && academicData.value) {
+        const data = academicData.value;
+        if (data.success && data.academicYear) {
+          activeYear = data.academicYear.year;
+          activeTerm = data.academicYear.currentTerm;
         }
       }
       
       setAcademicContext(`${activeYear} | ${activeTerm}`);
 
-      if (classesResponse.ok) {
-        const data = await classesResponse.json();
+      if (classesData.status === 'fulfilled' && classesData.value) {
+        const data = classesData.value;
         let allClasses = [];
         if (Array.isArray(data)) {
           allClasses = data;
@@ -176,10 +171,15 @@ export default function StudentMeeting() {
               console.log('Background meeting fetch error:', err)
             );
           }
+        } else {
+          setClasses([]);
         }
+      } else {
+        setClasses([]);
       }
     } catch (error) {
       console.error('Error fetching classes:', error);
+      setClasses([]);
     } finally {
       setLoading(false);
     }
@@ -189,19 +189,11 @@ export default function StudentMeeting() {
     if (!classId) return;
     
     try {
-      const token = await AsyncStorage.getItem('jwtToken');
-      const response = await fetch(`https://juanlms-webapp-server.onrender.com/api/meetings/class/${classId}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setMeetings(data);
-      }
+      const data = await apiGet(`/api/meetings/class/${classId}`).catch(() => []);
+      setMeetings(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching meetings:', error);
+      setMeetings([]);
     }
   };
 

@@ -20,6 +20,7 @@ import { useUser } from '../UserContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNotifications } from '../../NotificationContext';
 import NotificationCenter from '../NotificationCenter';
+import { apiGet } from '../../utils/apiUtils';
 
 const { width } = Dimensions.get('window');
 
@@ -96,37 +97,34 @@ export default function VPEMeeting() {
 
     setLoading(true);
     try {
-      const token = await AsyncStorage.getItem('jwtToken');
-      
-      // Fetch academic year and meetings in parallel
-      const [academicResponse, meetingsResponse] = await Promise.all([
-        fetch('https://juanlms-webapp-server.onrender.com/api/academic-year/active', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        }),
-        fetch('https://juanlms-webapp-server.onrender.com/api/meetings/direct-invite', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        })
+      // Fetch academic year and meetings in parallel with proper error handling
+      const [academicData, meetingsData] = await Promise.allSettled([
+        apiGet('/api/academic-year/active').catch(() => null),
+        apiGet('/api/meetings/direct-invite').catch(() => [])
       ]);
 
       let activeYear = '2025-2026';
       let activeTerm = 'Term 1';
       
-      if (academicResponse.ok) {
-        const academicData = await academicResponse.json();
-        if (academicData.success && academicData.academicYear) {
-          activeYear = academicData.academicYear.year;
-          activeTerm = academicData.academicYear.currentTerm;
+      if (academicData.status === 'fulfilled' && academicData.value) {
+        const data = academicData.value;
+        if (data.success && data.academicYear) {
+          activeYear = data.academicYear.year;
+          activeTerm = data.academicYear.currentTerm;
         }
       }
       
       setAcademicContext(`${activeYear} | ${activeTerm}`);
 
-      if (meetingsResponse.ok) {
-        const data = await meetingsResponse.json();
+      if (meetingsData.status === 'fulfilled' && meetingsData.value) {
+        const data = meetingsData.value;
         setMeetings(Array.isArray(data) ? data : []);
+      } else {
+        setMeetings([]);
       }
     } catch (error) {
       console.error('Error fetching meetings:', error);
+      setMeetings([]);
     } finally {
       setLoading(false);
     }
@@ -134,20 +132,15 @@ export default function VPEMeeting() {
 
   const fetchAllUsers = async () => {
     try {
-      const token = await AsyncStorage.getItem('jwtToken');
-      const response = await fetch('https://juanlms-webapp-server.onrender.com/users/all', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (response.ok) {
-        const users = await response.json();
-        const currentUserId = user?._id;
-        const filtered = Array.isArray(users)
-          ? users.filter(u => u && u._id && u._id !== currentUserId && u.status !== 'inactive' && u.role !== 'admin')
-          : [];
-        setAllUsers(filtered);
-      }
+      const users = await apiGet('/api/users/all').catch(() => []);
+      const currentUserId = user?._id;
+      const filtered = Array.isArray(users)
+        ? users.filter(u => u && u._id && u._id !== currentUserId && u.status !== 'inactive' && u.role !== 'admin')
+        : [];
+      setAllUsers(filtered);
     } catch (e) {
       console.error('Error fetching users:', e);
+      setAllUsers([]);
     }
   };
 
