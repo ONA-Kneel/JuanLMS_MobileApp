@@ -266,12 +266,31 @@ export default function SimpleStreamMeetingRoom({
 
         // Check if call is already connected
         console.log('Call state after join:', callInstance.state.status);
-        if (callInstance.state.status === 'joined' || callInstance.state.status === 'active') {
+        const currentStatus = callInstance.state.status;
+        if (currentStatus === 'joined' || currentStatus === 'active') {
           console.log('Call already joined/active');
           setIsConnecting(false);
+        } else {
+          // If not immediately connected, wait a bit and check again
+          setTimeout(() => {
+            const status = callInstance.state.status;
+            console.log('[SimpleStreamMeetingRoom] Checking call status after delay:', status);
+            if (status === 'joined' || status === 'active') {
+              setIsConnecting(false);
+            }
+          }, 2000);
         }
 
         // Set up call event listeners
+        // Define cleanup function before listeners
+        let connectionTimeout;
+        let connectionCheckInterval;
+        
+        const cleanupConnection = () => {
+          if (connectionTimeout) clearTimeout(connectionTimeout);
+          if (connectionCheckInterval) clearInterval(connectionCheckInterval);
+        };
+        
         callInstance.on('call.updated', (event) => {
           console.log('Call updated:', event);
           console.log('Call status:', event.call.state.status);
@@ -281,6 +300,7 @@ export default function SimpleStreamMeetingRoom({
           // Reset connecting state when call is updated (connected)
           if (event.call.state.status === 'joined' || event.call.state.status === 'active') {
             setIsConnecting(false);
+            cleanupConnection();
           }
         });
 
@@ -288,12 +308,14 @@ export default function SimpleStreamMeetingRoom({
         callInstance.on('call.session_started', () => {
           console.log('Call session started');
           setIsConnecting(false);
+          cleanupConnection();
         });
 
         // Listen for call joined event
         callInstance.on('call.joined', () => {
           console.log('Call joined');
           setIsConnecting(false);
+          cleanupConnection();
         });
 
         callInstance.on('call.ended', () => {
@@ -376,13 +398,27 @@ export default function SimpleStreamMeetingRoom({
           }
         });
 
-        // Set a timeout to ensure connecting state is reset
-        setTimeout(() => {
+        // Set a timeout to ensure connecting state is reset if call doesn't connect
+        connectionTimeout = setTimeout(() => {
+          console.warn('[SimpleStreamMeetingRoom] Connection timeout - forcing connecting state to false');
+          if (callInstance.state.status !== 'joined' && callInstance.state.status !== 'active') {
+            console.warn('[SimpleStreamMeetingRoom] Call not connected after timeout, status:', callInstance.state.status);
+            setError('Connection timeout. Please try again.');
+          }
           setIsConnecting(false);
-        }, 5000); // 5 second timeout
+        }, 10000); // 10 second timeout
+
+        // Check periodically and cleanup when connected
+        connectionCheckInterval = setInterval(() => {
+          const status = callInstance.state.status;
+          if (status === 'joined' || status === 'active') {
+            cleanupConnection();
+          }
+        }, 500);
 
       } catch (err) {
         console.error('Error initializing Stream client:', err);
+        setIsConnecting(false); // Always reset connecting state on error
         
         // Check if error is related to token expiration
         const errorMessage = err.message || '';
@@ -394,9 +430,6 @@ export default function SimpleStreamMeetingRoom({
         } else {
           setError(err.message || 'Failed to initialize meeting');
         }
-      } finally {
-        // Don't set isConnecting to false here as we want to wait for the call to join
-        // setIsConnecting(false);
       }
     };
 
