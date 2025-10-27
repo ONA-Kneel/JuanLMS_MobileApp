@@ -122,6 +122,11 @@ export const AnnouncementProvider = ({ children }) => {
       }
     } catch (error) {
       console.error('Error fetching announcements:', error);
+      console.error('Error details:', {
+        message: error?.message,
+        stack: error?.stack,
+        name: error?.name,
+      });
       setAnnouncements([]);
     } finally {
       setLoading(false);
@@ -174,6 +179,11 @@ export const AnnouncementProvider = ({ children }) => {
       }
     } catch (error) {
       console.error('Error fetching acknowledged announcements:', error);
+      console.error('Error details:', {
+        message: error?.message,
+        stack: error?.stack,
+        name: error?.name,
+      });
       setAcknowledgedAnnouncements([]);
     } finally {
       setLoadingAcknowledged(false);
