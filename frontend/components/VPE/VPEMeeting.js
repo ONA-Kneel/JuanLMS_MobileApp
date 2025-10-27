@@ -12,6 +12,7 @@ import {
   PermissionsAndroid,
   Image,
   TextInput,
+  Modal,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
@@ -61,6 +62,14 @@ export default function VPEMeeting() {
   
   // Notification states
   const [showNotificationCenter, setShowNotificationCenter] = useState(false);
+  
+  // Input modal states
+  const [showTitleModal, setShowTitleModal] = useState(false);
+  const [showDescriptionModal, setShowDescriptionModal] = useState(false);
+  const [showDateModal, setShowDateModal] = useState(false);
+  const [showTimeModal, setShowTimeModal] = useState(false);
+  const [showDurationModal, setShowDurationModal] = useState(false);
+  const [tempInputValue, setTempInputValue] = useState('');
 
   useEffect(() => {
     fetchAllMeetings();
@@ -152,6 +161,57 @@ export default function VPEMeeting() {
   const clearSelection = () => {
     setSelectedUsers([]);
     setSearchTerm('');
+  };
+
+  // Modal input handlers
+  const openTitleModal = () => {
+    setTempInputValue(meetingTitle);
+    setShowTitleModal(true);
+  };
+
+  const openDescriptionModal = () => {
+    setTempInputValue(meetingDescription);
+    setShowDescriptionModal(true);
+  };
+
+  const openDateModal = () => {
+    setTempInputValue(scheduledDate);
+    setShowDateModal(true);
+  };
+
+  const openTimeModal = () => {
+    setTempInputValue(scheduledTime);
+    setShowTimeModal(true);
+  };
+
+  const openDurationModal = () => {
+    setTempInputValue(duration);
+    setShowDurationModal(true);
+  };
+
+  const saveTitleInput = () => {
+    setMeetingTitle(tempInputValue);
+    setShowTitleModal(false);
+  };
+
+  const saveDescriptionInput = () => {
+    setMeetingDescription(tempInputValue);
+    setShowDescriptionModal(false);
+  };
+
+  const saveDateInput = () => {
+    setScheduledDate(tempInputValue);
+    setShowDateModal(false);
+  };
+
+  const saveTimeInput = () => {
+    setScheduledTime(tempInputValue);
+    setShowTimeModal(false);
+  };
+
+  const saveDurationInput = () => {
+    setDuration(tempInputValue);
+    setShowDurationModal(false);
   };
 
   const usersByRole = allUsers
@@ -630,23 +690,21 @@ export default function VPEMeeting() {
             <Icon name="format-title" size={18} color="#6B7280" />
             <Text style={styles.textLabel}>Title</Text>
           </View>
-          <View style={styles.inputField}>
-            <Text
-              style={styles.inputFieldText}
-              onPress={() => setMeetingTitle(prompt('Title', meetingTitle) || '')}
-            >{meetingTitle || 'Add a meeting title'}</Text>
-          </View>
+          <TouchableOpacity style={styles.inputField} onPress={openTitleModal}>
+            <Text style={styles.inputFieldText}>
+              {meetingTitle || 'Add a meeting title'}
+            </Text>
+          </TouchableOpacity>
 
           <View style={styles.textInputRow}>
             <Icon name="text" size={18} color="#6B7280" />
             <Text style={styles.textLabel}>Description (optional)</Text>
           </View>
-          <View style={styles.inputField}>
-            <Text
-              style={styles.inputFieldText}
-              onPress={() => setMeetingDescription(prompt('Description (optional)', meetingDescription) || '')}
-            >{meetingDescription || 'Add a description (optional)'}</Text>
-          </View>
+          <TouchableOpacity style={styles.inputField} onPress={openDescriptionModal}>
+            <Text style={styles.inputFieldText}>
+              {meetingDescription || 'Add a description (optional)'}
+            </Text>
+          </TouchableOpacity>
 
           {/* Meeting type toggle */}
           <View style={styles.typeToggleRow}>
@@ -664,34 +722,31 @@ export default function VPEMeeting() {
                 <Icon name="calendar" size={18} color="#6B7280" />
                 <Text style={styles.inlineLabel}>Date (YYYY-MM-DD)</Text>
               </View>
-              <View style={styles.inputField}>
-                <Text
-                  style={styles.inputFieldText}
-                  onPress={() => setScheduledDate(prompt('Date (YYYY-MM-DD)', scheduledDate) || '')}
-                >{scheduledDate || 'e.g. 2025-10-05'}</Text>
-              </View>
+              <TouchableOpacity style={styles.inputField} onPress={openDateModal}>
+                <Text style={styles.inputFieldText}>
+                  {scheduledDate || 'e.g. 2025-10-05'}
+                </Text>
+              </TouchableOpacity>
 
               <View style={styles.inlineRow}>
                 <Icon name="clock-outline" size={18} color="#6B7280" />
                 <Text style={styles.inlineLabel}>Time (HH:mm)</Text>
               </View>
-              <View style={styles.inputField}>
-                <Text
-                  style={styles.inputFieldText}
-                  onPress={() => setScheduledTime(prompt('Time (HH:mm)', scheduledTime) || '')}
-                >{scheduledTime || 'e.g. 14:30'}</Text>
-              </View>
+              <TouchableOpacity style={styles.inputField} onPress={openTimeModal}>
+                <Text style={styles.inputFieldText}>
+                  {scheduledTime || 'e.g. 14:30'}
+                </Text>
+              </TouchableOpacity>
 
               <View style={styles.inlineRow}>
                 <Icon name="timer" size={18} color="#6B7280" />
                 <Text style={styles.inlineLabel}>Duration (minutes)</Text>
               </View>
-              <View style={styles.inputField}>
-                <Text
-                  style={styles.inputFieldText}
-                  onPress={() => setDuration(prompt('Duration (minutes)', duration) || '')}
-                >{duration || 'optional'}</Text>
-              </View>
+              <TouchableOpacity style={styles.inputField} onPress={openDurationModal}>
+                <Text style={styles.inputFieldText}>
+                  {duration || 'optional'}
+                </Text>
+              </TouchableOpacity>
             </View>
           )}
         </View>
@@ -802,7 +857,7 @@ export default function VPEMeeting() {
           onLeave={() => setActiveMeeting(null)}
           meetingData={activeMeeting}
           isHost={true}
-          hostUserId={userInfo.name}
+          hostUserId={user?.name || `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'User'}
         />
       )}
       
@@ -811,6 +866,129 @@ export default function VPEMeeting() {
         visible={showNotificationCenter} 
         onClose={() => setShowNotificationCenter(false)} 
       />
+      
+      {/* Input Modals */}
+      {/* Title Input Modal */}
+      <Modal visible={showTitleModal} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Meeting Title</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={tempInputValue}
+              onChangeText={setTempInputValue}
+              placeholder="Enter meeting title"
+              autoFocus
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity style={styles.modalCancelButton} onPress={() => setShowTitleModal(false)}>
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalSaveButton} onPress={saveTitleInput}>
+                <Text style={styles.modalSaveText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Description Input Modal */}
+      <Modal visible={showDescriptionModal} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Meeting Description</Text>
+            <TextInput
+              style={[styles.modalInput, { height: 80, textAlignVertical: 'top' }]}
+              value={tempInputValue}
+              onChangeText={setTempInputValue}
+              placeholder="Enter meeting description (optional)"
+              multiline
+              autoFocus
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity style={styles.modalCancelButton} onPress={() => setShowDescriptionModal(false)}>
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalSaveButton} onPress={saveDescriptionInput}>
+                <Text style={styles.modalSaveText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Date Input Modal */}
+      <Modal visible={showDateModal} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Meeting Date</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={tempInputValue}
+              onChangeText={setTempInputValue}
+              placeholder="YYYY-MM-DD (e.g. 2025-10-05)"
+              autoFocus
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity style={styles.modalCancelButton} onPress={() => setShowDateModal(false)}>
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalSaveButton} onPress={saveDateInput}>
+                <Text style={styles.modalSaveText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Time Input Modal */}
+      <Modal visible={showTimeModal} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Meeting Time</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={tempInputValue}
+              onChangeText={setTempInputValue}
+              placeholder="HH:mm (e.g. 14:30)"
+              autoFocus
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity style={styles.modalCancelButton} onPress={() => setShowTimeModal(false)}>
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalSaveButton} onPress={saveTimeInput}>
+                <Text style={styles.modalSaveText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Duration Input Modal */}
+      <Modal visible={showDurationModal} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Meeting Duration</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={tempInputValue}
+              onChangeText={setTempInputValue}
+              placeholder="Duration in minutes (optional)"
+              keyboardType="numeric"
+              autoFocus
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity style={styles.modalCancelButton} onPress={() => setShowDurationModal(false)}>
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalSaveButton} onPress={saveDurationInput}>
+                <Text style={styles.modalSaveText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
       </ScrollView>
     </View>
   );
@@ -1186,5 +1364,64 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: '500',
     marginLeft: 4,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 20,
+    width: '100%',
+    maxWidth: 400,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    marginBottom: 16,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  modalCancelButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+  },
+  modalCancelText: {
+    color: '#374151',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  modalSaveButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: '#3B82F6',
+    alignItems: 'center',
+  },
+  modalSaveText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '500',
   },
 });
