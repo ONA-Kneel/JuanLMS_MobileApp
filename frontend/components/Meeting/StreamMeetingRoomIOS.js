@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { 
   Modal, 
   View, 
@@ -33,6 +33,7 @@ import {
   useCallReactionState,
 } from '@stream-io/video-react-native-sdk';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const { width, height } = Dimensions.get('window');
 
@@ -66,10 +67,111 @@ export default function StreamMeetingRoomIOS({
   const [newMessage, setNewMessage] = useState('');
   const isInitialized = useRef(false);
   const initTimeoutRef = useRef(null);
+  
+  // Credential fetching state
+  const [streamCredentials, setStreamCredentials] = useState(null);
+  const [isLoadingCredentials, setIsLoadingCredentials] = useState(false);
+
+  // Generate call ID from meeting data
+  const generateCallId = useCallback((meetingData) => {
+    if (meetingData?.meetingId) return String(meetingData.meetingId);
+    if (meetingData?._id) return String(meetingData._id);
+    if (meetingData?.title) return String(meetingData.title).replace(/\s+/g, '-').toLowerCase();
+    return `meeting-${Date.now()}`;
+  }, []);
+
+  // Fetch Stream credentials from backend with retry logic
+  useEffect(() => {
+    const fetchCredentials = async (retryCount = 0) => {
+      if (!isOpen || !meetingData) return;
+      
+      setIsLoadingCredentials(true);
+      try {
+        const callId = generateCallId(meetingData);
+        
+        const token = await AsyncStorage.getItem('jwtToken');
+        if (!token) {
+          setError('No authentication token found. Please log in again.');
+          setIsLoadingCredentials(false);
+          return;
+        }
+        
+        const response = await fetch('https://juanlms-webapp-server.onrender.com/api/meetings/stream-credentials', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ callId })
+        });
+        
+        // Handle 401 Unauthorized - token expired
+        if (response.status === 401) {
+          console.warn('[STREAM-CREDS] Token expired, user needs to re-authenticate');
+          setError('Your session has expired. Please close and rejoin the meeting.');
+          setIsLoadingCredentials(false);
+          return;
+        }
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          setStreamCredentials(data);
+          console.log('[STREAM-CREDS] Successfully fetched credentials from backend');
+        } else {
+          console.error('[STREAM-CREDS] Failed to fetch credentials:', data.message);
+          setError(data.message || 'Failed to get Stream credentials');
+        }
+      } catch (error) {
+        console.error('[STREAM-CREDS] Error fetching credentials:', error);
+        // Retry once if it's a network error
+        if (retryCount === 0 && (error.message.includes('Network') || error.message.includes('fetch'))) {
+          console.log('[STREAM-CREDS] Retrying credential fetch...');
+          setTimeout(() => fetchCredentials(1), 1000);
+          return;
+        }
+        setError('Failed to connect to Stream service. Please try again.');
+      } finally {
+        setIsLoadingCredentials(false);
+      }
+    };
+    
+    fetchCredentials();
+  }, [isOpen, meetingData, generateCallId]);
+
+  // Use provided credentials or fetched credentials
+  const finalCredentials = useMemo(() => {
+    return credentials || streamCredentials;
+  }, [credentials, streamCredentials]);
+
+  // Determine callId preference
+  const resolvedCallId = useMemo(() => {
+    if (finalCredentials?.callId) return String(finalCredentials.callId);
+    if (meetingData?.meetingId) return String(meetingData.meetingId);
+    if (meetingData?._id) return String(meetingData._id);
+    return generateCallId(meetingData);
+  }, [finalCredentials?.callId, meetingData, generateCallId]);
+
+  const userInfo = useMemo(() => {
+    const streamUserInfo = finalCredentials?.userInfo;
+    if (streamUserInfo && streamUserInfo.name) {
+      return streamUserInfo;
+    }
+    return {
+      id: finalCredentials?.userId || currentUser?.id || 'user',
+      name: currentUser?.name || `${currentUser?.firstName || ''} ${currentUser?.lastName || ''}`.trim() || 'User',
+      email: currentUser?.email || '',
+      image: currentUser?.profilePic || null,
+    };
+  }, [finalCredentials, currentUser]);
 
   // Initialize Stream.io client
   useEffect(() => {
-    if (!isOpen || !credentials) return;
+    if (!isOpen || !finalCredentials) return;
 
     // Prevent multiple initializations
     if (isInitialized.current || client || call) {
@@ -91,49 +193,110 @@ export default function StreamMeetingRoomIOS({
         setIsConnecting(true);
         setError(null);
 
+        if (isLoadingCredentials) {
+          setError('Loading Stream credentials...');
+          return;
+        }
+        if (!finalCredentials) {
+          setError('Failed to load Stream credentials');
+          return;
+        }
+        if (!finalCredentials.apiKey || !finalCredentials.token || !finalCredentials.userId) {
+          setError('Missing Stream credentials');
+          return;
+        }
+        if (!resolvedCallId) {
+          setError('Missing callId');
+          return;
+        }
+
         const streamClient = new StreamVideoClient({
-          apiKey: credentials.apiKey,
-          user: {
-            id: credentials.userId,
-            name: currentUser?.name || 'User',
-            image: currentUser?.profilePic || null,
-          },
-          token: credentials.token,
+          apiKey: finalCredentials.apiKey,
+          user: userInfo,
+          token: finalCredentials.token,
         });
+        console.log('[StreamMeetingRoomIOS] Created client with user:', userInfo);
 
         setClient(streamClient);
 
         // Create call and join with mic/camera disabled by default
-        const callInstance = streamClient.call('default', credentials.callId);
+        const callInstance = streamClient.call('default', resolvedCallId);
+        
+        // Ensure mic and camera are disabled at start
+        try {
+          if (callInstance.microphone && typeof callInstance.microphone.setEnabled === 'function') {
+            await callInstance.microphone.setEnabled(false);
+          }
+        } catch (e) { /* ignore */ }
+        try {
+          if (callInstance.camera && typeof callInstance.camera.setEnabled === 'function') {
+            await callInstance.camera.setEnabled(false);
+          }
+        } catch (e) { /* ignore */ }
+        
         await callInstance.join({ create: true });
+        
+        // Double-check post-join that tracks remain disabled
         try {
-          await callInstance.microphone?.disable?.();
+          if (callInstance.microphone && typeof callInstance.microphone.setEnabled === 'function') {
+            await callInstance.microphone.setEnabled(false);
+          }
         } catch (e) { /* ignore */ }
         try {
-          await callInstance.camera?.disable?.();
+          if (callInstance.camera && typeof callInstance.camera.setEnabled === 'function') {
+            await callInstance.camera.setEnabled(false);
+          }
         } catch (e) { /* ignore */ }
+        
         setIsMuted(true);
         setIsVideoOn(false);
         setCall(callInstance);
 
         // Check if call is already connected
         console.log('Call state after join:', callInstance.state.status);
-        if (callInstance.state.status === 'joined' || callInstance.state.status === 'active') {
+        const currentStatus = callInstance.state.status;
+        if (currentStatus === 'joined' || currentStatus === 'active') {
           console.log('Call already joined/active');
           setIsConnecting(false);
+        } else {
+          // If not immediately connected, wait a bit and check again
+          setTimeout(() => {
+            const status = callInstance.state.status;
+            console.log('[StreamMeetingRoomIOS] Checking call status after delay:', status);
+            if (status === 'joined' || status === 'active') {
+              setIsConnecting(false);
+            }
+          }, 2000);
         }
 
         // Set up call event listeners
+        // Define cleanup function before listeners
+        let connectionTimeout;
+        let connectionCheckInterval;
+        
+        const cleanupConnection = () => {
+          if (connectionTimeout) clearTimeout(connectionTimeout);
+          if (connectionCheckInterval) clearInterval(connectionCheckInterval);
+        };
+        
         callInstance.on('call.updated', (event) => {
           console.log('Call updated:', event);
           if (event.call.state.status === 'joined' || event.call.state.status === 'active') {
             setIsConnecting(false);
+            cleanupConnection();
           }
         });
 
         callInstance.on('call.session.started', () => {
           console.log('Call session started');
           setIsConnecting(false);
+          cleanupConnection();
+        });
+        
+        callInstance.on('call.joined', () => {
+          console.log('Call joined');
+          setIsConnecting(false);
+          cleanupConnection();
         });
 
         callInstance.on('call.session.ended', () => {
@@ -190,10 +353,59 @@ export default function StreamMeetingRoomIOS({
         callInstance.on('call.participant.left', updateParticipantCount);
         updateParticipantCount();
 
-      } catch (error) {
-        console.error('Failed to initialize StreamVideo:', error);
-        setError(error.message || 'Failed to initialize StreamVideo');
-        setIsConnecting(false);
+        // Listen for connection errors, especially token expiration
+        callInstance.on('connection.changed', (event) => {
+          console.log('[StreamMeetingRoomIOS] Connection changed:', event);
+          if (event.online === false) {
+            console.warn('[StreamMeetingRoomIOS] Connection lost');
+          }
+        });
+
+        // Listen for errors from the call
+        callInstance.on('error', (err) => {
+          console.error('[StreamMeetingRoomIOS] Call error:', err);
+          const errorCode = err.code || err.StatusCode;
+          const errorMessage = err.message || '';
+          
+          if (errorCode === 40 || errorCode === 401 || errorMessage.includes('token is expired') || errorMessage.includes('AuthErrorTokenExpired')) {
+            console.warn('[StreamMeetingRoomIOS] Token expired during call');
+            setError('Your session has expired. Please close and rejoin the meeting.');
+            setIsConnecting(false);
+          }
+        });
+
+        // Set a timeout to ensure connecting state is reset if call doesn't connect
+        connectionTimeout = setTimeout(() => {
+          console.warn('[StreamMeetingRoomIOS] Connection timeout - forcing connecting state to false');
+          if (callInstance.state.status !== 'joined' && callInstance.state.status !== 'active') {
+            console.warn('[StreamMeetingRoomIOS] Call not connected after timeout, status:', callInstance.state.status);
+            setError('Connection timeout. Please try again.');
+          }
+          setIsConnecting(false);
+        }, 10000); // 10 second timeout
+
+        // Check periodically and cleanup when connected
+        connectionCheckInterval = setInterval(() => {
+          const status = callInstance.state.status;
+          if (status === 'joined' || status === 'active') {
+            cleanupConnection();
+          }
+        }, 500);
+
+      } catch (err) {
+        console.error('Error initializing Stream client:', err);
+        setIsConnecting(false); // Always reset connecting state on error
+        
+        // Check if error is related to token expiration
+        const errorMessage = err.message || '';
+        const errorCode = err.code || err.StatusCode;
+        
+        if (errorCode === 40 || errorCode === 401 || errorMessage.includes('token is expired') || errorMessage.includes('AuthErrorTokenExpired')) {
+          console.warn('[STREAM-CREDS] Stream token expired, user needs fresh credentials');
+          setError('Authentication expired. Please close and rejoin the meeting with fresh credentials.');
+        } else {
+          setError(err.message || 'Failed to initialize meeting');
+        }
       }
     };
 
@@ -204,8 +416,17 @@ export default function StreamMeetingRoomIOS({
       if (initTimeoutRef.current) {
         clearTimeout(initTimeoutRef.current);
       }
+      
+      if (call) {
+        call.leave();
+      }
+      if (client) {
+        client.disconnectUser();
+      }
+      // Reset initialization flag when component unmounts
+      isInitialized.current = false;
     };
-  }, [isOpen, credentials]);
+  }, [isOpen, finalCredentials, resolvedCallId, userInfo, isLoadingCredentials]);
 
   const handleLeave = useCallback(async () => {
     try {
