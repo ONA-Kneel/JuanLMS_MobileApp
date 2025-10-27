@@ -1,4 +1,4 @@
-import { Text, TouchableOpacity, View, Image, ScrollView, ActivityIndicator, Alert, Modal, Dimensions, Linking } from 'react-native';
+import { Text, TouchableOpacity, View, Image, ScrollView, ActivityIndicator, Alert, Modal, Dimensions, Linking, Platform } from 'react-native';
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { ImageBackground, ProgressBar } from 'react-native-web';
@@ -171,6 +171,8 @@ export default function StudentModule(){
             });
             
             // Test the connection and log banner visibility state
+            // iOS may need more time to establish socket connection
+            const verificationTimeout = Platform.OS === 'ios' ? 5000 : 2000;
             setTimeout(() => {
                 if (classSocketService.isSocketConnected()) {
                     console.log('[StudentModule] Socket connection verified - ready to receive real-time updates');
@@ -191,8 +193,14 @@ export default function StudentModule(){
                     }
                 } else {
                     console.warn('[StudentModule] Socket connection verification failed - real-time updates may not work');
+                    console.warn('[StudentModule] Platform:', Platform.OS);
+                    console.warn('[StudentModule] Socket details:', {
+                        socketExists: !!classSocketService.getSocket(),
+                        socketId: classSocketService.getSocketId(),
+                        isConnected: classSocketService.isSocketConnected()
+                    });
                 }
-            }, 2000);
+            }, verificationTimeout);
             
         } catch (error) {
             console.error('[StudentModule] Socket initialization failed with error:', error);

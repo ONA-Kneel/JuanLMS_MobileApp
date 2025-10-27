@@ -10,6 +10,7 @@ import {
   Modal,
   TextInput,
   Image,
+  Platform,
 } from 'react-native';
 import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -546,14 +547,21 @@ export default function StudentActs() {
       
       console.log('[StudentActs] All activity event listeners set up');
       
-      // Test connection
+      // Test connection - iOS may need more time to establish socket connection
+      const verificationTimeout = Platform.OS === 'ios' ? 5000 : 2000;
       setTimeout(() => {
         if (classSocketService.isSocketConnected()) {
           console.log('[StudentActs] Socket connection verified - ready for real-time activity updates');
         } else {
           console.warn('[StudentActs] Socket connection verification failed');
+          console.warn('[StudentActs] Platform:', Platform.OS);
+          console.warn('[StudentActs] Socket details:', {
+            socketExists: !!classSocketService.getSocket(),
+            socketId: classSocketService.getSocketId(),
+            isConnected: classSocketService.isSocketConnected()
+          });
         }
-      }, 2000);
+      }, verificationTimeout);
       
     } catch (error) {
       console.error('[StudentActs] Error initializing socket for activities:', error);

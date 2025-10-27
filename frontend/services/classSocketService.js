@@ -61,6 +61,13 @@ class ClassSocketService {
       this.setupConnectionListeners();
       this.setupClassEventListeners();
       
+      // Check if socket is already connected (can happen on iOS)
+      if (this.socket.connected) {
+        socketLog('info', 'CLASS_SOCKET_SERVICE', 'Socket connected immediately after initialization');
+        this.isConnected = true;
+        this.socketAvailable = true;
+      }
+      
       socketLog('info', 'CLASS_SOCKET_SERVICE', 'Socket.IO initialized successfully');
       return this.socket;
     } catch (error) {
@@ -694,7 +701,22 @@ class ClassSocketService {
   }
 
   isSocketConnected() {
-    return this.socket && this.isConnected;
+    // On iOS, socket.connected may be true even if isConnected flag hasn't updated yet
+    // Check both socket.connected property and our internal flag for better reliability
+    const socketConnected = this.socket && (this.socket.connected || this.isConnected);
+    
+    // Log diagnostic info for iOS debugging
+    if (__DEV__ && this.socket) {
+      socketLog('debug', 'CLASS_SOCKET_SERVICE', 'Connection check', {
+        socketExists: !!this.socket,
+        socketConnected: this.socket.connected,
+        isConnected: this.isConnected,
+        socketId: this.socket.id,
+        finalResult: socketConnected
+      });
+    }
+    
+    return socketConnected;
   }
 
   isSocketAvailable() {

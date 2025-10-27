@@ -602,14 +602,21 @@ export default function UnifiedChat() {
       
       console.log('[UnifiedChat] All message event listeners set up');
       
-      // Test connection
+      // Test connection - iOS may need more time to establish socket connection
+      const verificationTimeout = Platform.OS === 'ios' ? 5000 : 2000;
       setTimeout(() => {
         if (classSocketService.isSocketConnected()) {
           console.log('[UnifiedChat] Socket connection verified - ready for real-time messaging');
         } else {
           console.warn('[UnifiedChat] Socket connection verification failed');
+          console.warn('[UnifiedChat] Platform:', Platform.OS);
+          console.warn('[UnifiedChat] Socket details:', {
+            socketExists: !!classSocketService.getSocket(),
+            socketId: classSocketService.getSocketId(),
+            isConnected: classSocketService.isSocketConnected()
+          });
         }
-      }, 2000);
+      }, verificationTimeout);
       
     } catch (error) {
       console.error('[UnifiedChat] Error initializing socket for messaging:', error);
