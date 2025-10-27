@@ -10,9 +10,6 @@ LogBox.ignoreLogs([
   'Warning: componentWillReceiveProps',
   'Warning: componentWillMount',
   'Warning: componentWillUpdate',
-  'Firebase',
-  'RNFBMessagingModule',
-  'RNFBAppModule',
   'Hermes',
   'IRBuilder',
   'ESTreeIRGen',
@@ -93,7 +90,3 @@ import App from './App';
 // It also ensures that whether you load the app in Expo Go or in a native build,
 // the environment is set up appropriately
 registerRootComponent(App);
-
-// Firebase messaging temporarily disabled to prevent crashes
-// Will be re-enabled once Firebase configuration is stable
-console.log('Firebase messaging temporarily disabled for stability');

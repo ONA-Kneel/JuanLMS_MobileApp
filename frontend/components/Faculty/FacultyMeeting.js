@@ -39,7 +39,8 @@ const { width } = Dimensions.get('window');
 
 export default function FacultyMeeting() {
   const navigation = useNavigation();
-  const { user } = useUser();
+  const userContext = useUser();
+  const { user } = userContext || {};
   const [classes, setClasses] = useState([]);
   const [selectedClass, setSelectedClass] = useState(null);
   const [meetings, setMeetings] = useState([]);

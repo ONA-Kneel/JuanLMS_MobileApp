@@ -34,7 +34,8 @@ if (Platform.OS !== 'web') {
 
 export default function PrincipalMeeting() {
   const navigation = useNavigation();
-  const { user } = useUser();
+  const userContext = useUser();
+  const { user } = userContext || {};
   const [meetings, setMeetings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [academicContext, setAcademicContext] = useState('2025-2026 | Term 1');

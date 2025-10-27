@@ -34,7 +34,8 @@ if (Platform.OS !== 'web') {
 
 export default function VPEMeeting() {
   const navigation = useNavigation();
-  const { user } = useUser();
+  const userContext = useUser();
+  const { user } = userContext || {};
   const { unreadCount } = useNotifications();
   const [meetings, setMeetings] = useState([]);
   const [loading, setLoading] = useState(true);

@@ -34,8 +34,13 @@ const { width } = Dimensions.get('window');
 
 export default function StudentMeeting() {
   const navigation = useNavigation();
-  const { user } = useUser();
-  const { unreadCount } = useNotifications();
+  const userContext = useUser();
+  const { user } = userContext || {};
+  
+  // Get notifications safely
+  const notificationContext = useNotifications();
+  const { unreadCount = 0 } = notificationContext || {};
+  
   const [showNotificationCenter, setShowNotificationCenter] = useState(false);
   const [classes, setClasses] = useState([]);
   const [selectedClass, setSelectedClass] = useState(null);
@@ -76,26 +81,29 @@ export default function StudentMeeting() {
     return () => clearInterval(timer);
   }, []);
 
+  // Only run these when user is available
   useEffect(() => {
-    fetchClasses();
-    fetchAllUsers();
-    fetchHostedMeetings();
-  }, []);
+    if (user && user._id) {
+      fetchClasses();
+      fetchAllUsers();
+      fetchHostedMeetings();
+    }
+  }, [user]);
 
   // Refresh hosted meetings when switching to host-meeting tab
   useEffect(() => {
-    if (activeTab === 'host-meeting') {
+    if (activeTab === 'host-meeting' && user && user._id) {
       fetchHostedMeetings();
     }
-  }, [activeTab]);
+  }, [activeTab, user]);
 
   // Add safety check to prevent white screen when user is null (during logout)
   // This must be placed AFTER all hooks to avoid "Rendered fewer hooks than expected" error
-  if (!user) {
+  if (!user || !user._id) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#00418b" />
-        <Text style={styles.loadingText}>Redirecting to login...</Text>
+        <Text style={styles.loadingText}>Loading...</Text>
       </View>
     );
   }
