@@ -79,19 +79,47 @@ export const AnnouncementProvider = ({ children }) => {
         
         // Apply role-based filtering like web app
         const filtered = (data || []).filter((announcement) => {
-          const creatorRole = (announcement?.createdBy?.role || "").toLowerCase();
+          // Handle case where createdBy might be an ID string or an object
+          let creatorRole = "";
+          if (announcement?.createdBy) {
+            if (typeof announcement.createdBy === 'object' && announcement.createdBy.role) {
+              creatorRole = announcement.createdBy.role.toLowerCase();
+            } else if (typeof announcement.createdBy === 'string') {
+              // If createdBy is just an ID, we can't filter by role - show it
+              console.log('Announcement has createdBy as ID, cannot filter by role');
+              return true;
+            }
+          }
+          
+          // Debug: log announcement details (only for first few to avoid spam)
+          if (data.indexOf(announcement) < 3) {
+            console.log('Checking announcement:', {
+              id: announcement._id,
+              title: announcement.title,
+              createdBy: announcement.createdBy,
+              creatorRole: creatorRole
+            });
+          }
           
           // For students: show announcements from Principal OR VPE
           if (userRole.includes('student')) {
             const fromPrincipal = creatorRole.includes("principal");
-            const fromVPE = creatorRole.includes("vice") && creatorRole.includes("education");
-            return fromPrincipal || fromVPE;
+            const fromVPE = (creatorRole.includes("vice") && creatorRole.includes("education")) || 
+                           creatorRole === "vpe" || 
+                           creatorRole.includes("vpe");
+            const shouldShow = fromPrincipal || fromVPE;
+            if (data.indexOf(announcement) < 3) {
+              console.log(`Student filter - Principal: ${fromPrincipal}, VPE: ${fromVPE}, Show: ${shouldShow}`);
+            }
+            return shouldShow;
           }
           
           // For faculty: show announcements from Principal OR VPE
           if (userRole.includes('faculty') || userRole.includes('teacher')) {
             const fromPrincipal = creatorRole.includes("principal");
-            const fromVPE = creatorRole.includes("vice") && creatorRole.includes("education");
+            const fromVPE = (creatorRole.includes("vice") && creatorRole.includes("education")) || 
+                           creatorRole === "vpe" || 
+                           creatorRole.includes("vpe");
             return fromPrincipal || fromVPE;
           }
           
@@ -102,7 +130,10 @@ export const AnnouncementProvider = ({ children }) => {
           
           // For Principal: show announcements from VPE
           if (userRole.includes('principal')) {
-            return creatorRole.includes("vice") && creatorRole.includes("education");
+            const fromVPE = (creatorRole.includes("vice") && creatorRole.includes("education")) || 
+                           creatorRole === "vpe" || 
+                           creatorRole.includes("vpe");
+            return fromVPE;
           }
           
           // For Admin: show all announcements
@@ -110,11 +141,13 @@ export const AnnouncementProvider = ({ children }) => {
             return true;
           }
           
-          // Default: show all
+          // Default: show all announcements if no role filter applies
           return true;
         });
         
         console.log('Filtered announcements for role:', userRole, 'count:', filtered.length);
+        console.log('Unfiltered count:', data?.length || 0);
+        console.log('Filtered announcements:', filtered.map(a => ({ id: a._id, title: a.title })));
         setAnnouncements(filtered);
       } else {
         console.error('Failed to fetch announcements, status:', response.status);

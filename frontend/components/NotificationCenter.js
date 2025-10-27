@@ -7,56 +7,32 @@ import { useNotifications } from '../NotificationContext';
 import { useNavigation } from '@react-navigation/native';
 
 export default function NotificationCenter({ visible, onClose }) {
-  // Add safety check first
-  if (!visible) {
-    return null;
-  }
-
-  // Add error state
+  // All hooks must be called unconditionally and in the same order
   const [hasError, setHasError] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
+  const [activeTab, setActiveTab] = useState('updates');
+  
+  const navigation = useNavigation();
+  
+  // Get context values - these will throw if contexts aren't available (which indicates a setup issue)
+  const announcementContext = useAnnouncements();
+  const notificationContext = useNotifications();
+  
+  // Extract values from contexts with fallbacks
+  const announcements = announcementContext?.announcements || [];
+  const acknowledgedAnnouncements = announcementContext?.acknowledgedAnnouncements || [];
+  const loadingAnnouncements = announcementContext?.loading || false;
+  const acknowledgeAnnouncement = announcementContext?.acknowledgeAnnouncement || (() => {});
+  const refreshAnnouncements = announcementContext?.refreshAnnouncements || (() => {});
+  
+  const notifications = notificationContext?.notifications || [];
+  const loadingNotifications = notificationContext?.loading || false;
+  const markAsRead = notificationContext?.markAsRead || (() => {});
+  const markAllAsRead = notificationContext?.markAllAsRead || (() => {});
+  const refreshNotifications = notificationContext?.refreshNotifications || (() => {});
 
   try {
-    const navigation = useNavigation();
-    
-    // Add safety checks for context providers
-    let announcements, acknowledgedAnnouncements, loadingAnnouncements, acknowledgeAnnouncement, refreshAnnouncements;
-    let notifications, loadingNotifications, markAsRead, markAllAsRead, refreshNotifications;
-    
-    try {
-      const announcementContext = useAnnouncements();
-      announcements = announcementContext.announcements || [];
-      acknowledgedAnnouncements = announcementContext.acknowledgedAnnouncements || [];
-      loadingAnnouncements = announcementContext.loading || false;
-      acknowledgeAnnouncement = announcementContext.acknowledgeAnnouncement || (() => {});
-      refreshAnnouncements = announcementContext.refreshAnnouncements || (() => {});
-    } catch (announcementError) {
-      console.error('AnnouncementContext error:', announcementError);
-      announcements = [];
-      acknowledgedAnnouncements = [];
-      loadingAnnouncements = false;
-      acknowledgeAnnouncement = () => {};
-      refreshAnnouncements = () => {};
-    }
-    
-    try {
-      const notificationContext = useNotifications();
-      notifications = notificationContext.notifications || [];
-      loadingNotifications = notificationContext.loading || false;
-      markAsRead = notificationContext.markAsRead || (() => {});
-      markAllAsRead = notificationContext.markAllAsRead || (() => {});
-      refreshNotifications = notificationContext.refreshNotifications || (() => {});
-    } catch (notificationError) {
-      console.error('NotificationContext error:', notificationError);
-      notifications = [];
-      loadingNotifications = false;
-      markAsRead = () => {};
-      markAllAsRead = () => {};
-      refreshNotifications = () => {};
-    }
-    
-    const [refreshing, setRefreshing] = useState(false);
-    const [activeTab, setActiveTab] = useState('updates'); // 'updates' or 'announcements'
 
   React.useEffect(() => {
     if (visible) {
@@ -72,7 +48,7 @@ export default function NotificationCenter({ visible, onClose }) {
         setErrorMessage('Failed to load notifications. Please try again.');
       }
     }
-  }, [visible]);
+  }, [visible, refreshAnnouncements, refreshNotifications]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -245,7 +221,7 @@ export default function NotificationCenter({ visible, onClose }) {
   console.log('- Filtered items data:', filteredItems);
   console.log('================================');
 
-  // Add error boundary to prevent white screen
+  // Early return if not visible - after all hooks have been called
   if (!visible) {
     return null;
   }
@@ -453,7 +429,7 @@ export default function NotificationCenter({ visible, onClose }) {
     </Modal>
   );
   } catch (error) {
-    console.error('Error in NotificationCenter:', error);
+    console.error('Error in NotificationCenter render:', error);
     return (
       <Modal visible={visible} animationType="fade" transparent={true} onRequestClose={onClose}>
         <View style={styles.modalOverlay}>

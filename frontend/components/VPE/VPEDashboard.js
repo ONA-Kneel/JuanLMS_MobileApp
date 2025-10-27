@@ -16,6 +16,12 @@ export default function VPEDashboard() {
   const { user } = useUser();
   const { unreadCount } = useNotifications();
   const { announcements, loading: loadingAnnouncements } = useAnnouncements();
+  
+  // Debug logging
+  console.log('VPEDashboard - Announcements:', announcements?.length || 0, 'announcements loaded');
+  console.log('VPEDashboard - Loading announcements:', loadingAnnouncements);
+  console.log('VPEDashboard - Announcements data:', announcements);
+  
   const [showNotificationCenter, setShowNotificationCenter] = useState(false);
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -185,13 +191,15 @@ export default function VPEDashboard() {
             <TouchableOpacity 
               onPress={() => {
                 try {
+                  console.log('[VPEDashboard] Notification button pressed');
                   setShowNotificationCenter(true);
                 } catch (error) {
-                  console.error('Error opening notification center:', error);
+                  console.error('[VPEDashboard] Error opening notification center:', error);
                   Alert.alert('Notifications', 'Unable to open notifications. Please try again.');
                 }
               }}
               style={{ marginRight: 12, position: 'relative' }}
+              activeOpacity={0.7}
             >
               <Icon name="bell" size={24} color="#00418b" />
               {unreadCount > 0 && (
@@ -255,7 +263,14 @@ export default function VPEDashboard() {
         showsVerticalScrollIndicator={false}
       >
         {/* Announcements Preview Section */}
-        {announcements && announcements.length > 0 && (
+        {loadingAnnouncements ? (
+          <View style={{ marginBottom: 20, marginHorizontal: 20, padding: 16, backgroundColor: '#f8f9fa', borderRadius: 12 }}>
+            <ActivityIndicator size="small" color="#00418b" />
+            <Text style={{ fontSize: 14, color: '#666', marginTop: 8, textAlign: 'center', fontFamily: 'Poppins-Regular' }}>
+              Loading announcements...
+            </Text>
+          </View>
+        ) : announcements && announcements.length > 0 ? (
           <View style={{ marginBottom: 20, marginHorizontal: 20 }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
               <Text style={{ fontSize: 18, fontWeight: 'bold', fontFamily: 'Poppins-Bold', color: '#333' }}>Announcements</Text>
@@ -338,7 +353,7 @@ export default function VPEDashboard() {
               )}
             </View>
           </View>
-        )}
+        ) : null}
 
         {/* Debug: Show announcement count */}
         {__DEV__ && (

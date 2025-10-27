@@ -22,6 +22,9 @@ export default function StudentDashboard() {
   // Debug logging
   console.log('StudentDashboard - User loading:', userLoading);
   console.log('StudentDashboard - User data:', user ? { id: user._id, name: user.firstname, role: user.role } : 'No user');
+  console.log('StudentDashboard - Announcements:', announcements?.length || 0, 'announcements loaded');
+  console.log('StudentDashboard - Loading announcements:', loadingAnnouncements);
+  console.log('StudentDashboard - Announcements data:', announcements);
   const [showNotificationCenter, setShowNotificationCenter] = useState(false);
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
   const [classes, setClasses] = useState([]);
@@ -307,13 +310,17 @@ export default function StudentDashboard() {
             <TouchableOpacity 
               onPress={() => {
                 try {
+                  console.log('[StudentDashboard] Notification button pressed');
+                  console.log('[StudentDashboard] Current showNotificationCenter state:', showNotificationCenter);
                   setShowNotificationCenter(true);
+                  console.log('[StudentDashboard] Set showNotificationCenter to true');
                 } catch (error) {
-                  console.error('Error opening notification center:', error);
+                  console.error('[StudentDashboard] Error opening notification center:', error);
                   Alert.alert('Notifications', 'Unable to open notifications. Please try again.');
                 }
               }}
               style={{ marginRight: 12, position: 'relative' }}
+              activeOpacity={0.7}
             >
               <Icon name="bell" size={24} color="#00418b" />
               {unreadCount > 0 && (
@@ -379,7 +386,14 @@ export default function StudentDashboard() {
         )}
 
         {/* Announcements Preview Section */}
-        {announcements && announcements.length > 0 && (
+        {loadingAnnouncements ? (
+          <View style={{ marginBottom: 15, padding: 16, backgroundColor: '#f8f9fa', borderRadius: 12 }}>
+            <ActivityIndicator size="small" color="#00418b" />
+            <Text style={{ fontSize: 14, color: '#666', marginTop: 8, textAlign: 'center', fontFamily: 'Poppins-Regular' }}>
+              Loading announcements...
+            </Text>
+          </View>
+        ) : announcements && announcements.length > 0 ? (
           <View style={{ marginBottom: 15 }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
               <Text style={{ fontSize: 16, fontWeight: 'bold', fontFamily: 'Poppins-Bold', color: '#333' }}>Announcements</Text>
@@ -462,6 +476,9 @@ export default function StudentDashboard() {
               )}
             </View>
           </View>
+        ) : (
+          // Empty state when no announcements
+          null
         )}
 
         {/* Debug: Show announcement count
