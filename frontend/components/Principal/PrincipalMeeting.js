@@ -81,8 +81,19 @@ export default function PrincipalMeeting() {
 
   useEffect(() => {
     fetchAllMeetings();
-    fetchAllUsers();
+    // Defer user fetching until needed (when user tries to create a meeting)
   }, []);
+  
+  // Fetch users lazily when needed (when component mounts and users list is empty)
+  useEffect(() => {
+    if (user && user._id && allUsers.length === 0) {
+      // Small delay to let meetings load first
+      const timer = setTimeout(() => {
+        fetchAllUsers();
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [user]);
 
   const fetchAllMeetings = async () => {
     if (!user || !user._id) {
@@ -94,12 +105,15 @@ export default function PrincipalMeeting() {
     try {
       const token = await AsyncStorage.getItem('jwtToken');
       
-      // Get academic year and term
-      const academicResponse = await fetch('https://juanlms-webapp-server.onrender.com/api/academic-year/active', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      // Fetch academic year and meetings in parallel
+      const [academicResponse, meetingsResponse] = await Promise.all([
+        fetch('https://juanlms-webapp-server.onrender.com/api/academic-year/active', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }),
+        fetch('https://juanlms-webapp-server.onrender.com/api/meetings/direct-invite', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+      ]);
 
       let activeYear = '2025-2026';
       let activeTerm = 'Term 1';
@@ -114,15 +128,8 @@ export default function PrincipalMeeting() {
       
       setAcademicContext(`${activeYear} | ${activeTerm}`);
 
-      // Fetch direct-invite meetings for Principal
-      const response = await fetch('https://juanlms-webapp-server.onrender.com/api/meetings/direct-invite', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
+      if (meetingsResponse.ok) {
+        const data = await meetingsResponse.json();
         setMeetings(Array.isArray(data) ? data : []);
       }
     } catch (error) {

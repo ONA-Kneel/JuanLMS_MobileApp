@@ -976,36 +976,31 @@ export default function StudentActs() {
       // Get all class IDs for this student
       const studentClassIDs = studentClasses.map(cls => cls.classID);
 
-      // Fetch assignments per class (like StudentClasses.js does successfully)
-      const allAssignments = [];
-      for (const studentClass of studentClasses) {
-        const assignmentRes = await fetch(`${API_BASE}/assignments?classID=${encodeURIComponent(studentClass.classID)}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (assignmentRes.ok) {
-          const assignmentData = await assignmentRes.json();
-          console.log(`Assignments for class ${studentClass.classID}:`, assignmentData.length);
-          if (assignmentData.length > 0) {
-            console.log('First assignment:', assignmentData[0]);
-            console.log('First assignment ID:', assignmentData[0]._id);
-            console.log('First assignment ID type:', typeof assignmentData[0]._id);
-            console.log('First assignment ID length:', assignmentData[0]._id?.length);
-          }
-          allAssignments.push(...(Array.isArray(assignmentData) ? assignmentData : []));
-        }
-      }
+      // Fetch assignments and quizzes in parallel for all classes at once
+      const fetchPromises = studentClasses.map(async (studentClass) => {
+        const [assignmentRes, quizRes] = await Promise.all([
+          fetch(`${API_BASE}/assignments?classID=${encodeURIComponent(studentClass.classID)}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          }),
+          fetch(`${API_BASE}/api/quizzes?classID=${encodeURIComponent(studentClass.classID)}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          })
+        ]);
+        
+        const assignments = assignmentRes.ok ? await assignmentRes.json() : [];
+        const quizzes = quizRes.ok ? await quizRes.json() : [];
+        
+        return {
+          assignments: Array.isArray(assignments) ? assignments : [],
+          quizzes: Array.isArray(quizzes) ? quizzes : []
+        };
+      });
       
-      // Fetch quizzes per class
-      const allQuizzes = [];
-      for (const studentClass of studentClasses) {
-        const quizRes = await fetch(`${API_BASE}/api/quizzes?classID=${encodeURIComponent(studentClass.classID)}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (quizRes.ok) {
-          const quizData = await quizRes.json();
-          allQuizzes.push(...(Array.isArray(quizData) ? quizData : []));
-        }
-      }
+      const results = await Promise.all(fetchPromises);
+      const allAssignments = results.flatMap(r => r.assignments);
+      const allQuizzes = results.flatMap(r => r.quizzes);
+      
+      console.log(`Fetched ${allAssignments.length} assignments and ${allQuizzes.length} quizzes from ${studentClasses.length} classes`);
       
       // Since we're fetching per class, we already have the right assignments
        // No need for complex filtering - just use what we fetched

@@ -85,10 +85,17 @@ export default function StudentMeeting() {
   useEffect(() => {
     if (user && user._id) {
       fetchClasses();
-      fetchAllUsers();
+      // Only fetch hosted meetings on load, users can be fetched when needed
       fetchHostedMeetings();
     }
   }, [user]);
+  
+  // Fetch users only when switching to host meeting tab
+  useEffect(() => {
+    if (activeTab === 'host-meeting' && allUsers.length === 0) {
+      fetchAllUsers();
+    }
+  }, [activeTab]);
 
   // Refresh hosted meetings when switching to host-meeting tab
   useEffect(() => {
@@ -118,12 +125,15 @@ export default function StudentMeeting() {
     try {
       const token = await AsyncStorage.getItem('jwtToken');
       
-      // Get academic year and term
-      const academicResponse = await fetch('https://juanlms-webapp-server.onrender.com/api/academic-year/active', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      // Fetch academic year and classes in parallel
+      const [academicResponse, classesResponse] = await Promise.all([
+        fetch('https://juanlms-webapp-server.onrender.com/api/academic-year/active', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }),
+        fetch('https://juanlms-webapp-server.onrender.com/classes/my-classes', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        })
+      ]);
 
       let activeYear = '2025-2026';
       let activeTerm = 'Term 1';
@@ -133,39 +143,13 @@ export default function StudentMeeting() {
         if (academicData.success && academicData.academicYear) {
           activeYear = academicData.academicYear.year;
           activeTerm = academicData.academicYear.currentTerm;
-        } else {
-          try {
-            const yearRes = await fetch('https://juanlms-webapp-server.onrender.com/api/schoolyears/active', {
-              headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (yearRes.ok) {
-              const year = await yearRes.json();
-              const schoolYearName = `${year.schoolYearStart}-${year.schoolYearEnd}`;
-              activeYear = schoolYearName;
-              const termsRes = await fetch(`https://juanlms-webapp-server.onrender.com/api/terms/schoolyear/${schoolYearName}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-              });
-              if (termsRes.ok) {
-                const terms = await termsRes.json();
-                const active = Array.isArray(terms) ? terms.find(t => t.status === 'active') : null;
-                if (active) activeTerm = active.termName;
-              }
-            }
-          } catch (_) {}
         }
       }
       
       setAcademicContext(`${activeYear} | ${activeTerm}`);
 
-      // Fetch student classes
-      const response = await fetch('https://juanlms-webapp-server.onrender.com/classes/my-classes', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
+      if (classesResponse.ok) {
+        const data = await classesResponse.json();
         let allClasses = [];
         if (Array.isArray(data)) {
           allClasses = data;
@@ -184,7 +168,14 @@ export default function StudentMeeting() {
         setClasses(activeClasses);
         if (activeClasses.length > 0) {
           setSelectedClass(activeClasses[0]);
+          // Fetch meetings for first class immediately, then fetch for others in parallel
           fetchMeetings(activeClasses[0]._id);
+          // Optionally pre-fetch meetings for other classes in background
+          if (activeClasses.length > 1) {
+            Promise.all(activeClasses.slice(1).map(cls => fetchMeetings(cls._id))).catch(err => 
+              console.log('Background meeting fetch error:', err)
+            );
+          }
         }
       }
     } catch (error) {
@@ -217,6 +208,7 @@ export default function StudentMeeting() {
   const fetchAllUsers = async () => {
     try {
       const token = await AsyncStorage.getItem('jwtToken');
+      // Only fetch users when needed (host meeting tab), not on initial load
       const response = await fetch('https://juanlms-webapp-server.onrender.com/users/all', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
