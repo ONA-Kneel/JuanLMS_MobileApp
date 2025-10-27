@@ -51,6 +51,7 @@ export const apiRequest = async (method, endpoint, data = null, customHeaders = 
 
   try {
     let response = await makeFetch(url);
+    let finalUrl = url;
 
     // If 404 and caller used /api prefix, retry without it for compatibility
     if (response.status === 404 && endpoint.startsWith('/api/')) {
@@ -58,6 +59,7 @@ export const apiRequest = async (method, endpoint, data = null, customHeaders = 
       const fallbackUrl = `${getApiBaseUrl()}${fallbackEndpoint}`;
       console.warn(`API ${method} ${url} returned 404. Retrying as ${fallbackUrl}`);
       response = await makeFetch(fallbackUrl);
+      finalUrl = fallbackUrl;
     }
 
     if (!response.ok) {
@@ -71,10 +73,10 @@ export const apiRequest = async (method, endpoint, data = null, customHeaders = 
       // @ts-ignore attach context
       error.status = response.status;
       // @ts-ignore
-      error.urlTried = url;
+      error.urlTried = finalUrl;
       // @ts-ignore
       error.responseBody = errorBody;
-      console.error(`API ${method} ${url} failed with ${response.status}`, errorBody || '');
+      console.error(`API ${method} ${finalUrl} failed with ${response.status}`, errorBody || '');
       throw error;
     }
 
