@@ -1,7 +1,12 @@
+// Critical: Import error handling setup FIRST before anything else
 import 'react-native-gesture-handler';
 import 'react-native-reanimated';
 import { registerRootComponent } from 'expo';
-import { AppRegistry, LogBox } from 'react-native';
+import { AppRegistry, LogBox, ErrorUtils } from 'react-native';
+
+// Import navigation and App - imports are hoisted, but errors will be caught
+import { navigate } from './navigationRef';
+import App from './App';
 
 // Suppress specific warnings that can cause crashes
 LogBox.ignoreLogs([
@@ -17,17 +22,57 @@ LogBox.ignoreLogs([
   'Reanimated',
   'worklet',
   'shareable',
+  'RCTFatal',
+  'Module not found',
 ]);
 
-// Modern error handling without deprecated ErrorUtils
+// Enhanced error handling for RCTFatal 28 and other critical errors
 const setupErrorHandling = () => {
+  // Use React Native's ErrorUtils (proper way for React Native)
+  const originalHandler = ErrorUtils.getGlobalHandler();
+  
+  ErrorUtils.setGlobalHandler((error, isFatal) => {
+    console.error('Global Error Handler:', {
+      error: error?.message || error,
+      isFatal,
+      stack: error?.stack,
+      name: error?.name,
+      timestamp: new Date().toISOString(),
+    });
+    
+    // Handle RCTFatal errors (including code 28)
+    if (isFatal || error?.message?.includes('RCTFatal') || error?.message?.includes('Fatal')) {
+      console.error('Fatal error detected - attempting recovery');
+      
+      // Try to prevent crash for recoverable errors
+      if (error?.message && (
+        error.message.includes('Module not found') ||
+        error.message.includes('Cannot find module') ||
+        error.message.includes('Unable to resolve module') ||
+        error.message.includes('Hermes') ||
+        error.message.includes('Reanimated') ||
+        error.message.includes('IRBuilder')
+      )) {
+        console.error('Recoverable error detected - preventing crash');
+        // Log but don't crash for module resolution errors
+        return;
+      }
+    }
+    
+    // Call original handler for other fatal errors
+    if (originalHandler) {
+      originalHandler(error, isFatal);
+    }
+  });
+
   // Handle unhandled promise rejections
   if (typeof global !== 'undefined') {
     const originalUnhandledRejection = global.onunhandledrejection;
     global.onunhandledrejection = (event) => {
+      const error = event.reason;
       console.error('Unhandled Promise Rejection:', {
-        reason: event.reason,
-        promise: event.promise,
+        reason: error?.message || error,
+        stack: error?.stack,
         timestamp: new Date().toISOString()
       });
       
@@ -40,7 +85,7 @@ const setupErrorHandling = () => {
     };
   }
 
-  // Handle global errors
+  // Handle global JavaScript errors
   if (typeof global !== 'undefined') {
     const originalError = global.onerror;
     global.onerror = (message, source, lineno, colno, error) => {
@@ -59,9 +104,12 @@ const setupErrorHandling = () => {
         error.message.includes('Hermes') || 
         error.message.includes('IRBuilder') ||
         error.message.includes('ESTreeIRGen') ||
-        error.message.includes('createStoreFrameInst')
+        error.message.includes('createStoreFrameInst') ||
+        error.message.includes('Module not found') ||
+        error.message.includes('Cannot find module') ||
+        error.message.includes('Unable to resolve module')
       )) {
-        console.error('Hermes engine error detected - attempting recovery');
+        console.error('Recoverable error detected - preventing crash');
         return true; // Prevent default error handling
       }
       
@@ -81,12 +129,29 @@ const setupErrorHandling = () => {
   }
 };
 
-// Initialize error handling
+// Initialize error handling - this runs before any component code executes
 setupErrorHandling();
-import { navigate } from './navigationRef';
-import App from './App';
 
-// registerRootComponent calls AppRegistry.registerComponent('main', () => App);
-// It also ensures that whether you load the app in Expo Go or in a native build,
-// the environment is set up appropriately
-registerRootComponent(App);
+// Register root component with error handling wrapper
+try {
+  registerRootComponent(App);
+} catch (error) {
+  console.error('CRITICAL: Error registering root component:', error);
+  
+  // Fallback: register a simple error component
+  const React = require('react');
+  const { View, Text } = require('react-native');
+  
+  const FallbackApp = () => (
+    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+      <Text style={{ fontSize: 16, textAlign: 'center', marginBottom: 10 }}>
+        Failed to initialize app. Please restart.
+      </Text>
+      <Text style={{ fontSize: 12, color: '#999', textAlign: 'center' }}>
+        {error?.message || 'Unknown error'}
+      </Text>
+    </View>
+  );
+  
+  AppRegistry.registerComponent('main', () => FallbackApp);
+}

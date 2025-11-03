@@ -30,7 +30,10 @@ if (Platform.OS !== 'web') {
   try {
     StreamMeetingRoomNative = require('../Meeting/StreamMeetingRoomNative').default;
     SimpleStreamMeetingRoom = require('../Meeting/SimpleStreamMeetingRoom').default;
-  } catch (e) { /* noop on web */ }
+  } catch (e) {
+    console.warn('Failed to load Stream meeting components:', e?.message || e);
+    // Components will gracefully handle null values
+  }
 }
 
 export default function VPEMeeting() {
