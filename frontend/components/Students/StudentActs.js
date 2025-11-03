@@ -20,7 +20,7 @@ import { useNotifications } from '../../NotificationContext';
 import NotificationCenter from '../NotificationCenter';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useTimer } from '../../TimerContext';
-import * as DocumentPicker from 'expo-document-picker';
+import { pickDocumentAsync, isDocumentPickerAvailable } from '../../services/safeDocumentPicker';
 import StudentActsStyle from '../styles/Stud/StudentActsStyle';
 import classSocketService from '../../services/classSocketService';
 
@@ -1410,7 +1410,7 @@ export default function StudentActs() {
         throw new Error('DocumentPicker not available on this device');
       }
       
-      const result = await DocumentPicker.getDocumentAsync({
+      const result = await pickDocumentAsync({
         type: '*/*',
         copyToCacheDirectory: true,
       });

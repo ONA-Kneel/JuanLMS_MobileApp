@@ -24,7 +24,7 @@ import NotificationCenter from './NotificationCenter';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import AdminChatStyle from './styles/administrator/AdminChatStyle';
 import StudentDashboardStyle from './styles/Stud/StudentDashStyle';
-import * as DocumentPicker from 'expo-document-picker';
+import { pickDocumentAsync } from '../services/safeDocumentPicker';
 import * as FileSystem from 'expo-file-system';
 import { getAuthHeaders, handleApiError } from '../utils/apiUtils';
 
@@ -2816,7 +2816,7 @@ export default function UnifiedChat() {
       }}>
         <TouchableOpacity onPress={async () => {
           try {
-            const result = await DocumentPicker.getDocumentAsync({ copyToCacheDirectory: true, multiple: true });
+            const result = await pickDocumentAsync({ copyToCacheDirectory: true, multiple: true });
             if (!result.canceled && result.assets) {
               const files = result.assets;
               if (files.length === 1) {

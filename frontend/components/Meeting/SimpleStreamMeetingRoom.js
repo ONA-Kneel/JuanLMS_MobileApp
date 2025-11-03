@@ -689,8 +689,8 @@ export default function SimpleStreamMeetingRoom({
         input.click();
       } else {
         // For mobile, use document picker
-        const { DocumentPicker } = require('expo-document-picker');
-        const result = await DocumentPicker.getDocumentAsync({
+        const { pickDocumentAsync } = require('../../services/safeDocumentPicker');
+        const result = await pickDocumentAsync({
           type: ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.presentationml.presentation', 'image/jpeg', 'image/png'],
         });
         

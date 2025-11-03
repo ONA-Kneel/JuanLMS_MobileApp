@@ -7,7 +7,6 @@ import axios from 'axios';
 import AdminChatStyle from './styles/administrator/AdminChatStyle';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getAuthHeaders, handleApiError } from '../utils/apiUtils';
-import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 
 const API_URL = 'https://juanlms-webapp-server.onrender.com';

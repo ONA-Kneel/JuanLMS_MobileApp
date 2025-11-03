@@ -15,7 +15,7 @@ import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useUser } from '../../UserContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as DocumentPicker from 'expo-document-picker';
+import { pickDocumentAsync } from '../../services/safeDocumentPicker';
 
 const API_BASE = 'https://juanlms-webapp-server.onrender.com';
 const { width } = Dimensions.get('window');
@@ -124,7 +124,7 @@ export default function AssignmentDetail() {
 
   const pickDocument = async () => {
     try {
-      const result = await DocumentPicker.getDocumentAsync({
+      const result = await pickDocumentAsync({
         type: '*/*',
         copyToCacheDirectory: true,
       });

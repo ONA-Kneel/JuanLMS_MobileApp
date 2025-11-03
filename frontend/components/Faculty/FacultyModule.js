@@ -6,7 +6,7 @@ import FacultyModuleStyle from '../styles/faculty/FacultyModuleStyle';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
 import { useUser } from '../../UserContext';
-import * as DocumentPicker from 'expo-document-picker';
+import { pickDocumentAsync } from '../../services/safeDocumentPicker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { formatDate } from '../../utils/dateUtils';
 import { getAuthHeaders, handleApiError } from '../../utils/apiUtils';
@@ -868,7 +868,7 @@ export default function FacultyModule() {
     async function handleMobileFilePick(setFiles) {
         try {
             const token = await AsyncStorage.getItem('jwtToken');
-            const result = await DocumentPicker.getDocumentAsync({ multiple: true, copyToCacheDirectory: true });
+            const result = await pickDocumentAsync({ multiple: true, copyToCacheDirectory: true });
             if (!result.canceled) {
                 // result.assets is an array of picked files
                 setFiles(files => [...files, ...result.assets]);
