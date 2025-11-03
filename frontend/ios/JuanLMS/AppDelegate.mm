@@ -35,52 +35,52 @@
 {
 #if DEBUG
   @try {
-    // Try to get bundle URL from Metro bundler
+    // Prefer Metro's provider first (works when packager running and device can reach it)
     RCTBundleURLProvider *settings = [RCTBundleURLProvider sharedSettings];
     NSURL *url = [settings jsBundleURLForBundleRoot:@".expo/.virtual-metro-entry"];
-    
     if (url) {
       NSLog(@"✅ Metro bundle URL resolved: %@", url);
       return url;
     }
-    
-    // Metro bundler not available - try alternative methods
-    NSLog(@"⚠️ Metro bundler not available, trying fallback methods...");
-    
-    // Try localhost fallback with default Metro port
-    NSString *ipAddress = @"localhost";
-    NSString *port = @"8081"; // Default Metro port
-    
-    // Check for custom port in environment
-    NSDictionary *env = [[NSProcessInfo processInfo] environment];
-    NSString *customPort = env[@"RCT_METRO_PORT"];
-    if (!customPort) {
-      customPort = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"RCT_METRO_PORT"];
+
+    // If Metro didn't provide a URL, construct one depending on simulator/device
+    NSLog(@"⚠️ Metro not detected, constructing bundle URL manually...");
+
+    // Default values
+    NSString *host = @"localhost"; // good for Simulator
+    NSString *port = @"8081";     // default Metro port
+
+    // Allow overriding via Info.plist keys (RN_DEV_SERVER, RCT_METRO_PORT)
+    NSString *plistHost = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"RN_DEV_SERVER"];
+    NSString *plistPort = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"RCT_METRO_PORT"];
+
+    // If running on device (not simulator) and plistHost is defined, use it
+    #if !(TARGET_IPHONE_SIMULATOR)
+      if (plistHost && plistHost.length > 0) {
+        host = plistHost; // e.g., 192.168.1.10
+      }
+    #endif
+
+    if (plistPort && plistPort.length > 0) {
+      port = plistPort;
     }
-    if (customPort && customPort.length > 0) {
-      port = customPort;
-      NSLog(@"📡 Using custom Metro port: %@", port);
-    }
-    
-    // Construct bundle URL manually
+
     NSString *bundlePath = @".expo/.virtual-metro-entry.bundle?platform=ios&dev=true";
-    NSString *urlString = [NSString stringWithFormat:@"http://%@:%@/%@", ipAddress, port, bundlePath];
+    NSString *urlString = [NSString stringWithFormat:@"http://%@:%@/%@", host, port, bundlePath];
     url = [NSURL URLWithString:urlString];
-    
-    if (url) {
-      NSLog(@"✅ Using localhost bundle URL: %@", urlString);
-      return url;
+    NSLog(@"📡 Using constructed bundle URL: %@", urlString);
+
+    // Final fallback: bundled jsbundle
+    if (!url) {
+      NSLog(@"⚠️ Constructed URL invalid, trying bundled jsbundle...");
+      url = [[NSBundle mainBundle] URLForResource:@"main" withExtension:@"jsbundle"];
+      if (url) {
+        NSLog(@"✅ Using bundled jsbundle as fallback");
+      } else {
+        NSLog(@"❌ No bundled jsbundle available");
+      }
     }
-    
-    // Final fallback: try bundled jsbundle even in DEBUG mode
-    NSLog(@"⚠️ Trying bundled jsbundle as final fallback...");
-    url = [[NSBundle mainBundle] URLForResource:@"main" withExtension:@"jsbundle"];
-    if (url) {
-      NSLog(@"✅ Using bundled jsbundle as fallback");
-    } else {
-      NSLog(@"❌ No bundled jsbundle available");
-    }
-    
+
     return url;
   } @catch (NSException *exception) {
     NSLog(@"❌ Exception getting bundle URL: %@", exception);

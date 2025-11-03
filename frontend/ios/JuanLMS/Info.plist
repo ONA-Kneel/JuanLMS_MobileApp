@@ -61,6 +61,11 @@
         </dict>
       </dict>
     </dict>
+    <!-- Development server configuration for real device -->
+    <key>RN_DEV_SERVER</key>
+    <string>10.197.71.18</string>
+    <key>RCT_METRO_PORT</key>
+    <string>8081</string>
     <key>NSCameraUsageDescription</key>
     <string>The app accesses your camera to let you take profile pictures.</string>
     <key>NSLocationWhenInUseUsageDescription</key>
